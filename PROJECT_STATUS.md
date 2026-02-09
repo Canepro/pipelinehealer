@@ -94,7 +94,7 @@
 ### Before Hackathon Starts (Feb 10)
 - [x] Create GitHub repository (public) — https://github.com/Canepro/pipelinehealer
 - [x] Push code to GitHub — 63 files, initial commit Feb 9
-- [ ] Prepare Azure subscription or wait for hackathon credits
+- [x] Prepare Azure subscription or wait for hackathon credits — no credits provided, using personal subscription
 
 ### Week 1 (Feb 10-16) — Deploy & Demo
 - [ ] Create demo repo workflow with 3+ failure modes (dependency, lint, test)
