@@ -1,0 +1,17 @@
+{
+  "name": "pipelinehealer-demo",
+  "version": "1.0.0",
+  "description": "Demo repository for PipelineHealer testing",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'Building...' && exit 0",
+    "test": "node test.js",
+    "lint": "echo 'Linting...' && exit 0"
+  },
+  "keywords": ["demo", "pipelinehealer"],
+  "author": "PipelineHealer Team",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^9.0.0"
+  }
+}

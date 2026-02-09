@@ -1,0 +1,37 @@
+# Azure Developer CLI (azd) configuration
+name: pipelinehealer
+metadata:
+  template: pipelinehealer@0.1.0
+
+services:
+  backend:
+    project: ./backend
+    language: python
+    host: containerapp
+
+  frontend:
+    project: ./frontend
+    language: ts
+    host: containerapp
+
+  functions:
+    project: ./backend
+    language: python
+    host: function
+
+infra:
+  provider: bicep
+  path: ./infra
+
+hooks:
+  preprovision:
+    shell: sh
+    run: |
+      echo "Preparing to provision Azure resources..."
+  
+  postprovision:
+    shell: sh
+    run: |
+      echo "Azure resources provisioned successfully!"
+      echo "Function App URL: ${AZURE_FUNCTION_APP_URL}"
+      echo "Dashboard URL: ${AZURE_DASHBOARD_URL}"
