@@ -92,8 +92,8 @@
 ## What's Left To Do (Priority Order)
 
 ### Before Hackathon Starts (Feb 10)
-- [ ] Create GitHub repository (public)
-- [ ] Push code to GitHub
+- [x] Create GitHub repository (public) — https://github.com/Canepro/pipelinehealer
+- [x] Push code to GitHub — 63 files, initial commit Feb 9
 - [ ] Prepare Azure subscription or wait for hackathon credits
 
 ### Week 1 (Feb 10-16) — Deploy & Demo
