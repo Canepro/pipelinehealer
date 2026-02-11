@@ -58,3 +58,28 @@ Next safe expansions:
 - Patch suggestion: propose a structured patch plan (`json_update`, `yaml_update`, etc.), not raw diffs.
 - Validation: after generating a patch plan, run consistency checks (schema, “does this key exist?”) before creating PRs.
 
+## 7) Model Selection And Cost Control
+
+PipelineHealer does not require a "frontier" model for most of its work today:
+
+- Pattern matching and remediation execution are deterministic.
+- LLM usage is mostly summarization, classification fallback, and writing PR/issue narratives.
+
+Recommended approach:
+
+- Keep the code provider-aligned (Azure OpenAI via `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_DEPLOYMENT_NAME`).
+- Use a cheaper deployment for local dev and routine runs (for example a mini model), and reserve a larger model only when needed.
+
+Future enhancements:
+
+- Per-task model routing:
+  - Log summarization uses a low-cost model.
+  - Diagnosis fallback uses a stronger model only when confidence is low.
+  - Remediation narrative uses low-cost by default.
+- First-class config for multiple deployments:
+  - `AZURE_OPENAI_DEPLOYMENT_NAME_SUMMARY`
+  - `AZURE_OPENAI_DEPLOYMENT_NAME_DIAGNOSIS`
+  - `AZURE_OPENAI_DEPLOYMENT_NAME_REMEDIATION`
+- Provider abstraction:
+  - Keep Azure OpenAI as the default provider for hackathon alignment.
+  - Optionally support OpenAI direct API as a secondary provider behind the same agent interfaces.
