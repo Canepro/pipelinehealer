@@ -200,6 +200,23 @@ azd up
 | `COSMOS_DB_ENDPOINT` | Cosmos DB endpoint | Yes |
 | `GITHUB_WEBHOOK_SECRET` | Webhook signature secret | Yes (prod) |
 | `GITHUB_PERSONAL_ACCESS_TOKEN` | GitHub PAT for API access | Yes |
+| `API_AUTH_KEY` | Required `X-API-Key` value for `/api/*` in non-development envs | Yes (non-dev) |
+| `VERIFY_WEBHOOK_SIGNATURE` | Enable webhook signature verification | Recommended `true` |
+| `VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT` | Enforce signature checks in development too | Optional |
+| `CORS_ALLOWED_ORIGINS` | Exact CORS origins (CSV or JSON array) | Optional |
+| `CORS_ALLOW_ORIGIN_REGEX` | Regex for dynamic hosts (for example Azure Container Apps) | Optional |
+
+### API Security
+
+- `/api/*` endpoints require `X-API-Key` when `ENVIRONMENT` is not `development`.
+- In `development`, API key auth is bypassed for local iteration.
+- In `production`, keep `VERIFY_WEBHOOK_SIGNATURE=true` and set `GITHUB_WEBHOOK_SECRET`.
+
+Example:
+
+```bash
+curl -H "X-API-Key: $API_AUTH_KEY" "http://127.0.0.1:8000/api/activities?limit=20"
+```
 
 ### GitHub Webhook Setup
 
@@ -207,6 +224,7 @@ azd up
 2. Set the webhook URL to `https://your-app.azurecontainerapps.io/webhook/github`
 3. Select the `workflow_run` event
 4. Set the webhook secret (match `GITHUB_WEBHOOK_SECRET`)
+5. Keep `VERIFY_WEBHOOK_SIGNATURE=true` in non-development environments
 
 ## Project Structure
 

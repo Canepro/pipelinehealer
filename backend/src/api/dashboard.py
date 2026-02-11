@@ -1,10 +1,10 @@
 """Dashboard API endpoints for PipelineHealer."""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..models import (
     ActivityRecord,
@@ -14,9 +14,15 @@ from ..models import (
 )
 from ..storage import ActivityStorage
 from ..workflows.pipeline_healer import PipelineHealerWorkflow
+from .security import require_api_key
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api", tags=["dashboard"])
+router = APIRouter(prefix="/api", tags=["dashboard"], dependencies=[Depends(require_api_key)])
+
+
+def _utcnow() -> datetime:
+    """Return a timezone-aware UTC datetime."""
+    return datetime.now(UTC)
 
 # Storage instance (will be properly initialized)
 _storage: ActivityStorage | None = None
@@ -127,7 +133,7 @@ async def get_timeline(
     storage = get_storage()
 
     try:
-        since = datetime.utcnow() - timedelta(days=days)
+        since = _utcnow() - timedelta(days=days)
         timeline = await storage.get_timeline(since=since)
         return timeline
     except Exception as e:
@@ -143,7 +149,7 @@ async def get_failure_breakdown(
     storage = get_storage()
 
     try:
-        since = datetime.utcnow() - timedelta(days=days)
+        since = _utcnow() - timedelta(days=days)
         breakdown = await storage.get_failure_breakdown(since=since)
         return breakdown
     except Exception as e:
@@ -179,7 +185,7 @@ async def retry_activity(activity_id: str) -> dict[str, Any]:
 
         activity.status = RemediationStatus.PENDING
         activity.error = None
-        activity.updated_at = datetime.utcnow()
+        activity.updated_at = _utcnow()
         await storage.update_activity(activity)
 
         return {

@@ -67,7 +67,7 @@ This section is the working checklist for getting PipelineHealer demo-ready and 
 | 0 | Hygiene baseline (lint/typecheck/tests) | Completed | `backend/pyproject.toml`, `backend/src/*` |
 | 1 | Correctness (IDs, auto-fix PRs, retry behavior) | In progress (E2E issue flow verified) | `backend/src/workflows/pipeline_healer.py`, `backend/src/agents/orchestrator.py`, `backend/src/tools/fix_generators.py`, `backend/src/agents/remediation.py`, `backend/src/api/dashboard.py` |
 | 1.5 | Safe+demo mode (more self-healing without breaking safety) | In progress | `backend/src/config.py`, `backend/src/tools/fix_generators.py`, `backend/src/agents/remediation.py`, `demo-repo/.github/workflows/ci.yml` |
-| 2 | Security (API auth, webhook hardening) | Not started | `backend/src/main.py`, `backend/src/api/*`, `backend/src/config.py` |
+| 2 | Security (API auth, webhook hardening) | In progress | `backend/src/main.py`, `backend/src/api/*`, `backend/src/config.py` |
 | 3 | Reliability (timeouts, retries/backoff, log handling) | Not started | `backend/src/tools/github_tools.py`, `backend/src/agents/*` |
 | 4 | Deployment alignment (azd/bicep/images/functions) | Not started | `azure.yaml`, `infra/main.bicep`, `backend/Dockerfile`, `frontend/Dockerfile` |
 | 5 | Demo + submission polish | Not started | `README.md`, `demo-repo/.github/workflows/ci.yml`, `PROJECT_STATUS.md` |
@@ -170,9 +170,9 @@ Exit criteria:
 
 Work items:
 
-- [ ] Add `X-API-Key` (or bearer token) auth for `/api/*` endpoints.
-- [ ] Decide and document webhook signature verification behavior for `development` vs `production`.
-- [ ] Fix CORS configuration for deployed origins (wildcard strings in `allow_origins` won’t match; prefer `allow_origin_regex` or explicit origins).
+- [x] Add `X-API-Key` (or bearer token) auth for `/api/*` endpoints.
+- [x] Decide and document webhook signature verification behavior for `development` vs `production`.
+- [x] Fix CORS configuration for deployed origins (wildcard strings in `allow_origins` won’t match; prefer `allow_origin_regex` or explicit origins).
 
 ### Phase 3: Reliability (Demo Safety)
 
@@ -258,6 +258,9 @@ Decisions made (Recommended defaults for this repo):
 - Feb 10, 2026: Portfolio blog Series 1 updated: drafted Post 2 (multi-agent pipeline design) and updated roadmap in `/mnt/d/repos/portfolio_website-main/content/blog/blog.md`.
 - Feb 11, 2026: Containerized local backend flow verified with Podman using `--env-file backend/.env` (build/up/ps/health) and documented in runbook + README.
 - Feb 11, 2026: Fixed Agent Framework compatibility for Foundry/AIServices endpoints: if a client lacks `as_agent()` (seen in older containerized builds), fallback wraps it via `ChatAgent`, preventing `'AzureOpenAIChatClient' object has no attribute 'as_agent'` runtime failures.
+- Feb 11, 2026: Phase 2 started: `/api/*` now requires `X-API-Key` outside development, webhook signature verification policy is explicit (`VERIFY_WEBHOOK_SIGNATURE`, `VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT`), and CORS now uses env-driven `cors_allowed_origins` plus `allow_origin_regex` for deploy hosts.
+- Feb 11, 2026: Phase 2 validated locally (`ruff`, `mypy`, `pytest` all pass) and PR #1 review follow-up comment posted summarizing resolved suggestions and security updates.
+- Feb 11, 2026: Resolved current backend deprecation warnings by switching to timezone-aware UTC timestamps (`datetime.now(UTC)`), normalizing naive/aware datetime comparisons in storage, and migrating Pydantic model config to `ConfigDict`.
 
 ## Project Layout
 

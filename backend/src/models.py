@@ -1,10 +1,15 @@
 """Data models for PipelineHealer."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+def utcnow() -> datetime:
+    """Return a timezone-aware UTC datetime."""
+    return datetime.now(UTC)
 
 
 class FailureType(StrEnum):
@@ -164,13 +169,12 @@ class ActivityRecord(BaseModel):
     failure_type: FailureType | None = None
     diagnosis: Diagnosis | None = None
     remediation_result: RemediationResult | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
     duration_seconds: float | None = None
     error: str | None = None
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class DashboardStats(BaseModel):
@@ -183,4 +187,4 @@ class DashboardStats(BaseModel):
     by_failure_type: dict[str, int] = Field(default_factory=dict)
     by_repository: dict[str, int] = Field(default_factory=dict)
     average_resolution_time_seconds: float = 0.0
-    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    last_updated: datetime = Field(default_factory=utcnow)

@@ -64,8 +64,12 @@ async def handle_github_webhook(
     # Get raw body for signature verification
     body = await request.body()
 
-    # Verify signature in production
-    if settings.environment != "development":
+    should_verify_signature = settings.verify_webhook_signature and (
+        settings.environment != "development"
+        or settings.verify_webhook_signature_in_development
+    )
+
+    if should_verify_signature:
         if not settings.github_webhook_secret:
             logger.error("GitHub webhook secret not configured")
             raise HTTPException(
@@ -81,6 +85,9 @@ async def handle_github_webhook(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid signature",
             )
+    elif settings.environment != "development" and not settings.verify_webhook_signature:
+        # Explicitly log insecure non-dev mode to make the policy obvious.
+        logger.warning("Webhook signature verification is disabled in a non-development environment")
 
     # Parse JSON payload
     try:

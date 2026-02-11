@@ -137,6 +137,12 @@ List activities:
 curl -sS "http://127.0.0.1:8000/api/activities?limit=20"
 ```
 
+If you are not running in `ENVIRONMENT=development`, include `X-API-Key`:
+
+```bash
+curl -H "X-API-Key: $API_AUTH_KEY" -sS "http://127.0.0.1:8000/api/activities?limit=20"
+```
+
 You should see records with:
 
 - `failure_type` set
@@ -153,7 +159,7 @@ gh issue list -R <owner>/<repo> --state open
 ## 8) Repo Quality Gates (Backend)
 
 ```bash
-cd /mnt/d/repos/pipelinehealer/backend
+cd backend
 source .venv/bin/activate
 
 ruff check src
@@ -166,7 +172,7 @@ pytest
 Use this exact sequence:
 
 ```bash
-cd /mnt/d/repos/pipelinehealer
+cd <your-pipelinehealer-repo-root>
 podman compose --env-file backend/.env up -d backend
 curl -sS http://127.0.0.1:8000/health
 ```
@@ -174,14 +180,14 @@ curl -sS http://127.0.0.1:8000/health
 In a second terminal:
 
 ```bash
-cd /mnt/d/repos/pipelinehealer
+cd <your-pipelinehealer-repo-root>
 bunx smee-client --url https://smee.io/<your-channel> --target http://127.0.0.1:8000/webhook/github
 ```
 
 In a third terminal:
 
 ```bash
-cd /mnt/d/repos/pipelinehealer/demo-repo
+cd demo-repo
 gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=dependency
 gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=lint
 gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=test
@@ -208,8 +214,19 @@ Expected:
   - Cause: older Agent Framework builds in some container images expose chat clients without `as_agent()`.
   - Fix: pull latest `main` and rebuild backend image:
     ```bash
-    cd /mnt/d/repos/pipelinehealer
+    cd <your-pipelinehealer-repo-root>
     git pull --ff-only
     podman compose --env-file backend/.env build --no-cache backend
     podman compose --env-file backend/.env up -d backend
+    ```
+
+- Error: `Max remediation attempts reached for this repository`
+  - Cause: the safety guard blocks additional remediations after repeated failed attempts.
+  - Fix (local demo with in-memory storage): restart backend to clear in-memory activities.
+    ```bash
+    podman compose --env-file backend/.env restart backend
+    ```
+  - Or raise the limit in `backend/.env`:
+    ```bash
+    MAX_REMEDIATION_ATTEMPTS=10
     ```

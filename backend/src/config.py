@@ -1,8 +1,10 @@
 """Configuration management for PipelineHealer."""
 
+import json
 from functools import lru_cache
+from typing import Any
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -85,6 +87,33 @@ class Settings(BaseSettings):
         default=8000,
         description="API port to bind to",
     )
+    api_auth_key: str = Field(
+        default="",
+        description="API key required for /api/* routes in non-development environments (sent via X-API-Key)",
+    )
+
+    # CORS
+    cors_allowed_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://localhost:5173",
+        ],
+        description="Exact CORS allowed origins",
+    )
+    cors_allow_origin_regex: str = Field(
+        default=r"https://.*\.azurecontainerapps\.io",
+        description="Regex CORS allow-list for dynamic deploy hosts",
+    )
+
+    # Webhook verification policy
+    verify_webhook_signature: bool = Field(
+        default=True,
+        description="Require GitHub webhook signature verification",
+    )
+    verify_webhook_signature_in_development: bool = Field(
+        default=False,
+        description="Also require webhook signature verification in development",
+    )
 
     # Application Insights
     applicationinsights_connection_string: str = Field(
@@ -119,6 +148,19 @@ class Settings(BaseSettings):
         ],
         description="List of failure types the agent can handle",
     )
+
+    @field_validator("cors_allowed_origins", mode="before")
+    @classmethod
+    def parse_cors_allowed_origins(cls, value: Any) -> Any:
+        """Allow CORS origins from JSON arrays or comma-separated env values."""
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return []
+            if text.startswith("["):
+                return json.loads(text)
+            return [origin.strip() for origin in text.split(",") if origin.strip()]
+        return value
 
 
 @lru_cache

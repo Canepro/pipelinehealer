@@ -1,7 +1,7 @@
 """Storage layer for PipelineHealer using Azure Cosmos DB."""
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -17,6 +17,18 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _utcnow() -> datetime:
+    """Return a timezone-aware UTC datetime."""
+    return datetime.now(UTC)
+
+
+def _as_utc(value: datetime) -> datetime:
+    """Normalize naive/aware datetimes to UTC-aware values."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 class ActivityStorage:
@@ -91,8 +103,8 @@ class ActivityStorage:
         if not activity.id:
             activity.id = str(uuid4())
 
-        activity.created_at = datetime.utcnow()
-        activity.updated_at = datetime.utcnow()
+        activity.created_at = _utcnow()
+        activity.updated_at = _utcnow()
 
         item = activity.model_dump(by_alias=True, mode="json")
         item["id"] = activity.id
@@ -110,14 +122,14 @@ class ActivityStorage:
         """
         await self.initialize()
 
-        activity.updated_at = datetime.utcnow()
+        activity.updated_at = _utcnow()
 
         # Calculate duration if completed
         if (
             activity.status in (RemediationStatus.COMPLETED, RemediationStatus.FAILED)
             and activity.created_at
         ):
-            delta = activity.updated_at - activity.created_at
+            delta = _as_utc(activity.updated_at) - _as_utc(activity.created_at)
             activity.duration_seconds = delta.total_seconds()
 
         item = activity.model_dump(by_alias=True, mode="json")
@@ -194,7 +206,7 @@ class ActivityStorage:
 
         if since:
             conditions.append("c.created_at >= @since")
-            parameters.append({"name": "@since", "value": since.isoformat()})
+            parameters.append({"name": "@since", "value": _as_utc(since).isoformat()})
 
         where_clause = " AND ".join(conditions)
         query = f"""
@@ -284,7 +296,7 @@ class ActivityStorage:
             by_failure_type=failure_counts,
             by_repository=repo_counts,
             average_resolution_time_seconds=avg_duration,
-            last_updated=datetime.utcnow(),
+            last_updated=_utcnow(),
         )
 
     async def get_repositories(self) -> list[dict[str, Any]]:
@@ -331,7 +343,7 @@ class ActivityStorage:
             WHERE c.created_at >= @since
             GROUP BY SUBSTRING(c.created_at, 0, 10), c.status
         """
-        parameters: list[dict[str, object]] = [{"name": "@since", "value": since.isoformat()}]
+        parameters: list[dict[str, object]] = [{"name": "@since", "value": _as_utc(since).isoformat()}]
 
         timeline_data: dict[str, dict[str, int]] = {}
         async for item in self._activities_container_required().query_items(
@@ -348,7 +360,7 @@ class ActivityStorage:
 
         return {
             "data": timeline_data,
-            "since": since.isoformat(),
+            "since": _as_utc(since).isoformat(),
         }
 
     async def get_failure_breakdown(self, since: datetime) -> dict[str, int]:
@@ -368,7 +380,7 @@ class ActivityStorage:
             WHERE c.created_at >= @since AND c.failure_type != null
             GROUP BY c.failure_type
         """
-        parameters: list[dict[str, object]] = [{"name": "@since", "value": since.isoformat()}]
+        parameters: list[dict[str, object]] = [{"name": "@since", "value": _as_utc(since).isoformat()}]
 
         breakdown: dict[str, int] = {}
         async for item in self._activities_container_required().query_items(
@@ -403,8 +415,8 @@ class InMemoryStorage(ActivityStorage):
         if not activity.id:
             activity.id = str(uuid4())
 
-        activity.created_at = datetime.utcnow()
-        activity.updated_at = datetime.utcnow()
+        activity.created_at = _utcnow()
+        activity.updated_at = _utcnow()
 
         self._activities[activity.id] = activity
         logger.info(f"Created in-memory activity: {activity.id}")
@@ -413,13 +425,13 @@ class InMemoryStorage(ActivityStorage):
 
     async def update_activity(self, activity: ActivityRecord) -> None:
         """Update an existing activity record in memory."""
-        activity.updated_at = datetime.utcnow()
+        activity.updated_at = _utcnow()
 
         if (
             activity.status in (RemediationStatus.COMPLETED, RemediationStatus.FAILED)
             and activity.created_at
         ):
-            delta = activity.updated_at - activity.created_at
+            delta = _as_utc(activity.updated_at) - _as_utc(activity.created_at)
             activity.duration_seconds = delta.total_seconds()
 
         self._activities[activity.id] = activity
@@ -451,10 +463,14 @@ class InMemoryStorage(ActivityStorage):
             activities = [a for a in activities if a.failure_type == failure_type]
 
         if since:
-            activities = [a for a in activities if a.created_at and a.created_at >= since]
+            since_utc = _as_utc(since)
+            activities = [a for a in activities if a.created_at and _as_utc(a.created_at) >= since_utc]
 
         # Sort by created_at descending
-        activities.sort(key=lambda a: a.created_at or datetime.min, reverse=True)
+        activities.sort(
+            key=lambda a: _as_utc(a.created_at).timestamp() if a.created_at else float("-inf"),
+            reverse=True,
+        )
 
         return activities[offset : offset + limit]
 
@@ -496,7 +512,7 @@ class InMemoryStorage(ActivityStorage):
             by_failure_type=failure_counts,
             by_repository=repo_counts,
             average_resolution_time_seconds=avg_duration,
-            last_updated=datetime.utcnow(),
+            last_updated=_utcnow(),
         )
 
     async def get_repositories(self) -> list[dict[str, Any]]:
@@ -525,9 +541,10 @@ class InMemoryStorage(ActivityStorage):
     async def get_timeline(self, since: datetime) -> dict[str, Any]:
         """Get activity timeline data from memory."""
         timeline_data: dict[str, dict[str, int]] = {}
+        since_utc = _as_utc(since)
 
         for activity in self._activities.values():
-            if activity.created_at and activity.created_at >= since:
+            if activity.created_at and _as_utc(activity.created_at) >= since_utc:
                 date = activity.created_at.strftime("%Y-%m-%d")
                 status = activity.status.value if activity.status else "unknown"
 
@@ -538,15 +555,16 @@ class InMemoryStorage(ActivityStorage):
 
         return {
             "data": timeline_data,
-            "since": since.isoformat(),
+            "since": _as_utc(since).isoformat(),
         }
 
     async def get_failure_breakdown(self, since: datetime) -> dict[str, int]:
         """Get failure breakdown from memory."""
         breakdown: dict[str, int] = {}
+        since_utc = _as_utc(since)
 
         for activity in self._activities.values():
-            if activity.created_at and activity.created_at >= since and activity.failure_type:
+            if activity.created_at and _as_utc(activity.created_at) >= since_utc and activity.failure_type:
                 ft_key = activity.failure_type.value
                 breakdown[ft_key] = breakdown.get(ft_key, 0) + 1
 
