@@ -35,7 +35,12 @@ bun run format                 # prettier
 
 ```bash
 cd pipelinehealer
-docker-compose up --build      # backend :8000, frontend :3000, Cosmos emulator :8081
+cp backend/.env.example backend/.env   # first time only — fill in values
+podman compose --env-file backend/.env build backend
+podman compose --env-file backend/.env up -d backend
+podman compose --env-file backend/.env ps
+curl -sS http://127.0.0.1:8000/health
+# docker compose works too if your environment maps Docker CLI to Podman
 ```
 
 ### Azure Deployment
@@ -251,6 +256,8 @@ Decisions made (Recommended defaults for this repo):
 - Feb 11, 2026: Phase 1.5: demo mode supports retrying flaky test runs (`retry_workflow`) and opening PRs to bump `timeout-minutes` when a known workflow file can be patched deterministically.
 - Feb 11, 2026: Docs: added `docs/LOCAL_DEMO_RUNBOOK.md` (exact demo commands) and `docs/FUTURE_PLAN.md` (roadmap), plus README section clarifying AI vs logic.
 - Feb 10, 2026: Portfolio blog Series 1 updated: drafted Post 2 (multi-agent pipeline design) and updated roadmap in `/mnt/d/repos/portfolio_website-main/content/blog/blog.md`.
+- Feb 11, 2026: Containerized local backend flow verified with Podman using `--env-file backend/.env` (build/up/ps/health) and documented in runbook + README.
+- Feb 11, 2026: Fixed Agent Framework compatibility for Foundry/AIServices endpoints: if a client lacks `as_agent()` (seen in older containerized builds), fallback wraps it via `ChatAgent`, preventing `'AzureOpenAIChatClient' object has no attribute 'as_agent'` runtime failures.
 
 ## Project Layout
 

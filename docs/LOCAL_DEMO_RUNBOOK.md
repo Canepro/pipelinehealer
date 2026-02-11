@@ -14,7 +14,7 @@ This runbook documents the exact local workflow used to validate the end-to-end 
 - GitHub CLI installed and authenticated (`gh auth status`)
 - A demo GitHub repo with a workflow dispatch input `failure_type` (see `demo-repo/`)
 
-## 1) Backend Setup
+## 1) Backend Setup (Host-Native)
 
 From the repo root (`pipelinehealer/`):
 
@@ -38,6 +38,25 @@ Edit `backend/.env`:
 - `GITHUB_PERSONAL_ACCESS_TOKEN` (recommended for local)
 - `HEAL_MODE=safe` (recommended) or `HEAL_MODE=demo`
 
+## 1B) Backend Setup (Containerized, Recommended on this machine)
+
+From repo root:
+
+```bash
+cp backend/.env.example backend/.env
+# edit backend/.env with your values
+
+podman compose --env-file backend/.env build backend
+podman compose --env-file backend/.env up -d backend
+podman compose --env-file backend/.env ps
+curl -sS http://127.0.0.1:8000/health
+```
+
+Notes:
+
+- Use `--env-file backend/.env` for all `podman compose` commands to avoid empty-env warnings.
+- `docker compose` works too if your Podman setup aliases Docker.
+
 ## 2) Azure OpenAI Smoke Test (Optional But Recommended)
 
 ```bash
@@ -53,7 +72,7 @@ Expected output ends with:
 
 If you see "API version not supported", set `AZURE_OPENAI_API_VERSION=2025-03-01-preview`.
 
-## 3) Run Backend (FastAPI)
+## 3) Run Backend (FastAPI, host-native only)
 
 ```bash
 cd backend
@@ -124,6 +143,13 @@ You should see records with:
 - `diagnosis` populated
 - `remediation_result` containing a PR URL or issue URL
 
+Also check GitHub side:
+
+```bash
+gh pr list -R <owner>/<repo>
+gh issue list -R <owner>/<repo> --state open
+```
+
 ## 8) Repo Quality Gates (Backend)
 
 ```bash
@@ -134,3 +160,56 @@ ruff check src
 mypy src
 pytest
 ```
+
+## 9) One-Shot E2E Command Set (PR + Issue paths)
+
+Use this exact sequence:
+
+```bash
+cd /mnt/d/repos/pipelinehealer
+podman compose --env-file backend/.env up -d backend
+curl -sS http://127.0.0.1:8000/health
+```
+
+In a second terminal:
+
+```bash
+cd /mnt/d/repos/pipelinehealer
+bunx smee-client --url https://smee.io/<your-channel> --target http://127.0.0.1:8000/webhook/github
+```
+
+In a third terminal:
+
+```bash
+cd /mnt/d/repos/pipelinehealer/demo-repo
+gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=dependency
+gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=lint
+gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=test
+gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=build_config
+gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=timeout
+```
+
+Verify:
+
+```bash
+curl -sS "http://127.0.0.1:8000/api/activities?limit=20"
+gh pr list -R Canepro/pipelinehealer-demo
+gh issue list -R Canepro/pipelinehealer-demo --state open
+```
+
+Expected:
+
+- `dependency` and `lint` => PR created
+- `test`, `build_config`, `timeout` => issue created
+
+## Troubleshooting
+
+- Error: `'AzureOpenAIChatClient' object has no attribute 'as_agent'`
+  - Cause: older Agent Framework builds in some container images expose chat clients without `as_agent()`.
+  - Fix: pull latest `main` and rebuild backend image:
+    ```bash
+    cd /mnt/d/repos/pipelinehealer
+    git pull --ff-only
+    podman compose --env-file backend/.env build --no-cache backend
+    podman compose --env-file backend/.env up -d backend
+    ```

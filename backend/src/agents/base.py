@@ -9,6 +9,7 @@ from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 
+
 def validate_azure_openai_endpoint(endpoint: str) -> None:
     """Fail fast on common misconfiguration (Foundry project endpoint vs AOAI resource endpoint)."""
     if not endpoint:
@@ -32,6 +33,28 @@ class NoopAgent:
     async def run(self, prompt: str) -> str:  # pragma: no cover
         _ = prompt
         return ""
+
+
+def _as_agent_compat(client: Any, *, name: str, instructions: str) -> Any:
+    """Build an agent from a client across Agent Framework versions.
+
+    Newer releases expose `client.as_agent(...)`, while some older builds (seen in
+    containerized installs) do not for certain client types (for example
+    `AzureOpenAIChatClient`).
+    """
+    as_agent = getattr(client, "as_agent", None)
+    if callable(as_agent):
+        return as_agent(name=name, instructions=instructions)
+
+    # Compatibility fallback for older Agent Framework versions.
+    from agent_framework import ChatAgent
+
+    logger.warning(
+        "Client %s has no as_agent(); falling back to ChatAgent compatibility wrapper.",
+        type(client).__name__,
+    )
+    return ChatAgent(client, instructions=instructions, name=name)
+
 
 def create_cloud_agent(
     *,
@@ -78,7 +101,7 @@ def create_cloud_agent(
             api_key=api_key or None,
             credential=credential,
         )
-        return chat_client.as_agent(name=name, instructions=instructions)
+        return _as_agent_compat(chat_client, name=name, instructions=instructions)
 
     # For classic Azure OpenAI resources (openai.azure.com), use the Responses API.
     from agent_framework.azure import AzureOpenAIResponsesClient
@@ -96,7 +119,7 @@ def create_cloud_agent(
         api_key=api_key or None,
         credential=credential,
     )
-    return responses_client.as_agent(name=name, instructions=instructions)
+    return _as_agent_compat(responses_client, name=name, instructions=instructions)
 
 
 def get_azure_openai_config() -> dict[str, Any]:

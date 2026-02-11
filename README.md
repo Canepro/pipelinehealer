@@ -153,6 +153,23 @@ In `HEAL_MODE=demo`, PipelineHealer may:
 4. **Access the dashboard**
    Open the URL printed by Vite (usually http://127.0.0.1:5173)
 
+### Local Development (Containerized Backend with Podman/Docker)
+
+If you prefer running only the backend in a container:
+
+```bash
+cd /mnt/d/repos/pipelinehealer
+cp backend/.env.example backend/.env
+# edit backend/.env
+
+podman compose --env-file backend/.env build backend
+podman compose --env-file backend/.env up -d backend
+podman compose --env-file backend/.env ps
+curl -sS http://127.0.0.1:8000/health
+```
+
+Use `--env-file backend/.env` with compose commands to avoid empty-env warnings.
+
 ### End-to-End Demo Runbook
 
 For the exact commands to reproduce the full demo flow (backend + smee.io + `gh workflow run` triggers), see:
