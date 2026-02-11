@@ -65,6 +65,7 @@ Notes:
 - Use `--env-file backend/.env` for all `podman compose` commands to avoid empty-env warnings.
 - `docker compose` works too if your Podman setup aliases Docker.
 - Frontend container now uses `BACKEND_UPSTREAM` (defaults to `http://backend:8000` in compose).
+- When backend API auth is enabled, set `API_AUTH_KEY` for frontend as well; Nginx injects `X-API-Key` for `/api/*`.
 - After changing values in `backend/.env`, re-create containers (not just restart) so new env vars are applied:
   ```bash
   podman compose --env-file backend/.env up -d --force-recreate backend frontend

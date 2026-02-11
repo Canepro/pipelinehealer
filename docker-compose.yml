@@ -50,6 +50,7 @@ services:
       - "3000:3000"
     environment:
       - BACKEND_UPSTREAM=${FRONTEND_BACKEND_UPSTREAM:-http://backend:8000}
+      - API_AUTH_KEY=${API_AUTH_KEY:-}
     depends_on:
       - backend
     networks:

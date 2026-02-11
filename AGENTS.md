@@ -275,6 +275,7 @@ Decisions made (Recommended defaults for this repo):
 - Feb 11, 2026: Added `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md` and wired it into README/AGENTS as a required pre-deploy gate.
 - Feb 11, 2026: Phase 4 deployment alignment started: removed `functions` service from `azure.yaml`, switched post-provision outputs to backend/frontend URLs, replaced placeholder Container App images in `infra/main.bicep` with ACR-backed backend/frontend image references, and added Canepro naming defaults in `infra/main.bicepparam`.
 - Feb 11, 2026: Fixed frontend Azure crash-loop by making Nginx backend proxy runtime-configurable (`BACKEND_UPSTREAM`), wiring local compose to `http://backend:8000` and Bicep frontend env to backend Container App FQDN.
+- Feb 11, 2026: Fixed Azure frontend `/api/*` proxy loop/auth behavior by forwarding `Host: $proxy_host`, enabling SNI (`proxy_ssl_server_name on`), and adding server-side `X-API-Key` injection from frontend `API_AUTH_KEY`.
 
 ## Project Layout
 

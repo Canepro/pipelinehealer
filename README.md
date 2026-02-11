@@ -189,6 +189,7 @@ Then open:
 
 Note:
 - Frontend now requires `BACKEND_UPSTREAM` inside the container and defaults to `http://backend:8000` via `docker-compose.yml`.
+- If backend API auth is enabled, set `API_AUTH_KEY` for the frontend container too; Nginx forwards it as `X-API-Key` to `/api/*`.
 
 ### End-to-End Demo Runbook
 
