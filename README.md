@@ -7,6 +7,32 @@
 
 PipelineHealer is an AI-powered multi-agent system that automatically detects, diagnoses, and remediates CI/CD pipeline failures in GitHub Actions workflows.
 
+## What Uses AI vs Pure Logic
+
+PipelineHealer intentionally mixes deterministic logic with LLM calls.
+
+AI (Azure OpenAI via Microsoft Agent Framework):
+
+- Log summarization: condense raw job logs into a short, structured summary.
+- Diagnosis fallback: when pattern rules do not confidently match, the model produces a structured `Diagnosis` JSON.
+- Remediation narrative: write high-quality PR/issue bodies and root-cause descriptions (the actual file edits are still deterministic).
+
+Pure logic:
+
+- Webhook ingestion, event routing, idempotency checks.
+- Log extraction (fetch jobs + logs), error/warning line heuristics.
+- Pattern-based diagnosis for common cases (dependency/lint/test/timeout/build-config patterns).
+- Remediation execution (create branch, commit file content, create PR/issue, rerun failed jobs).
+
+## Healing Modes
+
+`HEAL_MODE` controls how aggressive the system is:
+
+- `safe` (Recommended): conservative, demo-stable behavior.
+- `demo`: more aggressive hackathon-friendly behavior (for example retry flaky test runs, open PRs that bump workflow timeouts when it can patch a known workflow file).
+
+See `backend/.env.example`.
+
 ## Overview
 
 When a GitHub Actions workflow fails, PipelineHealer:
@@ -61,6 +87,11 @@ When a GitHub Actions workflow fails, PipelineHealer:
 | Test Failures | ✅ | ❌ (creates issue) |
 | Build Config Errors | ✅ | ❌ (creates issue) |
 | Timeouts | ✅ | ❌ (creates issue) |
+
+In `HEAL_MODE=demo`, PipelineHealer may:
+
+- Retry flaky test runs once (`retry_workflow`)
+- Open a PR to bump `timeout-minutes` in a known workflow file
 
 ## Technology Stack
 
@@ -120,7 +151,19 @@ When a GitHub Actions workflow fails, PipelineHealer:
    ```
 
 4. **Access the dashboard**
-   Open http://localhost:3000
+   Open the URL printed by Vite (usually http://127.0.0.1:5173)
+
+### End-to-End Demo Runbook
+
+For the exact commands to reproduce the full demo flow (backend + smee.io + `gh workflow run` triggers), see:
+
+- `docs/LOCAL_DEMO_RUNBOOK.md`
+
+### Future Plan
+
+Roadmap and next AI expansions:
+
+- `docs/FUTURE_PLAN.md`
 
 ### Deploy to Azure
 

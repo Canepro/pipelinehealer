@@ -26,8 +26,12 @@ class Settings(BaseSettings):
         description="Azure OpenAI deployment name",
     )
     azure_openai_api_version: str = Field(
-        default="2024-10-21",
-        description="Azure OpenAI API version",
+        default="2025-03-01-preview",
+        description="Azure OpenAI API version (Agent Framework Responses client requires 2025-03-01-preview or later)",
+    )
+    azure_openai_api_key: str = Field(
+        default="",
+        description="Azure OpenAI API key (optional; recommended for local dev if you don't want Azure CLI login)",
     )
 
     # Azure Cosmos DB Configuration
@@ -54,6 +58,10 @@ class Settings(BaseSettings):
     github_webhook_secret: str = Field(
         default="",
         description="GitHub webhook secret for validation",
+    )
+    github_personal_access_token: str = Field(
+        default="",
+        description="GitHub personal access token (recommended for local dev)",
     )
     github_private_key_secret_name: str = Field(
         default="github-app-private-key",
@@ -85,6 +93,10 @@ class Settings(BaseSettings):
     )
 
     # Agent Configuration
+    heal_mode: str = Field(
+        default="safe",
+        description="Healing mode: 'safe' (conservative) or 'demo' (more aggressive, hackathon-friendly)",
+    )
     max_remediation_attempts: int = Field(
         default=3,
         description="Maximum number of remediation attempts per failure",
@@ -92,6 +104,10 @@ class Settings(BaseSettings):
     auto_create_pr: bool = Field(
         default=True,
         description="Automatically create PRs for fixes",
+    )
+    auto_create_tracking_issue_for_prs: bool = Field(
+        default=True,
+        description="Create a tracking issue for PR-based remediations and close it automatically on merge",
     )
     supported_failure_types: list[str] = Field(
         default=[

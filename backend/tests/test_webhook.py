@@ -2,8 +2,9 @@
 
 import hashlib
 import hmac
+
+import httpx
 import pytest
-from fastapi.testclient import TestClient
 
 from src.main import app
 from src.api.webhook import verify_github_signature
@@ -54,41 +55,46 @@ class TestGitHubSignatureVerification:
 class TestWebhookEndpoint:
     """Test the webhook endpoint."""
 
-    def setup_method(self) -> None:
-        """Set up test client."""
-        self.client = TestClient(app)
-
-    def test_ping_event(self) -> None:
+    @pytest.mark.asyncio
+    async def test_ping_event(self) -> None:
         """Test handling of ping events."""
-        response = self.client.post(
-            "/webhook/github",
-            json={"zen": "test"},
-            headers={
-                "X-GitHub-Event": "ping",
-                "X-GitHub-Delivery": "test-delivery-id",
-            },
-        )
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/webhook/github",
+                json={"zen": "test"},
+                headers={
+                    "X-GitHub-Event": "ping",
+                    "X-GitHub-Delivery": "test-delivery-id",
+                },
+            )
         
         assert response.status_code == 200
         assert response.json()["status"] == "pong"
 
-    def test_ignored_event_type(self) -> None:
+    @pytest.mark.asyncio
+    async def test_ignored_event_type(self) -> None:
         """Test that non-workflow_run events are ignored."""
-        response = self.client.post(
-            "/webhook/github",
-            json={"action": "opened"},
-            headers={
-                "X-GitHub-Event": "pull_request",
-                "X-GitHub-Delivery": "test-delivery-id",
-            },
-        )
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/webhook/github",
+                json={"action": "opened"},
+                headers={
+                    "X-GitHub-Event": "pull_request",
+                    "X-GitHub-Delivery": "test-delivery-id",
+                },
+            )
         
         assert response.status_code == 200
         assert response.json()["status"] == "ignored"
 
-    def test_health_check(self) -> None:
+    @pytest.mark.asyncio
+    async def test_health_check(self) -> None:
         """Test the health check endpoint."""
-        response = self.client.get("/webhook/health")
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/webhook/health")
         
         assert response.status_code == 200
         assert response.json()["status"] == "healthy"

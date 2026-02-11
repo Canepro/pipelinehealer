@@ -1,88 +1,86 @@
 # PipelineHealer — Code Review
 
-> Reviewed: February 9, 2026
-> Reviewer: Copilot CLI (session with Vincent Mogah)
+> Reviewed: February 10, 2026
+> Reviewer: Codex (session with Vincent Mogah)
 > Scope: Full project — backend, frontend, infra, demo-repo
 
 ---
 
 ## Verdict
 
-Architecture is solid. Four focused agents with typed Pydantic models between them, clean separation of concerns, proper FastAPI backend. Code quality is above average for a hackathon entry. The gaps are in deployment readiness and production hardening — fixable within the remaining timeline.
+Architecture is solid and demoable. Four focused agents communicate via typed Pydantic models, the FastAPI backend is structured well, and local E2E works: a failing GitHub Actions run triggers the webhook and results in an automated remediation (issue/PR). The remaining gaps are deployment alignment and minimum viable security/reliability hardening.
 
 ---
 
 ## Critical (Fix Before Submission)
 
-### 1. Demo repo has no GitHub Actions workflow
+### 1. Dashboard API has no authentication
 
-`.github/workflows/` in `demo-repo/` is empty. PipelineHealer can't be demonstrated without triggerable CI failures. This is the single most important fix — judges can't evaluate the product without a working demo.
+All `/api/*` endpoints are open. Anyone can read activities, view repository data, and trigger retries. Judges evaluating enterprise readiness will flag this.
 
-**Fix:** Create a workflow with `workflow_dispatch` inputs that trigger each of the 5 supported failure types (dependency, lint, test, build_config, timeout).
+**Fix (Recommended):** Add `X-API-Key` auth for `/api/*` in non-development environments.
 
-### 2. Dashboard API has no authentication
+### 2. Container images are placeholders
 
-All `/api/*` endpoints are open. Anyone can read activities, view repository data, and trigger retries. Judges evaluating enterprise readiness will flag this immediately.
+`infra/main.bicep` historically referenced hello-world images; ensure it deploys the real backend/frontend images built by `azd`.
 
-**Fix:** Add bearer token middleware. Even a simple `X-API-Key` header check is better than nothing.
+**Fix (Recommended):** Update `azure.yaml` and/or `infra/main.bicep` to build/push images and reference ACR image tags.
 
-### 3. Container images are placeholders
+### 3. Add GitHub API retry/backoff
 
-`infra/main.bicep` uses `mcr.microsoft.com/azuredocs/containerapps-helloworld:latest` for both Container Apps. `azd up` won't deploy the actual application.
+`backend/src/tools/github_tools.py` makes raw GitHub API calls without retry/backoff. A single 429/5xx can break the healing pipeline mid-demo.
 
-**Fix:** Update to use ACR image references built during deployment, or configure `azure.yaml` to handle the build-and-push step.
+**Fix (Recommended):** Add 3-retry exponential backoff for 429/5xx with jitter.
 
-### 4. Manual retry endpoint is a TODO stub
+---
 
-`POST /api/activities/{id}/retry` in `dashboard.py` is incomplete. The frontend's retry button calls this endpoint — it's a broken feature visible to judges.
+## Verified Working (Local E2E)
 
-**Fix:** Implement the retry logic — re-trigger the orchestrator pipeline for the given activity's workflow run.
+- Webhook forwarding via `smee.io` + `bunx smee-client`.
+- `workflow_run.completed` (failure) triggers:
+  - activity created in `InMemoryStorage`
+  - log fetch from GitHub API
+  - diagnosis via Azure OpenAI
+  - remediation action (example: created a GitHub Issue in the demo repo)
 
 ---
 
 ## Significant Issues
 
-### 5. No retry/backoff for GitHub API calls
+### 4. No timeout on agent pipeline
 
-`github_tools.py` makes raw `httpx` requests with no retry logic. One rate limit hit (HTTP 403/429) or transient network error and the entire healing pipeline fails silently.
-
-**Impact:** Production readiness (judging criteria).
-**Fix:** Add `tenacity` or manual exponential backoff with 3 retries on 429/5xx.
-
-### 6. No timeout on agent pipeline
-
-If Azure OpenAI responds slowly (or hangs), the entire workflow blocks indefinitely. No cancellation mechanism exists.
+If Azure OpenAI responds slowly (or hangs), the entire workflow can block longer than acceptable in a live demo.
 
 **Impact:** Reliability in demo — a hung agent during live demo is catastrophic.
-**Fix:** Add `asyncio.wait_for()` with a 60-second timeout per agent step in `orchestrator.py`.
+**Fix (Recommended):** Add `asyncio.wait_for()` with a 60-second timeout per agent step in `backend/src/agents/orchestrator.py`.
 
-### 7. Task state is in-memory only
+### 5. Task state is in-memory only
 
 `pipeline_healer.py` tracks running tasks in a Python dict. Backend restart = all in-flight healing tasks are lost with no recovery.
 
 **Impact:** Acceptable for hackathon demo, but worth noting in the architecture discussion.
 **Fix (optional):** Persist task state to Cosmos DB or use Azure Durable Functions.
 
-### 8. Log truncation at 15K characters
+### 6. Log truncation strategy
 
 `log_analyzer.py` truncates logs sent to the AI agent at 15,000 characters. Real-world dependency resolution failures or stack traces often exceed this.
 
 **Impact:** May miss root cause in complex failures.
-**Fix:** Increase to 30K (GPT-4o supports 128K context), or implement smart truncation that preserves error sections.
+**Fix (Recommended):** Preserve tail + known error sections; increase cap only after adding timeouts.
 
-### 9. No GitHub App support
+### 7. GitHub App auth (stretch)
 
 Only PAT authentication. GitHub Apps are the recommended approach for production integrations — they have fine-grained permissions, higher rate limits, and installation-scoped access.
 
 **Impact:** Enterprise readiness (judging criteria).
 **Fix (stretch):** Add `GITHUB_APP_ID` + `GITHUB_APP_PRIVATE_KEY` auth path alongside PAT.
 
-### 10. Webhook signature verification disabled in dev
+### 8. Webhook signature verification policy
 
 `webhook.py` skips HMAC-SHA256 verification when `ENVIRONMENT=development`. If the demo deployment accidentally uses dev mode, webhooks are unauthenticated.
 
 **Impact:** Security gap in demo.
-**Fix:** Log a warning but still verify in dev, or make signature verification mandatory regardless of environment.
+**Fix (Recommended):** Require signatures in any non-local environment; warn loudly when disabled.
 
 ---
 
@@ -151,9 +149,8 @@ This scores points on **Real-World Impact** (broader applicability) without requ
 
 | Change | Judging Impact | Effort |
 |--------|---------------|--------|
-| Demo workflow with 3 failure modes | **Critical** — can't demo without it | 1 hour |
 | Mermaid architecture diagram in README | Submission requirement | 30 min |
-| Bearer token auth on dashboard API | Enterprise readiness | 1 hour |
+| `X-API-Key` auth on `/api/*` | Enterprise readiness | 1 hour |
 | Retry with backoff in `github_tools.py` | Production readiness | 2 hours |
 | `/webhook/jenkins` stub route returning 501 | Shows extensibility thinking | 15 min |
 | Slack notification as `NOTIFY` action | Real-world impact | 2 hours |
@@ -178,7 +175,7 @@ This scores points on **Real-World Impact** (broader applicability) without requ
 
 | Artifact | Status | Action |
 |----------|--------|--------|
-| Public GitHub repository | ❌ Not created | Push before Feb 10 |
+| Public GitHub repository | ⚠️ Private during development | Make public before Mar 15, 2026 |
 | Architecture diagram | ❌ Missing | Create Mermaid diagram |
 | Demo video (2 min max) | ❌ Missing | Record after deployment |
 | Project description | ❌ Missing | Write for Devpost |
@@ -218,4 +215,4 @@ This scores points on **Real-World Impact** (broader applicability) without requ
 - `infra/main.bicepparam` — eastus2, dev, pipelinehealer
 
 ### Demo
-- `demo-repo/` — Node.js stub with empty `.github/workflows/`
+- `demo-repo/` — Triggerable GitHub Actions workflow with `workflow_dispatch` failure types

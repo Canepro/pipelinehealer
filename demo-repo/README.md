@@ -28,11 +28,11 @@ When a failure occurs, PipelineHealer will:
 
 ### Dependency Failure
 - **Trigger**: Select `dependency` failure type
-- **Expected**: PipelineHealer creates a PR or issue about the missing package
+- **Expected (Recommended)**: PipelineHealer creates a PR that adds the missing dependency to `package.json`
 
 ### Lint Failure
 - **Trigger**: Select `lint` failure type
-- **Expected**: PipelineHealer creates an issue with lint violation details
+- **Expected (Recommended)**: PipelineHealer creates a PR that adds `eslint.config.js` (ESLint flat config)
 
 ### Test Failure
 - **Trigger**: Select `test` failure type
@@ -45,3 +45,7 @@ When a failure occurs, PipelineHealer will:
 ### Timeout
 - **Trigger**: Select `timeout` failure type
 - **Expected**: PipelineHealer creates an issue with timeout recommendations
+
+## Tooling Note
+
+This demo repo's CI uses **Bun** (`oven-sh/setup-bun`) to align with PipelineHealer's frontend stack.

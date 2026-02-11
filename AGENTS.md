@@ -9,7 +9,11 @@ This repository contains **PipelineHealer** — a multi-agent CI/CD self-healing
 ```bash
 cd pipelinehealer/backend
 cp .env.example .env           # first time only — fill in values
-uv pip install -e ".[dev]"     # install with dev dependencies
+uv pip install -e ".[dev]"     # install with dev dependencies (Recommended)
+# If `uv` isn't installed yet:
+#   python3 -m venv .venv && source .venv/bin/activate
+#   pip install -U pip
+#   pip install -e ".[dev]"
 uvicorn src.main:app --reload  # run API server on :8000
 pytest                         # run tests
 ruff check src/                # lint
@@ -40,6 +44,213 @@ docker-compose up --build      # backend :8000, frontend :3000, Cosmos emulator 
 cd pipelinehealer
 azd up                         # provision infra (Bicep) + deploy services
 ```
+
+## Phased Execution Plan (Track Here)
+
+**Last updated:** Feb 11, 2026
+
+This section is the working checklist for getting PipelineHealer demo-ready and submission-ready. As we complete work, we:
+
+- Check off items in the current phase
+- Update phase status
+- Add a short entry to **Execution Log**
+
+### Phase Overview
+
+| Phase | Goal | Status | Primary Files |
+|------:|------|--------|---------------|
+| 0 | Hygiene baseline (lint/typecheck/tests) | Completed | `backend/pyproject.toml`, `backend/src/*` |
+| 1 | Correctness (IDs, auto-fix PRs, retry behavior) | In progress (E2E issue flow verified) | `backend/src/workflows/pipeline_healer.py`, `backend/src/agents/orchestrator.py`, `backend/src/tools/fix_generators.py`, `backend/src/agents/remediation.py`, `backend/src/api/dashboard.py` |
+| 1.5 | Safe+demo mode (more self-healing without breaking safety) | In progress | `backend/src/config.py`, `backend/src/tools/fix_generators.py`, `backend/src/agents/remediation.py`, `demo-repo/.github/workflows/ci.yml` |
+| 2 | Security (API auth, webhook hardening) | Not started | `backend/src/main.py`, `backend/src/api/*`, `backend/src/config.py` |
+| 3 | Reliability (timeouts, retries/backoff, log handling) | Not started | `backend/src/tools/github_tools.py`, `backend/src/agents/*` |
+| 4 | Deployment alignment (azd/bicep/images/functions) | Not started | `azure.yaml`, `infra/main.bicep`, `backend/Dockerfile`, `frontend/Dockerfile` |
+| 5 | Demo + submission polish | Not started | `README.md`, `demo-repo/.github/workflows/ci.yml`, `PROJECT_STATUS.md` |
+
+### Phase 0: Hygiene Baseline (lint/typecheck/tests)
+
+Exit criteria:
+
+- `ruff check backend/src` passes
+- `mypy backend/src` passes (strict)
+- `pytest backend/tests` passes
+
+Work items:
+
+- [x] Fix current ruff errors (unused imports/vars) in backend.
+- [x] Wire observability setup (or explicitly remove dead code) so the module is either used or intentionally excluded.
+- [x] Ensure local dev path works without Azure storage dependencies (in-memory storage path remains functional).
+
+Notes:
+
+- If this environment doesn’t have `ruff`/`mypy`/`pytest` installed, run Phase 0 validation after `uv pip install -e ".[dev]"` in `backend/`.
+- If `pip install -e ".[dev]"` fails due to a missing README, confirm `backend/README.md` exists (packaging metadata requires it).
+- Feb 10, 2026 validation (backend venv):
+  - `ruff check src`: pass
+  - `mypy src` (strict): pass
+  - `pytest`: pass (16 tests)
+  - Remaining warnings: Pydantic v2 deprecations and `datetime.utcnow()` deprecation (future cleanup).
+
+### Phase 1: Correctness (Core Behavior)
+
+Exit criteria:
+
+- Webhook `activity_id` corresponds to a real persisted activity record.
+- Dependency and lint PR creation produces real commits (not empty PR attempts).
+- Manual retry endpoint triggers a real action (rerun jobs or restart pipeline) and the UI reflects it.
+
+Work items:
+
+- [x] Fix the **activity ID mismatch** between `PipelineHealerWorkflow.start()` and `OrchestratorAgent.process_workflow_failure()`.
+- [x] Make dependency auto-fix actually write file contents (or implement structured patch application) so PRs are not empty.
+- [x] Implement `/api/activities/{id}/retry` to re-run failed jobs via GitHub API (minimum viable) or to re-run the internal workflow pipeline (preferred).
+- [x] Add/extend tests for the above flows.
+- [ ] Demo verification: ensure **dependency** and **lint** scenarios open PRs (not issues) in the demo repo.
+
+Known limitations (address in future):
+
+- Dependency PRs currently update source manifests (for example `package.json`) but do not update lockfiles (for example `package-lock.json`, `bun.lockb`, `pnpm-lock.yaml`).
+- Structured change rendering supports `json_update` and `line_update` today. `toml_update` is not implemented yet.
+- If fix rendering fails, the system returns a failed remediation; future improvement is to fall back to creating an issue automatically.
+- Azure OpenAI connectivity can be validated via `backend/scripts/aoai_smoke.py`. This script supports both Azure OpenAI resources (`*.openai.azure.com`) and Foundry/AIServices endpoints (`*.cognitiveservices.azure.com`).
+- Demo repo note: `demo-repo/.github/workflows/ci.yml` uses **Bun** (`oven-sh/setup-bun`) to align with the frontend stack, and does not require a committed lockfile.
+- Webhook tunneling for local dev: use `ngrok` when available; if you can't install it, use `smee.io` + `bunx smee-client` to forward GitHub webhooks to `http://127.0.0.1:8000/webhook/github`.
+- Demo repo note: to demonstrate PR creation reliably, the `dependency` failure should be a missing module (for example `Cannot find module 'left-pad'`) and the `lint` failure should be an ESLint flat config missing case (missing `eslint.config.js`).
+- Storage note: `InMemoryStorage` resets on backend restart; if `/api/activities` returns `[]`, confirm you triggered at least one `workflow_run.completed` failure since the last restart.
+
+**Phase 1 E2E verification checklist** (run with backend + smee.io receiving webhooks; repo `Canepro/pipelinehealer-demo`):
+
+| failure_type   | Expected remediation | Trigger |
+|----------------|----------------------|--------|
+| dependency     | PR created           | `gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=dependency` |
+| lint           | PR created           | `gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=lint` |
+| test           | Issue created        | `gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=test` |
+| build_config   | Issue created        | `gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=build_config` |
+| timeout        | Issue created        | `gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=timeout` |
+
+Check activities after each run: `curl -sS "http://127.0.0.1:8000/api/activities?limit=20"`.
+
+### Phase 1.5: Safe+Demo Mode (Hackathon-Friendly)
+
+Goal:
+
+- Keep default behavior stable (`HEAL_MODE=safe`)
+- Provide an optional mode (`HEAL_MODE=demo`) that demonstrates real self-healing for more scenarios, without adding unsafe "guessy" PRs
+
+Exit criteria:
+
+- `HEAL_MODE=safe` behavior unchanged for the 5 failure types
+- `HEAL_MODE=demo` enables at least:
+  - Flaky test retry (`retry_workflow`)
+  - Timeout PR to bump `timeout-minutes` (when a known workflow file is present)
+- Local runbook exists and matches the real commands used during verification
+
+Work items:
+
+- [x] Add `HEAL_MODE` setting and document it in `backend/.env.example`.
+- [x] Wire `HEAL_MODE` into remediation planning (`FixGenerators`).
+- [x] Upgrade `line_update` to support regex substitutions and multi-file selection.
+- [ ] Add unit tests for demo-mode behaviors (retry, timeout PR plan rendering).
+
+Blog note:
+
+- Next blog post (series #2) should cover "AI vs logic" and why a safe/demo split matters for real DevOps automation.
+
+### Phase 2: Security (Minimum Viable)
+
+Exit criteria:
+
+- Dashboard API requires a secret (API key or bearer token) for all `/api/*` endpoints in non-dev environments.
+- Webhook signature verification policy is explicit and safe for demo/prod.
+
+Work items:
+
+- [ ] Add `X-API-Key` (or bearer token) auth for `/api/*` endpoints.
+- [ ] Decide and document webhook signature verification behavior for `development` vs `production`.
+- [ ] Fix CORS configuration for deployed origins (wildcard strings in `allow_origins` won’t match; prefer `allow_origin_regex` or explicit origins).
+
+### Phase 3: Reliability (Demo Safety)
+
+Exit criteria:
+
+- GitHub API calls handle 429/5xx with retry/backoff.
+- Agent steps have sane per-step timeouts.
+- `timed_out` runs still surface useful logs or a clear reason.
+
+Work items:
+
+- [ ] Add retry/backoff for GitHub API calls in `GitHubTools`.
+- [ ] Add per-step timeouts in orchestrator pipeline steps.
+- [ ] Adjust log fetching to handle `timed_out` conclusions (not only `failure` jobs).
+- [ ] Increase or improve log truncation strategy (preserve error tail/sections).
+
+### Phase 4: Deployment Alignment
+
+Exit criteria:
+
+- `azd up` deploys the real backend/frontend images.
+- Infra no longer references placeholder hello-world images.
+- “Functions” service configuration matches real code (or is removed/adjusted).
+
+Work items:
+
+- [ ] Replace placeholder images in `infra/main.bicep` with real build outputs.
+- [ ] Align `azure.yaml` services with actual deployable projects (Container Apps vs Functions).
+
+### Phase 5: Demo + Submission Polish
+
+Exit criteria:
+
+- End-to-end demo flow works: failing run -> webhook -> dashboard activity -> PR/issue created.
+- README contains an architecture diagram and a crisp “how to demo” section.
+- Demo video outline exists (2 minutes max).
+- Blog series is kept in sync with real progress (at least 1 post/week during the hacking window).
+
+Work items:
+
+- [ ] Validate `demo-repo/.github/workflows/ci.yml` triggers all 5 failure types reliably.
+- [ ] Add Mermaid architecture diagram to `README.md`.
+- [ ] Write a short demo script and checklist for recording.
+- [ ] Publish the next blog post in the portfolio repo and update its roadmap:
+  - `/mnt/d/repos/portfolio_website-main/content/blog/YYYY-MM-DD-*.mdx`
+  - `/mnt/d/repos/portfolio_website-main/content/blog/blog.md`
+
+### Human “Come In Here” Points (Decisions/Inputs Needed)
+
+Decisions made (Recommended defaults for this repo):
+
+- Retry semantics (Recommended): GitHub Actions `rerun-failed-jobs` from the dashboard, then rely on the next webhook to re-process the run.
+  - Future: “re-run internal pipeline” requires persisting enough event/run metadata per activity.
+- Dashboard auth (Recommended): `X-API-Key` for all `/api/*` endpoints in non-development.
+  - Future: bearer/JWT or fronted by an auth proxy.
+- Deployment target (Recommended): Container Apps only for demo reliability.
+  - Future: add an Azure Functions webhook-forwarder once there is real Functions app code in-repo.
+
+### Execution Log
+
+- Feb 10, 2026: Added phased plan and checklists to `AGENTS.md`.
+- Feb 10, 2026: Fixed known ruff `F401/F841` issues (unused imports/vars) in backend modules.
+- Feb 10, 2026: Wired `configure_observability(app)` into FastAPI startup.
+- Feb 10, 2026: Phase 1 started: persist activity up-front in `start()` and pass `activity_id` through to orchestrator so webhook IDs map to stored records.
+- Feb 10, 2026: Implemented `/api/activities/{id}/retry` to request GitHub Actions `rerun-failed-jobs` for the stored run.
+- Feb 10, 2026: Implemented structured change application for dependency fixes (render `json_update`/`line_update` into committed file contents before PR creation).
+- Feb 10, 2026: Added Phase 1 unit tests for activity ID reuse, retry rerun call, and `json_update` rendering.
+- Feb 10, 2026: Added `backend/README.md` to unblock editable installs (`pip install -e` / hatchling metadata).
+- Feb 10, 2026: Fixed backend editable install by adding hatch wheel package selection (`[tool.hatch.build.targets.wheel] packages = ["src"]`). Future improvement: rename Python package from `src` to `pipelinehealer`.
+- Feb 10, 2026: Repo visibility note: OK to keep private during development; still treat committed secrets as compromised; plan to make repo public before Mar 15, 2026.
+- Feb 10, 2026: Azure AI Foundry compatibility: added `AZURE_OPENAI_API_KEY` support for local dev and a clear error if `AZURE_OPENAI_ENDPOINT` is mistakenly set to a Foundry *project* endpoint (`...services.ai.azure.com`) instead of an Azure OpenAI *resource* endpoint (`...openai.azure.com`).
+- Feb 10, 2026: Azure OpenAI Responses API version: defaulted `AZURE_OPENAI_API_VERSION` to `preview` (the Agent Framework Responses client expects this); using a dated version can yield `400 API version not supported` on some resources.
+- Feb 10, 2026: Foundry/AIServices endpoint support: if `AZURE_OPENAI_ENDPOINT` is `*.cognitiveservices.azure.com`, agents use `AzureOpenAIChatClient` (chat completions). If `*.openai.azure.com`, agents use `AzureOpenAIResponsesClient` (responses).
+- Feb 10, 2026: Fixed log analyzer regex bug that could throw `global flags not at the start of the expression` when extracting error/warning lines.
+- Feb 10, 2026: E2E verified locally: demo repo failing run delivered via `smee.io` created an activity and a remediation issue in `Canepro/pipelinehealer-demo`.
+- Feb 10, 2026: E2E verified locally (frontend): `/api/activities` list + dashboard charts populated for multiple failure types (in-memory storage).
+- Feb 10, 2026: E2E verified locally (PR): lint failure produced PR `Canepro/pipelinehealer-demo#10` (adds `eslint.config.js`).
+- Feb 10, 2026: Demo repo workflow improvements: opened PR `Canepro/pipelinehealer-demo#12` to make dependency + lint failures deterministic and PR-fixable.
+- Feb 11, 2026: E2E verified locally (PR): dependency failure produced PR `Canepro/pipelinehealer-demo#13` (adds missing dependency to `package.json`).
+- Feb 11, 2026: Phase 1.5 started: added `HEAL_MODE` (`safe` vs `demo`) to support demo-friendly self-healing while keeping safe defaults stable.
+- Feb 11, 2026: Phase 1.5: demo mode supports retrying flaky test runs (`retry_workflow`) and opening PRs to bump `timeout-minutes` when a known workflow file can be patched deterministically.
+- Feb 11, 2026: Docs: added `docs/LOCAL_DEMO_RUNBOOK.md` (exact demo commands) and `docs/FUTURE_PLAN.md` (roadmap), plus README section clarifying AI vs logic.
+- Feb 10, 2026: Portfolio blog Series 1 updated: drafted Post 2 (multi-agent pipeline design) and updated roadmap in `/mnt/d/repos/portfolio_website-main/content/blog/blog.md`.
 
 ## Project Layout
 
@@ -161,6 +372,20 @@ GitHub workflow_run.completed webhook
 - Backend code must pass `ruff check` and `mypy --strict`.
 - Frontend code must pass `eslint` and `tsc`.
 - Keep the in-memory storage path (`InMemoryStorage`) working for local dev without Azure dependencies.
+
+## Repo Visibility & Secret Hygiene
+
+- Keeping the repo **private during active development** is reasonable to reduce accidental disclosure.
+- A private repo does **not** make committed secrets safe. If a secret is ever committed (even briefly), assume it is compromised:
+  - remove it from git history (or invalidate the repo),
+  - rotate/revoke the secret (preferred),
+  - re-issue credentials using Key Vault / GitHub Secrets.
+- Hackathon requirement reminder: the repository must be **public** before submission (target: before **Mar 15, 2026, 11:59 PM PT**).
+
+Recommended before switching public:
+
+- Run a secret scan (gitleaks/trufflehog) and review git history for tokens/keys.
+- Ensure `.env`, private keys (`*.pem`, `*.key`), and local credentials remain untracked (see `.gitignore`).
 
 ## Hackathon Context
 
