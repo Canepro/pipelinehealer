@@ -11,7 +11,7 @@ authors = [
 keywords = ["ai", "agents", "devops", "cicd", "github-actions", "azure"]
 
 dependencies = [
-    "agent-framework==1.0.0b260130",
+    "agent-framework>=0.1.0",
     "azure-identity>=1.19.0",
     "azure-cosmos>=4.9.0",
     "azure-keyvault-secrets>=4.9.0",
