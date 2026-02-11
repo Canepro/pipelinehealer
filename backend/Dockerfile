@@ -1,5 +1,5 @@
 # PipelineHealer Backend Dockerfile
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # Install uv for fast dependency management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -7,14 +7,12 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml ./
+# Copy package metadata + source before install so hatchling can resolve readme/package files
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
 
 # Install dependencies using uv
-RUN uv pip install --system -e .
-
-# Copy source code
-COPY src/ ./src/
+RUN uv pip install --system .
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1

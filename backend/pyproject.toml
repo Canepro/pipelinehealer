@@ -11,7 +11,7 @@ authors = [
 keywords = ["ai", "agents", "devops", "cicd", "github-actions", "azure"]
 
 dependencies = [
-    "agent-framework>=0.1.0",
+    "agent-framework==1.0.0b260130",
     "azure-identity>=1.19.0",
     "azure-cosmos>=4.9.0",
     "azure-keyvault-secrets>=4.9.0",
@@ -38,6 +38,15 @@ dev = [
     "mypy>=1.13.0",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -46,15 +55,6 @@ build-backend = "hatchling.build"
 # The backend currently uses `backend/src` as the import package root (imports like `from src...`).
 # Hatchling can't infer this automatically from the project name `pipelinehealer`, so we declare it.
 packages = ["src"]
-
-[tool.uv]
-dev-dependencies = [
-    "pytest>=8.3.0",
-    "pytest-asyncio>=0.24.0",
-    "pytest-cov>=6.0.0",
-    "ruff>=0.8.0",
-    "mypy>=1.13.0",
-]
 
 [tool.ruff]
 target-version = "py311"
