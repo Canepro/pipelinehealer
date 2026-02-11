@@ -76,6 +76,7 @@ When a GitHub Actions workflow fails, PipelineHealer:
 - **Intelligent Diagnosis**: Pattern-based and AI-powered root cause analysis
 - **Automated Remediation**: Creates PRs for auto-fixable issues, detailed issues for others
 - **Beautiful Dashboard**: Real-time monitoring of healing activities
+- **Settings Surface**: Read-only runtime settings page (`/settings`) for faster ops/debugging
 - **Enterprise Ready**: Azure-native with full observability and security
 
 ## Failure Types Supported
@@ -152,29 +153,54 @@ In `HEAL_MODE=demo`, PipelineHealer may:
 
 4. **Access the dashboard**
    Open the URL printed by Vite (usually http://127.0.0.1:5173)
+   - `Dashboard`: `/`
+   - `Activities`: `/activities`
+   - `Settings`: `/settings` (non-secret runtime configuration)
 
-### Local Development (Containerized Backend with Podman/Docker)
+### Local Development (Containerized Stack with Podman/Docker)
 
-If you prefer running only the backend in a container:
+Recommended local stack (backend + frontend):
 
 ```bash
 cd /mnt/d/repos/pipelinehealer
 cp backend/.env.example backend/.env
 # edit backend/.env
 
-podman compose --env-file backend/.env build backend
-podman compose --env-file backend/.env up -d backend
+podman compose --env-file backend/.env build backend frontend
+podman compose --env-file backend/.env up -d backend frontend
 podman compose --env-file backend/.env ps
 curl -sS http://127.0.0.1:8000/health
 ```
 
 Use `--env-file backend/.env` with compose commands to avoid empty-env warnings.
 
+Optional full container stack (backend + frontend + cosmos emulator):
+
+```bash
+cd /mnt/d/repos/pipelinehealer
+podman compose --env-file backend/.env up -d backend frontend cosmos-emulator
+podman compose --env-file backend/.env ps
+```
+
+Then open:
+
+- Frontend: `http://127.0.0.1:3000`
+- Backend health: `http://127.0.0.1:8000/health`
+
+Note:
+- Frontend now requires `BACKEND_UPSTREAM` inside the container and defaults to `http://backend:8000` via `docker-compose.yml`.
+
 ### End-to-End Demo Runbook
 
 For the exact commands to reproduce the full demo flow (backend + smee.io + `gh workflow run` triggers), see:
 
 - `docs/LOCAL_DEMO_RUNBOOK.md`
+
+### Pre-Deploy Placeholder Audit
+
+Before `azd up` or a public release, run the placeholder/dummy-data audit:
+
+- `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md`
 
 ### Future Plan
 
@@ -186,6 +212,8 @@ Roadmap and next AI expansions:
 
 ```bash
 # Using Azure Developer CLI
+# 1) complete docs/PREDEPLOY_PLACEHOLDER_AUDIT.md
+# 2) then deploy
 azd up
 ```
 
@@ -205,6 +233,14 @@ azd up
 | `VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT` | Enforce signature checks in development too | Optional |
 | `CORS_ALLOWED_ORIGINS` | Exact CORS origins (CSV or JSON array) | Optional |
 | `CORS_ALLOW_ORIGIN_REGEX` | Regex for dynamic hosts (for example Azure Container Apps) | Optional |
+| `PIPELINE_STEP_TIMEOUT_SECONDS` | Per-step orchestration timeout (analyze/diagnose/remediate) | Optional |
+| `GITHUB_API_MAX_RETRIES` | Retries for transient GitHub API failures (429/5xx/network) | Optional |
+| `GITHUB_API_RETRY_BASE_SECONDS` | Base retry backoff delay | Optional |
+| `GITHUB_API_RETRY_MAX_SECONDS` | Max retry backoff delay | Optional |
+| `LOG_PROMPT_MAX_CHARS` | Max log characters sent to model prompt | Optional |
+| `LOG_PROMPT_HEAD_CHARS` | Head chars preserved when truncating prompt logs | Optional |
+| `LOG_PROMPT_TAIL_CHARS` | Tail chars preserved when truncating prompt logs | Optional |
+| `VITE_API_AUTH_KEY` | Frontend API key header value (`X-API-Key`) when calling protected `/api/*` routes | Optional |
 
 ### API Security
 

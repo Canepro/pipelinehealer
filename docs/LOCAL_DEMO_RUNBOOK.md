@@ -37,6 +37,14 @@ Edit `backend/.env`:
 - `AZURE_OPENAI_API_KEY` (recommended for local)
 - `GITHUB_PERSONAL_ACCESS_TOKEN` (recommended for local)
 - `HEAL_MODE=safe` (recommended) or `HEAL_MODE=demo`
+- Optional reliability knobs:
+  - `PIPELINE_STEP_TIMEOUT_SECONDS=120`
+  - `GITHUB_API_MAX_RETRIES=3`
+  - `GITHUB_API_RETRY_BASE_SECONDS=0.5`
+  - `GITHUB_API_RETRY_MAX_SECONDS=8.0`
+  - `LOG_PROMPT_MAX_CHARS=18000`
+  - `LOG_PROMPT_HEAD_CHARS=9000`
+  - `LOG_PROMPT_TAIL_CHARS=9000`
 
 ## 1B) Backend Setup (Containerized, Recommended on this machine)
 
@@ -46,8 +54,8 @@ From repo root:
 cp backend/.env.example backend/.env
 # edit backend/.env with your values
 
-podman compose --env-file backend/.env build backend
-podman compose --env-file backend/.env up -d backend
+podman compose --env-file backend/.env build backend frontend
+podman compose --env-file backend/.env up -d backend frontend
 podman compose --env-file backend/.env ps
 curl -sS http://127.0.0.1:8000/health
 ```
@@ -56,6 +64,11 @@ Notes:
 
 - Use `--env-file backend/.env` for all `podman compose` commands to avoid empty-env warnings.
 - `docker compose` works too if your Podman setup aliases Docker.
+- Frontend container now uses `BACKEND_UPSTREAM` (defaults to `http://backend:8000` in compose).
+- After changing values in `backend/.env`, re-create containers (not just restart) so new env vars are applied:
+  ```bash
+  podman compose --env-file backend/.env up -d --force-recreate backend frontend
+  ```
 
 ## 2) Azure OpenAI Smoke Test (Optional But Recommended)
 
@@ -173,7 +186,7 @@ Use this exact sequence:
 
 ```bash
 cd <your-pipelinehealer-repo-root>
-podman compose --env-file backend/.env up -d backend
+podman compose --env-file backend/.env up -d backend frontend
 curl -sS http://127.0.0.1:8000/health
 ```
 
@@ -208,6 +221,16 @@ Expected:
 - `dependency` and `lint` => PR created
 - `test`, `build_config`, `timeout` => issue created
 
+Optional settings check (runtime config snapshot):
+
+```bash
+curl -sS "http://127.0.0.1:8000/api/settings"
+```
+
+Frontend Settings page:
+
+- Open `/settings` in the UI (for example `http://127.0.0.1:3000/settings` in dev).
+
 ## Troubleshooting
 
 - Error: `'AzureOpenAIChatClient' object has no attribute 'as_agent'`
@@ -216,8 +239,8 @@ Expected:
     ```bash
     cd <your-pipelinehealer-repo-root>
     git pull --ff-only
-    podman compose --env-file backend/.env build --no-cache backend
-    podman compose --env-file backend/.env up -d backend
+    podman compose --env-file backend/.env build --no-cache backend frontend
+    podman compose --env-file backend/.env up -d backend frontend
     ```
 
 - Error: `Max remediation attempts reached for this repository`
@@ -229,4 +252,21 @@ Expected:
   - Or raise the limit in `backend/.env`:
     ```bash
     MAX_REMEDIATION_ATTEMPTS=10
+    ```
+
+- Warning during frontend image build: `unknown file mode ?rw-rw-rw-` under `frontend/node_modules/.bin/*`
+  - Cause: Docker/Podman build context includes host `node_modules` on Windows filesystems.
+  - Fix: keep `frontend/.dockerignore` (includes `node_modules/`) and rebuild from repo root:
+    ```bash
+    cd <your-pipelinehealer-repo-root>
+    podman compose --env-file backend/.env build --no-cache frontend
+    ```
+
+- Error from agent calls: `404 Resource not found` using Azure OpenAI
+  - Cause: malformed `AZURE_OPENAI_ENDPOINT` in `backend/.env` (for example accidental concatenation or non-root URL path).
+  - Fix:
+    ```bash
+    cd <your-pipelinehealer-repo-root>
+    sed -i 's|^AZURE_OPENAI_ENDPOINT=.*|AZURE_OPENAI_ENDPOINT=https://<your-resource>.cognitiveservices.azure.com/|' backend/.env
+    podman compose --env-file backend/.env up -d --force-recreate backend
     ```

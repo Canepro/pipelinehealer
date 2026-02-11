@@ -36,8 +36,8 @@ bun run format                 # prettier
 ```bash
 cd pipelinehealer
 cp backend/.env.example backend/.env   # first time only — fill in values
-podman compose --env-file backend/.env build backend
-podman compose --env-file backend/.env up -d backend
+podman compose --env-file backend/.env build backend frontend
+podman compose --env-file backend/.env up -d backend frontend
 podman compose --env-file backend/.env ps
 curl -sS http://127.0.0.1:8000/health
 # docker compose works too if your environment maps Docker CLI to Podman
@@ -47,6 +47,7 @@ curl -sS http://127.0.0.1:8000/health
 
 ```bash
 cd pipelinehealer
+# complete docs/PREDEPLOY_PLACEHOLDER_AUDIT.md first
 azd up                         # provision infra (Bicep) + deploy services
 ```
 
@@ -65,11 +66,11 @@ This section is the working checklist for getting PipelineHealer demo-ready and 
 | Phase | Goal | Status | Primary Files |
 |------:|------|--------|---------------|
 | 0 | Hygiene baseline (lint/typecheck/tests) | Completed | `backend/pyproject.toml`, `backend/src/*` |
-| 1 | Correctness (IDs, auto-fix PRs, retry behavior) | In progress (E2E issue flow verified) | `backend/src/workflows/pipeline_healer.py`, `backend/src/agents/orchestrator.py`, `backend/src/tools/fix_generators.py`, `backend/src/agents/remediation.py`, `backend/src/api/dashboard.py` |
+| 1 | Correctness (IDs, auto-fix PRs, retry behavior) | Completed | `backend/src/workflows/pipeline_healer.py`, `backend/src/agents/orchestrator.py`, `backend/src/tools/fix_generators.py`, `backend/src/agents/remediation.py`, `backend/src/api/dashboard.py` |
 | 1.5 | Safe+demo mode (more self-healing without breaking safety) | In progress | `backend/src/config.py`, `backend/src/tools/fix_generators.py`, `backend/src/agents/remediation.py`, `demo-repo/.github/workflows/ci.yml` |
-| 2 | Security (API auth, webhook hardening) | In progress | `backend/src/main.py`, `backend/src/api/*`, `backend/src/config.py` |
-| 3 | Reliability (timeouts, retries/backoff, log handling) | Not started | `backend/src/tools/github_tools.py`, `backend/src/agents/*` |
-| 4 | Deployment alignment (azd/bicep/images/functions) | Not started | `azure.yaml`, `infra/main.bicep`, `backend/Dockerfile`, `frontend/Dockerfile` |
+| 2 | Security (API auth, webhook hardening) | Completed | `backend/src/main.py`, `backend/src/api/*`, `backend/src/config.py` |
+| 3 | Reliability (timeouts, retries/backoff, log handling) | Completed (backend) | `backend/src/tools/github_tools.py`, `backend/src/agents/*` |
+| 4 | Deployment alignment (azd/bicep/images/functions) | In progress | `azure.yaml`, `infra/main.bicep`, `backend/Dockerfile`, `frontend/Dockerfile` |
 | 5 | Demo + submission polish | Not started | `README.md`, `demo-repo/.github/workflows/ci.yml`, `PROJECT_STATUS.md` |
 
 ### Phase 0: Hygiene Baseline (lint/typecheck/tests)
@@ -110,7 +111,7 @@ Work items:
 - [x] Make dependency auto-fix actually write file contents (or implement structured patch application) so PRs are not empty.
 - [x] Implement `/api/activities/{id}/retry` to re-run failed jobs via GitHub API (minimum viable) or to re-run the internal workflow pipeline (preferred).
 - [x] Add/extend tests for the above flows.
-- [ ] Demo verification: ensure **dependency** and **lint** scenarios open PRs (not issues) in the demo repo.
+- [x] Demo verification: ensure **dependency** and **lint** scenarios open PRs (not issues) in the demo repo.
 
 Known limitations (address in future):
 
@@ -155,7 +156,8 @@ Work items:
 - [x] Add `HEAL_MODE` setting and document it in `backend/.env.example`.
 - [x] Wire `HEAL_MODE` into remediation planning (`FixGenerators`).
 - [x] Upgrade `line_update` to support regex substitutions and multi-file selection.
-- [ ] Add unit tests for demo-mode behaviors (retry, timeout PR plan rendering).
+- [x] Add read-only runtime settings surface (`/api/settings` + frontend `/settings`) as foundation for future admin UI.
+- [x] Add unit tests for demo-mode behaviors (retry, timeout PR plan rendering).
 
 Blog note:
 
@@ -184,10 +186,10 @@ Exit criteria:
 
 Work items:
 
-- [ ] Add retry/backoff for GitHub API calls in `GitHubTools`.
-- [ ] Add per-step timeouts in orchestrator pipeline steps.
-- [ ] Adjust log fetching to handle `timed_out` conclusions (not only `failure` jobs).
-- [ ] Increase or improve log truncation strategy (preserve error tail/sections).
+- [x] Add retry/backoff for GitHub API calls in `GitHubTools`.
+- [x] Add per-step timeouts in orchestrator pipeline steps.
+- [x] Adjust log fetching to handle `timed_out` conclusions (not only `failure` jobs).
+- [x] Increase or improve log truncation strategy (preserve error tail/sections).
 
 ### Phase 4: Deployment Alignment
 
@@ -199,8 +201,9 @@ Exit criteria:
 
 Work items:
 
-- [ ] Replace placeholder images in `infra/main.bicep` with real build outputs.
-- [ ] Align `azure.yaml` services with actual deployable projects (Container Apps vs Functions).
+- [x] Replace placeholder images in `infra/main.bicep` with ACR-backed backend/frontend image references.
+- [x] Align `azure.yaml` services to Container Apps (removed placeholder Functions mapping).
+- [ ] Run and sign off `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md` before `azd up`.
 
 ### Phase 5: Demo + Submission Polish
 
@@ -261,6 +264,17 @@ Decisions made (Recommended defaults for this repo):
 - Feb 11, 2026: Phase 2 started: `/api/*` now requires `X-API-Key` outside development, webhook signature verification policy is explicit (`VERIFY_WEBHOOK_SIGNATURE`, `VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT`), and CORS now uses env-driven `cors_allowed_origins` plus `allow_origin_regex` for deploy hosts.
 - Feb 11, 2026: Phase 2 validated locally (`ruff`, `mypy`, `pytest` all pass) and PR #1 review follow-up comment posted summarizing resolved suggestions and security updates.
 - Feb 11, 2026: Resolved current backend deprecation warnings by switching to timezone-aware UTC timestamps (`datetime.now(UTC)`), normalizing naive/aware datetime comparisons in storage, and migrating Pydantic model config to `ConfigDict`.
+- Feb 11, 2026: Refined `backend/.env.example` to a clearer, sectioned template (local E2E-first), keeping variable names unchanged while clarifying endpoint/API-version guidance and security defaults.
+- Feb 11, 2026: Updated `docker-compose.yml` backend env passthrough to include Phase 2 security/agent vars (`VERIFY_WEBHOOK_SIGNATURE*`, `API_AUTH_KEY`, CORS, heal mode, remediation limits). Note: env changes require `podman compose ... up -d --force-recreate backend`.
+- Feb 11, 2026: Added settings foundation: backend `GET /api/settings` (non-secret runtime config), frontend `/settings` page, and runbook/README notes so future authenticated write-settings flow can layer on cleanly.
+- Feb 11, 2026: Frontend tooling baseline fixed for local validation: added `frontend/src/vite-env.d.ts` (`import.meta.env` typing) and `frontend/eslint.config.js` (ESLint v9 flat config), so `bun run build` and `bun run lint` run cleanly.
+- Feb 11, 2026: Frontend API client now supports optional `VITE_API_AUTH_KEY`, sending `X-API-Key` automatically for secured `/api/*` routes in non-development environments.
+- Feb 11, 2026: Phase 3 implemented in backend core: GitHub API retries/backoff for 429/5xx + network errors, per-step orchestrator timeouts, timed_out job log collection, and head+tail log truncation for prompts.
+- Feb 11, 2026: Added Phase 3 tests in `backend/tests/test_phase3_reliability.py` for retry behavior, timed_out job inclusion, orchestrator timeout failure handling, and prompt truncation tail preservation.
+- Feb 11, 2026: Phase 3 validation passed: `ruff check src`, `mypy src`, and `pytest` (35 tests passing).
+- Feb 11, 2026: Added `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md` and wired it into README/AGENTS as a required pre-deploy gate.
+- Feb 11, 2026: Phase 4 deployment alignment started: removed `functions` service from `azure.yaml`, switched post-provision outputs to backend/frontend URLs, replaced placeholder Container App images in `infra/main.bicep` with ACR-backed backend/frontend image references, and added Canepro naming defaults in `infra/main.bicepparam`.
+- Feb 11, 2026: Fixed frontend Azure crash-loop by making Nginx backend proxy runtime-configurable (`BACKEND_UPSTREAM`), wiring local compose to `http://backend:8000` and Bicep frontend env to backend Container App FQDN.
 
 ## Project Layout
 
