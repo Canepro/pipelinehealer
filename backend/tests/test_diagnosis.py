@@ -1,6 +1,5 @@
 """Tests for the Diagnosis Agent."""
 
-import pytest
 from src.agents.diagnosis import DiagnosisAgent
 from src.models import FailureType, LogAnalysis
 
@@ -58,6 +57,24 @@ class TestPatternBasedDiagnosis:
         assert diagnosis is not None
         assert diagnosis.failure_type == FailureType.LINT
         assert "eslint" in diagnosis.error_details.get("linter", "")
+        assert diagnosis.error_details.get("missing_file", "") == ""
+
+    def test_detect_eslint_missing_flat_config(self) -> None:
+        """Test detection of missing eslint flat config."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="lint",
+            raw_logs="ESLint couldn't find an eslint.config.js file",
+            error_lines=["ESLint couldn't find an eslint.config.js file"],
+            summary="Linting failed",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.LINT
+        assert diagnosis.error_details.get("linter") == "eslint"
+        assert diagnosis.error_details.get("missing_file") == "eslint.config.js"
 
     def test_detect_pytest_failure(self) -> None:
         """Test detection of pytest failures."""

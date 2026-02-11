@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Header, HTTPException, Request, status
 
 from ..config import get_settings
-from ..models import RemediationStatus, WorkflowRunEvent
+from ..models import WorkflowRunEvent
 from ..workflows import PipelineHealerWorkflow
 
 logger = logging.getLogger(__name__)
@@ -26,24 +26,24 @@ def set_workflow(workflow: PipelineHealerWorkflow) -> None:
 
 def verify_github_signature(payload: bytes, signature: str, secret: str) -> bool:
     """Verify the GitHub webhook signature.
-    
+
     Args:
         payload: Raw request body
         signature: X-Hub-Signature-256 header value
         secret: Webhook secret
-        
+
     Returns:
         True if signature is valid
     """
     if not signature or not signature.startswith("sha256="):
         return False
-    
+
     expected_signature = hmac.new(
         secret.encode("utf-8"),
         payload,
         hashlib.sha256,
     ).hexdigest()
-    
+
     return hmac.compare_digest(f"sha256={expected_signature}", signature)
 
 
@@ -55,15 +55,15 @@ async def handle_github_webhook(
     x_github_delivery: str = Header(..., alias="X-GitHub-Delivery"),
 ) -> dict[str, Any]:
     """Handle incoming GitHub webhook events.
-    
+
     This endpoint receives workflow_run events from GitHub and triggers
     the PipelineHealer workflow for failed runs.
     """
     settings = get_settings()
-    
+
     # Get raw body for signature verification
     body = await request.body()
-    
+
     # Verify signature in production
     if settings.environment != "development":
         if not settings.github_webhook_secret:
@@ -72,14 +72,16 @@ async def handle_github_webhook(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Webhook secret not configured",
             )
-        
-        if not verify_github_signature(body, x_hub_signature_256 or "", settings.github_webhook_secret):
+
+        if not verify_github_signature(
+            body, x_hub_signature_256 or "", settings.github_webhook_secret
+        ):
             logger.warning(f"Invalid webhook signature for delivery {x_github_delivery}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid signature",
             )
-    
+
     # Parse JSON payload
     try:
         payload = await request.json()
@@ -88,13 +90,13 @@ async def handle_github_webhook(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid JSON payload",
-        )
-    
+        ) from e
+
     logger.info(
         f"Received GitHub webhook: event={x_github_event}, "
         f"delivery={x_github_delivery}, action={payload.get('action', 'N/A')}"
     )
-    
+
     # Handle different event types
     if x_github_event == "workflow_run":
         return await handle_workflow_run_event(payload, x_github_delivery)
@@ -114,13 +116,13 @@ async def handle_workflow_run_event(
     delivery_id: str,
 ) -> dict[str, Any]:
     """Handle a workflow_run event from GitHub.
-    
+
     We're interested in completed workflow runs that have failed.
     """
     action = payload.get("action")
     workflow_run = payload.get("workflow_run", {})
     conclusion = workflow_run.get("conclusion")
-    
+
     # Only process completed runs that failed
     if action != "completed":
         logger.debug(f"Ignoring workflow_run action: {action}")
@@ -129,7 +131,7 @@ async def handle_workflow_run_event(
             "reason": f"action is '{action}', not 'completed'",
             "delivery_id": delivery_id,
         }
-    
+
     if conclusion not in ("failure", "timed_out"):
         logger.debug(f"Ignoring workflow_run conclusion: {conclusion}")
         return {
@@ -137,7 +139,7 @@ async def handle_workflow_run_event(
             "reason": f"conclusion is '{conclusion}', not a failure",
             "delivery_id": delivery_id,
         }
-    
+
     # Parse the event
     try:
         event = WorkflowRunEvent(**payload)
@@ -146,8 +148,8 @@ async def handle_workflow_run_event(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid workflow_run event format: {e}",
-        )
-    
+        ) from e
+
     logger.info(
         f"Processing failed workflow run: "
         f"repo={event.repository.full_name}, "
@@ -155,7 +157,7 @@ async def handle_workflow_run_event(
         f"run_id={event.workflow_run.id}, "
         f"conclusion={conclusion}"
     )
-    
+
     # Trigger the healing workflow
     if _workflow is None:
         logger.error("Workflow not initialized")
@@ -163,11 +165,11 @@ async def handle_workflow_run_event(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Workflow not initialized",
         )
-    
+
     try:
         # Start the workflow asynchronously
         activity_id = await _workflow.start(event)
-        
+
         return {
             "status": "processing",
             "activity_id": activity_id,
@@ -180,7 +182,7 @@ async def handle_workflow_run_event(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to start healing workflow: {e}",
-        )
+        ) from e
 
 
 @router.get("/health")

@@ -38,18 +38,23 @@ dev = [
     "mypy>=1.13.0",
 ]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=6.0.0",
     "ruff>=0.8.0",
     "mypy>=1.13.0",
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# The backend currently uses `backend/src` as the import package root (imports like `from src...`).
+# Hatchling can't infer this automatically from the project name `pipelinehealer`, so we declare it.
+packages = ["src"]
 
 [tool.ruff]
 target-version = "py311"
@@ -60,7 +65,11 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["pipelinehealer"]
+known-first-party = ["src"]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI commonly uses `Query(...)`/`Path(...)` in signature defaults.
+"src/api/*.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.11"

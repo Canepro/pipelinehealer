@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class GitHubTools:
     """Tools for interacting with GitHub via the GitHub MCP Server or REST API.
-    
+
     This class provides methods that can be used as agent tools for:
     - Fetching workflow run information
     - Getting job logs
@@ -28,12 +28,17 @@ class GitHubTools:
         base_url: str = "https://api.github.com",
     ):
         """Initialize GitHub tools.
-        
+
         Args:
             token: GitHub personal access token or app token
             base_url: GitHub API base URL
         """
-        self._token = token or os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
+        settings = get_settings()
+        self._token = (
+            token
+            or settings.github_personal_access_token
+            or os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
+        )
         self._base_url = base_url
         self._client: httpx.AsyncClient | None = None
 
@@ -46,7 +51,7 @@ class GitHubTools:
             }
             if self._token:
                 headers["Authorization"] = f"Bearer {self._token}"
-            
+
             self._client = httpx.AsyncClient(
                 base_url=self._base_url,
                 headers=headers,
@@ -71,19 +76,19 @@ class GitHubTools:
         run_id: int,
     ) -> dict[str, Any]:
         """Get details of a workflow run.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             run_id: Workflow run ID
-            
+
         Returns:
             Workflow run details
         """
         client = await self._get_client()
         response = await client.get(f"/repos/{owner}/{repo}/actions/runs/{run_id}")
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())
 
     async def get_workflow_jobs(
         self,
@@ -93,13 +98,13 @@ class GitHubTools:
         filter: str = "all",
     ) -> list[dict[str, Any]]:
         """Get jobs for a workflow run.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             run_id: Workflow run ID
             filter: Filter jobs (latest, all)
-            
+
         Returns:
             List of workflow jobs
         """
@@ -109,8 +114,8 @@ class GitHubTools:
             params={"filter": filter},
         )
         response.raise_for_status()
-        data = response.json()
-        return data.get("jobs", [])
+        data = cast(dict[str, Any], response.json())
+        return cast(list[dict[str, Any]], data.get("jobs", []))
 
     async def get_job_logs(
         self,
@@ -119,12 +124,12 @@ class GitHubTools:
         job_id: int,
     ) -> str:
         """Get logs for a specific job.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             job_id: Job ID
-            
+
         Returns:
             Job logs as text
         """
@@ -143,18 +148,18 @@ class GitHubTools:
         run_id: int,
     ) -> dict[str, str]:
         """Get logs for all failed jobs in a workflow run.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             run_id: Workflow run ID
-            
+
         Returns:
             Dictionary mapping job name to logs
         """
         jobs = await self.get_workflow_jobs(owner, repo, run_id)
         failed_jobs = [j for j in jobs if j.get("conclusion") == "failure"]
-        
+
         logs: dict[str, str] = {}
         for job in failed_jobs:
             job_id = job["id"]
@@ -165,7 +170,7 @@ class GitHubTools:
             except Exception as e:
                 logger.error(f"Failed to get logs for job {job_name}: {e}")
                 logs[job_name] = f"Error fetching logs: {e}"
-        
+
         return logs
 
     # =========================================================================
@@ -180,13 +185,13 @@ class GitHubTools:
         ref: str | None = None,
     ) -> dict[str, Any]:
         """Get contents of a file from a repository.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             path: Path to the file
             ref: Git reference (branch, tag, commit)
-            
+
         Returns:
             File contents and metadata
         """
@@ -194,13 +199,13 @@ class GitHubTools:
         params = {}
         if ref:
             params["ref"] = ref
-        
+
         response = await client.get(
             f"/repos/{owner}/{repo}/contents/{path}",
             params=params,
         )
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())
 
     async def get_repository_tree(
         self,
@@ -210,26 +215,26 @@ class GitHubTools:
         recursive: bool = True,
     ) -> list[dict[str, Any]]:
         """Get the file tree of a repository.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             tree_sha: Tree SHA or ref
             recursive: Whether to get recursive tree
-            
+
         Returns:
             List of tree entries
         """
         client = await self._get_client()
         params = {"recursive": "1"} if recursive else {}
-        
+
         response = await client.get(
             f"/repos/{owner}/{repo}/git/trees/{tree_sha}",
             params=params,
         )
         response.raise_for_status()
-        data = response.json()
-        return data.get("tree", [])
+        data = cast(dict[str, Any], response.json())
+        return cast(list[dict[str, Any]], data.get("tree", []))
 
     # =========================================================================
     # Branch and PR Tools
@@ -243,29 +248,32 @@ class GitHubTools:
         from_ref: str = "HEAD",
     ) -> dict[str, Any]:
         """Create a new branch.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             branch_name: Name for the new branch
             from_ref: Reference to branch from
-            
+
         Returns:
             Created reference info
         """
         client = await self._get_client()
-        
+
         # Get the SHA of the source ref
         ref_response = await client.get(f"/repos/{owner}/{repo}/git/ref/heads/{from_ref}")
         if ref_response.status_code == 404:
             # Try as a commit SHA
             commit_response = await client.get(f"/repos/{owner}/{repo}/commits/{from_ref}")
             commit_response.raise_for_status()
-            sha = commit_response.json()["sha"]
+            commit_data = cast(dict[str, Any], commit_response.json())
+            sha = cast(str, commit_data["sha"])
         else:
             ref_response.raise_for_status()
-            sha = ref_response.json()["object"]["sha"]
-        
+            ref_data = cast(dict[str, Any], ref_response.json())
+            obj = cast(dict[str, Any], ref_data["object"])
+            sha = cast(str, obj["sha"])
+
         # Create the new branch
         response = await client.post(
             f"/repos/{owner}/{repo}/git/refs",
@@ -275,7 +283,7 @@ class GitHubTools:
             },
         )
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())
 
     async def create_or_update_file(
         self,
@@ -288,7 +296,7 @@ class GitHubTools:
         sha: str | None = None,
     ) -> dict[str, Any]:
         """Create or update a file in a repository.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
@@ -297,14 +305,14 @@ class GitHubTools:
             message: Commit message
             branch: Branch to commit to
             sha: SHA of the file to update (required for updates)
-            
+
         Returns:
             Commit info
         """
         import base64
-        
+
         client = await self._get_client()
-        
+
         # If sha not provided, try to get it
         if sha is None:
             try:
@@ -313,7 +321,7 @@ class GitHubTools:
             except httpx.HTTPStatusError as e:
                 if e.response.status_code != 404:
                     raise
-        
+
         body: dict[str, Any] = {
             "message": message,
             "content": base64.b64encode(content.encode()).decode(),
@@ -321,13 +329,13 @@ class GitHubTools:
         }
         if sha:
             body["sha"] = sha
-        
+
         response = await client.put(
             f"/repos/{owner}/{repo}/contents/{path}",
             json=body,
         )
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())
 
     async def create_pull_request(
         self,
@@ -340,7 +348,7 @@ class GitHubTools:
         draft: bool = False,
     ) -> dict[str, Any]:
         """Create a pull request.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
@@ -349,12 +357,12 @@ class GitHubTools:
             head: Head branch
             base: Base branch
             draft: Whether to create as draft
-            
+
         Returns:
             Created PR info
         """
         client = await self._get_client()
-        
+
         response = await client.post(
             f"/repos/{owner}/{repo}/pulls",
             json={
@@ -366,7 +374,7 @@ class GitHubTools:
             },
         )
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())
 
     # =========================================================================
     # Issue Tools
@@ -382,7 +390,7 @@ class GitHubTools:
         assignees: list[str] | None = None,
     ) -> dict[str, Any]:
         """Create an issue.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
@@ -390,12 +398,12 @@ class GitHubTools:
             body: Issue body
             labels: Labels to apply
             assignees: Users to assign
-            
+
         Returns:
             Created issue info
         """
         client = await self._get_client()
-        
+
         json_body: dict[str, Any] = {
             "title": title,
             "body": body,
@@ -404,13 +412,13 @@ class GitHubTools:
             json_body["labels"] = labels
         if assignees:
             json_body["assignees"] = assignees
-        
+
         response = await client.post(
             f"/repos/{owner}/{repo}/issues",
             json=json_body,
         )
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())
 
     async def add_issue_comment(
         self,
@@ -420,24 +428,24 @@ class GitHubTools:
         body: str,
     ) -> dict[str, Any]:
         """Add a comment to an issue or PR.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             issue_number: Issue or PR number
             body: Comment body
-            
+
         Returns:
             Created comment info
         """
         client = await self._get_client()
-        
+
         response = await client.post(
             f"/repos/{owner}/{repo}/issues/{issue_number}/comments",
             json={"body": body},
         )
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())
 
     # =========================================================================
     # Workflow Re-run Tools
@@ -450,17 +458,17 @@ class GitHubTools:
         run_id: int,
     ) -> dict[str, Any]:
         """Re-run a workflow.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             run_id: Workflow run ID
-            
+
         Returns:
             Empty dict on success
         """
         client = await self._get_client()
-        
+
         response = await client.post(
             f"/repos/{owner}/{repo}/actions/runs/{run_id}/rerun",
         )
@@ -474,17 +482,17 @@ class GitHubTools:
         run_id: int,
     ) -> dict[str, Any]:
         """Re-run only failed jobs in a workflow.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             run_id: Workflow run ID
-            
+
         Returns:
             Empty dict on success
         """
         client = await self._get_client()
-        
+
         response = await client.post(
             f"/repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs",
         )
@@ -495,10 +503,10 @@ class GitHubTools:
 # Tool function wrappers for agent framework integration
 def create_github_tool_functions(github_tools: GitHubTools) -> dict[str, Any]:
     """Create tool functions for use with agent framework.
-    
+
     Args:
         github_tools: GitHubTools instance
-        
+
     Returns:
         Dictionary of tool functions
     """

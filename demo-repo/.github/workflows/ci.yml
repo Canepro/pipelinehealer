@@ -26,29 +26,35 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Non-secret config var used to demonstrate demo-mode self-healing for build_config failures.
+      # In a real repo this would usually be provided via GitHub Actions Variables/Secrets.
+      REQUIRED_CONFIG: ""
     
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+
+      # Align with PipelineHealer frontend stack: Bun.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: '20'
-          cache: 'npm'
-      
+          bun-version: "latest"
+
       - name: Install dependencies
-        run: npm ci
+        run: bun install
       
       # Simulate dependency failure
       - name: Check dependencies (may fail)
         if: ${{ github.event.inputs.failure_type == 'dependency' }}
         run: |
           echo "Simulating dependency failure..."
-          npm install nonexistent-package-xyz@999.999.999
+          # Trigger a deterministic "Cannot find module" error that PipelineHealer can auto-fix
+          # by adding the missing dependency to package.json.
+          node -e "require('left-pad')"
       
       # Lint step
       - name: Lint
-        run: npm run lint
+        run: bun run lint
       
       # Simulate lint failure
       - name: Lint (may fail)
@@ -56,30 +62,40 @@ jobs:
         run: |
           echo "Simulating lint failure..."
           echo "const x = 1" > temp.js
-          npx eslint temp.js --rule 'semi: error'
+          # ESLint v9+ requires eslint.config.js by default; missing it produces a clear failure
+          # that PipelineHealer can remediate by opening a PR that adds the config.
+          bunx eslint temp.js
       
       # Build step
       - name: Build
-        run: npm run build
+        run: bun run build
       
       # Test step
       - name: Test
-        run: npm test
+        run: bun run test
       
       # Simulate test failure
       - name: Test (may fail)
         if: ${{ github.event.inputs.failure_type == 'test' }}
         run: |
-          echo "Simulating test failure..."
-          node -e "process.exit(1)"
+          # Demo-friendly "flaky" failure: fail on first attempt, pass on rerun.
+          # PipelineHealer demo mode will detect "intermittent" and trigger a rerun.
+          if [ "${GITHUB_RUN_ATTEMPT}" = "1" ]; then
+            echo "Simulating intermittent test failure..."
+            node -e "process.exit(1)"
+          fi
+          echo "Test passed on retry."
       
       # Simulate build config failure
       - name: Config check (may fail)
         if: ${{ github.event.inputs.failure_type == 'build_config' }}
         run: |
           echo "Simulating config failure..."
-          echo "Missing required env: $REQUIRED_SECRET"
-          exit 1
+          if [ -z "${REQUIRED_CONFIG:-}" ]; then
+            echo "Missing required env: REQUIRED_CONFIG"
+            exit 1
+          fi
+          echo "Config OK."
       
       # Simulate timeout
       - name: Long running task (may timeout)

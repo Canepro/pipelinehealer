@@ -1,13 +1,7 @@
-"""PipelineHealer Agents Module."""
+"""PipelineHealer agents package.
 
-from .diagnosis import DiagnosisAgent
-from .log_analyzer import LogAnalyzerAgent
-from .orchestrator import OrchestratorAgent
-from .remediation import RemediationAgent
+Keep this module import-light so test collection and local tooling don't
+implicitly import cloud SDKs / clients.
+"""
 
-__all__ = [
-    "DiagnosisAgent",
-    "LogAnalyzerAgent",
-    "OrchestratorAgent",
-    "RemediationAgent",
-]
+__all__: list[str] = []

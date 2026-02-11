@@ -1,13 +1,13 @@
 """Data models for PipelineHealer."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class FailureType(str, Enum):
+class FailureType(StrEnum):
     """Types of CI/CD failures the agent can handle."""
 
     DEPENDENCY = "dependency"
@@ -18,7 +18,7 @@ class FailureType(str, Enum):
     UNKNOWN = "unknown"
 
 
-class RemediationStatus(str, Enum):
+class RemediationStatus(StrEnum):
     """Status of a remediation attempt."""
 
     PENDING = "pending"
@@ -30,7 +30,7 @@ class RemediationStatus(str, Enum):
     SKIPPED = "skipped"
 
 
-class RemediationAction(str, Enum):
+class RemediationAction(StrEnum):
     """Types of remediation actions."""
 
     CREATE_PR = "create_pr"

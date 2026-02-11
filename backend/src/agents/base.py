@@ -1,7 +1,6 @@
 """Base agent configuration and utilities for PipelineHealer."""
 
 import logging
-import os
 from typing import Any
 
 from azure.identity import DefaultAzureCredential
@@ -10,15 +9,104 @@ from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 
+def validate_azure_openai_endpoint(endpoint: str) -> None:
+    """Fail fast on common misconfiguration (Foundry project endpoint vs AOAI resource endpoint)."""
+    if not endpoint:
+        return
+    # Foundry project endpoints look like: https://<project>.services.ai.azure.com/api/projects/<id>
+    # Azure OpenAI resource endpoints look like: https://<resource>.openai.azure.com/
+    if "services.ai.azure.com" in endpoint:
+        raise ValueError(
+            "AZURE_OPENAI_ENDPOINT looks like an Azure AI Foundry *project* endpoint "
+            "(...services.ai.azure.com). PipelineHealer currently expects the Azure OpenAI *resource* "
+            "endpoint that ends with '.openai.azure.com/'. In Foundry, open the 'Azure OpenAI' "
+            "resource entry (not the 'Microsoft Foundry' project endpoint) to copy the correct endpoint."
+        )
+
+class NoopAgent:
+    """Local fallback agent used when Azure OpenAI is not configured.
+
+    This keeps local dev + unit tests working without cloud credentials.
+    """
+
+    async def run(self, prompt: str) -> str:  # pragma: no cover
+        _ = prompt
+        return ""
+
+def create_cloud_agent(
+    *,
+    name: str,
+    instructions: str,
+    credential: DefaultAzureCredential,
+    settings: Any = None,
+) -> Any:
+    """Create an agent-framework ChatAgent from current settings.
+
+    Supports both:
+    - Azure OpenAI resources: https://<resource>.openai.azure.com/ (preferred; uses Responses API)
+    - Azure AI Services w/ OpenAI deployments: https://<resource>.cognitiveservices.azure.com/ (uses Chat API)
+    """
+    if settings is None:
+        settings = get_settings()
+
+    endpoint = getattr(settings, "azure_openai_endpoint", "") or ""
+    deployment_name = getattr(settings, "azure_openai_deployment_name", "") or ""
+    api_version = getattr(settings, "azure_openai_api_version", "") or ""
+    api_key = getattr(settings, "azure_openai_api_key", "") or ""
+
+    if not endpoint:
+        logger.warning("Azure OpenAI endpoint not configured; using NoopAgent.")
+        return NoopAgent()
+
+    validate_azure_openai_endpoint(endpoint)
+
+    # Foundry commonly provisions OpenAI deployments behind an "AI Services" endpoint
+    # like `https://<name>.cognitiveservices.azure.com/`.
+    if "cognitiveservices.azure.com" in endpoint:
+        # Foundry deployment pages commonly recommend a dated preview version for chat completions
+        # (for example `2024-12-01-preview`). If the user left the default `preview`, prefer that.
+        chat_api_version = api_version
+        if chat_api_version in ("", "preview"):
+            chat_api_version = "2024-12-01-preview"
+
+        from agent_framework.azure import AzureOpenAIChatClient
+
+        chat_client: Any = AzureOpenAIChatClient(
+            endpoint=endpoint,
+            deployment_name=deployment_name,
+            api_version=chat_api_version or None,
+            api_key=api_key or None,
+            credential=credential,
+        )
+        return chat_client.as_agent(name=name, instructions=instructions)
+
+    # For classic Azure OpenAI resources (openai.azure.com), use the Responses API.
+    from agent_framework.azure import AzureOpenAIResponsesClient
+
+    # Responses API is enabled only for certain preview versions on some resources.
+    # If the user left the default `preview`, prefer a known-working dated preview.
+    responses_api_version = api_version
+    if responses_api_version in ("", "preview"):
+        responses_api_version = "2025-03-01-preview"
+
+    responses_client: Any = AzureOpenAIResponsesClient(
+        endpoint=endpoint,
+        deployment_name=deployment_name,
+        api_version=responses_api_version,
+        api_key=api_key or None,
+        credential=credential,
+    )
+    return responses_client.as_agent(name=name, instructions=instructions)
+
 
 def get_azure_openai_config() -> dict[str, Any]:
     """Get Azure OpenAI configuration for agents.
-    
+
     Returns:
         Configuration dictionary for Azure OpenAI
     """
     settings = get_settings()
-    
+
     return {
         "endpoint": settings.azure_openai_endpoint,
         "deployment_name": settings.azure_openai_deployment_name,
@@ -28,7 +116,7 @@ def get_azure_openai_config() -> dict[str, Any]:
 
 def get_credential() -> DefaultAzureCredential:
     """Get Azure credential for authentication.
-    
+
     Returns:
         Azure credential object
     """
@@ -58,7 +146,6 @@ Output format:
 - List the most relevant error lines
 - Identify which build step failed
 - Note any patterns that suggest the failure type""",
-
     "diagnosis": """You are a Diagnosis Agent specialized in root cause analysis of CI/CD failures.
 
 Your role is to:
@@ -88,7 +175,6 @@ Output your diagnosis with:
 - affected_files: List of files involved (if identifiable)
 - is_auto_fixable: Whether this can be automatically fixed
 - suggested_fix: High-level suggestion for fixing""",
-
     "remediation": """You are a Remediation Agent specialized in fixing CI/CD failures.
 
 Your role is to:
@@ -115,7 +201,6 @@ Guidelines:
 - Always provide clear documentation of what was found
 
 Be conservative - when in doubt, create an issue rather than a potentially broken PR.""",
-
     "orchestrator": """You are the Orchestrator Agent for PipelineHealer, a CI/CD self-healing system.
 
 Your role is to:
@@ -146,10 +231,10 @@ Always maintain context about:
 
 def get_agent_prompt(agent_type: str) -> str:
     """Get the system prompt for an agent type.
-    
+
     Args:
         agent_type: Type of agent (log_analyzer, diagnosis, remediation, orchestrator)
-        
+
     Returns:
         System prompt string
     """
