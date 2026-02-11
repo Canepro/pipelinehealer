@@ -36,6 +36,25 @@ This document captures planned improvements after the current demo-ready baselin
 - Hard-fail webhooks without signature in production.
 - Tighten CORS for deployed origins.
 
+## 4.1) Settings UI (Admin)
+
+Future UX feature (requires auth):
+
+- Add a Settings page in the dashboard to control runtime behavior:
+  - `HEAL_MODE` (safe vs demo)
+  - Auto PR toggle (`AUTO_CREATE_PR`)
+  - Tracking issues toggle (`AUTO_CREATE_TRACKING_ISSUE_FOR_PRS`)
+  - Allowed repos / org allowlist
+  - Cost limits (max runs per hour, max model calls per activity)
+
+Implementation notes:
+
+- Require login (recommended: GitHub OAuth for demo simplicity or Entra ID for Azure alignment).
+- Treat Settings as admin-only:
+  - Either add an `is_admin` claim/allowlist
+  - Or run behind an auth proxy (simplest for Container Apps)
+- Store settings in Cosmos DB (or Key Vault for secrets).
+
 ## 5) CI Platform Adapter (Extensibility)
 
 - Implement a `CIPlatformAdapter` interface:
