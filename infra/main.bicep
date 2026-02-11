@@ -10,9 +10,38 @@ param environmentName string = 'dev'
 @description('Base name for all resources')
 param baseName string = 'pipelinehealer'
 
+@description('Azure Container Registry name (global unique, lowercase alphanumeric)')
+param acrName string = 'caneprophacr01'
+
+@description('Container Apps environment name')
+param containerAppsEnvironmentName string = 'cae-canepro-ph-dev-eus'
+
+@description('Backend Container App name')
+param backendContainerAppName string = 'ca-canepro-ph-backend'
+
+@description('Frontend Container App name')
+param frontendContainerAppName string = 'ca-canepro-ph-frontend'
+
+@description('Backend image repository name in ACR')
+param backendImageName string = 'pipelinehealer-backend'
+
+@description('Frontend image repository name in ACR')
+param frontendImageName string = 'pipelinehealer-frontend'
+
+@description('Image tag for backend/frontend images')
+param imageTag string = 'latest'
+
+@description('User-assigned identity name used by Container Apps to pull from ACR')
+param acrPullIdentityName string = 'id-canepro-ph-acrpull'
+
 // Generate unique suffix for globally unique names
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var resourceBaseName = '${baseName}${environmentName}'
+var backendImage = '${acrName}.azurecr.io/${backendImageName}:${imageTag}'
+var frontendImage = '${acrName}.azurecr.io/${frontendImageName}:${imageTag}'
+// Key Vault names must be 3-24 chars and alphanumeric/hyphen.
+// Use a compact deterministic name to stay within limits.
+var keyVaultName = take('${baseName}kv${uniqueSuffix}', 24)
 
 // ============================================================================
 // Azure OpenAI Service
@@ -144,7 +173,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 // Azure Key Vault (for secrets management)
 // ============================================================================
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
-  name: '${baseName}-kv-${uniqueSuffix}'
+  name: keyVaultName
   location: location
   properties: {
     sku: {
@@ -159,18 +188,33 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
 }
 
 // ============================================================================
-// Storage Account (for Azure Functions)
+// Azure Container Registry
 // ============================================================================
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: '${baseName}st${uniqueSuffix}'
+resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
+  name: acrName
   location: location
   sku: {
-    name: 'Standard_LRS'
+    name: 'Basic'
   }
-  kind: 'StorageV2'
   properties: {
-    supportsHttpsTrafficOnly: true
-    minimumTlsVersion: 'TLS1_2'
+    adminUserEnabled: false
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+// Pre-created identity for ACR pulls (avoids circular dependency during app creation).
+resource acrPullIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: acrPullIdentityName
+  location: location
+}
+
+resource acrPullIdentityRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(acrPullIdentity.id, containerRegistry.id, 'acrpull')
+  scope: containerRegistry
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+    principalId: acrPullIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -178,7 +222,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 // Azure Container Apps Environment (for dashboard and agents)
 // ============================================================================
 resource containerAppEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' = {
-  name: '${resourceBaseName}-env-${uniqueSuffix}'
+  name: containerAppsEnvironmentName
   location: location
   properties: {
     appLogsConfiguration: {
@@ -192,148 +236,49 @@ resource containerAppEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' 
 }
 
 // ============================================================================
-// Azure Functions (for webhook handling)
+// Container App for Backend API + Agents
 // ============================================================================
-resource functionAppPlan 'Microsoft.Web/serverfarms@2023-12-01' = {
-  name: '${resourceBaseName}-plan-${uniqueSuffix}'
+resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
+  name: backendContainerAppName
   location: location
-  sku: {
-    name: 'Y1'
-    tier: 'Dynamic'
-  }
-  properties: {
-    reserved: true // Linux
-  }
-}
-
-resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
-  name: '${resourceBaseName}-func-${uniqueSuffix}'
-  location: location
-  kind: 'functionapp,linux'
-  properties: {
-    serverFarmId: functionAppPlan.id
-    siteConfig: {
-      pythonVersion: '3.11'
-      linuxFxVersion: 'PYTHON|3.11'
-      appSettings: [
-        {
-          name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
-        }
-        {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~4'
-        }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'python'
-        }
-        {
-          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-          value: appInsights.properties.InstrumentationKey
-        }
-        {
-          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: appInsights.properties.ConnectionString
-        }
-        {
-          name: 'AZURE_OPENAI_ENDPOINT'
-          value: openAiAccount.properties.endpoint
-        }
-        {
-          name: 'AZURE_OPENAI_DEPLOYMENT_NAME'
-          value: gpt4oDeployment.name
-        }
-        {
-          name: 'COSMOS_DB_ENDPOINT'
-          value: cosmosDbAccount.properties.documentEndpoint
-        }
-        {
-          name: 'COSMOS_DB_DATABASE'
-          value: cosmosDatabase.name
-        }
-        {
-          name: 'KEY_VAULT_URL'
-          value: keyVault.properties.vaultUri
-        }
-      ]
-    }
-    httpsOnly: true
-  }
+  dependsOn: [
+    acrPullIdentityRoleAssignment
+  ]
   identity: {
-    type: 'SystemAssigned'
+    type: 'SystemAssigned,UserAssigned'
+    userAssignedIdentities: {
+      '${acrPullIdentity.id}': {}
+    }
   }
-}
-
-// ============================================================================
-// Container App for Dashboard
-// ============================================================================
-resource dashboardApp 'Microsoft.App/containerApps@2024-03-01' = {
-  name: '${resourceBaseName}-dashboard'
-  location: location
   properties: {
     managedEnvironmentId: containerAppEnvironment.id
     configuration: {
       ingress: {
         external: true
-        targetPort: 3000
-        transport: 'auto'
-      }
-    }
-    template: {
-      containers: [
-        {
-          name: 'dashboard'
-          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' // Placeholder, will be replaced
-          resources: {
-            cpu: json('0.5')
-            memory: '1Gi'
-          }
-          env: [
-            {
-              name: 'API_URL'
-              value: 'https://${functionApp.properties.defaultHostName}'
-            }
-            {
-              name: 'APPINSIGHTS_CONNECTION_STRING'
-              value: appInsights.properties.ConnectionString
-            }
-          ]
-        }
-      ]
-      scale: {
-        minReplicas: 0
-        maxReplicas: 3
-      }
-    }
-  }
-}
-
-// ============================================================================
-// Container App for Agent Service
-// ============================================================================
-resource agentServiceApp 'Microsoft.App/containerApps@2024-03-01' = {
-  name: '${resourceBaseName}-agents'
-  location: location
-  properties: {
-    managedEnvironmentId: containerAppEnvironment.id
-    configuration: {
-      ingress: {
-        external: false
         targetPort: 8000
         transport: 'auto'
       }
+      registries: [
+        {
+          server: containerRegistry.properties.loginServer
+          identity: acrPullIdentity.id
+        }
+      ]
     }
     template: {
       containers: [
         {
-          name: 'agents'
-          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' // Placeholder
+          name: 'backend'
+          image: backendImage
           resources: {
             cpu: json('1')
             memory: '2Gi'
           }
           env: [
+            {
+              name: 'ENVIRONMENT'
+              value: environmentName == 'prod' ? 'production' : 'development'
+            }
             {
               name: 'AZURE_OPENAI_ENDPOINT'
               value: openAiAccount.properties.endpoint
@@ -347,20 +292,80 @@ resource agentServiceApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbAccount.properties.documentEndpoint
             }
             {
-              name: 'APPINSIGHTS_CONNECTION_STRING'
+              name: 'COSMOS_DB_DATABASE'
+              value: cosmosDatabase.name
+            }
+            {
+              name: 'KEY_VAULT_URL'
+              value: keyVault.properties.vaultUri
+            }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsights.properties.ConnectionString
             }
           ]
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: 0
         maxReplicas: 5
       }
     }
   }
+}
+
+// ============================================================================
+// Container App for Frontend Dashboard
+// ============================================================================
+resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
+  name: frontendContainerAppName
+  location: location
+  dependsOn: [
+    acrPullIdentityRoleAssignment
+  ]
   identity: {
-    type: 'SystemAssigned'
+    type: 'SystemAssigned,UserAssigned'
+    userAssignedIdentities: {
+      '${acrPullIdentity.id}': {}
+    }
+  }
+  properties: {
+    managedEnvironmentId: containerAppEnvironment.id
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: 3000
+        transport: 'auto'
+      }
+      registries: [
+        {
+          server: containerRegistry.properties.loginServer
+          identity: acrPullIdentity.id
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'frontend'
+          image: frontendImage
+          resources: {
+            cpu: json('0.5')
+            memory: '1Gi'
+          }
+          env: [
+            {
+              name: 'API_URL'
+              value: 'https://${backendApp.properties.configuration.ingress.fqdn}'
+            }
+          ]
+        }
+      ]
+      scale: {
+        minReplicas: 0
+        maxReplicas: 3
+      }
+    }
   }
 }
 
@@ -368,68 +373,50 @@ resource agentServiceApp 'Microsoft.App/containerApps@2024-03-01' = {
 // Role Assignments
 // ============================================================================
 
-// Function App -> Cosmos DB Data Contributor
-resource functionCosmosRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = {
+// Backend App -> Cosmos DB Data Contributor
+resource backendCosmosRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = {
   parent: cosmosDbAccount
-  name: guid(functionApp.id, cosmosDbAccount.id, 'cosmos-contributor')
+  name: guid(backendApp.id, cosmosDbAccount.id, 'cosmos-contributor')
   properties: {
     roleDefinitionId: '${cosmosDbAccount.id}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002'
-    principalId: functionApp.identity.principalId
+    principalId: backendApp.identity.principalId
     scope: cosmosDbAccount.id
   }
 }
 
-// Agent Service -> Cosmos DB Data Contributor
-resource agentCosmosRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = {
-  parent: cosmosDbAccount
-  name: guid(agentServiceApp.id, cosmosDbAccount.id, 'cosmos-contributor')
-  properties: {
-    roleDefinitionId: '${cosmosDbAccount.id}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002'
-    principalId: agentServiceApp.identity.principalId
-    scope: cosmosDbAccount.id
-  }
-}
-
-// Function App -> Key Vault Secrets User
-resource functionKeyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(functionApp.id, keyVault.id, 'keyvault-secrets')
+// Backend App -> Key Vault Secrets User
+resource backendKeyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(backendApp.id, keyVault.id, 'keyvault-secrets')
   scope: keyVault
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
-    principalId: functionApp.identity.principalId
+    principalId: backendApp.identity.principalId
     principalType: 'ServicePrincipal'
   }
 }
 
-// Function App -> Azure OpenAI User
-resource functionOpenAiRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(functionApp.id, openAiAccount.id, 'openai-user')
+// Backend App -> Azure OpenAI User
+resource backendOpenAiRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(backendApp.id, openAiAccount.id, 'openai-user')
   scope: openAiAccount
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
-    principalId: functionApp.identity.principalId
+    principalId: backendApp.identity.principalId
     principalType: 'ServicePrincipal'
   }
 }
 
-// Agent Service -> Azure OpenAI User
-resource agentOpenAiRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(agentServiceApp.id, openAiAccount.id, 'openai-user')
-  scope: openAiAccount
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
-    principalId: agentServiceApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
+// Backend/Frontend ACR pull is granted through the shared user-assigned identity.
 
 // ============================================================================
 // Outputs
 // ============================================================================
-output functionAppName string = functionApp.name
-output functionAppUrl string = 'https://${functionApp.properties.defaultHostName}'
-output dashboardUrl string = 'https://${dashboardApp.properties.configuration.ingress.fqdn}'
-output agentServiceUrl string = 'https://${agentServiceApp.properties.configuration.ingress.fqdn}'
+output acrName string = containerRegistry.name
+output acrLoginServer string = containerRegistry.properties.loginServer
+output backendAppName string = backendApp.name
+output backendUrl string = 'https://${backendApp.properties.configuration.ingress.fqdn}'
+output frontendAppName string = frontendApp.name
+output frontendUrl string = 'https://${frontendApp.properties.configuration.ingress.fqdn}'
 output openAiEndpoint string = openAiAccount.properties.endpoint
 output cosmosDbEndpoint string = cosmosDbAccount.properties.documentEndpoint
 output keyVaultUrl string = keyVault.properties.vaultUri
