@@ -16,8 +16,10 @@ This runbook documents the exact local workflow used to validate the end-to-end 
 
 ## 1) Backend Setup
 
+From the repo root (`pipelinehealer/`):
+
 ```bash
-cd /mnt/d/repos/pipelinehealer/backend
+cd backend
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -39,7 +41,7 @@ Edit `backend/.env`:
 ## 2) Azure OpenAI Smoke Test (Optional But Recommended)
 
 ```bash
-cd /mnt/d/repos/pipelinehealer/backend
+cd backend
 source .venv/bin/activate
 
 python3 scripts/aoai_smoke.py
@@ -54,7 +56,7 @@ If you see "API version not supported", set `AZURE_OPENAI_API_VERSION=2025-03-01
 ## 3) Run Backend (FastAPI)
 
 ```bash
-cd /mnt/d/repos/pipelinehealer/backend
+cd backend
 source .venv/bin/activate
 
 uvicorn src.main:app --reload --port 8000
@@ -69,7 +71,7 @@ curl -sS http://127.0.0.1:8000/health
 ## 4) Run Frontend (Dashboard)
 
 ```bash
-cd /mnt/d/repos/pipelinehealer/frontend
+cd frontend
 bun install
 bun run dev
 ```
@@ -82,7 +84,7 @@ Open the printed Vite URL (usually `http://127.0.0.1:5173`).
 2. In another terminal:
 
 ```bash
-cd /mnt/d/repos/pipelinehealer
+# from repo root
 bunx smee-client --url https://smee.io/<your-channel> --target http://127.0.0.1:8000/webhook/github
 ```
 
@@ -132,4 +134,3 @@ ruff check src
 mypy src
 pytest
 ```
-

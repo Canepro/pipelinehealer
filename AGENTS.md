@@ -239,7 +239,7 @@ Decisions made (Recommended defaults for this repo):
 - Feb 10, 2026: Fixed backend editable install by adding hatch wheel package selection (`[tool.hatch.build.targets.wheel] packages = ["src"]`). Future improvement: rename Python package from `src` to `pipelinehealer`.
 - Feb 10, 2026: Repo visibility note: OK to keep private during development; still treat committed secrets as compromised; plan to make repo public before Mar 15, 2026.
 - Feb 10, 2026: Azure AI Foundry compatibility: added `AZURE_OPENAI_API_KEY` support for local dev and a clear error if `AZURE_OPENAI_ENDPOINT` is mistakenly set to a Foundry *project* endpoint (`...services.ai.azure.com`) instead of an Azure OpenAI *resource* endpoint (`...openai.azure.com`).
-- Feb 10, 2026: Azure OpenAI Responses API version: defaulted `AZURE_OPENAI_API_VERSION` to `preview` (the Agent Framework Responses client expects this); using a dated version can yield `400 API version not supported` on some resources.
+- Feb 10, 2026: Azure OpenAI Responses API version: defaulted `AZURE_OPENAI_API_VERSION` to `2025-03-01-preview`; using an unsupported version can yield `400 API version not supported` on some resources.
 - Feb 10, 2026: Foundry/AIServices endpoint support: if `AZURE_OPENAI_ENDPOINT` is `*.cognitiveservices.azure.com`, agents use `AzureOpenAIChatClient` (chat completions). If `*.openai.azure.com`, agents use `AzureOpenAIResponsesClient` (responses).
 - Feb 10, 2026: Fixed log analyzer regex bug that could throw `global flags not at the start of the expression` when extracting error/warning lines.
 - Feb 10, 2026: E2E verified locally: demo repo failing run delivered via `smee.io` created an activity and a remediation issue in `Canepro/pipelinehealer-demo`.

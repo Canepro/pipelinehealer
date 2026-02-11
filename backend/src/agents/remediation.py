@@ -201,63 +201,33 @@ class RemediationAgent:
             tracking_issue_number: int | None = None
             tracking_issue_url: str | None = None
 
-            if self._settings.auto_create_tracking_issue_for_prs:
-                try:
-                    issue_title = f"[PipelineHealer] Auto-fix: {plan.pr_title or plan.description}"
-                    issue_body = (
-                        "## Auto-fix Tracking\n\n"
-                        "PipelineHealer is generating an automated fix PR for this CI failure.\n\n"
-                        f"**Workflow Run:** https://github.com/{owner}/{repo}/actions/runs/{workflow_run_id}\n\n"
-                        "When the PR merges, GitHub will auto-close this issue.\n\n"
-                        "### Proposed Fix\n\n"
-                        f"{plan.pr_body or plan.description}\n"
-                    )
-                    issue_result = await self._github_tools.create_issue(
-                        owner=owner,
-                        repo=repo,
-                        title=issue_title,
-                        body=issue_body,
-                        labels=["ci-failure", "pipelinehealer"],
-                    )
-                    tracking_issue_number = issue_result.get("number")
-                    tracking_issue_url = issue_result.get("html_url", "")
-                    logger.info(f"Created tracking issue: {tracking_issue_url}")
-                except Exception as e:
-                    logger.warning(f"Failed to create tracking issue (continuing): {e}")
-
             # Materialize structured file changes into full file contents.
-            rendered_changes = await self._render_file_changes(
-                owner=owner,
-                repo=repo,
-                base_ref=base_branch,
-                file_changes=plan.file_changes,
-            )
+            try:
+                rendered_changes = await self._render_file_changes(
+                    owner=owner,
+                    repo=repo,
+                    base_ref=base_branch,
+                    file_changes=plan.file_changes,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to render file changes; falling back to issue: {e}")
+                return await self._create_auto_fix_blocked_issue(
+                    owner=owner,
+                    repo=repo,
+                    workflow_run_id=workflow_run_id,
+                    plan=plan,
+                    reason=f"Failed to render file changes: {e}",
+                )
             if not rendered_changes:
                 # Don't hard-fail the pipeline if our structured changes couldn't be applied.
                 # Fall back to an issue so the dashboard still shows something actionable.
                 logger.warning("No applicable file changes to commit; falling back to issue")
-                fallback_issue_body = (
-                    "## Auto-fix Could Not Be Applied\n\n"
-                    "PipelineHealer planned to open an auto-fix PR, but it could not safely apply any file changes.\n\n"
-                    f"**Workflow Run:** https://github.com/{owner}/{repo}/actions/runs/{workflow_run_id}\n\n"
-                    "### Planned Fix\n\n"
-                    f"{plan.pr_body or plan.description}\n\n"
-                    "### Notes\n\n"
-                    "- This commonly happens when a workflow/file path is different than expected.\n"
-                    "- Consider adding a placeholder config in the workflow so PipelineHealer can patch it deterministically.\n"
-                )
-                issue_result = await self._github_tools.create_issue(
+                return await self._create_auto_fix_blocked_issue(
                     owner=owner,
                     repo=repo,
-                    title=f"[PipelineHealer] Auto-fix blocked: {plan.pr_title or plan.description}",
-                    body=fallback_issue_body,
-                    labels=["ci-failure", "pipelinehealer"],
-                )
-                return RemediationResult(
-                    success=True,
-                    action_taken=RemediationAction.CREATE_ISSUE,
-                    issue_url=issue_result.get("html_url", ""),
-                    details={"issue_number": issue_result.get("number"), "fallback_from": "create_pr"},
+                    workflow_run_id=workflow_run_id,
+                    plan=plan,
+                    reason="No applicable file changes to commit",
                 )
 
             # Create a new branch
@@ -284,6 +254,31 @@ class RemediationAgent:
                         branch=plan.branch_name,
                     )
                     logger.info(f"Updated file: {file_path}")
+
+            # Create tracking issue only after we know we can produce a real PR.
+            if self._settings.auto_create_tracking_issue_for_prs:
+                try:
+                    issue_title = f"[PipelineHealer] Auto-fix: {plan.pr_title or plan.description}"
+                    issue_body = (
+                        "## Auto-fix Tracking\n\n"
+                        "PipelineHealer is generating an automated fix PR for this CI failure.\n\n"
+                        f"**Workflow Run:** https://github.com/{owner}/{repo}/actions/runs/{workflow_run_id}\n\n"
+                        "When the PR merges, GitHub will auto-close this issue.\n\n"
+                        "### Proposed Fix\n\n"
+                        f"{plan.pr_body or plan.description}\n"
+                    )
+                    issue_result = await self._github_tools.create_issue(
+                        owner=owner,
+                        repo=repo,
+                        title=issue_title,
+                        body=issue_body,
+                        labels=["ci-failure", "pipelinehealer"],
+                    )
+                    tracking_issue_number = issue_result.get("number")
+                    tracking_issue_url = issue_result.get("html_url", "")
+                    logger.info(f"Created tracking issue: {tracking_issue_url}")
+                except Exception as e:
+                    logger.warning(f"Failed to create tracking issue (continuing): {e}")
 
             # Create the pull request
             pr_body = plan.pr_body or "Automated fix by PipelineHealer"
@@ -321,6 +316,44 @@ class RemediationAgent:
                 error_message=str(e),
             )
 
+    async def _create_auto_fix_blocked_issue(
+        self,
+        owner: str,
+        repo: str,
+        workflow_run_id: int,
+        plan: RemediationPlan,
+        reason: str,
+    ) -> RemediationResult:
+        """Create a fallback issue when PR-style remediation can't be applied safely."""
+        fallback_issue_body = (
+            "## Auto-fix Could Not Be Applied\n\n"
+            "PipelineHealer planned to open an auto-fix PR, but it could not safely apply changes.\n\n"
+            f"**Reason:** {reason}\n\n"
+            f"**Workflow Run:** https://github.com/{owner}/{repo}/actions/runs/{workflow_run_id}\n\n"
+            "### Planned Fix\n\n"
+            f"{plan.pr_body or plan.description}\n\n"
+            "### Notes\n\n"
+            "- This commonly happens when a workflow/file path is different than expected.\n"
+            "- Consider adding a placeholder config in the workflow so PipelineHealer can patch it deterministically.\n"
+        )
+        issue_result = await self._github_tools.create_issue(
+            owner=owner,
+            repo=repo,
+            title=f"[PipelineHealer] Auto-fix blocked: {plan.pr_title or plan.description}",
+            body=fallback_issue_body,
+            labels=["ci-failure", "pipelinehealer"],
+        )
+        return RemediationResult(
+            success=True,
+            action_taken=RemediationAction.CREATE_ISSUE,
+            issue_url=issue_result.get("html_url", ""),
+            details={
+                "issue_number": issue_result.get("number"),
+                "fallback_from": "create_pr",
+                "reason": reason,
+            },
+        )
+
     async def _render_file_changes(
         self,
         owner: str,
@@ -335,7 +368,10 @@ class RemediationAgent:
         - type=json_update: update a dotted JSON path (e.g. dependencies.foo)
         - type=line_update: regex replace a matching line, or append if missing
         """
-        rendered: list[dict[str, str]] = []
+        rendered_by_file: dict[str, str] = {}
+        render_order: list[str] = []
+        working_files: dict[str, str] = {}
+        working_exists: dict[str, bool] = {}
 
         for change in file_changes:
             # Support both:
@@ -357,6 +393,11 @@ class RemediationAgent:
             selected_text: str = ""
             selected_exists: bool = False
             for candidate in file_candidates:
+                if candidate in working_files:
+                    selected_path = candidate
+                    selected_text = working_files[candidate]
+                    selected_exists = working_exists.get(candidate, True)
+                    break
                 text, exists = await self._get_text_file_if_exists(owner, repo, candidate, ref=base_ref)
                 if exists:
                     selected_path = candidate
@@ -372,7 +413,11 @@ class RemediationAgent:
                 continue
 
             if "content" in change and change.get("content") is not None:
-                rendered.append({"file": selected_path, "content": str(change["content"])})
+                rendered_by_file[selected_path] = str(change["content"])
+                if selected_path not in render_order:
+                    render_order.append(selected_path)
+                working_files[selected_path] = str(change["content"])
+                working_exists[selected_path] = True
                 continue
 
             change_type = str(change.get("type") or "")
@@ -404,7 +449,11 @@ class RemediationAgent:
                 cursor[parts[-1]] = value
 
                 new_text = json.dumps(doc, indent=2, sort_keys=False) + "\n"
-                rendered.append({"file": selected_path, "content": new_text})
+                rendered_by_file[selected_path] = new_text
+                if selected_path not in render_order:
+                    render_order.append(selected_path)
+                working_files[selected_path] = new_text
+                working_exists[selected_path] = True
 
             elif change_type == "line_update":
                 pattern = str(change.get("pattern") or "")
@@ -431,13 +480,21 @@ class RemediationAgent:
                     out.append(replacement)
 
                 new_text = "\n".join(out).rstrip("\n") + "\n"
-                rendered.append({"file": selected_path, "content": new_text})
+                rendered_by_file[selected_path] = new_text
+                if selected_path not in render_order:
+                    render_order.append(selected_path)
+                working_files[selected_path] = new_text
+                working_exists[selected_path] = True
 
             else:
-                # Future: toml_update, multi-file patching, etc.
-                raise ValueError(f"Unsupported file change type: {change_type}")
+                logger.warning(
+                    "Unsupported file change type '%s' for path '%s'; skipping change.",
+                    change_type,
+                    selected_path,
+                )
+                continue
 
-        return rendered
+        return [{"file": path, "content": rendered_by_file[path]} for path in render_order]
 
     async def _get_text_file_if_exists(
         self,

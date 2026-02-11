@@ -147,15 +147,11 @@ class FixGenerators:
                 }
             )
         elif package_manager == "uv":
-            file_changes.append(
-                {
-                    "file": "pyproject.toml",
-                    "type": "toml_update",
-                    "section": "project.dependencies",
-                    "package": package_name,
-                    "version": required_version,
-                }
+            logger.warning(
+                "UV package manager remediation not yet supported; "
+                "falling back to issue-only remediation plan."
             )
+            return self._generate_issue_only(diagnosis, repository_info)
 
         version_info = f" to {required_version}" if required_version else ""
 

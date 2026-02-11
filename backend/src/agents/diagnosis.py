@@ -202,26 +202,26 @@ Be specific about:
 
         # Check for lint/format issues
         lint_patterns = [
-            (r"eslint.*error", "eslint", "ESLint violation"),
+            (r"eslint.*error", "eslint", "ESLint violation", False),
             # ESLint v9+ uses flat config by default; missing config is common and fixable by adding eslint.config.js.
-            (r"eslint.*eslint\.config\.(?:js|mjs|cjs)", "eslint", "ESLint missing flat config"),
-            (r"prettier.*error", "prettier", "Prettier formatting issue"),
-            (r"black.*would reformat", "black", "Black formatting required"),
-            (r"ruff.*error", "ruff", "Ruff linting error"),
-            (r"flake8.*error", "flake8", "Flake8 violation"),
+            (r"eslint.*eslint\.config\.(?:js|mjs|cjs)", "eslint", "ESLint missing flat config", True),
+            (r"prettier.*error", "prettier", "Prettier formatting issue", False),
+            (r"black.*would reformat", "black", "Black formatting required", False),
+            (r"ruff.*error", "ruff", "Ruff linting error", False),
+            (r"flake8.*error", "flake8", "Flake8 violation", False),
         ]
 
-        for pattern, linter, description in lint_patterns:
+        for pattern, linter, description, is_missing_config in lint_patterns:
             if re.search(pattern, error_text, re.IGNORECASE):
                 return Diagnosis(
                     failure_type=FailureType.LINT,
                     confidence=0.9,
                     root_cause=description,
                     is_auto_fixable=True,
-                    suggested_fix="Add eslint.config.js (flat config)" if linter == "eslint" else f"Run {linter} with --fix flag",
+                    suggested_fix="Add eslint.config.js (flat config)" if is_missing_config else f"Run {linter} with --fix flag",
                     error_details={
                         "linter": linter,
-                        "missing_file": "eslint.config.js" if linter == "eslint" else "",
+                        "missing_file": "eslint.config.js" if is_missing_config else "",
                         "violations": [],
                     },
                 )

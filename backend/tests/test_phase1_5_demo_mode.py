@@ -89,3 +89,45 @@ async def test_render_line_update_supports_backrefs_and_file_selection() -> None
     assert rendered and rendered[0]["file"] == ".github/workflows/ci.yml"
     assert "timeout-minutes: 5" in rendered[0]["content"]
 
+
+@pytest.mark.asyncio
+async def test_render_line_updates_accumulate_for_same_file() -> None:
+    gh = FakeGitHubToolsWithFiles(
+        files={
+            ".github/workflows/ci.yml": (
+                "jobs:\n"
+                "  build:\n"
+                "    env:\n"
+                "      REQUIRED_CONFIG: \"\"\n"
+                "      OPTIONAL_CONFIG: \"\"\n"
+            ),
+        }
+    )
+    agent = RemediationAgent(github_tools=gh)
+
+    rendered = await agent._render_file_changes(
+        owner="octo",
+        repo="demo",
+        base_ref="main",
+        file_changes=[
+            {
+                "type": "line_update",
+                "file": ".github/workflows/ci.yml",
+                "pattern": r"^(?P<indent>\s*)REQUIRED_CONFIG:\s*.*$",
+                "replacement": r"\g<indent>REQUIRED_CONFIG: demo",
+                "append_if_missing": False,
+            },
+            {
+                "type": "line_update",
+                "file": ".github/workflows/ci.yml",
+                "pattern": r"^(?P<indent>\s*)OPTIONAL_CONFIG:\s*.*$",
+                "replacement": r"\g<indent>OPTIONAL_CONFIG: demo",
+                "append_if_missing": False,
+            },
+        ],
+    )
+
+    assert len(rendered) == 1
+    content = rendered[0]["content"]
+    assert "REQUIRED_CONFIG: demo" in content
+    assert "OPTIONAL_CONFIG: demo" in content

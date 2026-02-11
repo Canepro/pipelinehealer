@@ -6,8 +6,8 @@ import hmac
 import httpx
 import pytest
 
-from src.main import app
 from src.api.webhook import verify_github_signature
+from src.main import app
 
 
 class TestGitHubSignatureVerification:
@@ -17,15 +17,15 @@ class TestGitHubSignatureVerification:
         """Test that valid signatures are accepted."""
         secret = "test-secret"
         payload = b'{"action": "completed"}'
-        
+
         expected_sig = hmac.new(
             secret.encode(),
             payload,
             hashlib.sha256,
         ).hexdigest()
-        
+
         signature = f"sha256={expected_sig}"
-        
+
         assert verify_github_signature(payload, signature, secret) is True
 
     def test_invalid_signature(self) -> None:
@@ -33,7 +33,7 @@ class TestGitHubSignatureVerification:
         secret = "test-secret"
         payload = b'{"action": "completed"}'
         signature = "sha256=invalid"
-        
+
         assert verify_github_signature(payload, signature, secret) is False
 
     def test_missing_signature_prefix(self) -> None:
@@ -41,14 +41,14 @@ class TestGitHubSignatureVerification:
         secret = "test-secret"
         payload = b'{"action": "completed"}'
         signature = "abc123"
-        
+
         assert verify_github_signature(payload, signature, secret) is False
 
     def test_empty_signature(self) -> None:
         """Test that empty signatures are rejected."""
         secret = "test-secret"
         payload = b'{"action": "completed"}'
-        
+
         assert verify_github_signature(payload, "", secret) is False
 
 
@@ -68,7 +68,7 @@ class TestWebhookEndpoint:
                     "X-GitHub-Delivery": "test-delivery-id",
                 },
             )
-        
+
         assert response.status_code == 200
         assert response.json()["status"] == "pong"
 
@@ -85,7 +85,7 @@ class TestWebhookEndpoint:
                     "X-GitHub-Delivery": "test-delivery-id",
                 },
             )
-        
+
         assert response.status_code == 200
         assert response.json()["status"] == "ignored"
 
@@ -95,6 +95,6 @@ class TestWebhookEndpoint:
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/webhook/health")
-        
+
         assert response.status_code == 200
         assert response.json()["status"] == "healthy"
