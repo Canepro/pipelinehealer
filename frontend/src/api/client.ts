@@ -1,5 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_URL || ''
 const API_AUTH_KEY = import.meta.env.VITE_API_AUTH_KEY || ''
+const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || '15000')
 
 export interface DashboardStats {
   total_runs_processed: number
@@ -69,20 +70,41 @@ export interface AppSettings {
 }
 
 async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(API_AUTH_KEY ? { 'X-API-Key': API_AUTH_KEY } : {}),
-      ...options?.headers,
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`)
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
+  const upstreamSignal = options?.signal
+  if (upstreamSignal) {
+    if (upstreamSignal.aborted) {
+      controller.abort()
+    } else {
+      upstreamSignal.addEventListener('abort', () => controller.abort(), { once: true })
+    }
   }
 
-  return response.json()
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(API_AUTH_KEY ? { 'X-API-Key': API_AUTH_KEY } : {}),
+        ...options?.headers,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`)
+    }
+
+    return response.json()
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error(`API timeout after ${API_TIMEOUT_MS}ms`)
+    }
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 export const api = {

@@ -25,9 +25,15 @@ import ActivityTable from '../components/ActivityTable'
 const COLORS = ['#8b5cf6', '#f97316', '#06b6d4', '#ec4899', '#f59e0b', '#6b7280']
 
 export default function Dashboard() {
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    error: statsErrorValue,
+  } = useQuery({
     queryKey: ['stats'],
     queryFn: api.getStats,
+    retry: 1,
   })
 
   const { data: activities, isLoading: activitiesLoading } = useQuery({
@@ -66,6 +72,12 @@ export default function Dashboard() {
       : 0
     : 0
 
+  const showStatsLoading = statsLoading && !statsError
+  const statsErrorMessage =
+    statsError && statsErrorValue instanceof Error
+      ? statsErrorValue.message
+      : 'Stats temporarily unavailable'
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -82,29 +94,35 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="Total Processed"
-          value={statsLoading ? '...' : stats?.total_runs_processed || 0}
+          value={showStatsLoading ? '...' : stats?.total_runs_processed || 0}
           icon={Activity}
           color="blue"
         />
         <StatsCard
           title="Successful"
-          value={statsLoading ? '...' : stats?.successful_remediations || 0}
+          value={showStatsLoading ? '...' : stats?.successful_remediations || 0}
           icon={CheckCircle}
           color="green"
         />
         <StatsCard
           title="Failed"
-          value={statsLoading ? '...' : stats?.failed_remediations || 0}
+          value={showStatsLoading ? '...' : stats?.failed_remediations || 0}
           icon={XCircle}
           color="red"
         />
         <StatsCard
           title="Success Rate"
-          value={statsLoading ? '...' : `${successRate}%`}
+          value={showStatsLoading ? '...' : `${successRate}%`}
           icon={TrendingUp}
           color="blue"
         />
       </div>
+
+      {statsError && (
+        <div className="rounded-lg border border-amber-300/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          Dashboard stats endpoint is unavailable: {statsErrorMessage}
+        </div>
+      )}
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

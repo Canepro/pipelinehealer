@@ -240,53 +240,49 @@ class ActivityStorage:
         """
         await self.initialize()
 
-        # Get counts by status
-        status_query = """
-            SELECT c.status, COUNT(1) as count
+        # Single-pass aggregation is more resilient than multiple GROUP BY queries,
+        # especially with cross-partition Cosmos queries.
+        aggregate_query = """
+            SELECT
+                c.status,
+                c.failure_type,
+                c.repository_name,
+                c.duration_seconds
             FROM c
-            GROUP BY c.status
         """
 
         status_counts: dict[str, int] = {}
-        async for item in self._activities_container_required().query_items(query=status_query):
-            status_counts[item["status"]] = item["count"]
-
-        # Get counts by failure type
-        failure_query = """
-            SELECT c.failure_type, COUNT(1) as count
-            FROM c
-            WHERE c.failure_type != null
-            GROUP BY c.failure_type
-        """
-
         failure_counts: dict[str, int] = {}
-        async for item in self._activities_container_required().query_items(query=failure_query):
-            if item.get("failure_type"):
-                failure_counts[item["failure_type"]] = item["count"]
-
-        # Get counts by repository
-        repo_query = """
-            SELECT c.repository_name, COUNT(1) as count
-            FROM c
-            GROUP BY c.repository_name
-        """
-
         repo_counts: dict[str, int] = {}
-        async for item in self._activities_container_required().query_items(query=repo_query):
-            repo_counts[item["repository_name"]] = item["count"]
+        total_duration = 0.0
+        completed_with_duration = 0
 
-        # Calculate average resolution time
-        avg_time_query = """
-            SELECT AVG(c.duration_seconds) as avg_duration
-            FROM c
-            WHERE c.duration_seconds != null AND c.status = 'completed'
-        """
+        async for item in self._activities_container_required().query_items(
+            query=aggregate_query,
+            enable_cross_partition_query=True,
+        ):
+            status = item.get("status")
+            if isinstance(status, str) and status:
+                status_counts[status] = status_counts.get(status, 0) + 1
 
-        avg_duration = 0.0
-        async for item in self._activities_container_required().query_items(query=avg_time_query):
-            avg_duration = item.get("avg_duration") or 0.0
+            failure_type = item.get("failure_type")
+            if isinstance(failure_type, str) and failure_type:
+                failure_counts[failure_type] = failure_counts.get(failure_type, 0) + 1
+
+            repository_name = item.get("repository_name")
+            if isinstance(repository_name, str) and repository_name:
+                repo_counts[repository_name] = repo_counts.get(repository_name, 0) + 1
+
+            duration_seconds = item.get("duration_seconds")
+            if (
+                isinstance(duration_seconds, (int, float))
+                and status == RemediationStatus.COMPLETED.value
+            ):
+                total_duration += float(duration_seconds)
+                completed_with_duration += 1
 
         total = sum(status_counts.values())
+        avg_duration = total_duration / completed_with_duration if completed_with_duration > 0 else 0.0
 
         return DashboardStats(
             total_runs_processed=total,
@@ -306,21 +302,39 @@ class ActivityStorage:
             List of repository info dictionaries
         """
         await self.initialize()
-
         query = """
             SELECT
                 c.repository_name,
                 c.repositoryId,
-                COUNT(1) as total_activities,
-                SUM(c.status = 'completed' ? 1 : 0) as successful,
-                SUM(c.status = 'failed' ? 1 : 0) as failed
+                c.status
             FROM c
-            GROUP BY c.repository_name, c.repositoryId
         """
 
-        repos = [item async for item in self._activities_container_required().query_items(query=query)]
+        repos_by_name: dict[str, dict[str, Any]] = {}
+        async for item in self._activities_container_required().query_items(
+            query=query,
+            enable_cross_partition_query=True,
+        ):
+            repo_name = item.get("repository_name")
+            if not isinstance(repo_name, str) or not repo_name:
+                continue
 
-        return repos
+            if repo_name not in repos_by_name:
+                repos_by_name[repo_name] = {
+                    "repository_name": repo_name,
+                    "repositoryId": str(item.get("repositoryId", "")),
+                    "total_activities": 0,
+                    "successful": 0,
+                    "failed": 0,
+                }
+
+            repos_by_name[repo_name]["total_activities"] += 1
+            if item.get("status") == RemediationStatus.COMPLETED.value:
+                repos_by_name[repo_name]["successful"] += 1
+            elif item.get("status") == RemediationStatus.FAILED.value:
+                repos_by_name[repo_name]["failed"] += 1
+
+        return list(repos_by_name.values())
 
     async def get_timeline(self, since: datetime) -> dict[str, Any]:
         """Get activity timeline data.
@@ -373,12 +387,10 @@ class ActivityStorage:
             Dictionary of failure type to count
         """
         await self.initialize()
-
         query = """
-            SELECT c.failure_type, COUNT(1) as count
+            SELECT c.failure_type
             FROM c
             WHERE c.created_at >= @since AND c.failure_type != null
-            GROUP BY c.failure_type
         """
         parameters: list[dict[str, object]] = [{"name": "@since", "value": _as_utc(since).isoformat()}]
 
@@ -386,9 +398,11 @@ class ActivityStorage:
         async for item in self._activities_container_required().query_items(
             query=query,
             parameters=parameters,
+            enable_cross_partition_query=True,
         ):
-            if item.get("failure_type"):
-                breakdown[item["failure_type"]] = item["count"]
+            failure_type = item.get("failure_type")
+            if isinstance(failure_type, str) and failure_type:
+                breakdown[failure_type] = breakdown.get(failure_type, 0) + 1
 
         return breakdown
 
