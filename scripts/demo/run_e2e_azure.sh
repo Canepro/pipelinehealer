@@ -116,9 +116,32 @@ fi
 
 WEBHOOK_SECRET="$(grep '^GITHUB_WEBHOOK_SECRET=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r\n' || true)"
 API_AUTH_KEY="$(grep '^API_AUTH_KEY=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r\n' || true)"
+MAX_REMEDIATION_ATTEMPTS="$(grep '^MAX_REMEDIATION_ATTEMPTS=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r\n' || true)"
+MAX_REMEDIATION_ATTEMPTS="${MAX_REMEDIATION_ATTEMPTS:-3}"
+
+IFS=',' read -r -a trigger_types_raw <<< "$TRIGGERS_CSV"
+trigger_types=()
+for trigger in "${trigger_types_raw[@]}"; do
+  cleaned="$(echo "$trigger" | tr -d '[:space:]')"
+  if [[ -n "$cleaned" ]]; then
+    trigger_types+=("$cleaned")
+  fi
+done
+
+if [[ "${#trigger_types[@]}" -eq 0 ]]; then
+  echo "No valid trigger types provided via --triggers." >&2
+  exit 1
+fi
 
 echo "Backend URL: $BACKEND_URL"
 echo "Demo repo  : $DEMO_REPO"
+
+if [[ "$MAX_REMEDIATION_ATTEMPTS" =~ ^[0-9]+$ ]] && (( MAX_REMEDIATION_ATTEMPTS < ${#trigger_types[@]} )); then
+  echo "Warning: MAX_REMEDIATION_ATTEMPTS=$MAX_REMEDIATION_ATTEMPTS but this run triggers ${#trigger_types[@]} failure types."
+  echo "Some runs may be skipped by safety guard (\"Max remediation attempts reached for this repository\")."
+  echo "Recommended: set MAX_REMEDIATION_ATTEMPTS>=${#trigger_types[@]} in backend/.env, then run:"
+  echo "  bash scripts/ph.sh deploy:env"
+fi
 
 if [[ "$DO_WEBHOOK_SYNC" == "1" ]]; then
   echo "Syncing webhooks (disable smee, enable Azure)..."
@@ -160,7 +183,6 @@ fi
 
 if [[ "$DO_TRIGGER" == "1" ]]; then
   echo "Dispatching workflow runs..."
-  IFS=',' read -r -a trigger_types <<< "$TRIGGERS_CSV"
   for failure_type in "${trigger_types[@]}"; do
     gh workflow run CI -R "$DEMO_REPO" -f "failure_type=$failure_type"
   done
