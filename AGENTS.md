@@ -71,7 +71,7 @@ This section is the working checklist for getting PipelineHealer demo-ready and 
 | 2 | Security (API auth, webhook hardening) | Completed | `backend/src/main.py`, `backend/src/api/*`, `backend/src/config.py` |
 | 3 | Reliability (timeouts, retries/backoff, log handling) | Completed (backend) | `backend/src/tools/github_tools.py`, `backend/src/agents/*` |
 | 4 | Deployment alignment (azd/bicep/images/container apps) | Completed (Azure dev environment provisioned and validated) | `azure.yaml`, `infra/main.bicep`, `backend/Dockerfile`, `frontend/Dockerfile` |
-| 5 | Demo + submission polish | In progress | `README.md`, `demo-repo/.github/workflows/ci.yml`, `PROJECT_STATUS.md` |
+| 5 | Demo + submission polish | In progress | `README.md`, `docs/DEMO_SCRIPT.md`, `docs/LOCAL_DEMO_RUNBOOK.md`, `demo-repo/.github/workflows/ci.yml` |
 
 ### Phase 0: Hygiene Baseline (lint/typecheck/tests)
 
@@ -290,66 +290,65 @@ Decisions made (Recommended defaults for this repo):
 - Feb 12, 2026: Documented and validated expected duplicate-run behavior: remediation PR creation can return `422` when target fix branches already exist (for example `fix/update-left-pad`, `fix/lint-eslint-config`).
 - Feb 12, 2026: Fixed Azure dashboard metrics endpoints by removing unsupported async Cosmos query kwargs and switching stats/failure-breakdown aggregation to storage-backed activity paging.
 - Feb 12, 2026: Portfolio blog roadmap synced and Post 3 published in `/mnt/d/repos/portfolio_website-main/content/blog/2026-02-12-pipelinehealer-azure-deployment-lessons.mdx`.
+- Feb 12, 2026: Removed stale `PROJECT_STATUS.md` and `REVIEW.md`; consolidated active tracking/design notes into `AGENTS.md` and `README.md`.
 
 ## Project Layout
 
 ```
-ai-dev-days-hackathon-project/
-├── PROJECT_STATUS.md              # Roadmap, weekly plan, session continuity
-└── pipelinehealer/
-    ├── azure.yaml                 # Azure Developer CLI config
-    ├── docker-compose.yml         # Local dev stack
-    ├── README.md                  # Project README (public-facing)
-    ├── LICENSE                    # MIT
-    ├── backend/                   # Python FastAPI backend
-    │   ├── pyproject.toml         # Dependencies (UV/hatch)
-    │   ├── .env.example           # Required env vars
-    │   ├── Dockerfile
-    │   ├── src/
-    │   │   ├── main.py            # FastAPI app entry point
-    │   │   ├── config.py          # Pydantic settings (env-driven)
-    │   │   ├── models.py          # Data models
-    │   │   ├── storage.py         # Cosmos DB + in-memory storage
-    │   │   ├── observability.py   # OpenTelemetry / App Insights
-    │   │   ├── agents/            # AI agents (one per file)
-    │   │   │   ├── base.py        # Base agent class
-    │   │   │   ├── log_analyzer.py
-    │   │   │   ├── diagnosis.py
-    │   │   │   ├── remediation.py
-    │   │   │   └── orchestrator.py
-    │   │   ├── api/               # FastAPI routers
-    │   │   │   ├── webhook.py     # GitHub webhook handler
-    │   │   │   └── dashboard.py   # Dashboard API endpoints
-    │   │   ├── tools/             # Agent tools
-    │   │   │   ├── github_tools.py    # GitHub REST API wrapper
-    │   │   │   └── fix_generators.py  # Fix generation for 5 failure types
-    │   │   └── workflows/
-    │   │       └── pipeline_healer.py # Orchestration pipeline
-    │   └── tests/
-    │       ├── test_diagnosis.py
-    │       └── test_webhook.py
-    ├── frontend/                  # React dashboard
-    │   ├── package.json
-    │   ├── Dockerfile
-    │   ├── vite.config.ts
-    │   ├── tailwind.config.js
-    │   └── src/
-    │       ├── main.tsx
-    │       ├── App.tsx
-    │       ├── api/               # API client (TanStack Query)
-    │       ├── components/        # UI components
-    │       └── pages/
-    │           ├── Dashboard.tsx   # Stats cards, charts
-    │           ├── Activities.tsx  # Filterable activity table
-    │           └── ActivityDetail.tsx
-    ├── infra/                     # Azure Bicep templates
-    │   ├── main.bicep
-    │   └── main.bicepparam
-    └── demo-repo/                 # Demo repo for triggering test failures
-        ├── .github/               # GitHub Actions workflow with failure triggers
-        ├── index.js
-        ├── test.js
-        └── package.json
+pipelinehealer/
+├── azure.yaml                 # Azure Developer CLI config
+├── docker-compose.yml         # Local dev stack
+├── README.md                  # Project README (public-facing)
+├── LICENSE                    # MIT
+├── backend/                   # Python FastAPI backend
+│   ├── pyproject.toml         # Dependencies (UV/hatch)
+│   ├── .env.example           # Required env vars
+│   ├── Dockerfile
+│   ├── src/
+│   │   ├── main.py            # FastAPI app entry point
+│   │   ├── config.py          # Pydantic settings (env-driven)
+│   │   ├── models.py          # Data models
+│   │   ├── storage.py         # Cosmos DB + in-memory storage
+│   │   ├── observability.py   # OpenTelemetry / App Insights
+│   │   ├── agents/            # AI agents (one per file)
+│   │   │   ├── base.py        # Base agent class
+│   │   │   ├── log_analyzer.py
+│   │   │   ├── diagnosis.py
+│   │   │   ├── remediation.py
+│   │   │   └── orchestrator.py
+│   │   ├── api/               # FastAPI routers
+│   │   │   ├── webhook.py     # GitHub webhook handler
+│   │   │   └── dashboard.py   # Dashboard API endpoints
+│   │   ├── tools/             # Agent tools
+│   │   │   ├── github_tools.py    # GitHub REST API wrapper
+│   │   │   └── fix_generators.py  # Fix generation for 5 failure types
+│   │   └── workflows/
+│   │       └── pipeline_healer.py # Orchestration pipeline
+│   └── tests/
+│       ├── test_diagnosis.py
+│       └── test_webhook.py
+├── frontend/                  # React dashboard
+│   ├── package.json
+│   ├── Dockerfile
+│   ├── vite.config.ts
+│   ├── tailwind.config.js
+│   └── src/
+│       ├── main.tsx
+│       ├── App.tsx
+│       ├── api/               # API client (TanStack Query)
+│       ├── components/        # UI components
+│       └── pages/
+│           ├── Dashboard.tsx   # Stats cards, charts
+│           ├── Activities.tsx  # Filterable activity table
+│           └── ActivityDetail.tsx
+├── infra/                     # Azure Bicep templates
+│   ├── main.bicep
+│   └── main.bicepparam
+└── demo-repo/                 # Demo repo for triggering test failures
+    ├── .github/               # GitHub Actions workflow with failure triggers
+    ├── index.js
+    ├── test.js
+    └── package.json
 ```
 
 ## Architecture
@@ -389,7 +388,7 @@ class CIPlatformAdapter(ABC):
 - `GitHubAdapter` wraps existing `GitHubTools` methods
 - Webhook routes: `/webhook/github`, `/webhook/jenkins`, `/webhook/gitlab`
 - Factory selects adapter based on incoming webhook source
-- See `REVIEW.md` for full extensibility plan
+- CI extensibility plan is documented in this section and tracked directly in `AGENTS.md`.
 
 ### Data Flow
 
@@ -533,6 +532,6 @@ Integration and E2E tests require deployed Azure resources and a configured GitH
 
 ## Tracking & Continuity
 
-- **Project status and weekly plan**: `PROJECT_STATUS.md` (root of repo)
-- **Blog series**: Documented in portfolio repo at `content/blog/blog.md`
-- **Session IDs**: Recorded in `PROJECT_STATUS.md` for agent continuity across sessions
+- **Execution tracker**: `AGENTS.md` (phases, status, execution log).
+- **Public-facing status**: `README.md`.
+- **Blog series**: portfolio repo `content/blog/blog.md`.
