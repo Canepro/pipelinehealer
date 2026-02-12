@@ -92,6 +92,10 @@ class Settings(BaseSettings):
         default="",
         description="API key required for /api/* routes in non-development environments (sent via X-API-Key)",
     )
+    admin_api_key: str = Field(
+        default="",
+        description="Admin API key required for admin settings operations (sent via X-Admin-Key)",
+    )
 
     # CORS
     cors_allowed_origins: Annotated[list[str], NoDecode] = Field(

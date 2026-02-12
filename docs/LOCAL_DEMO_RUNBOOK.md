@@ -24,6 +24,36 @@ set -euo pipefail
 
 This is optional for simple one-liners, but recommended for deployment/webhook blocks so the script stops on errors instead of continuing in a partial state.
 
+## Fast Path (Recommended: Scripted Azure E2E)
+
+Instead of running many manual commands, use:
+
+```bash
+cd <repo-root>/pipelinehealer
+scripts/demo/run_e2e_azure.sh
+```
+
+What it does:
+
+- Resolves Azure backend URL from Container Apps
+- Disables stale `smee.io` hook and enables Azure webhook
+- Resets demo fixtures (dependency/lint scenarios)
+- Triggers all 5 failure types
+- Prints PR/issue/activity verification output
+
+Common variations:
+
+```bash
+# Keep existing webhook config, only run reset/trigger/verify
+scripts/demo/run_e2e_azure.sh --skip-webhook-sync
+
+# Reset demo fixtures only
+scripts/demo/reset_demo_fixtures.sh
+
+# Re-run quickly with shorter wait
+scripts/demo/run_e2e_azure.sh --wait-seconds 40
+```
+
 ## 1) Backend Setup (Host-Native)
 
 From the repo root (`pipelinehealer/`):
@@ -46,6 +76,7 @@ Edit `backend/.env`:
 - `AZURE_OPENAI_API_VERSION` (for Agent Framework: `2025-03-01-preview` or later)
 - `AZURE_OPENAI_API_KEY` (recommended for local)
 - `GITHUB_PERSONAL_ACCESS_TOKEN` (recommended for local)
+- `ADMIN_API_KEY` (required for `/api/settings` admin read/write)
 - `HEAL_MODE=safe` (recommended) or `HEAL_MODE=demo`
 - Optional reliability knobs:
   - `PIPELINE_STEP_TIMEOUT_SECONDS=120`
@@ -313,12 +344,22 @@ Expected:
 Optional settings check (runtime config snapshot):
 
 ```bash
-curl -sS "http://127.0.0.1:8000/api/settings"
+curl -sS -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings"
+```
+
+Optional runtime override check (applies immediately, resets on backend restart):
+
+```bash
+curl -sS -X PATCH \
+  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"heal_mode":"safe","pipeline_step_timeout_seconds":120}' \
+  "http://127.0.0.1:8000/api/settings"
 ```
 
 Frontend Settings page:
 
-- Open `/settings` in the UI (for example `http://127.0.0.1:3000/settings` in dev).
+- Open `/settings` in the UI (for example `http://127.0.0.1:3000/settings` in dev), paste `ADMIN_API_KEY`, and use **Load Settings**.
 
 ## Troubleshooting
 

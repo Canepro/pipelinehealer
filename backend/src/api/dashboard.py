@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from ..config import get_settings
 from ..models import (
     ActivityRecord,
+    AdminSettingsUpdateRequest,
     AppSettingsView,
     DashboardStats,
     FailureType,
@@ -16,7 +17,7 @@ from ..models import (
 )
 from ..storage import ActivityStorage
 from ..workflows.pipeline_healer import PipelineHealerWorkflow
-from .security import require_api_key
+from .security import require_admin_key, require_api_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["dashboard"], dependencies=[Depends(require_api_key)])
@@ -25,6 +26,71 @@ router = APIRouter(prefix="/api", tags=["dashboard"], dependencies=[Depends(requ
 def _utcnow() -> datetime:
     """Return a timezone-aware UTC datetime."""
     return datetime.now(UTC)
+
+
+def _get_storage_backend_name() -> str:
+    """Return a user-friendly name for the currently configured storage backend."""
+    if _storage is None:
+        return "unknown"
+    storage_class = type(_storage).__name__
+    if storage_class == "InMemoryStorage":
+        return "in_memory"
+    if storage_class == "ActivityStorage":
+        return "cosmos_db"
+    return storage_class.lower()
+
+
+def _resolve_github_auth_mode() -> tuple[bool, bool, str]:
+    """Return GitHub auth capabilities and active mode description."""
+    settings = get_settings()
+    has_pat = bool(settings.github_personal_access_token)
+    has_app = bool(settings.github_app_id and settings.key_vault_url)
+
+    if has_pat and has_app:
+        mode = "pat+github_app"
+    elif has_app:
+        mode = "github_app"
+    elif has_pat:
+        mode = "pat"
+    else:
+        mode = "none"
+
+    return has_pat, has_app, mode
+
+
+def _build_settings_view() -> AppSettingsView:
+    """Build the API response for settings from current runtime configuration."""
+    settings = get_settings()
+    has_pat, has_app, github_auth_mode = _resolve_github_auth_mode()
+
+    return AppSettingsView(
+        environment=settings.environment,
+        storage_backend=_get_storage_backend_name(),
+        heal_mode=settings.heal_mode,
+        auto_create_pr=settings.auto_create_pr,
+        auto_create_tracking_issue_for_prs=settings.auto_create_tracking_issue_for_prs,
+        max_remediation_attempts=settings.max_remediation_attempts,
+        pipeline_step_timeout_seconds=settings.pipeline_step_timeout_seconds,
+        github_api_max_retries=settings.github_api_max_retries,
+        github_api_retry_base_seconds=settings.github_api_retry_base_seconds,
+        github_api_retry_max_seconds=settings.github_api_retry_max_seconds,
+        log_prompt_max_chars=settings.log_prompt_max_chars,
+        log_prompt_head_chars=settings.log_prompt_head_chars,
+        log_prompt_tail_chars=settings.log_prompt_tail_chars,
+        verify_webhook_signature=settings.verify_webhook_signature,
+        verify_webhook_signature_in_development=settings.verify_webhook_signature_in_development,
+        api_auth_enabled=bool(settings.api_auth_key),
+        admin_api_auth_enabled=bool(settings.admin_api_key),
+        github_pat_configured=has_pat,
+        github_app_configured=has_app,
+        github_auth_mode=github_auth_mode,
+        cors_allowed_origins=settings.cors_allowed_origins,
+        cors_allow_origin_regex=settings.cors_allow_origin_regex,
+        azure_openai_endpoint=settings.azure_openai_endpoint,
+        azure_openai_deployment_name=settings.azure_openai_deployment_name,
+        azure_openai_api_version=settings.azure_openai_api_version,
+    )
+
 
 # Storage instance (will be properly initialized)
 _storage: ActivityStorage | None = None
@@ -70,25 +136,55 @@ async def get_dashboard_stats() -> DashboardStats:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/settings", response_model=AppSettingsView)
+@router.get(
+    "/settings",
+    response_model=AppSettingsView,
+    dependencies=[Depends(require_admin_key)],
+)
 async def get_app_settings() -> AppSettingsView:
-    """Get non-secret runtime settings for the frontend Settings page."""
+    """Get non-secret runtime settings for admin users."""
+    return _build_settings_view()
+
+
+@router.patch(
+    "/settings",
+    response_model=AppSettingsView,
+    dependencies=[Depends(require_admin_key)],
+)
+async def update_app_settings(update: AdminSettingsUpdateRequest) -> AppSettingsView:
+    """Apply admin runtime overrides (in-memory until backend restart)."""
     settings = get_settings()
-    return AppSettingsView(
-        environment=settings.environment,
-        heal_mode=settings.heal_mode,
-        auto_create_pr=settings.auto_create_pr,
-        auto_create_tracking_issue_for_prs=settings.auto_create_tracking_issue_for_prs,
-        max_remediation_attempts=settings.max_remediation_attempts,
-        verify_webhook_signature=settings.verify_webhook_signature,
-        verify_webhook_signature_in_development=settings.verify_webhook_signature_in_development,
-        api_auth_enabled=bool(settings.api_auth_key),
-        cors_allowed_origins=settings.cors_allowed_origins,
-        cors_allow_origin_regex=settings.cors_allow_origin_regex,
-        azure_openai_endpoint=settings.azure_openai_endpoint,
-        azure_openai_deployment_name=settings.azure_openai_deployment_name,
-        azure_openai_api_version=settings.azure_openai_api_version,
-    )
+    changes = update.model_dump(exclude_none=True)
+
+    if not changes:
+        return _build_settings_view()
+
+    if "heal_mode" in changes:
+        heal_mode = str(changes["heal_mode"]).strip().lower()
+        if heal_mode not in {"safe", "demo"}:
+            raise HTTPException(
+                status_code=422,
+                detail="heal_mode must be one of: safe, demo",
+            )
+        changes["heal_mode"] = heal_mode
+
+    max_chars = int(changes.get("log_prompt_max_chars", settings.log_prompt_max_chars))
+    head_chars = int(changes.get("log_prompt_head_chars", settings.log_prompt_head_chars))
+    tail_chars = int(changes.get("log_prompt_tail_chars", settings.log_prompt_tail_chars))
+    if head_chars + tail_chars > max_chars:
+        raise HTTPException(
+            status_code=422,
+            detail="log_prompt_head_chars + log_prompt_tail_chars must be <= log_prompt_max_chars",
+        )
+
+    for key, value in changes.items():
+        setattr(settings, key, value)
+
+    workflow = get_workflow()
+    workflow.refresh_runtime_settings()
+    logger.info("Admin runtime settings updated; changed_keys=%s", sorted(changes.keys()))
+
+    return _build_settings_view()
 
 
 @router.get("/activities", response_model=list[ActivityRecord])

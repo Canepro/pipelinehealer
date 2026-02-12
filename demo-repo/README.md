@@ -2,6 +2,17 @@
 
 This repository is used to demonstrate and test PipelineHealer's self-healing capabilities.
 
+## One-Command E2E (from PipelineHealer repo)
+
+If you have this repo checked out inside `pipelinehealer/demo-repo`, run the automated flow from the PipelineHealer root:
+
+```bash
+cd <repo-root>/pipelinehealer
+scripts/demo/run_e2e_azure.sh
+```
+
+That script resets fixtures, triggers all failure types, and prints PR/issue/activity verification output.
+
 ## Triggering Failures
 
 You can manually trigger different types of failures using GitHub Actions workflow dispatch:

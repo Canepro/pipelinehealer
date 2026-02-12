@@ -68,6 +68,11 @@ class OrchestratorAgent:
 
         return self._agent
 
+    def refresh_runtime_settings(self) -> None:
+        """Refresh mutable runtime settings for orchestrator and child agents."""
+        self._settings = get_settings()
+        self._remediation_agent.refresh_runtime_settings()
+
     async def _run_with_timeout(self, *, step_name: str, coro: Awaitable[T]) -> T:
         """Run a pipeline step with optional timeout protection."""
         timeout_seconds = self._settings.pipeline_step_timeout_seconds

@@ -15,8 +15,9 @@ class FixGenerators:
 
     def __init__(self, heal_mode: str = "safe") -> None:
         """Initialize fix generators."""
-        self._heal_mode = (heal_mode or "safe").strip().lower()
-        self._is_demo_mode = self._heal_mode == "demo"
+        self._heal_mode = ""
+        self._is_demo_mode = False
+        self.set_heal_mode(heal_mode)
         self._generators = {
             FailureType.DEPENDENCY: self._generate_dependency_fix,
             FailureType.LINT: self._generate_lint_fix,
@@ -24,6 +25,12 @@ class FixGenerators:
             FailureType.BUILD_CONFIG: self._generate_build_config_fix,
             FailureType.TIMEOUT: self._generate_timeout_fix,
         }
+
+    def set_heal_mode(self, heal_mode: str) -> None:
+        """Update healing mode without recreating the generator object."""
+        normalized = (heal_mode or "safe").strip().lower()
+        self._heal_mode = normalized if normalized in {"safe", "demo"} else "safe"
+        self._is_demo_mode = self._heal_mode == "demo"
 
     async def generate_fix(
         self,

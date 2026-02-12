@@ -137,6 +137,14 @@ class GitHubTools:
             await self._client.aclose()
             self._client = None
 
+    def refresh_runtime_settings(self) -> None:
+        """Refresh runtime retry policy from the cached settings object."""
+        settings = get_settings()
+        self._settings = settings
+        self._max_retries = max(0, settings.github_api_max_retries)
+        self._retry_base_seconds = max(0.0, settings.github_api_retry_base_seconds)
+        self._retry_max_seconds = max(0.0, settings.github_api_retry_max_seconds)
+
     # =========================================================================
     # Workflow Run Tools
     # =========================================================================

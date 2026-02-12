@@ -62,6 +62,11 @@ class RemediationAgent:
 
         return self._agent
 
+    def refresh_runtime_settings(self) -> None:
+        """Apply mutable runtime settings without restarting the process."""
+        self._settings = get_settings()
+        self._fix_generators.set_heal_mode(self._settings.heal_mode)
+
     async def remediate(
         self,
         diagnosis: Diagnosis,

@@ -194,15 +194,44 @@ class AppSettingsView(BaseModel):
     """Non-secret runtime settings exposed to the frontend settings page."""
 
     environment: str
+    storage_backend: str
     heal_mode: str
     auto_create_pr: bool
     auto_create_tracking_issue_for_prs: bool
     max_remediation_attempts: int
+    pipeline_step_timeout_seconds: float
+    github_api_max_retries: int
+    github_api_retry_base_seconds: float
+    github_api_retry_max_seconds: float
+    log_prompt_max_chars: int
+    log_prompt_head_chars: int
+    log_prompt_tail_chars: int
     verify_webhook_signature: bool
     verify_webhook_signature_in_development: bool
     api_auth_enabled: bool
+    admin_api_auth_enabled: bool
+    github_pat_configured: bool
+    github_app_configured: bool
+    github_auth_mode: str
     cors_allowed_origins: list[str]
     cors_allow_origin_regex: str
     azure_openai_endpoint: str
     azure_openai_deployment_name: str
     azure_openai_api_version: str
+
+
+class AdminSettingsUpdateRequest(BaseModel):
+    """Admin runtime settings overrides (in-memory until process restart)."""
+
+    heal_mode: str | None = None
+    auto_create_pr: bool | None = None
+    auto_create_tracking_issue_for_prs: bool | None = None
+    max_remediation_attempts: int | None = Field(default=None, ge=1, le=50)
+    verify_webhook_signature_in_development: bool | None = None
+    pipeline_step_timeout_seconds: float | None = Field(default=None, gt=0.0, le=600.0)
+    github_api_max_retries: int | None = Field(default=None, ge=0, le=10)
+    github_api_retry_base_seconds: float | None = Field(default=None, gt=0.0, le=30.0)
+    github_api_retry_max_seconds: float | None = Field(default=None, gt=0.0, le=120.0)
+    log_prompt_max_chars: int | None = Field(default=None, ge=1000, le=200000)
+    log_prompt_head_chars: int | None = Field(default=None, ge=100, le=200000)
+    log_prompt_tail_chars: int | None = Field(default=None, ge=100, le=200000)

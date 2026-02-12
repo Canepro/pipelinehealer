@@ -48,7 +48,7 @@ When a GitHub Actions workflow fails, PipelineHealer:
 
 ```mermaid
 flowchart LR
-    GH[GitHub Actions workflow_run.completed] --> WH[/webhook/github]
+    GH[GitHub Actions workflow_run.completed] --> WH["/webhook/github"]
     WH --> WF[PipelineHealerWorkflow]
     WF --> LA[Log Analyzer Agent]
     LA --> DG[Diagnosis Agent]
@@ -94,8 +94,8 @@ flowchart LR
 - **Multi-Agent Architecture**: Specialized agents for log analysis, diagnosis, and remediation
 - **Intelligent Diagnosis**: Pattern-based and AI-powered root cause analysis
 - **Automated Remediation**: Creates PRs for auto-fixable issues, detailed issues for others
-- **Beautiful Dashboard**: Real-time monitoring of healing activities
-- **Settings Surface**: Read-only runtime settings page (`/settings`) for faster ops/debugging
+- **Professional Dashboard UI**: Refined visual system for clearer status and activity triage
+- **Admin Settings Surface**: Admin-key-protected runtime settings page (`/settings`) with safe in-memory overrides
 - **Enterprise Ready**: Azure-native with full observability and security
 
 ## Failure Types Supported
@@ -174,14 +174,14 @@ In `HEAL_MODE=demo`, PipelineHealer may:
    Open the URL printed by Vite (usually http://127.0.0.1:5173)
    - `Dashboard`: `/`
    - `Activities`: `/activities`
-   - `Settings`: `/settings` (non-secret runtime configuration)
+   - `Settings`: `/settings` (admin-only runtime configuration; requires `X-Admin-Key`)
 
 ### Local Development (Containerized Stack with Podman/Docker)
 
 Recommended local stack (backend + frontend):
 
 ```bash
-cd /mnt/d/repos/pipelinehealer
+cd <repo-root>/pipelinehealer
 cp backend/.env.example backend/.env
 # edit backend/.env
 
@@ -196,7 +196,7 @@ Use `--env-file backend/.env` with compose commands to avoid empty-env warnings.
 Optional full container stack (backend + frontend + cosmos emulator):
 
 ```bash
-cd /mnt/d/repos/pipelinehealer
+cd <repo-root>/pipelinehealer
 podman compose --env-file backend/.env up -d backend frontend cosmos-emulator
 podman compose --env-file backend/.env ps
 ```
@@ -225,6 +225,26 @@ For the exact commands to reproduce the full demo flow (backend + smee.io + `gh 
 
 - `docs/LOCAL_DEMO_RUNBOOK.md`
 - `docs/DEMO_SCRIPT.md` (2-minute recording script + checklist)
+
+For Azure-hosted demos, use the automation script (recommended):
+
+```bash
+cd <repo-root>/pipelinehealer
+scripts/demo/run_e2e_azure.sh
+```
+
+Useful options:
+
+```bash
+# Skip webhook sync if already configured
+scripts/demo/run_e2e_azure.sh --skip-webhook-sync
+
+# Only reset fixtures
+scripts/demo/reset_demo_fixtures.sh
+
+# Faster verify window for repeated test runs
+scripts/demo/run_e2e_azure.sh --wait-seconds 40
+```
 
 ### Shell Safety For Copy-Paste Blocks
 
@@ -346,6 +366,7 @@ echo "Set min-replicas=$MIN on $BACKEND_APP and $FRONTEND_APP"
 | `GITHUB_WEBHOOK_SECRET` | Webhook signature secret | Yes (prod) |
 | `GITHUB_PERSONAL_ACCESS_TOKEN` | GitHub PAT for API access | Yes |
 | `API_AUTH_KEY` | Required `X-API-Key` value for `/api/*` in non-development envs | Yes (non-dev) |
+| `ADMIN_API_KEY` | Required `X-Admin-Key` value for admin settings endpoints (`GET/PATCH /api/settings`) | Yes (recommended in all envs) |
 | `VERIFY_WEBHOOK_SIGNATURE` | Enable webhook signature verification | Recommended `true` |
 | `VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT` | Enforce signature checks in development too | Optional |
 | `CORS_ALLOWED_ORIGINS` | Exact CORS origins (CSV or JSON array) | Optional |
@@ -362,6 +383,7 @@ echo "Set min-replicas=$MIN on $BACKEND_APP and $FRONTEND_APP"
 ### API Security
 
 - `/api/*` endpoints require `X-API-Key` when `ENVIRONMENT` is not `development`.
+- `/api/settings` (`GET`/`PATCH`) always requires `X-Admin-Key`.
 - In `development`, API key auth is bypassed for local iteration.
 - In `production`, keep `VERIFY_WEBHOOK_SIGNATURE=true` and set `GITHUB_WEBHOOK_SECRET`.
 
@@ -369,6 +391,18 @@ Example:
 
 ```bash
 curl -H "X-API-Key: $API_AUTH_KEY" "http://127.0.0.1:8000/api/activities?limit=20"
+```
+
+Admin settings examples:
+
+```bash
+curl -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings"
+
+curl -X PATCH \
+  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"heal_mode":"safe","pipeline_step_timeout_seconds":120}' \
+  "http://127.0.0.1:8000/api/settings"
 ```
 
 ### GitHub Webhook Setup

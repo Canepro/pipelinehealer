@@ -213,6 +213,12 @@ class PipelineHealerWorkflow:
         """Get the GitHub tools instance."""
         return self._github_tools
 
+    def refresh_runtime_settings(self) -> None:
+        """Refresh mutable settings across workflow components."""
+        self._settings = get_settings()
+        self._github_tools.refresh_runtime_settings()
+        self._orchestrator.refresh_runtime_settings()
+
 
 def create_workflow(
     use_in_memory: bool = False,

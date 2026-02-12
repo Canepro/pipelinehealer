@@ -20,6 +20,7 @@ Show end-to-end value quickly:
 - Demo repo is reset so:
   - `dependency` and `lint` can produce PRs
   - `test`, `build_config`, `timeout` produce issues
+- `ADMIN_API_KEY` is available if you plan to open `/settings` during demo
 - Previous auto-fix PR branches are merged/closed (avoid duplicate branch `422` on reruns)
 - Keep Container Apps warm during demo (`min-replicas=1`) if needed
 
@@ -34,7 +35,7 @@ Say:
 Show:
 
 - Frontend dashboard at `/`
-- Briefly click `Settings` and show `environment`, `heal_mode`, and security flags
+- Optional: briefly click `Settings`, paste admin key, then show `environment`, `heal_mode`, and security flags
 
 ## 0:20 - 0:40 (Trigger Failures)
 

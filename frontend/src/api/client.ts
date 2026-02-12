@@ -55,13 +55,25 @@ export interface TimelineData {
 
 export interface AppSettings {
   environment: string
+  storage_backend: string
   heal_mode: string
   auto_create_pr: boolean
   auto_create_tracking_issue_for_prs: boolean
   max_remediation_attempts: number
+  pipeline_step_timeout_seconds: number
+  github_api_max_retries: number
+  github_api_retry_base_seconds: number
+  github_api_retry_max_seconds: number
+  log_prompt_max_chars: number
+  log_prompt_head_chars: number
+  log_prompt_tail_chars: number
   verify_webhook_signature: boolean
   verify_webhook_signature_in_development: boolean
   api_auth_enabled: boolean
+  admin_api_auth_enabled: boolean
+  github_pat_configured: boolean
+  github_app_configured: boolean
+  github_auth_mode: string
   cors_allowed_origins: string[]
   cors_allow_origin_regex: string
   azure_openai_endpoint: string
@@ -69,7 +81,26 @@ export interface AppSettings {
   azure_openai_api_version: string
 }
 
-async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
+export interface AdminSettingsUpdate {
+  heal_mode?: 'safe' | 'demo'
+  auto_create_pr?: boolean
+  auto_create_tracking_issue_for_prs?: boolean
+  max_remediation_attempts?: number
+  verify_webhook_signature_in_development?: boolean
+  pipeline_step_timeout_seconds?: number
+  github_api_max_retries?: number
+  github_api_retry_base_seconds?: number
+  github_api_retry_max_seconds?: number
+  log_prompt_max_chars?: number
+  log_prompt_head_chars?: number
+  log_prompt_tail_chars?: number
+}
+
+type ApiRequestOptions = RequestInit & {
+  adminKey?: string
+}
+
+async function fetchJson<T>(path: string, options?: ApiRequestOptions): Promise<T> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
   const upstreamSignal = options?.signal
@@ -88,6 +119,7 @@ async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
       headers: {
         'Content-Type': 'application/json',
         ...(API_AUTH_KEY ? { 'X-API-Key': API_AUTH_KEY } : {}),
+        ...(options?.adminKey ? { 'X-Admin-Key': options.adminKey } : {}),
         ...options?.headers,
       },
     })
@@ -109,7 +141,14 @@ async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   getStats: () => fetchJson<DashboardStats>('/api/stats'),
-  getSettings: () => fetchJson<AppSettings>('/api/settings'),
+  getSettings: (adminKey: string) =>
+    fetchJson<AppSettings>('/api/settings', { adminKey }),
+  updateSettings: (adminKey: string, payload: AdminSettingsUpdate) =>
+    fetchJson<AppSettings>('/api/settings', {
+      method: 'PATCH',
+      adminKey,
+      body: JSON.stringify(payload),
+    }),
   
   getActivities: (params?: {
     repository?: string
