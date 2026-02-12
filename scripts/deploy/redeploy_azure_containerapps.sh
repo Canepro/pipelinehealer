@@ -22,6 +22,7 @@ Options:
   --acr-name <name>         Azure Container Registry name (default: caneprophacr01)
   --backend-app <name>      Backend Container App (default: ca-canepro-ph-backend)
   --frontend-app <name>     Frontend Container App (default: ca-canepro-ph-frontend)
+  --engine <podman|docker>  Force container engine (default: auto-detect)
   --env-file <path>         Backend env file (default: <repo>/backend/.env)
   --image-tag <tag>         Image tag (default: current git short SHA)
   --api-key <value>         Override API_AUTH_KEY (otherwise read from env file)
@@ -41,6 +42,8 @@ BACKEND_APP="ca-canepro-ph-backend"
 FRONTEND_APP="ca-canepro-ph-frontend"
 ENV_FILE="$REPO_ROOT/backend/.env"
 IMAGE_TAG="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)"
+CONTAINER_ENGINE="auto"
+COMPOSE_ENV_FILE=""
 
 API_AUTH_KEY=""
 ADMIN_API_KEY=""
@@ -67,6 +70,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --env-file)
       ENV_FILE="$2"
+      shift 2
+      ;;
+    --engine)
+      CONTAINER_ENGINE="$2"
       shift 2
       ;;
     --image-tag)
@@ -101,6 +108,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ "$ENV_FILE" != /* ]]; then
+  ENV_FILE="$REPO_ROOT/$ENV_FILE"
+fi
+
 for cmd in az curl tr grep cut; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "Missing required command: $cmd" >&2
@@ -109,7 +120,7 @@ for cmd in az curl tr grep cut; do
 done
 
 if [[ "$MODE" != "env_only" ]]; then
-  for cmd in podman git; do
+  for cmd in git; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
       echo "Missing required command for full deploy: $cmd" >&2
       exit 1
@@ -154,23 +165,69 @@ BACKEND_FQDN="$(
 )"
 BACKEND_URL="https://$BACKEND_FQDN"
 
+detect_engine() {
+  if [[ "$CONTAINER_ENGINE" == "podman" || "$CONTAINER_ENGINE" == "docker" ]]; then
+    echo "$CONTAINER_ENGINE"
+    return 0
+  fi
+
+  if command -v podman >/dev/null 2>&1; then
+    if podman info >/dev/null 2>&1; then
+      echo "podman"
+      return 0
+    fi
+    # Try recovering Podman Desktop / podman machine automatically.
+    if podman machine start >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
+      echo "podman"
+      return 0
+    fi
+  fi
+
+  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    echo "docker"
+    return 0
+  fi
+
+  return 1
+}
+
 echo "Resource group : $AZ_RESOURCE_GROUP"
 echo "Backend app    : $BACKEND_APP"
 echo "Frontend app   : $FRONTEND_APP"
 echo "Mode           : $MODE"
 
 if [[ "$MODE" == "full" ]]; then
+  if ! CONTAINER_ENGINE="$(detect_engine)"; then
+    echo "No working container engine found for full deploy." >&2
+    echo "Try one of the following, then rerun:" >&2
+    echo "  podman machine start" >&2
+    echo "  # or start Docker Desktop" >&2
+    echo "Or run env-only mode (no image build):" >&2
+    echo "  bash scripts/deploy/redeploy_azure_containerapps.sh --env-only" >&2
+    exit 1
+  fi
+  echo "Container engine: $CONTAINER_ENGINE"
+
   ACR_LOGIN="$(az acr show -n "$ACR_NAME" --query loginServer -o tsv | tr -d '\r\n')"
   ACR_TOKEN="$(az acr login -n "$ACR_NAME" --expose-token --query accessToken -o tsv | tr -d '\r\n')"
-  podman login "$ACR_LOGIN" -u 00000000-0000-0000-0000-000000000000 -p "$ACR_TOKEN"
+  "$CONTAINER_ENGINE" login "$ACR_LOGIN" -u 00000000-0000-0000-0000-000000000000 -p "$ACR_TOKEN"
+
+  COMPOSE_ENV_FILE="$ENV_FILE"
+  if [[ "$CONTAINER_ENGINE" == "podman" ]] && command -v wslpath >/dev/null 2>&1; then
+    # podman compose may invoke docker-compose.exe on Windows; it needs a Windows path.
+    if [[ "$ENV_FILE" == /mnt/* ]]; then
+      COMPOSE_ENV_FILE="$(wslpath -w "$ENV_FILE")"
+    fi
+  fi
+  echo "Compose env file: $COMPOSE_ENV_FILE"
 
   (
     cd "$REPO_ROOT"
-    podman compose --env-file "$ENV_FILE" build backend frontend
-    podman tag pipelinehealer-backend:latest  "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
-    podman tag pipelinehealer-frontend:latest "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
-    podman push "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
-    podman push "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
+    "$CONTAINER_ENGINE" compose --env-file "$COMPOSE_ENV_FILE" build backend frontend
+    "$CONTAINER_ENGINE" tag pipelinehealer-backend:latest  "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
+    "$CONTAINER_ENGINE" tag pipelinehealer-frontend:latest "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
+    "$CONTAINER_ENGINE" push "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
+    "$CONTAINER_ENGINE" push "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
   )
 
   az containerapp update \
