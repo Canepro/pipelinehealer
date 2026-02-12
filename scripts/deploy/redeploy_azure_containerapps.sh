@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Prevent accidental "source ./script.sh" from impacting the caller shell.
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  echo "Do not source this script. Run it as:" >&2
+  echo "  bash scripts/deploy/redeploy_azure_containerapps.sh" >&2
+  return 1 2>/dev/null || exit 1
+fi
+
 usage() {
   cat <<'EOF'
 Redeploy PipelineHealer backend/frontend to Azure Container Apps.

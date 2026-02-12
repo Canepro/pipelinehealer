@@ -136,6 +136,9 @@ cd <repo-root>/pipelinehealer
 bash scripts/deploy/redeploy_azure_containerapps.sh
 ```
 
+Important:
+- Run with `bash ...` (execute), not `. scripts/...` or `source scripts/...`.
+
 Set only `ADMIN_API_KEY` (if image is already current):
 
 ```bash

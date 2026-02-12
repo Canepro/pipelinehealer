@@ -292,6 +292,9 @@ cd <repo-root>/pipelinehealer
 bash scripts/deploy/redeploy_azure_containerapps.sh
 ```
 
+Important:
+- Run with `bash ...` (execute), not `. scripts/...` or `source scripts/...`.
+
 What this script does:
 
 - Builds and pushes backend/frontend images
