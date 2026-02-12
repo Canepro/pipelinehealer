@@ -73,7 +73,7 @@ Edit `backend/.env`:
 
 - `AZURE_OPENAI_ENDPOINT`
 - `AZURE_OPENAI_DEPLOYMENT_NAME` (current dev deployment: `gpt-5-mini`)
-- `AZURE_OPENAI_API_VERSION` (for Agent Framework: `2025-03-01-preview` or later)
+- `AZURE_OPENAI_API_VERSION` (use the version shown in your Azure deployment target URI; current working value here is `2025-04-01-preview`)
 - `AZURE_OPENAI_API_KEY` (recommended for local)
 - `GITHUB_PERSONAL_ACCESS_TOKEN` (recommended for local)
 - `ADMIN_API_KEY` (required for `/api/settings` admin read/write)
@@ -204,7 +204,8 @@ Expected output ends with:
 
 - `model connectivity OK.`
 
-If you see "API version not supported", set `AZURE_OPENAI_API_VERSION=2025-03-01-preview`.
+If you see "API version not supported", use the exact API version shown in your Azure OpenAI deployment **Target URI**.
+For this current environment, `2025-04-01-preview` is working.
 
 ## 3) Run Backend (FastAPI, host-native only)
 

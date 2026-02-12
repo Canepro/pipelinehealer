@@ -67,7 +67,7 @@ bash scripts/ph.sh status      # Container Apps status snapshot
 
 ## Phased Execution Plan (Track Here)
 
-**Last updated:** Feb 12, 2026
+**Last updated:** Feb 12, 2026 (evening)
 
 This section is the working checklist for getting PipelineHealer demo-ready and submission-ready. As we complete work, we:
 
@@ -309,6 +309,9 @@ Decisions made (Recommended defaults for this repo):
 - Feb 12, 2026: Removed stale `PROJECT_STATUS.md` and `REVIEW.md`; consolidated active tracking/design notes into `AGENTS.md` and `README.md`.
 - Feb 12, 2026: Added scripted Azure redeploy flow `scripts/deploy/redeploy_azure_containerapps.sh` and updated docs to use script-first instructions (including `ADMIN_API_KEY` runtime setup).
 - Feb 12, 2026: Added one-command wrapper `scripts/ph.sh` so deploy/demo/scale/status operations run through a single entrypoint for easier operator usage.
+- Feb 12, 2026: Hardened demo reset automation to handle dirty/ahead `demo-repo` state (safe autostash/restore) for reliable one-command runs.
+- Feb 12, 2026: Updated deploy automation so `bash scripts/ph.sh deploy:env` syncs backend runtime tuning vars from `backend/.env` (including `MAX_REMEDIATION_ATTEMPTS`) and Azure OpenAI vars.
+- Feb 12, 2026: Re-validated Azure E2E with one-command flow (`demo:e2e`): dependency + lint produced PRs (with tracking issues), and test/build_config/timeout produced issues as expected.
 
 ## Project Layout
 
@@ -434,14 +437,12 @@ GitHub workflow_run.completed webhook
 
 ## Repo Visibility & Secret Hygiene
 
-- Keeping the repo **private during active development** is reasonable to reduce accidental disclosure.
-- A private repo does **not** make committed secrets safe. If a secret is ever committed (even briefly), assume it is compromised:
+- Repository is now **public** (`https://github.com/Canepro/pipelinehealer`).
+- Public or private visibility does **not** make committed secrets safe. If a secret is ever committed (even briefly), assume it is compromised:
   - remove it from git history (or invalidate the repo),
   - rotate/revoke the secret (preferred),
   - re-issue credentials using Key Vault / GitHub Secrets.
-- Hackathon requirement reminder: the repository must be **public** before submission (target: before **Mar 15, 2026, 11:59 PM PT**).
-
-Recommended before switching public:
+- Continue periodic secret hygiene checks:
 
 - Run a secret scan (gitleaks/trufflehog) and review git history for tokens/keys.
 - Ensure `.env`, private keys (`*.pem`, `*.key`), and local credentials remain untracked (see `.gitignore`).
@@ -464,10 +465,10 @@ Recommended before switching public:
 ### Submission Checklist
 
 - [x] Working project deployed to Azure (`azd up`)
-- [ ] Public GitHub repository
+- [x] Public GitHub repository
 - [ ] Project description (features, problem solved, technologies)
 - [ ] Demo video (2 min max, YouTube/Vimeo, shows the product working)
-- [ ] Architecture diagram (Mermaid or draw.io)
+- [x] Architecture diagram (Mermaid in `README.md`)
 - [ ] Microsoft Learn usernames for all participants
 - [ ] Microsoft Learn Skilling Plan completed
 

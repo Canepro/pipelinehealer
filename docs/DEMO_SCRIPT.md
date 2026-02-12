@@ -24,6 +24,14 @@ Show end-to-end value quickly:
 - Previous auto-fix PR branches are merged/closed (avoid duplicate branch `422` on reruns)
 - Keep Container Apps warm during demo (`min-replicas=1`) if needed
 
+Warm-up command:
+
+```bash
+cd <repo-root>/pipelinehealer
+bash scripts/ph.sh warm
+bash scripts/ph.sh status
+```
+
 ## 2-Minute Run of Show
 
 ## 0:00 - 0:20 (Problem + Architecture)
@@ -99,12 +107,15 @@ Merge demo PRs and optionally close superseded issues:
 ```bash
 REPO="Canepro/pipelinehealer-demo"
 gh pr list -R "$REPO"
+gh issue list -R "$REPO" --state open
+# close one issue per command
+# gh issue close -R "$REPO" <issue_number>
 ```
 
 Return Azure apps to low-cost mode:
 
 ```bash
-RG="rg-canepro-ph-dev-eus"
-az containerapp update -g "$RG" -n ca-canepro-ph-backend --min-replicas 0
-az containerapp update -g "$RG" -n ca-canepro-ph-frontend --min-replicas 0
+cd <repo-root>/pipelinehealer
+bash scripts/ph.sh lowcost
+bash scripts/ph.sh status
 ```
