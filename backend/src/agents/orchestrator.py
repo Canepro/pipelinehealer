@@ -1,7 +1,9 @@
 """Orchestrator Agent for coordinating the healing pipeline."""
 
+import asyncio
 import logging
-from typing import Any
+from collections.abc import Awaitable
+from typing import Any, TypeVar
 
 from azure.identity import DefaultAzureCredential
 
@@ -19,6 +21,7 @@ from .log_analyzer import LogAnalyzerAgent
 from .remediation import RemediationAgent
 
 logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
 
 class OrchestratorAgent:
@@ -65,6 +68,19 @@ class OrchestratorAgent:
 
         return self._agent
 
+    async def _run_with_timeout(self, *, step_name: str, coro: Awaitable[T]) -> T:
+        """Run a pipeline step with optional timeout protection."""
+        timeout_seconds = self._settings.pipeline_step_timeout_seconds
+        if timeout_seconds <= 0:
+            return await coro
+
+        try:
+            return await asyncio.wait_for(coro, timeout=timeout_seconds)
+        except TimeoutError as exc:
+            raise TimeoutError(
+                f"{step_name} step timed out after {timeout_seconds:.1f}s"
+            ) from exc
+
     async def process_workflow_failure(
         self,
         event: WorkflowRunEvent,
@@ -109,7 +125,10 @@ class OrchestratorAgent:
             activity.status = RemediationStatus.ANALYZING
             await self._storage.update_activity(activity)
 
-            log_analyses = await self._log_analyzer.analyze(owner, repo, run_id)
+            log_analyses = await self._run_with_timeout(
+                step_name="Analyze",
+                coro=self._log_analyzer.analyze(owner, repo, run_id),
+            )
 
             if not log_analyses:
                 logger.warning("No log analyses produced")
@@ -130,7 +149,10 @@ class OrchestratorAgent:
                 "conclusion": event.workflow_run.conclusion,
             }
 
-            diagnosis = await self._diagnosis_agent.diagnose(log_analyses, workflow_info)
+            diagnosis = await self._run_with_timeout(
+                step_name="Diagnose",
+                coro=self._diagnosis_agent.diagnose(log_analyses, workflow_info),
+            )
             activity.failure_type = diagnosis.failure_type
             activity.diagnosis = diagnosis
 
@@ -155,11 +177,14 @@ class OrchestratorAgent:
             # Check if auto-creation is enabled
             dry_run = not self._settings.auto_create_pr
 
-            result = await self._remediation_agent.remediate(
-                diagnosis=diagnosis,
-                repository_info=repository_info,
-                workflow_run_id=run_id,
-                dry_run=dry_run,
+            result = await self._run_with_timeout(
+                step_name="Remediate",
+                coro=self._remediation_agent.remediate(
+                    diagnosis=diagnosis,
+                    repository_info=repository_info,
+                    workflow_run_id=run_id,
+                    dry_run=dry_run,
+                ),
             )
 
             activity.remediation_result = result

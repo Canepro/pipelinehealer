@@ -25,6 +25,12 @@ async def _get_activities(headers: dict[str, str] | None = None) -> httpx.Respon
         return await client.get("/api/activities?limit=1", headers=headers or {})
 
 
+async def _get_settings(headers: dict[str, str] | None = None) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.get("/api/settings", headers=headers or {})
+
+
 async def _post_ping(
     headers: dict[str, str] | None = None,
     raw_payload: bytes | None = None,
@@ -112,3 +118,20 @@ def test_cors_origins_parse_from_csv() -> None:
         "http://a.example.com",
         "http://b.example.com",
     ]
+
+
+@pytest.mark.asyncio
+async def test_settings_endpoint_returns_non_secret_fields(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
+    monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-mini")
+    monkeypatch.setenv("AZURE_OPENAI_API_VERSION", "2025-03-01-preview")
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "super-secret-key")
+    get_settings.cache_clear()
+
+    response = await _get_settings()
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["azure_openai_deployment_name"] == "gpt-5-mini"
+    assert "azure_openai_api_key" not in data

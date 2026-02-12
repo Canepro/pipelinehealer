@@ -6,8 +6,10 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from ..config import get_settings
 from ..models import (
     ActivityRecord,
+    AppSettingsView,
     DashboardStats,
     FailureType,
     RemediationStatus,
@@ -66,6 +68,27 @@ async def get_dashboard_stats() -> DashboardStats:
     except Exception as e:
         logger.exception(f"Failed to get dashboard stats: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/settings", response_model=AppSettingsView)
+async def get_app_settings() -> AppSettingsView:
+    """Get non-secret runtime settings for the frontend Settings page."""
+    settings = get_settings()
+    return AppSettingsView(
+        environment=settings.environment,
+        heal_mode=settings.heal_mode,
+        auto_create_pr=settings.auto_create_pr,
+        auto_create_tracking_issue_for_prs=settings.auto_create_tracking_issue_for_prs,
+        max_remediation_attempts=settings.max_remediation_attempts,
+        verify_webhook_signature=settings.verify_webhook_signature,
+        verify_webhook_signature_in_development=settings.verify_webhook_signature_in_development,
+        api_auth_enabled=bool(settings.api_auth_key),
+        cors_allowed_origins=settings.cors_allowed_origins,
+        cors_allow_origin_regex=settings.cors_allow_origin_regex,
+        azure_openai_endpoint=settings.azure_openai_endpoint,
+        azure_openai_deployment_name=settings.azure_openai_deployment_name,
+        azure_openai_api_version=settings.azure_openai_api_version,
+    )
 
 
 @router.get("/activities", response_model=list[ActivityRecord])

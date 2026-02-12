@@ -91,7 +91,12 @@ class LogAnalyzerAgent:
                     LogAnalysis(
                         job_id=0,
                         job_name=job_name,
-                        raw_logs=raw_logs[:10000],  # Truncate very long logs
+                        raw_logs=self._truncate_logs(
+                            raw_logs,
+                            max_chars=10000,
+                            head_chars=5000,
+                            tail_chars=5000,
+                        ),
                         error_lines=["Failed to analyze logs"],
                         summary=f"Analysis failed: {e}",
                     )
@@ -122,7 +127,7 @@ class LogAnalyzerAgent:
         agent = await self._get_agent()
 
         # Truncate logs for the prompt
-        truncated_logs = raw_logs[:15000] if len(raw_logs) > 15000 else raw_logs
+        truncated_logs = self._truncate_for_prompt(raw_logs)
 
         prompt = f"""Analyze the following CI/CD build logs and provide a summary.
 
@@ -158,11 +163,50 @@ Provide a concise summary of:
         return LogAnalysis(
             job_id=0,  # Would need to be passed in for actual job ID
             job_name=job_name,
-            raw_logs=raw_logs[:50000],  # Store truncated logs
+            raw_logs=self._truncate_for_storage(raw_logs),
             error_lines=error_lines,
             warning_lines=warning_lines,
             key_events=key_events,
             summary=summary,
+        )
+
+    def _truncate_logs(
+        self,
+        logs: str,
+        *,
+        max_chars: int,
+        head_chars: int,
+        tail_chars: int,
+    ) -> str:
+        """Keep both head and tail context when truncating long logs."""
+        if len(logs) <= max_chars:
+            return logs
+
+        head = max(0, min(head_chars, max_chars))
+        tail = max(0, min(tail_chars, max_chars - head))
+        if head + tail > max_chars:
+            tail = max(0, max_chars - head)
+
+        omitted_chars = max(0, len(logs) - head - tail)
+        marker = f"\n\n... [truncated {omitted_chars} chars] ...\n\n"
+        return f"{logs[:head]}{marker}{logs[-tail:] if tail else ''}"
+
+    def _truncate_for_prompt(self, logs: str) -> str:
+        """Truncate prompt logs using configured limits."""
+        return self._truncate_logs(
+            logs,
+            max_chars=self._settings.log_prompt_max_chars,
+            head_chars=self._settings.log_prompt_head_chars,
+            tail_chars=self._settings.log_prompt_tail_chars,
+        )
+
+    def _truncate_for_storage(self, logs: str) -> str:
+        """Truncate stored logs while preserving the failure tail."""
+        return self._truncate_logs(
+            logs,
+            max_chars=50000,
+            head_chars=25000,
+            tail_chars=25000,
         )
 
     def _extract_error_lines(self, logs: str) -> list[str]:

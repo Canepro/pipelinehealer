@@ -2,10 +2,11 @@
 
 import json
 from functools import lru_cache
-from typing import Any
+from typing import Annotated, Any
+from urllib.parse import urlparse
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -93,7 +94,7 @@ class Settings(BaseSettings):
     )
 
     # CORS
-    cors_allowed_origins: list[str] = Field(
+    cors_allowed_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: [
             "http://localhost:3000",
             "http://localhost:5173",
@@ -138,6 +139,34 @@ class Settings(BaseSettings):
         default=True,
         description="Create a tracking issue for PR-based remediations and close it automatically on merge",
     )
+    pipeline_step_timeout_seconds: float = Field(
+        default=120.0,
+        description="Per-step timeout (seconds) for analyze/diagnose/remediate orchestration steps",
+    )
+    github_api_max_retries: int = Field(
+        default=3,
+        description="Maximum GitHub API retries for retryable failures (429/5xx and transient network errors)",
+    )
+    github_api_retry_base_seconds: float = Field(
+        default=0.5,
+        description="Base backoff delay for GitHub API retries",
+    )
+    github_api_retry_max_seconds: float = Field(
+        default=8.0,
+        description="Maximum backoff delay for GitHub API retries",
+    )
+    log_prompt_max_chars: int = Field(
+        default=18000,
+        description="Max log characters to send to the LLM prompt",
+    )
+    log_prompt_head_chars: int = Field(
+        default=9000,
+        description="Head characters to keep when truncating logs for prompt context",
+    )
+    log_prompt_tail_chars: int = Field(
+        default=9000,
+        description="Tail characters to keep when truncating logs for prompt context",
+    )
     supported_failure_types: list[str] = Field(
         default=[
             "dependency",
@@ -161,6 +190,33 @@ class Settings(BaseSettings):
                 return json.loads(text)
             return [origin.strip() for origin in text.split(",") if origin.strip()]
         return value
+
+    @field_validator("azure_openai_endpoint")
+    @classmethod
+    def validate_azure_openai_endpoint(cls, value: str) -> str:
+        """Validate endpoint shape to catch common copy/paste mistakes early."""
+        endpoint = value.strip()
+        if not endpoint:
+            return endpoint
+
+        parsed = urlparse(endpoint)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("AZURE_OPENAI_ENDPOINT must be a full URL, e.g. https://<resource>.cognitiveservices.azure.com/")
+
+        # Endpoint should be the service root, not a nested path or concatenated URL.
+        if parsed.path and parsed.path != "/":
+            raise ValueError(
+                "AZURE_OPENAI_ENDPOINT must be a base service URL only (no path). "
+                "Example: https://<resource>.cognitiveservices.azure.com/"
+            )
+
+        if "openai.azure.com" in parsed.path or "cognitiveservices.azure.com" in parsed.path:
+            raise ValueError(
+                "AZURE_OPENAI_ENDPOINT appears malformed (domain found inside path). "
+                "Use only the base endpoint URL."
+            )
+
+        return endpoint
 
 
 @lru_cache

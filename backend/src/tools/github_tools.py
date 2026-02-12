@@ -1,7 +1,9 @@
 """GitHub Tools for PipelineHealer agents using GitHub MCP Server."""
 
+import asyncio
 import logging
 import os
+import random
 from typing import Any, cast
 
 import httpx
@@ -9,6 +11,7 @@ import httpx
 from ..config import get_settings
 
 logger = logging.getLogger(__name__)
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
 class GitHubTools:
@@ -34,6 +37,7 @@ class GitHubTools:
             base_url: GitHub API base URL
         """
         settings = get_settings()
+        self._settings = settings
         self._token = (
             token
             or settings.github_personal_access_token
@@ -41,6 +45,9 @@ class GitHubTools:
         )
         self._base_url = base_url
         self._client: httpx.AsyncClient | None = None
+        self._max_retries = max(0, settings.github_api_max_retries)
+        self._retry_base_seconds = max(0.0, settings.github_api_retry_base_seconds)
+        self._retry_max_seconds = max(0.0, settings.github_api_retry_max_seconds)
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client."""
@@ -58,6 +65,71 @@ class GitHubTools:
                 timeout=30.0,
             )
         return self._client
+
+    def _retry_delay_seconds(self, attempt: int, retry_after: str | None) -> float:
+        """Calculate retry delay with optional Retry-After support."""
+        if retry_after:
+            try:
+                parsed: float = float(retry_after)
+                if parsed >= 0:
+                    if self._retry_max_seconds > 0:
+                        max_delay: float = float(self._retry_max_seconds)
+                        return parsed if parsed <= max_delay else max_delay
+                    return parsed
+            except ValueError:
+                pass
+
+        base = self._retry_base_seconds * (2**attempt)
+        jitter = random.uniform(0.0, max(0.05, base * 0.2))
+        delay: float = base + jitter
+        if self._retry_max_seconds > 0:
+            backoff_cap: float = float(self._retry_max_seconds)
+            return delay if delay <= backoff_cap else backoff_cap
+        return delay
+
+    async def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        """Make an HTTP request with retry/backoff for transient GitHub errors."""
+        client = await self._get_client()
+
+        for attempt in range(self._max_retries + 1):
+            try:
+                response = await client.request(method, url, **kwargs)
+            except httpx.RequestError as exc:
+                if attempt >= self._max_retries:
+                    raise
+
+                delay = self._retry_delay_seconds(attempt, None)
+                logger.warning(
+                    "GitHub API %s %s failed (%s). Retrying in %.2fs (%d/%d)...",
+                    method,
+                    url,
+                    type(exc).__name__,
+                    delay,
+                    attempt + 1,
+                    self._max_retries,
+                )
+                await asyncio.sleep(delay)
+                continue
+
+            if response.status_code in RETRYABLE_STATUS_CODES and attempt < self._max_retries:
+                delay = self._retry_delay_seconds(attempt, response.headers.get("Retry-After"))
+                logger.warning(
+                    "GitHub API %s %s returned %s. Retrying in %.2fs (%d/%d)...",
+                    method,
+                    url,
+                    response.status_code,
+                    delay,
+                    attempt + 1,
+                    self._max_retries,
+                )
+                await asyncio.sleep(delay)
+                continue
+
+            response.raise_for_status()
+            return response
+
+        # The loop always returns or raises above.
+        raise RuntimeError("unreachable")
 
     async def close(self) -> None:
         """Close the HTTP client."""
@@ -85,9 +157,7 @@ class GitHubTools:
         Returns:
             Workflow run details
         """
-        client = await self._get_client()
-        response = await client.get(f"/repos/{owner}/{repo}/actions/runs/{run_id}")
-        response.raise_for_status()
+        response = await self._request("GET", f"/repos/{owner}/{repo}/actions/runs/{run_id}")
         return cast(dict[str, Any], response.json())
 
     async def get_workflow_jobs(
@@ -108,12 +178,11 @@ class GitHubTools:
         Returns:
             List of workflow jobs
         """
-        client = await self._get_client()
-        response = await client.get(
+        response = await self._request(
+            "GET",
             f"/repos/{owner}/{repo}/actions/runs/{run_id}/jobs",
             params={"filter": filter},
         )
-        response.raise_for_status()
         data = cast(dict[str, Any], response.json())
         return cast(list[dict[str, Any]], data.get("jobs", []))
 
@@ -133,12 +202,11 @@ class GitHubTools:
         Returns:
             Job logs as text
         """
-        client = await self._get_client()
-        response = await client.get(
+        response = await self._request(
+            "GET",
             f"/repos/{owner}/{repo}/actions/jobs/{job_id}/logs",
             follow_redirects=True,
         )
-        response.raise_for_status()
         return response.text
 
     async def get_failed_jobs_logs(
@@ -158,7 +226,9 @@ class GitHubTools:
             Dictionary mapping job name to logs
         """
         jobs = await self.get_workflow_jobs(owner, repo, run_id)
-        failed_jobs = [j for j in jobs if j.get("conclusion") == "failure"]
+        failed_jobs = [
+            j for j in jobs if j.get("conclusion") in ("failure", "timed_out")
+        ]
 
         logs: dict[str, str] = {}
         for job in failed_jobs:
@@ -195,16 +265,15 @@ class GitHubTools:
         Returns:
             File contents and metadata
         """
-        client = await self._get_client()
         params = {}
         if ref:
             params["ref"] = ref
 
-        response = await client.get(
+        response = await self._request(
+            "GET",
             f"/repos/{owner}/{repo}/contents/{path}",
             params=params,
         )
-        response.raise_for_status()
         return cast(dict[str, Any], response.json())
 
     async def get_repository_tree(
@@ -225,14 +294,13 @@ class GitHubTools:
         Returns:
             List of tree entries
         """
-        client = await self._get_client()
         params = {"recursive": "1"} if recursive else {}
 
-        response = await client.get(
+        response = await self._request(
+            "GET",
             f"/repos/{owner}/{repo}/git/trees/{tree_sha}",
             params=params,
         )
-        response.raise_for_status()
         data = cast(dict[str, Any], response.json())
         return cast(list[dict[str, Any]], data.get("tree", []))
 
@@ -258,31 +326,33 @@ class GitHubTools:
         Returns:
             Created reference info
         """
-        client = await self._get_client()
-
         # Get the SHA of the source ref
-        ref_response = await client.get(f"/repos/{owner}/{repo}/git/ref/heads/{from_ref}")
-        if ref_response.status_code == 404:
-            # Try as a commit SHA
-            commit_response = await client.get(f"/repos/{owner}/{repo}/commits/{from_ref}")
-            commit_response.raise_for_status()
-            commit_data = cast(dict[str, Any], commit_response.json())
-            sha = cast(str, commit_data["sha"])
-        else:
-            ref_response.raise_for_status()
+        try:
+            ref_response = await self._request(
+                "GET", f"/repos/{owner}/{repo}/git/ref/heads/{from_ref}"
+            )
             ref_data = cast(dict[str, Any], ref_response.json())
             obj = cast(dict[str, Any], ref_data["object"])
             sha = cast(str, obj["sha"])
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code != 404:
+                raise
+            # Try as a commit SHA
+            commit_response = await self._request(
+                "GET", f"/repos/{owner}/{repo}/commits/{from_ref}"
+            )
+            commit_data = cast(dict[str, Any], commit_response.json())
+            sha = cast(str, commit_data["sha"])
 
         # Create the new branch
-        response = await client.post(
+        response = await self._request(
+            "POST",
             f"/repos/{owner}/{repo}/git/refs",
             json={
                 "ref": f"refs/heads/{branch_name}",
                 "sha": sha,
             },
         )
-        response.raise_for_status()
         return cast(dict[str, Any], response.json())
 
     async def create_or_update_file(
@@ -311,8 +381,6 @@ class GitHubTools:
         """
         import base64
 
-        client = await self._get_client()
-
         # If sha not provided, try to get it
         if sha is None:
             try:
@@ -330,11 +398,11 @@ class GitHubTools:
         if sha:
             body["sha"] = sha
 
-        response = await client.put(
+        response = await self._request(
+            "PUT",
             f"/repos/{owner}/{repo}/contents/{path}",
             json=body,
         )
-        response.raise_for_status()
         return cast(dict[str, Any], response.json())
 
     async def create_pull_request(
@@ -361,9 +429,8 @@ class GitHubTools:
         Returns:
             Created PR info
         """
-        client = await self._get_client()
-
-        response = await client.post(
+        response = await self._request(
+            "POST",
             f"/repos/{owner}/{repo}/pulls",
             json={
                 "title": title,
@@ -373,7 +440,6 @@ class GitHubTools:
                 "draft": draft,
             },
         )
-        response.raise_for_status()
         return cast(dict[str, Any], response.json())
 
     # =========================================================================
@@ -402,8 +468,6 @@ class GitHubTools:
         Returns:
             Created issue info
         """
-        client = await self._get_client()
-
         json_body: dict[str, Any] = {
             "title": title,
             "body": body,
@@ -413,11 +477,11 @@ class GitHubTools:
         if assignees:
             json_body["assignees"] = assignees
 
-        response = await client.post(
+        response = await self._request(
+            "POST",
             f"/repos/{owner}/{repo}/issues",
             json=json_body,
         )
-        response.raise_for_status()
         return cast(dict[str, Any], response.json())
 
     async def add_issue_comment(
@@ -438,13 +502,11 @@ class GitHubTools:
         Returns:
             Created comment info
         """
-        client = await self._get_client()
-
-        response = await client.post(
+        response = await self._request(
+            "POST",
             f"/repos/{owner}/{repo}/issues/{issue_number}/comments",
             json={"body": body},
         )
-        response.raise_for_status()
         return cast(dict[str, Any], response.json())
 
     # =========================================================================
@@ -467,12 +529,10 @@ class GitHubTools:
         Returns:
             Empty dict on success
         """
-        client = await self._get_client()
-
-        response = await client.post(
+        await self._request(
+            "POST",
             f"/repos/{owner}/{repo}/actions/runs/{run_id}/rerun",
         )
-        response.raise_for_status()
         return {}
 
     async def rerun_failed_jobs(
@@ -491,12 +551,10 @@ class GitHubTools:
         Returns:
             Empty dict on success
         """
-        client = await self._get_client()
-
-        response = await client.post(
+        await self._request(
+            "POST",
             f"/repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs",
         )
-        response.raise_for_status()
         return {}
 
 

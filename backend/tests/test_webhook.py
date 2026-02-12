@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from src.api.webhook import verify_github_signature
+from src.config import get_settings
 from src.main import app
 
 
@@ -54,6 +55,17 @@ class TestGitHubSignatureVerification:
 
 class TestWebhookEndpoint:
     """Test the webhook endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def _default_webhook_policy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Ensure baseline webhook policy for tests is explicit and stable."""
+        monkeypatch.setenv("ENVIRONMENT", "development")
+        monkeypatch.setenv("VERIFY_WEBHOOK_SIGNATURE", "true")
+        monkeypatch.setenv("VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT", "false")
+        monkeypatch.delenv("GITHUB_WEBHOOK_SECRET", raising=False)
+        get_settings.cache_clear()
+        yield
+        get_settings.cache_clear()
 
     @pytest.mark.asyncio
     async def test_ping_event(self) -> None:

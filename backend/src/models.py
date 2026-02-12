@@ -188,3 +188,21 @@ class DashboardStats(BaseModel):
     by_repository: dict[str, int] = Field(default_factory=dict)
     average_resolution_time_seconds: float = 0.0
     last_updated: datetime = Field(default_factory=utcnow)
+
+
+class AppSettingsView(BaseModel):
+    """Non-secret runtime settings exposed to the frontend settings page."""
+
+    environment: str
+    heal_mode: str
+    auto_create_pr: bool
+    auto_create_tracking_issue_for_prs: bool
+    max_remediation_attempts: int
+    verify_webhook_signature: bool
+    verify_webhook_signature_in_development: bool
+    api_auth_enabled: bool
+    cors_allowed_origins: list[str]
+    cors_allow_origin_regex: str
+    azure_openai_endpoint: str
+    azure_openai_deployment_name: str
+    azure_openai_api_version: str
