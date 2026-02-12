@@ -98,7 +98,7 @@ In `HEAL_MODE=demo`, PipelineHealer may:
 
 ### Backend (Python + UV)
 - **Microsoft Agent Framework** - Multi-agent orchestration
-- **Azure OpenAI** - GPT-4o for agent reasoning
+- **Azure OpenAI** - Model deployment configurable (`gpt-5-mini` in current dev env)
 - **FastAPI** - API framework
 - **Azure Cosmos DB** - Activity storage
 
@@ -110,7 +110,7 @@ In `HEAL_MODE=demo`, PipelineHealer may:
 
 ### Infrastructure
 - **Azure Container Apps** - Hosting
-- **Azure Functions** - Webhook handling
+- **Azure Container Registry (ACR)** - Backend/frontend image hosting
 - **Azure Application Insights** - Observability
 - **GitHub MCP Server** - GitHub integration
 
@@ -191,6 +191,15 @@ Note:
 - Frontend now requires `BACKEND_UPSTREAM` inside the container and defaults to `http://backend:8000` via `docker-compose.yml`.
 - If backend API auth is enabled, set `API_AUTH_KEY` for the frontend container too; Nginx forwards it as `X-API-Key` to `/api/*`.
 
+### Local Dev vs Azure Dev
+
+- `Local dev` means services run on your machine (`127.0.0.1`), usually with `podman compose`.
+- `Azure dev` means services run in Azure Container Apps with public FQDN URLs.
+
+Important:
+- If local backend/frontend containers are running, your local dev is still accessible even if Azure has issues.
+- Azure issues do not block local testing.
+
 ### End-to-End Demo Runbook
 
 For the exact commands to reproduce the full demo flow (backend + smee.io + `gh workflow run` triggers), see:
@@ -218,6 +227,77 @@ Roadmap and next AI expansions:
 azd up
 ```
 
+### Dev Environment Status
+
+The Azure `dev` environment stays reachable until you delete its resource group.
+
+- Backend health: `https://<backend-fqdn>/health`
+- Frontend UI: `https://<frontend-fqdn>`
+
+Quick status check:
+
+```bash
+RG="rg-canepro-ph-dev-eus"
+az containerapp list -g "$RG" --query "[].{name:name,fqdn:properties.configuration.ingress.fqdn}" -o table
+```
+
+### What "Scale To Zero" Means (Plain English)
+
+Container Apps can automatically scale down to `0` running instances when there is no traffic.
+
+- Good: saves money.
+- Tradeoff: first request after idle can be slow (cold start), because Azure needs to start a container again.
+
+This affects Azure-hosted URLs only, not your local `podman compose` stack.
+
+Check current min replicas:
+
+```bash
+RG="rg-canepro-ph-dev-eus"
+az containerapp show -g "$RG" -n ca-canepro-ph-backend --query "properties.template.scale.minReplicas" -o tsv
+az containerapp show -g "$RG" -n ca-canepro-ph-frontend --query "properties.template.scale.minReplicas" -o tsv
+```
+
+Keep apps warm during demos (disable scale-to-zero temporarily):
+
+```bash
+RG="rg-canepro-ph-dev-eus"
+az containerapp update -g "$RG" -n ca-canepro-ph-backend --min-replicas 1
+az containerapp update -g "$RG" -n ca-canepro-ph-frontend --min-replicas 1
+```
+
+Re-enable low-cost behavior after demo:
+
+```bash
+RG="rg-canepro-ph-dev-eus"
+az containerapp update -g "$RG" -n ca-canepro-ph-backend --min-replicas 0
+az containerapp update -g "$RG" -n ca-canepro-ph-frontend --min-replicas 0
+```
+
+> **Recommended Copy-Paste Block: Toggle Warm Mode Before/After Demo**
+>
+> Change only `MODE`:
+> - `MODE=warm` for demo reliability (`min-replicas=1`)
+> - `MODE=lowcost` after demo (`min-replicas=0`)
+
+```bash
+RG="rg-canepro-ph-dev-eus"
+BACKEND_APP="ca-canepro-ph-backend"
+FRONTEND_APP="ca-canepro-ph-frontend"
+MODE="warm"   # warm | lowcost
+
+if [ "$MODE" = "warm" ]; then
+  MIN=1
+else
+  MIN=0
+fi
+
+az containerapp update -g "$RG" -n "$BACKEND_APP" --min-replicas "$MIN"
+az containerapp update -g "$RG" -n "$FRONTEND_APP" --min-replicas "$MIN"
+
+echo "Set min-replicas=$MIN on $BACKEND_APP and $FRONTEND_APP"
+```
+
 ## Configuration
 
 ### Environment Variables
@@ -225,7 +305,7 @@ azd up
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint URL | Yes |
-| `AZURE_OPENAI_DEPLOYMENT_NAME` | GPT-4o deployment name | Yes |
+| `AZURE_OPENAI_DEPLOYMENT_NAME` | Model deployment name (for example `gpt-5-mini` or `gpt-4o`) | Yes |
 | `COSMOS_DB_ENDPOINT` | Cosmos DB endpoint | Yes |
 | `GITHUB_WEBHOOK_SECRET` | Webhook signature secret | Yes (prod) |
 | `GITHUB_PERSONAL_ACCESS_TOKEN` | GitHub PAT for API access | Yes |

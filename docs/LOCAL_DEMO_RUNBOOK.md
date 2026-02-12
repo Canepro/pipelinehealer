@@ -32,7 +32,7 @@ cp .env.example .env
 Edit `backend/.env`:
 
 - `AZURE_OPENAI_ENDPOINT`
-- `AZURE_OPENAI_DEPLOYMENT_NAME`
+- `AZURE_OPENAI_DEPLOYMENT_NAME` (current dev deployment: `gpt-5-mini`)
 - `AZURE_OPENAI_API_VERSION` (for Agent Framework: `2025-03-01-preview` or later)
 - `AZURE_OPENAI_API_KEY` (recommended for local)
 - `GITHUB_PERSONAL_ACCESS_TOKEN` (recommended for local)
@@ -70,6 +70,84 @@ Notes:
   ```bash
   podman compose --env-file backend/.env up -d --force-recreate backend frontend
   ```
+
+## 1C) Azure Dev Environment Quick Check
+
+If your Azure dev stack is already provisioned:
+
+```bash
+RG="rg-canepro-ph-dev-eus"
+az containerapp list -g "$RG" --query "[].{name:name,fqdn:properties.configuration.ingress.fqdn}" -o table
+```
+
+Verify:
+
+- Backend: `https://<backend-fqdn>/health`
+- Frontend: `https://<frontend-fqdn>`
+
+## 1D) Local Dev vs Azure Dev (Important)
+
+- Local dev = your laptop/WSL containers (`http://127.0.0.1:8000`, `http://127.0.0.1:3000`)
+- Azure dev = Container Apps URLs (`https://<app>.azurecontainerapps.io`)
+
+If Azure is down or slow, local dev can still work normally.
+Always check local endpoints first when debugging.
+
+## 1E) Scale-To-Zero (What It Is)
+
+Container Apps often use `minReplicas: 0` to save cost.
+
+- When idle, app instances stop.
+- First request may be slow (cold start) while Azure starts containers.
+- This is expected behavior, not always an outage.
+
+Check min replicas:
+
+```bash
+RG="rg-canepro-ph-dev-eus"
+az containerapp show -g "$RG" -n ca-canepro-ph-backend --query "properties.template.scale.minReplicas" -o tsv
+az containerapp show -g "$RG" -n ca-canepro-ph-frontend --query "properties.template.scale.minReplicas" -o tsv
+```
+
+Keep apps warm during active demos:
+
+```bash
+RG="rg-canepro-ph-dev-eus"
+az containerapp update -g "$RG" -n ca-canepro-ph-backend --min-replicas 1
+az containerapp update -g "$RG" -n ca-canepro-ph-frontend --min-replicas 1
+```
+
+Return to low-cost mode afterward:
+
+```bash
+RG="rg-canepro-ph-dev-eus"
+az containerapp update -g "$RG" -n ca-canepro-ph-backend --min-replicas 0
+az containerapp update -g "$RG" -n ca-canepro-ph-frontend --min-replicas 0
+```
+
+> **Recommended Copy-Paste Block: Toggle Warm Mode Before/After Demo**
+>
+> Change only `MODE`:
+> - `MODE=warm` for demo reliability (`min-replicas=1`)
+> - `MODE=lowcost` after demo (`min-replicas=0`)
+
+```bash
+RG="rg-canepro-ph-dev-eus"
+BACKEND_APP="ca-canepro-ph-backend"
+FRONTEND_APP="ca-canepro-ph-frontend"
+MODE="warm"   # warm | lowcost
+
+if [ "$MODE" = "warm" ]; then
+  MIN=1
+else
+  MIN=0
+fi
+
+az containerapp update -g "$RG" -n "$BACKEND_APP" --min-replicas "$MIN"
+az containerapp update -g "$RG" -n "$FRONTEND_APP" --min-replicas "$MIN"
+
+echo "Set min-replicas=$MIN on $BACKEND_APP and $FRONTEND_APP"
+```
 
 ## 2) Azure OpenAI Smoke Test (Optional But Recommended)
 
@@ -233,6 +311,11 @@ Frontend Settings page:
 - Open `/settings` in the UI (for example `http://127.0.0.1:3000/settings` in dev).
 
 ## Troubleshooting
+
+- Azure URL loads slowly after idle (first hit)
+  - Likely cold start from scale-to-zero.
+  - Try the same URL again after 10-60 seconds.
+  - If demos must be instant, set `--min-replicas 1` on backend + frontend.
 
 - Error: `'AzureOpenAIChatClient' object has no attribute 'as_agent'`
   - Cause: older Agent Framework builds in some container images expose chat clients without `as_agent()`.
