@@ -1,121 +1,183 @@
-# PipelineHealer 2-Minute Demo Script
+# PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-Use this for hackathon recording and live demos.
+Use this as the only doc during recording day. It includes:
 
-## Goal
+- exact commands to run
+- checks to confirm each step
+- fast fallback commands
+- final 2-minute SHOW/TELL script
 
-Show end-to-end value quickly:
+## Scope
 
-1. CI fails
-2. PipelineHealer detects and diagnoses
-3. PipelineHealer creates PRs/issues
-4. Dashboard reflects results
+This runbook assumes Azure-hosted demo mode with the one-command runner:
 
-## Pre-Demo Checklist (Do This First)
+```bash
+bash scripts/ph.sh <command>
+```
 
-- Azure backend URL responds at `/health`
-- Azure frontend opens and dashboard loads
-- Webhook from demo repo points to backend `/webhook/github`
-- `HEAL_MODE=safe` in backend
-- Demo repo is reset so:
-  - `dependency` and `lint` can produce PRs
-  - `test`, `build_config`, `timeout` produce issues
-- `ADMIN_API_KEY` is available if you plan to open `/settings` during demo
-- Previous auto-fix PR branches are merged/closed (avoid duplicate branch `422` on reruns)
-- Keep Container Apps warm during demo (`min-replicas=1`) if needed
+## 1) Pre-Record Setup (5-10 minutes before)
 
-Warm-up command:
+Run from repo root:
 
 ```bash
 cd <repo-root>/pipelinehealer
+git pull --ff-only origin main
 bash scripts/ph.sh warm
 bash scripts/ph.sh status
+bash scripts/ph.sh settings:check
 ```
 
-## 2-Minute Run of Show
+Pass checks:
 
-## 0:00 - 0:20 (Problem + Architecture)
+- `status` shows both apps with `MinReplicas` = `1`
+- `settings:check` returns JSON (not `401`)
+- response includes expected runtime values (for example `github_auth_mode`, `max_remediation_attempts`, `azure_openai_api_version`)
 
-Say:
-
-"PipelineHealer is a multi-agent CI/CD self-healing system. A failed GitHub workflow triggers webhook ingestion, AI diagnosis, and automated remediation as PR or issue."
-
-Show:
-
-- Frontend dashboard at `/`
-- Optional: briefly click `Settings`, paste admin key, then show `environment`, `heal_mode`, and security flags
-
-## 0:20 - 0:40 (Trigger Failures)
-
-Run:
+If `settings:check` fails with `401`:
 
 ```bash
-REPO="Canepro/pipelinehealer-demo"
-for t in dependency lint test build_config timeout; do
-  gh workflow run CI -R "$REPO" -f failure_type="$t"
-done
+bash scripts/ph.sh deploy:env
+bash scripts/ph.sh settings:check
 ```
 
-Say:
-
-"I’m triggering all five failure types now."
-
-## 0:40 - 1:20 (Show Healing Outputs)
-
-Run:
+If `deploy` fails with Podman socket error:
 
 ```bash
-REPO="Canepro/pipelinehealer-demo"
-gh run list -R "$REPO" --workflow CI --limit 10
-gh pr list -R "$REPO"
-gh issue list -R "$REPO" --state open
+podmanup
+bash scripts/ph.sh deploy
 ```
 
-Expected:
-
-- PRs for `dependency` and `lint`
-- Issues for `test`, `build_config`, `timeout`
-
-Say:
-
-"Safe mode creates deterministic fix PRs where confidence is high, and issues for changes that still need human review."
-
-## 1:20 - 1:50 (Dashboard Evidence)
-
-Show:
-
-- Dashboard charts updated
-- Activities table with recent runs
-- Open one activity detail to show diagnosis + remediation action
-
-Optional API proof:
+## 2) Optional Clean Slate for Demo Repo
 
 ```bash
-curl -sS -H "X-API-Key: $API_AUTH_KEY" "https://<backend-fqdn>/api/activities?limit=20"
+cd <repo-root>/pipelinehealer
+bash scripts/ph.sh demo:reset
 ```
 
-## 1:50 - 2:00 (Close)
+Pass check:
 
-Say:
+- command ends with `Demo fixtures reset complete.` or `No fixture changes needed.`
 
-"This demonstrates agentic DevOps: detect, diagnose, and remediate CI failures with auditable outputs and safe defaults."
-
-## Post-Demo Cleanup
-
-Merge demo PRs and optionally close superseded issues:
+## 3) Main E2E Demo Command (Use On Camera)
 
 ```bash
-REPO="Canepro/pipelinehealer-demo"
-gh pr list -R "$REPO"
-gh issue list -R "$REPO" --state open
-# close one issue per command
-# gh issue close -R "$REPO" <issue_number>
+cd <repo-root>/pipelinehealer
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 40
 ```
 
-Return Azure apps to low-cost mode:
+What this command does:
+
+- syncs webhooks (disables stale `smee.io`, enables Azure webhook)
+- ensures demo fixtures are in the expected state
+- triggers all five failure scenarios
+- prints runs, PRs, issues, and backend activity output
+
+Pass checks in output:
+
+- workflow dispatch events created
+- at least one dependency/lint remediation shows PR creation
+- test/build_config/timeout produce issues (or structured failure records)
+
+## 4) Verification Commands (If You Need Extra Proof)
+
+```bash
+cd <repo-root>/pipelinehealer
+DEMO_REPO="Canepro/pipelinehealer-demo"
+gh run list -R "$DEMO_REPO" --workflow CI --limit 10
+gh pr list -R "$DEMO_REPO"
+gh issue list -R "$DEMO_REPO" --state open
+bash scripts/ph.sh settings:check
+```
+
+Expected result pattern:
+
+- PRs: dependency + lint
+- Issues: test + build_config + timeout
+
+## 5) 2-Minute Recording Script (Final)
+
+### 0:00-0:15
+
+SHOW: Failed GitHub Actions run, red CI status indicator.
+
+TELL: CI failures slow delivery and interrupt engineering flow. PipelineHealer is a multi-agent system that turns failed GitHub Actions runs into structured remediation.
+
+### 0:15-0:30
+
+SHOW: GitHub repository, you coding, and AI assistant workflow notes.
+
+TELL: I built this project solo, using AI-assisted development to reduce repetitive DevOps triage and make incident response faster and clearer.
+
+### 0:30-0:50
+
+SHOW: Dashboard home, highlighting agent modules.
+
+TELL: PipelineHealer listens for `workflow_run.completed` failures, then runs a four-agent pipeline: Log Analyzer, Diagnosis, Remediation, and Orchestrator. Each agent has a focused role, and the orchestration keeps the flow deterministic and observable.
+
+### 0:50-1:30
+
+SHOW: Terminal running:
+
+```bash
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 40
+```
+
+SHOW: Output with webhook sync, workflow/activity output, and dashboard updating in real time.
+
+TELL: This command syncs webhooks, triggers failures, and shows PipelineHealer detecting, analyzing, and remediating issues automatically, either by opening a fix PR or creating a structured GitHub Issue for manual follow-up. All steps are tracked in the dashboard.
+
+### 1:30-2:00
+
+SHOW: Final dashboard state, with PRs and issues clearly listed.
+
+TELL: PipelineHealer shifts teams from reactive troubleshooting to structured, automated remediation, improving CI/CD reliability with clear, auditable actions.
+
+## 6) Post-Record Cleanup
+
+Merge or close demo artifacts if needed:
+
+```bash
+DEMO_REPO="Canepro/pipelinehealer-demo"
+gh pr list -R "$DEMO_REPO"
+gh issue list -R "$DEMO_REPO" --state open
+# close issues one-by-one when needed:
+# gh issue close -R "$DEMO_REPO" <issue_number>
+```
+
+Return to low-cost mode:
 
 ```bash
 cd <repo-root>/pipelinehealer
 bash scripts/ph.sh lowcost
 bash scripts/ph.sh status
+```
+
+Pass check:
+
+- `MinReplicas` returns to `0` for backend and frontend
+
+## 7) Quick Troubleshooting
+
+`401` from `/api/settings`:
+
+```bash
+bash scripts/ph.sh deploy:env
+bash scripts/ph.sh settings:check
+```
+
+Terminal closes unexpectedly:
+
+- run scripts with `bash scripts/...`
+- do not use `source` or `. scripts/...`
+
+Podman unavailable:
+
+```bash
+podmanup
+```
+
+Then re-run deploy:
+
+```bash
+bash scripts/ph.sh deploy
 ```

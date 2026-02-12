@@ -9,16 +9,11 @@ PipelineHealer is an AI-powered multi-agent system that automatically detects, d
 
 ## Submission-Ready Project Description
 
-PipelineHealer reduces CI/CD downtime by automating failed-run triage and first-response remediation for GitHub Actions.
+PipelineHealer is an AI-powered multi-agent system designed to automatically detect, diagnose, and remediate failures in GitHub Actions CI/CD pipelines. It addresses repeated pipeline interruptions by shifting teams from reactive troubleshooting to faster, structured remediation workflows.
 
-When a workflow fails, PipelineHealer receives the `workflow_run.completed` webhook, analyzes logs with a multi-agent pipeline (Log Analyzer, Diagnosis, Remediation, Orchestrator), then performs one of two actions:
+The solution is built for DevOps engineers, software developers, and engineering managers who need faster incident triage and clearer operational visibility. When a pipeline fails, PipelineHealer analyzes logs, classifies the failure, and either creates a deterministic fix Pull Request for auto-fixable issues (such as dependency or lint errors) or creates a structured GitHub Issue for failures requiring manual resolution.
 
-- Creates a deterministic fix PR for safe, auto-fixable failures (for example dependency and lint issues)
-- Creates a structured tracking issue for non-auto-fixable failures (for example test, build configuration, or timeout failures)
-
-The system includes a professional web dashboard for activity visibility, retry actions, and admin-only runtime controls.
-
-Core technologies: Microsoft Agent Framework, Azure OpenAI, FastAPI, React/TypeScript, Azure Container Apps, Azure Cosmos DB, Azure Key Vault, and Azure Application Insights.
+PipelineHealer's architecture uses coordinated agents for log analysis, failure diagnosis, remediation, and workflow orchestration. The system leverages technologies including the Microsoft Agent Framework, Azure OpenAI, FastAPI, React/TypeScript, Azure Cosmos DB, Azure Container Apps, Azure Key Vault, and Azure Application Insights. All activity is tracked and visualized in a professional dashboard for real-time transparency and admin controls.
 
 ## What Uses AI vs Pure Logic
 
@@ -238,6 +233,7 @@ For the exact commands to reproduce the full demo flow (backend + smee.io + `gh 
 
 - `docs/LOCAL_DEMO_RUNBOOK.md`
 - `docs/DEMO_SCRIPT.md` (2-minute recording script + checklist)
+- `docs/HACKATHON_LOG.md` (phase status, submission checklist, milestone log)
 
 For Azure-hosted demos, use the one-command runner (recommended):
 
