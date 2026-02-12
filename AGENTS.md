@@ -312,6 +312,7 @@ Decisions made (Recommended defaults for this repo):
 - Feb 12, 2026: Hardened demo reset automation to handle dirty/ahead `demo-repo` state (safe autostash/restore) for reliable one-command runs.
 - Feb 12, 2026: Updated deploy automation so `bash scripts/ph.sh deploy:env` syncs backend runtime tuning vars from `backend/.env` (including `MAX_REMEDIATION_ATTEMPTS`) and Azure OpenAI vars.
 - Feb 12, 2026: Re-validated Azure E2E with one-command flow (`demo:e2e`): dependency + lint produced PRs (with tracking issues), and test/build_config/timeout produced issues as expected.
+- Feb 12, 2026: Added a concise submission-ready project description in `README.md` and mirrored a ready-to-paste version under Hackathon Submission Checklist in `AGENTS.md`.
 
 ## Project Layout
 
@@ -466,11 +467,15 @@ GitHub workflow_run.completed webhook
 
 - [x] Working project deployed to Azure (`azd up`)
 - [x] Public GitHub repository
-- [ ] Project description (features, problem solved, technologies)
+- [x] Project description (features, problem solved, technologies) — `README.md#submission-ready-project-description`
 - [ ] Demo video (2 min max, YouTube/Vimeo, shows the product working)
 - [x] Architecture diagram (Mermaid in `README.md`)
 - [ ] Microsoft Learn usernames for all participants
 - [ ] Microsoft Learn Skilling Plan completed
+
+### Submission Description (Ready to Paste)
+
+PipelineHealer is an Agentic DevOps system that reduces CI/CD downtime by automatically triaging and remediating failed GitHub Actions runs. It ingests `workflow_run.completed` webhooks, runs a four-agent pipeline (Log Analyzer, Diagnosis, Remediation, Orchestrator), and either creates deterministic fix PRs for safe auto-fixable failures (dependency/lint) or opens structured tracking issues for non-auto-fixable failures (test/build_config/timeout). The platform includes a secure admin-controlled dashboard and is built with Microsoft Agent Framework, Azure OpenAI, FastAPI, React, Azure Container Apps, Cosmos DB, Key Vault, and Application Insights.
 
 ### Judging Criteria (20% each)
 

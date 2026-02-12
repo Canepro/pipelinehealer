@@ -7,6 +7,19 @@
 
 PipelineHealer is an AI-powered multi-agent system that automatically detects, diagnoses, and remediates CI/CD pipeline failures in GitHub Actions workflows.
 
+## Submission-Ready Project Description
+
+PipelineHealer reduces CI/CD downtime by automating failed-run triage and first-response remediation for GitHub Actions.
+
+When a workflow fails, PipelineHealer receives the `workflow_run.completed` webhook, analyzes logs with a multi-agent pipeline (Log Analyzer, Diagnosis, Remediation, Orchestrator), then performs one of two actions:
+
+- Creates a deterministic fix PR for safe, auto-fixable failures (for example dependency and lint issues)
+- Creates a structured tracking issue for non-auto-fixable failures (for example test, build configuration, or timeout failures)
+
+The system includes a professional web dashboard for activity visibility, retry actions, and admin-only runtime controls.
+
+Core technologies: Microsoft Agent Framework, Azure OpenAI, FastAPI, React/TypeScript, Azure Container Apps, Azure Cosmos DB, Azure Key Vault, and Azure Application Insights.
+
 ## What Uses AI vs Pure Logic
 
 PipelineHealer intentionally mixes deterministic logic with LLM calls.
