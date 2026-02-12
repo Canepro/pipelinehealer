@@ -1,104 +1,64 @@
 # Future Plan (PipelineHealer)
 
-This document captures planned improvements after the current demo-ready baseline.
+This document tracks post-demo improvements beyond the current stable baseline.
 
-## 1) Make “Healing” More Real (Beyond PRs For Lint/Deps)
+## Baseline Already Completed
 
-- Test failures:
-  - Detect flakiness via `GITHUB_RUN_ATTEMPT`, retry signals, and “intermittent” heuristics.
-  - Add safe auto-rerun once (already supported in demo mode).
-  - Add quarantine options for known-flaky tests (issue + label + optional skip list).
-- Timeouts:
-  - Patch `timeout-minutes` deterministically (demo mode supports this for known workflow paths).
-  - Add “optimize” hints (caching, split jobs) when patching is unsafe.
-- Build config:
-  - Only auto-fix non-secret variables, never secrets.
-  - Prefer PRs that add placeholder `env:` blocks rather than trying to guess YAML structure.
+The following are already implemented in the current project state:
 
-## 2) Safer Patch Engine
+- API and admin auth (`X-API-Key` for `/api/*`, `X-Admin-Key` for `/api/settings`)
+- GitHub API retry/backoff and orchestrator step timeouts
+- Timed-out workflow log handling and prompt truncation safeguards
+- Safe/demo healing mode split
+- Script-first operator workflow (`bash scripts/ph.sh ...`)
 
-- Add a YAML-aware patch mode for GitHub Actions workflows:
-  - Parse YAML, apply minimal edits, re-serialize while preserving formatting as much as possible.
-  - Avoid regex-only edits for structural changes (env blocks, step insertion).
-- Improve `line_update`:
-  - Support “insert after match” and “insert under key” operations.
-  - Track and report “why a patch was not applied” back to the issue body.
+## Next Priorities
 
-## 3) Observability And Guardrails
+## 1) Higher-Confidence Auto-Remediation
 
-- Add per-step timeouts for agent actions (log fetch, diagnosis, PR creation).
-- Add retry/backoff on GitHub API 429/5xx.
-- Add “cost guardrails” in demo mode (max tokens, max calls per workflow run).
+- Add lockfile-aware dependency fixes (`package-lock.json`, `pnpm-lock.yaml`, `bun.lockb` where applicable).
+- Expand deterministic lint fix coverage beyond missing ESLint flat config.
+- Add safer fallback behavior: if patch rendering fails, auto-open issue with explicit patch failure reason.
 
-## 4) Security (Phase 2)
+## 2) Patch Engine Improvements
 
-- Add `X-API-Key` protection for `/api/*` in non-development environments.
-- Hard-fail webhooks without signature in production.
-- Tighten CORS for deployed origins.
+- Add structured workflow/YAML patch operations (beyond regex line updates).
+- Add insert operations (`insert_after`, `insert_under_key`) with validation.
+- Produce patch-application diagnostics in remediation output for easier debugging.
 
-## 4.1) Settings UI (Admin)
+## 3) GitHub App First-Class Path
 
-Future UX feature (requires auth):
+- Complete GitHub App authentication path for production use.
+- Keep PAT path as local/dev fallback.
+- Add clear runtime indicator and docs for active auth mode.
 
-- Add a Settings page in the dashboard to control runtime behavior:
-  - `HEAL_MODE` (safe vs demo)
-  - Auto PR toggle (`AUTO_CREATE_PR`)
-  - Tracking issues toggle (`AUTO_CREATE_TRACKING_ISSUE_FOR_PRS`)
-  - Allowed repos / org allowlist
-  - Cost limits (max runs per hour, max model calls per activity)
+## 4) Settings and Policy Controls
 
-Implementation notes:
+- Add optional persistence for runtime setting overrides (currently in-memory).
+- Add repo/org allowlist controls for remediation scope.
+- Add configurable governance limits (max remediations per repo/time window).
 
-- Require login (recommended: GitHub OAuth for demo simplicity or Entra ID for Azure alignment).
-- Treat Settings as admin-only:
-  - Either add an `is_admin` claim/allowlist
-  - Or run behind an auth proxy (simplest for Container Apps)
-- Store settings in Cosmos DB (or Key Vault for secrets).
+## 5) CI Platform Extensibility
 
-## 5) CI Platform Adapter (Extensibility)
+- Introduce adapter interface implementation for non-GitHub CI providers.
+- Keep webhook handlers thin and source-specific (`/webhook/github`, future `/webhook/gitlab`, `/webhook/jenkins`).
+- Preserve deterministic remediation boundaries across providers.
 
-- Implement a `CIPlatformAdapter` interface:
-  - GitHub Actions (current)
-  - Jenkins / GitLab (future)
-- Keep webhook handlers thin:
-  - `/webhook/github`, `/webhook/jenkins`, `/webhook/gitlab`
+## 6) Observability and Reporting
 
-## 6) AI Responsibilities (What To Give The Model Next)
+- Add dashboard views for remediation trend lines and outcome ratios over time.
+- Add exportable run summary for demos and incident review.
+- Add structured audit trail fields for policy decisions (why PR vs issue).
 
-Today the model is used mainly for:
+## 7) Demo Experience Hardening
 
-- Summarizing job logs (LogAnalyzer agent)
-- Diagnosing when patterns don’t match (Diagnosis agent)
-- Writing human-readable remediation descriptions (Remediation agent prompts)
+- Add a `demo:prep` command to combine `warm`, `settings:check`, and baseline validation.
+- Add a `demo:cleanup` command to merge/close demo artifacts and return to low-cost mode.
+- Add optional “recording-safe” mode that suppresses noisy logs during video capture.
 
-Next safe expansions:
+## Guiding Principles
 
-- File selection: given repo tree + diagnosis, pick the most likely workflow/config file to patch.
-- Patch suggestion: propose a structured patch plan (`json_update`, `yaml_update`, etc.), not raw diffs.
-- Validation: after generating a patch plan, run consistency checks (schema, “does this key exist?”) before creating PRs.
-
-## 7) Model Selection And Cost Control
-
-PipelineHealer does not require a "frontier" model for most of its work today:
-
-- Pattern matching and remediation execution are deterministic.
-- LLM usage is mostly summarization, classification fallback, and writing PR/issue narratives.
-
-Recommended approach:
-
-- Keep the code provider-aligned (Azure OpenAI via `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_DEPLOYMENT_NAME`).
-- Use a cheaper deployment for local dev and routine runs (for example a mini model), and reserve a larger model only when needed.
-
-Future enhancements:
-
-- Per-task model routing:
-  - Log summarization uses a low-cost model.
-  - Diagnosis fallback uses a stronger model only when confidence is low.
-  - Remediation narrative uses low-cost by default.
-- First-class config for multiple deployments:
-  - `AZURE_OPENAI_DEPLOYMENT_NAME_SUMMARY`
-  - `AZURE_OPENAI_DEPLOYMENT_NAME_DIAGNOSIS`
-  - `AZURE_OPENAI_DEPLOYMENT_NAME_REMEDIATION`
-- Provider abstraction:
-  - Keep Azure OpenAI as the default provider for hackathon alignment.
-  - Optionally support OpenAI direct API as a secondary provider behind the same agent interfaces.
+- Keep deterministic fixes default-first.
+- Keep risky or speculative edits out of auto-PR paths.
+- Keep operator workflow one-command where possible.
+- Keep docs synchronized with runtime behavior.

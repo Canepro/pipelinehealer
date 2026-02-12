@@ -8,6 +8,7 @@ This file is intentionally concise. Detailed phase/checklist/history tracking li
 
 ## Primary Docs (Use These)
 
+- `docs/README.md` — docs index
 - `README.md` — public-facing project overview and setup
 - `docs/DEMO_SCRIPT.md` — single-file recording/demo runbook
 - `docs/LOCAL_DEMO_RUNBOOK.md` — detailed local/Azure E2E operations

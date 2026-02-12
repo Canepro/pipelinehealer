@@ -7,6 +7,11 @@ Use this as the only doc during recording day. It includes:
 - fast fallback commands
 - final 2-minute SHOW/TELL script
 
+Related docs:
+
+- `docs/LOCAL_DEMO_RUNBOOK.md` for deeper setup/troubleshooting
+- `docs/HACKATHON_LOG.md` for submission checklist and milestone status
+
 ## Scope
 
 This runbook assumes Azure-hosted demo mode with the one-command runner:

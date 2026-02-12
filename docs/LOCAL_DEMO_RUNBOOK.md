@@ -7,6 +7,9 @@ This runbook documents the exact local workflow used to validate the end-to-end 
 - PipelineHealer analyzes, diagnoses, and remediates
 - Frontend dashboard shows the activity
 
+If you are recording the hackathon video, use `docs/DEMO_SCRIPT.md` first.
+This file is the detailed operator runbook for setup/troubleshooting.
+
 ## Prereqs
 
 - Python 3.11+ (repo uses 3.12 fine)

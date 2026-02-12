@@ -86,6 +86,8 @@ This is the long-form project tracker for hackathon execution status, submission
 - Revalidated end-to-end outcomes: dependency/lint remediation PR path + issue path for non-auto-fixable failures.
 - Published project docs updates and synchronized portfolio blog progress.
 - Consolidated recording workflow into `docs/DEMO_SCRIPT.md`.
+- Slimmed `AGENTS.md` into a concise operator/agent contract and moved long-form tracking here.
+- Added `docs/README.md` as a docs index and aligned README/runbook wording with current runtime behavior.
 
 ## Known Risks / Follow-Ups
 

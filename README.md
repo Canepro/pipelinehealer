@@ -7,6 +7,15 @@
 
 PipelineHealer is an AI-powered multi-agent system that automatically detects, diagnoses, and remediates CI/CD pipeline failures in GitHub Actions workflows.
 
+## Documentation Map
+
+- `docs/README.md`: quick index of all project docs
+- `docs/DEMO_SCRIPT.md`: single-file recording checklist and 2-minute script
+- `docs/LOCAL_DEMO_RUNBOOK.md`: detailed local + Azure E2E operations
+- `docs/HACKATHON_LOG.md`: phase status, submission checklist, and milestones
+- `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md`: pre-deploy safety audit
+- `docs/FUTURE_PLAN.md`: post-demo and post-hackathon roadmap
+
 ## Submission-Ready Project Description
 
 PipelineHealer is an AI-powered multi-agent system designed to automatically detect, diagnose, and remediate failures in GitHub Actions CI/CD pipelines. It addresses repeated pipeline interruptions by shifting teams from reactive troubleshooting to faster, structured remediation workflows.
@@ -139,7 +148,7 @@ In `HEAL_MODE=demo`, PipelineHealer may:
 - **Azure Container Apps** - Hosting
 - **Azure Container Registry (ACR)** - Backend/frontend image hosting
 - **Azure Application Insights** - Observability
-- **GitHub MCP Server** - GitHub integration
+- **GitHub Webhooks + REST API** - Workflow events and remediation actions
 
 ## Quick Start
 
@@ -154,7 +163,7 @@ In `HEAL_MODE=demo`, PipelineHealer may:
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/pipelinehealer.git
+   git clone https://github.com/Canepro/pipelinehealer.git
    cd pipelinehealer
    ```
 
@@ -485,12 +494,18 @@ This project targets:
 
 ## Demo
 
-The `demo-repo/` directory contains a sample repository with a workflow that can trigger various failure types for testing:
+Use the included `demo-repo/` fixtures or the public demo repository `Canepro/pipelinehealer-demo`.
+For the fastest path, run from repo root:
 
-1. Push the demo-repo to a new GitHub repository
-2. Configure the webhook to point to PipelineHealer
-3. Use workflow dispatch to trigger different failure scenarios
-4. Watch PipelineHealer automatically respond
+```bash
+bash scripts/ph.sh demo:e2e --wait-seconds 40
+```
+
+If you need manual control, the demo workflow supports dispatch by failure type:
+
+1. Configure webhook delivery to PipelineHealer (`/webhook/github`)
+2. Trigger workflow dispatch for failure scenarios
+3. Verify PR/issue outputs and dashboard activities
 
 ## License
 
@@ -500,8 +515,8 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - Microsoft Agent Framework team
 - Azure AI team
-- GitHub MCP Server team
+- GitHub CLI and GitHub API ecosystem
 
 ---
 
-Built with ❤️ for the AI Dev Days Hackathon 2026
+Built for the AI Dev Days Hackathon 2026

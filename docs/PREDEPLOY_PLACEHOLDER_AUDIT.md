@@ -1,6 +1,6 @@
 # Pre-Deploy Placeholder Audit
 
-Use this checklist before `azd up`, before switching the repo public, and before recording the final demo.
+Use this checklist before `azd up`, before major public demos, and before final submission recording.
 
 If any stop-ship check fails, do not deploy.
 
@@ -51,15 +51,17 @@ Minimum deployed values to verify:
 
 ## 4) Runtime Safety Mode Audit
 
-Run:
+Run (against the active backend URL):
 
 ```bash
-curl -sS -H "X-API-Key: $API_AUTH_KEY" http://127.0.0.1:8000/api/settings
+BACKEND_URL="https://<backend-fqdn>"
+curl -sS -H "X-Admin-Key: $ADMIN_API_KEY" "$BACKEND_URL/api/settings"
 ```
 
 Expected for non-dev:
 
 - `api_auth_enabled=true`
+- `admin_api_auth_enabled=true`
 - `verify_webhook_signature=true`
 - `environment` is not `development` for deployed env
 - `heal_mode=safe` unless you explicitly want demo behavior
