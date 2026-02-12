@@ -226,6 +226,22 @@ For the exact commands to reproduce the full demo flow (backend + smee.io + `gh 
 - `docs/LOCAL_DEMO_RUNBOOK.md`
 - `docs/DEMO_SCRIPT.md` (2-minute recording script + checklist)
 
+### Shell Safety For Copy-Paste Blocks
+
+You do **not** need this for every one-line command.
+
+Use it when running long multi-step scripts:
+
+```bash
+set -euo pipefail
+```
+
+- `-e`: stop if a command fails
+- `-u`: fail on unset variables
+- `pipefail`: fail a pipeline if any command in it fails
+
+This avoids partial/broken updates during webhook/deploy command blocks.
+
 ### Pre-Deploy Placeholder Audit
 
 Before `azd up` or a public release, run the placeholder/dummy-data audit:

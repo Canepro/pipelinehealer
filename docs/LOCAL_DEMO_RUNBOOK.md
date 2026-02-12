@@ -14,6 +14,16 @@ This runbook documents the exact local workflow used to validate the end-to-end 
 - GitHub CLI installed and authenticated (`gh auth status`)
 - A demo GitHub repo with a workflow dispatch input `failure_type` (see `demo-repo/`)
 
+## Shell Safety (Recommended For Multi-Step Blocks)
+
+For long copy-paste scripts in this runbook, start with:
+
+```bash
+set -euo pipefail
+```
+
+This is optional for simple one-liners, but recommended for deployment/webhook blocks so the script stops on errors instead of continuing in a partial state.
+
 ## 1) Backend Setup (Host-Native)
 
 From the repo root (`pipelinehealer/`):
