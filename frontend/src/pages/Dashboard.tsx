@@ -22,7 +22,7 @@ import { api } from '../api/client'
 import StatsCard from '../components/StatsCard'
 import ActivityTable from '../components/ActivityTable'
 
-const COLORS = ['#8b5cf6', '#f97316', '#06b6d4', '#ec4899', '#f59e0b', '#6b7280']
+const COLORS = ['#2563eb', '#0ea5e9', '#14b8a6', '#16a34a', '#f59e0b', '#64748b']
 
 export default function Dashboard() {
   const {

@@ -12,22 +12,22 @@ const typeConfig: Record<string, {
 }> = {
   dependency: {
     label: 'Dependency',
-    className: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+    className: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200',
     icon: Package,
   },
   test: {
     label: 'Test',
-    className: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+    className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
     icon: TestTube,
   },
   lint: {
     label: 'Lint',
-    className: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+    className: 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-200',
     icon: FileCode,
   },
   build_config: {
     label: 'Config',
-    className: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+    className: 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200',
     icon: Settings,
   },
   timeout: {

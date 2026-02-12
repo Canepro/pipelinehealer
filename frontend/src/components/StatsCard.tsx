@@ -13,10 +13,10 @@ interface StatsCardProps {
 }
 
 const colorClasses = {
-  blue: 'bg-azure-100 text-azure-600 dark:bg-azure-900 dark:text-azure-400',
-  green: 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400',
-  red: 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400',
-  yellow: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-400',
+  blue: 'bg-sky-500/15 text-sky-600 dark:text-sky-300 border border-sky-500/30',
+  green: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30',
+  red: 'bg-rose-500/15 text-rose-600 dark:text-rose-300 border border-rose-500/30',
+  yellow: 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30',
 }
 
 export default function StatsCard({
@@ -33,11 +33,11 @@ export default function StatsCard({
           <Icon className="h-6 w-6" />
         </div>
         <div className="ml-4 flex-1">
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
             {title}
           </p>
           <div className="flex items-baseline">
-            <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">
               {value}
             </p>
             {trend && (
