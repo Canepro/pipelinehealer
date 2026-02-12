@@ -69,6 +69,35 @@ done
 
 pushd "$DEMO_REPO_DIR" >/dev/null
 
+AUTOSTASH_CREATED="0"
+AUTOSTASH_REF=""
+AUTOSTASH_TAG=""
+
+restore_autostash() {
+  if [[ "$AUTOSTASH_CREATED" == "1" && -n "$AUTOSTASH_REF" ]]; then
+    echo "Restoring local demo-repo changes from autostash..."
+    # If pop conflicts, keep stash entry so user can recover manually.
+    git stash pop "$AUTOSTASH_REF" >/dev/null || {
+      echo "Autostash restore had conflicts. Stash kept as: $AUTOSTASH_REF" >&2
+    }
+  fi
+}
+
+# Keep this after pushd so local edits do not break one-command demo flows.
+trap restore_autostash EXIT
+
+if ! git diff --quiet || ! git diff --cached --quiet || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
+  AUTOSTASH_TAG="pipelinehealer-demo-reset-autostash-$(date +%s)"
+  git stash push -u -m "$AUTOSTASH_TAG" >/dev/null
+  AUTOSTASH_REF="$(
+    git stash list --format='%gd %s' \
+      | awk -v tag="$AUTOSTASH_TAG" 'index($0, tag) { print $1; exit }'
+  )"
+  if [[ -n "$AUTOSTASH_REF" ]]; then
+    AUTOSTASH_CREATED="1"
+  fi
+fi
+
 git checkout "$BRANCH_NAME"
 git pull --ff-only "$REMOTE_NAME" "$BRANCH_NAME"
 
@@ -82,12 +111,24 @@ if ! git diff --quiet; then
   git add package.json eslint.config.js
   git commit -m "chore: reset demo fixtures for dependency/lint failure scenarios"
   if [[ "$SKIP_PUSH" != "1" ]]; then
-    git pull --rebase "$REMOTE_NAME" "$BRANCH_NAME"
-    git push "$REMOTE_NAME" "$BRANCH_NAME"
+    if ! git push "$REMOTE_NAME" "$BRANCH_NAME"; then
+      git pull --rebase "$REMOTE_NAME" "$BRANCH_NAME"
+      git push "$REMOTE_NAME" "$BRANCH_NAME"
+    fi
   fi
   echo "Demo fixtures reset complete."
 else
-  echo "No fixture changes needed."
+  if [[ "$SKIP_PUSH" != "1" ]]; then
+    AHEAD_COUNT="$(git rev-list --count "${REMOTE_NAME}/${BRANCH_NAME}..HEAD" 2>/dev/null || echo "0")"
+    if [[ "$AHEAD_COUNT" != "0" ]]; then
+      git push "$REMOTE_NAME" "$BRANCH_NAME"
+      echo "No new fixture changes needed; pushed $AHEAD_COUNT pending commit(s)."
+    else
+      echo "No fixture changes needed."
+    fi
+  else
+    echo "No fixture changes needed."
+  fi
 fi
 
 popd >/dev/null
