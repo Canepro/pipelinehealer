@@ -16,6 +16,16 @@ PipelineHealer is an AI-powered multi-agent system that automatically detects, d
 - `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md`: pre-deploy safety audit
 - `docs/FUTURE_PLAN.md`: post-demo and post-hackathon roadmap
 
+## One-Command Operations
+
+From repo root:
+
+```bash
+bash scripts/ph.sh help
+```
+
+Use the help output as the source of truth for all available one-command operations.
+
 ## Submission-Ready Project Description
 
 PipelineHealer is an AI-powered multi-agent system designed to automatically detect, diagnose, and remediate failures in GitHub Actions CI/CD pipelines. It addresses repeated pipeline interruptions by shifting teams from reactive troubleshooting to faster, structured remediation workflows.
