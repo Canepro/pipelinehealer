@@ -1,6 +1,7 @@
 """Storage layer for PipelineHealer using Azure Cosmos DB."""
 
 import logging
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -238,46 +239,28 @@ class ActivityStorage:
         Returns:
             Dashboard statistics
         """
-        await self.initialize()
-
-        # Single-pass aggregation is more resilient than multiple GROUP BY queries,
-        # especially with cross-partition Cosmos queries.
-        aggregate_query = """
-            SELECT
-                c.status,
-                c.failure_type,
-                c.repository_name,
-                c.duration_seconds
-            FROM c
-        """
-
         status_counts: dict[str, int] = {}
         failure_counts: dict[str, int] = {}
         repo_counts: dict[str, int] = {}
         total_duration = 0.0
         completed_with_duration = 0
 
-        async for item in self._activities_container_required().query_items(
-            query=aggregate_query,
-        ):
-            status = item.get("status")
-            if isinstance(status, str) and status:
-                status_counts[status] = status_counts.get(status, 0) + 1
+        async for activity in self._iter_activities():
+            status_key = activity.status.value if activity.status else "unknown"
+            status_counts[status_key] = status_counts.get(status_key, 0) + 1
 
-            failure_type = item.get("failure_type")
-            if isinstance(failure_type, str) and failure_type:
-                failure_counts[failure_type] = failure_counts.get(failure_type, 0) + 1
+            if activity.failure_type:
+                failure_key = activity.failure_type.value
+                failure_counts[failure_key] = failure_counts.get(failure_key, 0) + 1
 
-            repository_name = item.get("repository_name")
-            if isinstance(repository_name, str) and repository_name:
-                repo_counts[repository_name] = repo_counts.get(repository_name, 0) + 1
+            if activity.repository_name:
+                repo_counts[activity.repository_name] = repo_counts.get(activity.repository_name, 0) + 1
 
-            duration_seconds = item.get("duration_seconds")
             if (
-                isinstance(duration_seconds, (int, float))
-                and status == RemediationStatus.COMPLETED.value
+                activity.status == RemediationStatus.COMPLETED
+                and isinstance(activity.duration_seconds, (int, float))
             ):
-                total_duration += float(duration_seconds)
+                total_duration += float(activity.duration_seconds)
                 completed_with_duration += 1
 
         total = sum(status_counts.values())
@@ -384,24 +367,33 @@ class ActivityStorage:
         Returns:
             Dictionary of failure type to count
         """
-        await self.initialize()
-        query = """
-            SELECT c.failure_type
-            FROM c
-            WHERE c.created_at >= @since AND c.failure_type != null
-        """
-        parameters: list[dict[str, object]] = [{"name": "@since", "value": _as_utc(since).isoformat()}]
-
         breakdown: dict[str, int] = {}
-        async for item in self._activities_container_required().query_items(
-            query=query,
-            parameters=parameters,
-        ):
-            failure_type = item.get("failure_type")
-            if isinstance(failure_type, str) and failure_type:
-                breakdown[failure_type] = breakdown.get(failure_type, 0) + 1
+        async for activity in self._iter_activities(since=since):
+            if activity.failure_type:
+                failure_key = activity.failure_type.value
+                breakdown[failure_key] = breakdown.get(failure_key, 0) + 1
 
         return breakdown
+
+    async def _iter_activities(
+        self,
+        *,
+        since: datetime | None = None,
+        page_size: int = 200,
+    ) -> AsyncIterator[ActivityRecord]:
+        """Yield activities via paged queries using the most compatible path."""
+        offset = 0
+        while True:
+            page = await self.get_activities(limit=page_size, offset=offset, since=since)
+            if not page:
+                break
+
+            for activity in page:
+                yield activity
+
+            if len(page) < page_size:
+                break
+            offset += len(page)
 
 
 class InMemoryStorage(ActivityStorage):
