@@ -126,6 +126,29 @@ Verify:
 - Backend: `https://<backend-fqdn>/health`
 - Frontend: `https://<frontend-fqdn>`
 
+## 1C) Redeploy Azure Apps After New Commits (Recommended Copy-Paste)
+
+Use this when `main` has new commits and you want Azure Container Apps to reflect them.
+Run as a script (not inline) to avoid shell restarts in interactive terminals.
+
+```bash
+cd <repo-root>/pipelinehealer
+bash scripts/deploy/redeploy_azure_containerapps.sh
+```
+
+Set only `ADMIN_API_KEY` (if image is already current):
+
+```bash
+cd <repo-root>/pipelinehealer
+bash scripts/deploy/redeploy_azure_containerapps.sh --env-only
+```
+
+Script help:
+
+```bash
+bash scripts/deploy/redeploy_azure_containerapps.sh --help
+```
+
 ## 1D) Local Dev vs Azure Dev (Important)
 
 - Local dev = your laptop/WSL containers (`http://127.0.0.1:8000`, `http://127.0.0.1:3000`)

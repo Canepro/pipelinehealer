@@ -283,6 +283,39 @@ Roadmap and next AI expansions:
 azd up
 ```
 
+### Redeploy After Code Changes (Azure Container Apps)
+
+If you already have Azure resources provisioned, use the script (recommended for non-developers and safer than pasting long inline blocks).
+
+```bash
+cd <repo-root>/pipelinehealer
+bash scripts/deploy/redeploy_azure_containerapps.sh
+```
+
+What this script does:
+
+- Builds and pushes backend/frontend images
+- Updates both Container Apps
+- Applies required runtime keys (`API_AUTH_KEY`, `ADMIN_API_KEY`)
+- Verifies backend health and admin settings endpoint
+
+Set only `ADMIN_API_KEY` (no image rebuild):
+
+```bash
+cd <repo-root>/pipelinehealer
+bash scripts/deploy/redeploy_azure_containerapps.sh --env-only
+```
+
+Common options:
+
+```bash
+# Use a specific tag that already exists in ACR
+bash scripts/deploy/redeploy_azure_containerapps.sh --image-tag <tag> --env-only
+
+# Skip endpoint verification (rarely needed)
+bash scripts/deploy/redeploy_azure_containerapps.sh --no-verify
+```
+
 ### Dev Environment Status
 
 The Azure `dev` environment stays reachable until you delete its resource group.

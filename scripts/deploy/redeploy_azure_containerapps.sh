@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Redeploy PipelineHealer backend/frontend to Azure Container Apps.
+
+Safe for interactive terminals because it runs as a script (not pasted inline).
+
+Usage:
+  scripts/deploy/redeploy_azure_containerapps.sh [options]
+
+Options:
+  --resource-group <name>   Azure resource group (default: rg-canepro-ph-dev-eus)
+  --acr-name <name>         Azure Container Registry name (default: caneprophacr01)
+  --backend-app <name>      Backend Container App (default: ca-canepro-ph-backend)
+  --frontend-app <name>     Frontend Container App (default: ca-canepro-ph-frontend)
+  --env-file <path>         Backend env file (default: <repo>/backend/.env)
+  --image-tag <tag>         Image tag (default: current git short SHA)
+  --api-key <value>         Override API_AUTH_KEY (otherwise read from env file)
+  --admin-key <value>       Override ADMIN_API_KEY (otherwise read from env file)
+  --env-only                Update env vars only; do not build/push or change image
+  --no-verify               Skip post-deploy health/settings curl checks
+  -h, --help                Show this help
+EOF
+}
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+AZ_RESOURCE_GROUP="rg-canepro-ph-dev-eus"
+ACR_NAME="caneprophacr01"
+BACKEND_APP="ca-canepro-ph-backend"
+FRONTEND_APP="ca-canepro-ph-frontend"
+ENV_FILE="$REPO_ROOT/backend/.env"
+IMAGE_TAG="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)"
+
+API_AUTH_KEY=""
+ADMIN_API_KEY=""
+MODE="full"
+DO_VERIFY="1"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --resource-group)
+      AZ_RESOURCE_GROUP="$2"
+      shift 2
+      ;;
+    --acr-name)
+      ACR_NAME="$2"
+      shift 2
+      ;;
+    --backend-app)
+      BACKEND_APP="$2"
+      shift 2
+      ;;
+    --frontend-app)
+      FRONTEND_APP="$2"
+      shift 2
+      ;;
+    --env-file)
+      ENV_FILE="$2"
+      shift 2
+      ;;
+    --image-tag)
+      IMAGE_TAG="$2"
+      shift 2
+      ;;
+    --api-key)
+      API_AUTH_KEY="$2"
+      shift 2
+      ;;
+    --admin-key)
+      ADMIN_API_KEY="$2"
+      shift 2
+      ;;
+    --env-only)
+      MODE="env_only"
+      shift
+      ;;
+    --no-verify)
+      DO_VERIFY="0"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      usage
+      exit 2
+      ;;
+  esac
+done
+
+for cmd in az curl tr grep cut; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "Missing required command: $cmd" >&2
+    exit 1
+  fi
+done
+
+if [[ "$MODE" != "env_only" ]]; then
+  for cmd in podman git; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      echo "Missing required command for full deploy: $cmd" >&2
+      exit 1
+    fi
+  done
+fi
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Env file not found: $ENV_FILE" >&2
+  exit 1
+fi
+
+read_env_key() {
+  local key="$1"
+  grep -E "^${key}=" "$ENV_FILE" | head -n1 | cut -d= -f2- | tr -d '\r\n' || true
+}
+
+if [[ -z "${API_AUTH_KEY:-}" ]]; then
+  API_AUTH_KEY="$(read_env_key "API_AUTH_KEY")"
+fi
+if [[ -z "${ADMIN_API_KEY:-}" ]]; then
+  ADMIN_API_KEY="$(read_env_key "ADMIN_API_KEY")"
+fi
+
+if [[ -z "${API_AUTH_KEY:-}" || -z "${ADMIN_API_KEY:-}" ]]; then
+  echo "Missing API_AUTH_KEY and/or ADMIN_API_KEY." >&2
+  echo "Set them in $ENV_FILE or pass --api-key and --admin-key." >&2
+  exit 1
+fi
+
+BACKEND_FQDN="$(
+  az containerapp show \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$BACKEND_APP" \
+    --query properties.configuration.ingress.fqdn \
+    -o tsv | tr -d '\r\n'
+)"
+BACKEND_URL="https://$BACKEND_FQDN"
+
+echo "Resource group : $AZ_RESOURCE_GROUP"
+echo "Backend app    : $BACKEND_APP"
+echo "Frontend app   : $FRONTEND_APP"
+echo "Mode           : $MODE"
+
+if [[ "$MODE" == "full" ]]; then
+  ACR_LOGIN="$(az acr show -n "$ACR_NAME" --query loginServer -o tsv | tr -d '\r\n')"
+  ACR_TOKEN="$(az acr login -n "$ACR_NAME" --expose-token --query accessToken -o tsv | tr -d '\r\n')"
+  podman login "$ACR_LOGIN" -u 00000000-0000-0000-0000-000000000000 -p "$ACR_TOKEN"
+
+  (
+    cd "$REPO_ROOT"
+    podman compose --env-file "$ENV_FILE" build backend frontend
+    podman tag pipelinehealer-backend:latest  "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
+    podman tag pipelinehealer-frontend:latest "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
+    podman push "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
+    podman push "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
+  )
+
+  az containerapp update \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$BACKEND_APP" \
+    --image "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG" \
+    --set-env-vars API_AUTH_KEY="$API_AUTH_KEY" ADMIN_API_KEY="$ADMIN_API_KEY" >/dev/null
+
+  az containerapp update \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$FRONTEND_APP" \
+    --image "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG" \
+    --set-env-vars BACKEND_UPSTREAM="$BACKEND_URL" API_AUTH_KEY="$API_AUTH_KEY" >/dev/null
+else
+  az containerapp update \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$BACKEND_APP" \
+    --set-env-vars API_AUTH_KEY="$API_AUTH_KEY" ADMIN_API_KEY="$ADMIN_API_KEY" >/dev/null
+
+  az containerapp update \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$FRONTEND_APP" \
+    --set-env-vars BACKEND_UPSTREAM="$BACKEND_URL" API_AUTH_KEY="$API_AUTH_KEY" >/dev/null
+fi
+
+FRONTEND_FQDN="$(
+  az containerapp show \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$FRONTEND_APP" \
+    --query properties.configuration.ingress.fqdn \
+    -o tsv | tr -d '\r\n'
+)"
+
+echo "Backend URL : https://$BACKEND_FQDN"
+echo "Frontend URL: https://$FRONTEND_FQDN"
+
+if [[ "$DO_VERIFY" == "1" ]]; then
+  curl -fsS "https://$BACKEND_FQDN/health" >/dev/null
+  curl -fsS -H "X-Admin-Key: $ADMIN_API_KEY" "https://$BACKEND_FQDN/api/settings" >/dev/null
+  echo "Verification passed: backend health + admin settings endpoint."
+fi
+
+echo "Done."

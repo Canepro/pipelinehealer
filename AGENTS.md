@@ -156,7 +156,7 @@ Work items:
 - [x] Add `HEAL_MODE` setting and document it in `backend/.env.example`.
 - [x] Wire `HEAL_MODE` into remediation planning (`FixGenerators`).
 - [x] Upgrade `line_update` to support regex substitutions and multi-file selection.
-- [x] Add read-only runtime settings surface (`/api/settings` + frontend `/settings`) as foundation for future admin UI.
+- [x] Add admin-protected runtime settings surface (`GET/PATCH /api/settings` + frontend `/settings`) for secure ops controls.
 - [x] Add unit tests for demo-mode behaviors (retry, timeout PR plan rendering).
 
 Blog note:
@@ -170,10 +170,12 @@ Exit criteria:
 
 - Dashboard API requires a secret (API key or bearer token) for all `/api/*` endpoints in non-dev environments.
 - Webhook signature verification policy is explicit and safe for demo/prod.
+- Admin settings endpoints require dedicated admin auth.
 
 Work items:
 
 - [x] Add `X-API-Key` (or bearer token) auth for `/api/*` endpoints.
+- [x] Add `X-Admin-Key` auth for admin settings endpoints (`GET/PATCH /api/settings`).
 - [x] Decide and document webhook signature verification behavior for `development` vs `production`.
 - [x] Fix CORS configuration for deployed origins (wildcard strings in `allow_origins` won’t match; prefer `allow_origin_regex` or explicit origins).
 
@@ -231,7 +233,7 @@ Decisions made (Recommended defaults for this repo):
 
 - Retry semantics (Recommended): GitHub Actions `rerun-failed-jobs` from the dashboard, then rely on the next webhook to re-process the run.
   - Future: “re-run internal pipeline” requires persisting enough event/run metadata per activity.
-- Dashboard auth (Recommended): `X-API-Key` for all `/api/*` endpoints in non-development.
+- Dashboard auth (Recommended): `X-API-Key` for `/api/*` plus `X-Admin-Key` for admin settings endpoints.
   - Future: bearer/JWT or fronted by an auth proxy.
 - Deployment target (Recommended): Container Apps only for demo reliability.
   - Future: add an Azure Functions webhook-forwarder once there is real Functions app code in-repo.
@@ -268,7 +270,7 @@ Decisions made (Recommended defaults for this repo):
 - Feb 11, 2026: Resolved current backend deprecation warnings by switching to timezone-aware UTC timestamps (`datetime.now(UTC)`), normalizing naive/aware datetime comparisons in storage, and migrating Pydantic model config to `ConfigDict`.
 - Feb 11, 2026: Refined `backend/.env.example` to a clearer, sectioned template (local E2E-first), keeping variable names unchanged while clarifying endpoint/API-version guidance and security defaults.
 - Feb 11, 2026: Updated `docker-compose.yml` backend env passthrough to include Phase 2 security/agent vars (`VERIFY_WEBHOOK_SIGNATURE*`, `API_AUTH_KEY`, CORS, heal mode, remediation limits). Note: env changes require `podman compose ... up -d --force-recreate backend`.
-- Feb 11, 2026: Added settings foundation: backend `GET /api/settings` (non-secret runtime config), frontend `/settings` page, and runbook/README notes so future authenticated write-settings flow can layer on cleanly.
+- Feb 11, 2026: Added settings foundation: backend `GET /api/settings` and frontend `/settings` baseline.
 - Feb 11, 2026: Frontend tooling baseline fixed for local validation: added `frontend/src/vite-env.d.ts` (`import.meta.env` typing) and `frontend/eslint.config.js` (ESLint v9 flat config), so `bun run build` and `bun run lint` run cleanly.
 - Feb 11, 2026: Frontend API client now supports optional `VITE_API_AUTH_KEY`, sending `X-API-Key` automatically for secured `/api/*` routes in non-development environments.
 - Feb 11, 2026: Phase 3 implemented in backend core: GitHub API retries/backoff for 429/5xx + network errors, per-step orchestrator timeouts, timed_out job log collection, and head+tail log truncation for prompts.
@@ -279,7 +281,7 @@ Decisions made (Recommended defaults for this repo):
 - Feb 11, 2026: Fixed frontend Azure crash-loop by making Nginx backend proxy runtime-configurable (`BACKEND_UPSTREAM`), wiring local compose to `http://backend:8000` and Bicep frontend env to backend Container App FQDN.
 - Feb 11, 2026: Fixed Azure frontend `/api/*` proxy loop/auth behavior by forwarding `Host: $proxy_host`, enabling SNI (`proxy_ssl_server_name on`), and adding server-side `X-API-Key` injection from frontend `API_AUTH_KEY`.
 - Feb 12, 2026: Provisioned Azure dev stack successfully in `rg-canepro-ph-dev-eus` (ACR, Container Apps env, backend/frontend apps, OpenAI, Cosmos, Key Vault, App Insights) and verified backend health + frontend reachability.
-- Feb 12, 2026: Set production backend runtime env on Azure Container Apps (`ENVIRONMENT=production`, API auth enabled, webhook signature verification enabled) and validated `/api/settings` requires `X-API-Key`.
+- Feb 12, 2026: Set production backend runtime env on Azure Container Apps (`ENVIRONMENT=production`, API auth enabled, webhook signature verification enabled) and validated protected settings access.
 - Feb 12, 2026: Azure OpenAI deployment switched to `gpt-5-mini` on backend runtime config; settings endpoint now reports `AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-mini`.
 - Feb 12, 2026: Phase 4 completed: frontend runtime proxy and API key forwarding are now stable on Azure Container Apps; backend/frontend FQDNs and auth behavior verified end-to-end.
 - Feb 12, 2026: Added recommended warm/low-cost copy-paste toggle block in README + runbook to switch `min-replicas` between demo reliability (`1`) and cost-saving idle mode (`0`).
@@ -291,6 +293,7 @@ Decisions made (Recommended defaults for this repo):
 - Feb 12, 2026: Fixed Azure dashboard metrics endpoints by removing unsupported async Cosmos query kwargs and switching stats/failure-breakdown aggregation to storage-backed activity paging.
 - Feb 12, 2026: Portfolio blog roadmap synced and Post 3 published in `/mnt/d/repos/portfolio_website-main/content/blog/2026-02-12-pipelinehealer-azure-deployment-lessons.mdx`.
 - Feb 12, 2026: Removed stale `PROJECT_STATUS.md` and `REVIEW.md`; consolidated active tracking/design notes into `AGENTS.md` and `README.md`.
+- Feb 12, 2026: Added scripted Azure redeploy flow `scripts/deploy/redeploy_azure_containerapps.sh` and updated docs to use script-first instructions (including `ADMIN_API_KEY` runtime setup).
 
 ## Project Layout
 
@@ -344,6 +347,9 @@ pipelinehealer/
 ├── infra/                     # Azure Bicep templates
 │   ├── main.bicep
 │   └── main.bicepparam
+├── scripts/
+│   ├── demo/                  # Demo automation scripts
+│   └── deploy/                # Azure redeploy helper scripts
 └── demo-repo/                 # Demo repo for triggering test failures
     ├── .github/               # GitHub Actions workflow with failure triggers
     ├── index.js
