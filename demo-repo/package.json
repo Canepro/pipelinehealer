@@ -8,10 +8,14 @@
     "test": "node test.js",
     "lint": "echo 'Linting...' && exit 0"
   },
-  "keywords": ["demo", "pipelinehealer"],
+  "keywords": [
+    "demo",
+    "pipelinehealer"
+  ],
   "author": "PipelineHealer Team",
   "license": "MIT",
   "devDependencies": {
     "eslint": "^9.0.0"
-  }
+  },
+  "dependencies": {}
 }

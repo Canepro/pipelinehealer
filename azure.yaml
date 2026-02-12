@@ -14,11 +14,6 @@ services:
     language: ts
     host: containerapp
 
-  functions:
-    project: ./backend
-    language: python
-    host: function
-
 infra:
   provider: bicep
   path: ./infra
@@ -33,5 +28,5 @@ hooks:
     shell: sh
     run: |
       echo "Azure resources provisioned successfully!"
-      echo "Function App URL: ${AZURE_FUNCTION_APP_URL}"
-      echo "Dashboard URL: ${AZURE_DASHBOARD_URL}"
+      echo "Backend URL: ${AZURE_BACKEND_URL}"
+      echo "Frontend URL: ${AZURE_FRONTEND_URL}"
