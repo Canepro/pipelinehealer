@@ -502,6 +502,11 @@ This project targets:
 - **Best Multi-Agent System** - Sophisticated agent orchestration
 - **Best Azure Integration** - Native Azure services integration
 
+## Participant
+
+- Solo participant: Vincent Mogah
+- Microsoft Learn profile: `https://learn.microsoft.com/en-us/users/canepro0084/`
+
 ## Demo
 
 Use the included `demo-repo/` fixtures or the public demo repository `Canepro/pipelinehealer-demo`.

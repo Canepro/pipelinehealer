@@ -31,8 +31,8 @@ This is the long-form project tracker for hackathon execution status, submission
 - [x] Project description (features/problem/technologies) in `README.md`
 - [ ] Demo video (2 min max)
 - [x] Architecture diagram (Mermaid in `README.md`)
-- [ ] Microsoft Learn usernames for all participants
-- [ ] Microsoft Learn Skilling Plan completed
+- [x] Microsoft Learn username(s) for participant(s):
+  - `https://learn.microsoft.com/en-us/users/canepro0084/`
 
 ## Current Working Defaults
 
@@ -91,7 +91,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 ## Known Risks / Follow-Ups
 
-- Demo video and Microsoft Learn submission items are still open.
+- Demo video is still open.
 - Auto-fix branch collisions can still produce GitHub `422` in repeated reruns if prior fix branches already exist.
 - Dependency remediations currently focus on manifest changes and may not update lockfiles in all package-manager variants.
 
