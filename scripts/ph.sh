@@ -70,15 +70,28 @@ settings_check() {
     echo "Missing env file: $REPO_ROOT/backend/.env" >&2
     exit 1
   fi
+  local api_key
   local admin_key
-  admin_key="$(grep '^ADMIN_API_KEY=' "$REPO_ROOT/backend/.env" | cut -d= -f2- | tr -d '\r\n' || true)"
+  api_key="$(grep '^API_AUTH_KEY=' "$REPO_ROOT/backend/.env" | tail -n1 | cut -d= -f2- | tr -d '\r\n' || true)"
+  admin_key="$(grep '^ADMIN_API_KEY=' "$REPO_ROOT/backend/.env" | tail -n1 | cut -d= -f2- | tr -d '\r\n' || true)"
+  if [[ -z "${api_key:-}" ]]; then
+    echo "API_AUTH_KEY missing in backend/.env" >&2
+    exit 1
+  fi
   if [[ -z "${admin_key:-}" ]]; then
     echo "ADMIN_API_KEY missing in backend/.env" >&2
     exit 1
   fi
+  if [[ "$api_key" == *"replace_me"* || "$admin_key" == *"replace_me"* ]]; then
+    echo "API_AUTH_KEY/ADMIN_API_KEY are placeholder values in backend/.env. Set real keys first." >&2
+    exit 1
+  fi
   local backend_fqdn
   backend_fqdn="$(az containerapp show -g "$AZ_RESOURCE_GROUP" -n "$BACKEND_APP" --query properties.configuration.ingress.fqdn -o tsv | tr -d '\r\n')"
-  curl -fsS -H "X-Admin-Key: $admin_key" "https://$backend_fqdn/api/settings"
+  curl -fsS \
+    -H "X-API-Key: $api_key" \
+    -H "X-Admin-Key: $admin_key" \
+    "https://$backend_fqdn/api/settings"
   echo
 }
 

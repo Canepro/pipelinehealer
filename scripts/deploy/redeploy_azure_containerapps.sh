@@ -124,7 +124,7 @@ fi
 
 read_env_key() {
   local key="$1"
-  grep -E "^${key}=" "$ENV_FILE" | head -n1 | cut -d= -f2- | tr -d '\r\n' || true
+  grep -E "^${key}=" "$ENV_FILE" | tail -n1 | cut -d= -f2- | tr -d '\r\n' || true
 }
 
 if [[ -z "${API_AUTH_KEY:-}" ]]; then
@@ -137,6 +137,11 @@ fi
 if [[ -z "${API_AUTH_KEY:-}" || -z "${ADMIN_API_KEY:-}" ]]; then
   echo "Missing API_AUTH_KEY and/or ADMIN_API_KEY." >&2
   echo "Set them in $ENV_FILE or pass --api-key and --admin-key." >&2
+  exit 1
+fi
+
+if [[ "$API_AUTH_KEY" == *"replace_me"* || "$ADMIN_API_KEY" == *"replace_me"* ]]; then
+  echo "API_AUTH_KEY/ADMIN_API_KEY are placeholder values. Use real keys before deploy." >&2
   exit 1
 fi
 
@@ -204,7 +209,10 @@ echo "Frontend URL: https://$FRONTEND_FQDN"
 
 if [[ "$DO_VERIFY" == "1" ]]; then
   curl -fsS "https://$BACKEND_FQDN/health" >/dev/null
-  curl -fsS -H "X-Admin-Key: $ADMIN_API_KEY" "https://$BACKEND_FQDN/api/settings" >/dev/null
+  curl -fsS \
+    -H "X-API-Key: $API_AUTH_KEY" \
+    -H "X-Admin-Key: $ADMIN_API_KEY" \
+    "https://$BACKEND_FQDN/api/settings" >/dev/null
   echo "Verification passed: backend health + admin settings endpoint."
 fi
 
