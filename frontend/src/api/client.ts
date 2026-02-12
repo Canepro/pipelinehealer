@@ -1,4 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_URL || ''
+const API_AUTH_KEY = import.meta.env.VITE_API_AUTH_KEY || ''
 
 export interface DashboardStats {
   total_runs_processed: number
@@ -51,11 +52,28 @@ export interface TimelineData {
   since: string
 }
 
+export interface AppSettings {
+  environment: string
+  heal_mode: string
+  auto_create_pr: boolean
+  auto_create_tracking_issue_for_prs: boolean
+  max_remediation_attempts: number
+  verify_webhook_signature: boolean
+  verify_webhook_signature_in_development: boolean
+  api_auth_enabled: boolean
+  cors_allowed_origins: string[]
+  cors_allow_origin_regex: string
+  azure_openai_endpoint: string
+  azure_openai_deployment_name: string
+  azure_openai_api_version: string
+}
+
 async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(API_AUTH_KEY ? { 'X-API-Key': API_AUTH_KEY } : {}),
       ...options?.headers,
     },
   })
@@ -69,6 +87,7 @@ async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   getStats: () => fetchJson<DashboardStats>('/api/stats'),
+  getSettings: () => fetchJson<AppSettings>('/api/settings'),
   
   getActivities: (params?: {
     repository?: string

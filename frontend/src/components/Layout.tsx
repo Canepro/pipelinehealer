@@ -9,6 +9,7 @@ interface LayoutProps {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Activities', href: '/activities', icon: Activity },
+  { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
 export default function Layout({ children }: LayoutProps) {
