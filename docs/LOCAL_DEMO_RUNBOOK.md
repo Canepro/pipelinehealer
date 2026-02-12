@@ -139,17 +139,22 @@ bash scripts/ph.sh deploy
 Important:
 - Run with `bash ...` (execute), not `. scripts/...` or `source scripts/...`.
 
-Set only `ADMIN_API_KEY` (if image is already current):
+Sync env vars only (if image is already current):
 
 ```bash
 cd <repo-root>/pipelinehealer
 bash scripts/ph.sh deploy:env
 ```
 
+`deploy:env` now syncs backend runtime keys from `backend/.env`, including `MAX_REMEDIATION_ATTEMPTS`.
+
 Script help:
 
 ```bash
 bash scripts/ph.sh help
+
+# Force Docker engine if Podman is unavailable
+bash scripts/ph.sh deploy --engine docker
 ```
 
 ## 1D) Local Dev vs Azure Dev (Important)

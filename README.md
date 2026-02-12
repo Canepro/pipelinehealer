@@ -299,10 +299,10 @@ What this does:
 
 - Builds and pushes backend/frontend images
 - Updates both Container Apps
-- Applies required runtime keys (`API_AUTH_KEY`, `ADMIN_API_KEY`)
+- Syncs backend runtime env from `backend/.env` (including `MAX_REMEDIATION_ATTEMPTS` and related tuning keys)
 - Verifies backend health and admin settings endpoint
 
-Set only `ADMIN_API_KEY` (no image rebuild):
+Sync env vars only (no image rebuild):
 
 ```bash
 cd <repo-root>/pipelinehealer
@@ -323,6 +323,9 @@ bash scripts/ph.sh deploy:status
 
 # See all one-command options
 bash scripts/ph.sh help
+
+# Force Docker engine (if Podman socket is unavailable)
+bash scripts/ph.sh deploy --engine docker
 ```
 
 ### Dev Environment Status

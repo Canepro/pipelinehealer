@@ -50,6 +50,22 @@ ADMIN_API_KEY=""
 MODE="full"
 DO_VERIFY="1"
 
+BACKEND_RUNTIME_ENV_KEYS=(
+  "HEAL_MODE"
+  "MAX_REMEDIATION_ATTEMPTS"
+  "AUTO_CREATE_PR"
+  "AUTO_CREATE_TRACKING_ISSUE_FOR_PRS"
+  "VERIFY_WEBHOOK_SIGNATURE"
+  "VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT"
+  "PIPELINE_STEP_TIMEOUT_SECONDS"
+  "GITHUB_API_MAX_RETRIES"
+  "GITHUB_API_RETRY_BASE_SECONDS"
+  "GITHUB_API_RETRY_MAX_SECONDS"
+  "LOG_PROMPT_MAX_CHARS"
+  "LOG_PROMPT_HEAD_CHARS"
+  "LOG_PROMPT_TAIL_CHARS"
+)
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --resource-group)
@@ -165,6 +181,23 @@ BACKEND_FQDN="$(
 )"
 BACKEND_URL="https://$BACKEND_FQDN"
 
+BACKEND_SET_ENV_VARS=(
+  "API_AUTH_KEY=$API_AUTH_KEY"
+  "ADMIN_API_KEY=$ADMIN_API_KEY"
+)
+
+for key in "${BACKEND_RUNTIME_ENV_KEYS[@]}"; do
+  value="$(read_env_key "$key")"
+  if [[ -n "$value" ]]; then
+    BACKEND_SET_ENV_VARS+=("$key=$value")
+  fi
+done
+
+FRONTEND_SET_ENV_VARS=(
+  "BACKEND_UPSTREAM=$BACKEND_URL"
+  "API_AUTH_KEY=$API_AUTH_KEY"
+)
+
 detect_engine() {
   if [[ "$CONTAINER_ENGINE" == "podman" || "$CONTAINER_ENGINE" == "docker" ]]; then
     echo "$CONTAINER_ENGINE"
@@ -234,23 +267,23 @@ if [[ "$MODE" == "full" ]]; then
     -g "$AZ_RESOURCE_GROUP" \
     -n "$BACKEND_APP" \
     --image "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG" \
-    --set-env-vars API_AUTH_KEY="$API_AUTH_KEY" ADMIN_API_KEY="$ADMIN_API_KEY" >/dev/null
+    --set-env-vars "${BACKEND_SET_ENV_VARS[@]}" >/dev/null
 
   az containerapp update \
     -g "$AZ_RESOURCE_GROUP" \
     -n "$FRONTEND_APP" \
     --image "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG" \
-    --set-env-vars BACKEND_UPSTREAM="$BACKEND_URL" API_AUTH_KEY="$API_AUTH_KEY" >/dev/null
+    --set-env-vars "${FRONTEND_SET_ENV_VARS[@]}" >/dev/null
 else
   az containerapp update \
     -g "$AZ_RESOURCE_GROUP" \
     -n "$BACKEND_APP" \
-    --set-env-vars API_AUTH_KEY="$API_AUTH_KEY" ADMIN_API_KEY="$ADMIN_API_KEY" >/dev/null
+    --set-env-vars "${BACKEND_SET_ENV_VARS[@]}" >/dev/null
 
   az containerapp update \
     -g "$AZ_RESOURCE_GROUP" \
     -n "$FRONTEND_APP" \
-    --set-env-vars BACKEND_UPSTREAM="$BACKEND_URL" API_AUTH_KEY="$API_AUTH_KEY" >/dev/null
+    --set-env-vars "${FRONTEND_SET_ENV_VARS[@]}" >/dev/null
 fi
 
 FRONTEND_FQDN="$(
