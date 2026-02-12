@@ -20,6 +20,7 @@ Show end-to-end value quickly:
 - Demo repo is reset so:
   - `dependency` and `lint` can produce PRs
   - `test`, `build_config`, `timeout` produce issues
+- Previous auto-fix PR branches are merged/closed (avoid duplicate branch `422` on reruns)
 - Keep Container Apps warm during demo (`min-replicas=1`) if needed
 
 ## 2-Minute Run of Show

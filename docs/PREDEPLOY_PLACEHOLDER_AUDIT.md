@@ -78,6 +78,8 @@ Confirm these are intentional for demo only and not accidentally copied to produ
 2. `azure.yaml`: container app vs function mapping must be intentional and valid.
 3. `backend/src/workflows/pipeline_healer.py`: ensure Cosmos-backed storage is used in deployed envs.
 4. `backend/src/agents/log_analyzer.py`: `job_id=0` is currently a synthetic value; fix if real job-level traceability is required.
+5. GitHub webhook mode: ensure only one active `workflow_run` hook for the target env (disable stale `smee.io` when using Azure direct webhook).
+6. Demo reruns: dependency/lint fix branch names can collide on repeated runs, causing `422` on `POST /git/refs` until old fix branches are merged/cleaned.
 
 ## 7) Quick Verification Commands
 

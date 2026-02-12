@@ -354,3 +354,36 @@ Frontend Settings page:
     sed -i 's|^AZURE_OPENAI_ENDPOINT=.*|AZURE_OPENAI_ENDPOINT=https://<your-resource>.cognitiveservices.azure.com/|' backend/.env
     podman compose --env-file backend/.env up -d --force-recreate backend
     ```
+
+- Azure `/api/activities` stays empty after workflow failures
+  - Cause: webhook deliveries are not reaching the active backend (wrong hook URL, stale smee hook still active, or signature mismatch).
+  - Fix:
+    ```bash
+    REPO="<owner>/<repo>"
+    gh api repos/$REPO/hooks --jq '.[] | {id,active,url:.config.url,events,last_response:.last_response.code}'
+    ```
+    - Keep only one active `workflow_run` hook for the target mode:
+      - local mode: `https://smee.io/<channel>`
+      - Azure mode: `https://<backend-fqdn>/webhook/github`
+    - Ensure webhook secret matches `GITHUB_WEBHOOK_SECRET` in the active backend runtime.
+
+- GitHub webhook deliveries return `401` in repo hook history
+  - Cause: signature verification is enabled but the webhook secret on GitHub does not match backend runtime.
+  - Fix:
+    1. Re-set webhook secret in GitHub hook configuration.
+    2. Confirm backend runtime `GITHUB_WEBHOOK_SECRET` value.
+    3. Re-send ping and check `status_code=200`:
+       ```bash
+       gh api -X POST repos/<owner>/<repo>/hooks/<hook_id>/pings
+       gh api repos/<owner>/<repo>/hooks/<hook_id>/deliveries --jq '.[0] | {event,status_code,delivered_at}'
+       ```
+
+- PR remediation fails with `422 Unprocessable Entity` on `POST /git/refs`
+  - Cause: target fix branch already exists (common after repeated dependency/lint demo runs).
+  - Fix:
+    - Merge/close existing fix PRs first (for example `fix/update-left-pad`, `fix/lint-eslint-config`).
+    - Or manually delete stale fix branches in the demo repo before re-running that failure type.
+
+- Azure backend can read webhooks but cannot call GitHub API
+  - Symptom: webhook creates activity, then failures appear when fetching jobs/logs or creating refs/PRs.
+  - Fix: ensure `GITHUB_PERSONAL_ACCESS_TOKEN` (or GitHub App credentials) is set in backend Container App env.

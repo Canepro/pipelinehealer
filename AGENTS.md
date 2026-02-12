@@ -161,7 +161,8 @@ Work items:
 
 Blog note:
 
-- Next blog post (series #2) should cover "AI vs logic" and why a safe/demo split matters for real DevOps automation.
+- Published: series post #2 covered "AI vs logic" and the safe/demo split.
+- Next blog post should focus on log-analysis reliability and webhook hardening tradeoffs (Phase 3 + real Azure delivery behavior).
 
 ### Phase 2: Security (Minimum Viable)
 
@@ -220,7 +221,7 @@ Work items:
 - [x] Validate `demo-repo/.github/workflows/ci.yml` triggers all 5 failure types reliably.
 - [x] Add Mermaid architecture diagram to `README.md`.
 - [x] Write a short demo script and checklist for recording.
-- [ ] Publish the next blog post in the portfolio repo and update its roadmap:
+- [x] Publish the next blog post in the portfolio repo and update its roadmap:
   - `/mnt/d/repos/portfolio_website-main/content/blog/YYYY-MM-DD-*.mdx`
   - `/mnt/d/repos/portfolio_website-main/content/blog/blog.md`
 
@@ -284,6 +285,11 @@ Decisions made (Recommended defaults for this repo):
 - Feb 12, 2026: Added recommended warm/low-cost copy-paste toggle block in README + runbook to switch `min-replicas` between demo reliability (`1`) and cost-saving idle mode (`0`).
 - Feb 12, 2026: Phase 5 started: submission checklist updated with Azure deployment complete; remaining focus is demo polish, architecture diagram, and final video/script assets.
 - Feb 12, 2026: Phase 5 docs pass: added Mermaid architecture diagram in `README.md` and created `docs/DEMO_SCRIPT.md` with a time-boxed 2-minute runbook/checklist.
+- Feb 12, 2026: Azure webhook mode stabilized: disabled legacy `smee.io` repo hook, activated direct webhook to backend Container App, and verified `ping` deliveries return `200`.
+- Feb 12, 2026: Azure runtime updated to include `GITHUB_PERSONAL_ACCESS_TOKEN` for GitHub REST calls from Container Apps (temporary path until full GitHub App auth wiring is completed).
+- Feb 12, 2026: Documented and validated expected duplicate-run behavior: remediation PR creation can return `422` when target fix branches already exist (for example `fix/update-left-pad`, `fix/lint-eslint-config`).
+- Feb 12, 2026: Fixed Azure dashboard metrics endpoints by removing unsupported async Cosmos query kwargs and switching stats/failure-breakdown aggregation to storage-backed activity paging.
+- Feb 12, 2026: Portfolio blog roadmap synced and Post 3 published in `/mnt/d/repos/portfolio_website-main/content/blog/2026-02-12-pipelinehealer-azure-deployment-lessons.mdx`.
 
 ## Project Layout
 

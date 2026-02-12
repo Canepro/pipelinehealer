@@ -362,6 +362,22 @@ curl -H "X-API-Key: $API_AUTH_KEY" "http://127.0.0.1:8000/api/activities?limit=2
 3. Select the `workflow_run` event
 4. Set the webhook secret (match `GITHUB_WEBHOOK_SECRET`)
 5. Keep `VERIFY_WEBHOOK_SIGNATURE=true` in non-development environments
+6. Keep only one active `workflow_run` hook per environment path (local smee OR Azure direct)
+7. Verify delivery status after setup:
+
+```bash
+gh api repos/<owner>/<repo>/hooks --jq '.[] | {id,active,url:.config.url,last_response:.last_response.code,events}'
+```
+
+For Azure mode, the active hook should point to `https://<backend-fqdn>/webhook/github` and recent deliveries should show `200`.
+
+### Demo Note: Repeated Runs
+
+If you repeatedly trigger the same dependency/lint failure without merging prior fix PRs, remediation may fail with:
+
+- `422 Unprocessable Entity` on `POST /repos/.../git/refs`
+
+This usually means the target fix branch already exists (for example `fix/update-left-pad` or `fix/lint-eslint-config`).
 
 ## Project Structure
 
