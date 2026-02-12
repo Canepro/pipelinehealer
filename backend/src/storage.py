@@ -259,7 +259,6 @@ class ActivityStorage:
 
         async for item in self._activities_container_required().query_items(
             query=aggregate_query,
-            enable_cross_partition_query=True,
         ):
             status = item.get("status")
             if isinstance(status, str) and status:
@@ -313,7 +312,6 @@ class ActivityStorage:
         repos_by_name: dict[str, dict[str, Any]] = {}
         async for item in self._activities_container_required().query_items(
             query=query,
-            enable_cross_partition_query=True,
         ):
             repo_name = item.get("repository_name")
             if not isinstance(repo_name, str) or not repo_name:
@@ -398,7 +396,6 @@ class ActivityStorage:
         async for item in self._activities_container_required().query_items(
             query=query,
             parameters=parameters,
-            enable_cross_partition_query=True,
         ):
             failure_type = item.get("failure_type")
             if isinstance(failure_type, str) and failure_type:
