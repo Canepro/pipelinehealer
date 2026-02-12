@@ -44,6 +44,25 @@ When a GitHub Actions workflow fails, PipelineHealer:
 
 ## Architecture
 
+### Mermaid Diagram
+
+```mermaid
+flowchart LR
+    GH[GitHub Actions workflow_run.completed] --> WH[/webhook/github]
+    WH --> WF[PipelineHealerWorkflow]
+    WF --> LA[Log Analyzer Agent]
+    LA --> DG[Diagnosis Agent]
+    DG --> RM[Remediation Agent]
+    RM --> OR[Orchestrator Agent]
+    OR --> GT[GitHubTools]
+    OR --> ST[(Cosmos DB / In-Memory Storage)]
+    GT --> PR[Create PR]
+    GT --> IS[Create Issue]
+    GT --> RR[Re-run Failed Jobs]
+```
+
+### ASCII Diagram
+
 ```
 ┌─────────────────┐     ┌──────────────────────────────────────────┐
 │  GitHub Actions │     │              PipelineHealer               │
@@ -205,6 +224,7 @@ Important:
 For the exact commands to reproduce the full demo flow (backend + smee.io + `gh workflow run` triggers), see:
 
 - `docs/LOCAL_DEMO_RUNBOOK.md`
+- `docs/DEMO_SCRIPT.md` (2-minute recording script + checklist)
 
 ### Pre-Deploy Placeholder Audit
 

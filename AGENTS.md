@@ -218,8 +218,8 @@ Exit criteria:
 Work items:
 
 - [x] Validate `demo-repo/.github/workflows/ci.yml` triggers all 5 failure types reliably.
-- [ ] Add Mermaid architecture diagram to `README.md`.
-- [ ] Write a short demo script and checklist for recording.
+- [x] Add Mermaid architecture diagram to `README.md`.
+- [x] Write a short demo script and checklist for recording.
 - [ ] Publish the next blog post in the portfolio repo and update its roadmap:
   - `/mnt/d/repos/portfolio_website-main/content/blog/YYYY-MM-DD-*.mdx`
   - `/mnt/d/repos/portfolio_website-main/content/blog/blog.md`
@@ -283,6 +283,7 @@ Decisions made (Recommended defaults for this repo):
 - Feb 12, 2026: Phase 4 completed: frontend runtime proxy and API key forwarding are now stable on Azure Container Apps; backend/frontend FQDNs and auth behavior verified end-to-end.
 - Feb 12, 2026: Added recommended warm/low-cost copy-paste toggle block in README + runbook to switch `min-replicas` between demo reliability (`1`) and cost-saving idle mode (`0`).
 - Feb 12, 2026: Phase 5 started: submission checklist updated with Azure deployment complete; remaining focus is demo polish, architecture diagram, and final video/script assets.
+- Feb 12, 2026: Phase 5 docs pass: added Mermaid architecture diagram in `README.md` and created `docs/DEMO_SCRIPT.md` with a time-boxed 2-minute runbook/checklist.
 
 ## Project Layout
 
