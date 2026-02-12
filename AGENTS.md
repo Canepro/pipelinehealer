@@ -51,6 +51,20 @@ cd pipelinehealer
 azd up                         # provision infra (Bicep) + deploy services
 ```
 
+### One-Command Ops (Recommended)
+
+```bash
+cd pipelinehealer
+bash scripts/ph.sh help        # list all one-command flows
+bash scripts/ph.sh deploy      # full Azure redeploy
+bash scripts/ph.sh deploy:bg   # redeploy detached (survives terminal restart)
+bash scripts/ph.sh deploy:logs # watch detached deploy logs
+bash scripts/ph.sh demo:e2e    # run full Azure demo verification flow
+bash scripts/ph.sh warm        # min-replicas=1 on backend/frontend
+bash scripts/ph.sh lowcost     # min-replicas=0 on backend/frontend
+bash scripts/ph.sh status      # Container Apps status snapshot
+```
+
 ## Phased Execution Plan (Track Here)
 
 **Last updated:** Feb 12, 2026
@@ -294,6 +308,7 @@ Decisions made (Recommended defaults for this repo):
 - Feb 12, 2026: Portfolio blog roadmap synced and Post 3 published in `/mnt/d/repos/portfolio_website-main/content/blog/2026-02-12-pipelinehealer-azure-deployment-lessons.mdx`.
 - Feb 12, 2026: Removed stale `PROJECT_STATUS.md` and `REVIEW.md`; consolidated active tracking/design notes into `AGENTS.md` and `README.md`.
 - Feb 12, 2026: Added scripted Azure redeploy flow `scripts/deploy/redeploy_azure_containerapps.sh` and updated docs to use script-first instructions (including `ADMIN_API_KEY` runtime setup).
+- Feb 12, 2026: Added one-command wrapper `scripts/ph.sh` so deploy/demo/scale/status operations run through a single entrypoint for easier operator usage.
 
 ## Project Layout
 

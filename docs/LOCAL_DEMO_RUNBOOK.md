@@ -30,7 +30,7 @@ Instead of running many manual commands, use:
 
 ```bash
 cd <repo-root>/pipelinehealer
-scripts/demo/run_e2e_azure.sh
+bash scripts/ph.sh demo:e2e
 ```
 
 What it does:
@@ -45,13 +45,13 @@ Common variations:
 
 ```bash
 # Keep existing webhook config, only run reset/trigger/verify
-scripts/demo/run_e2e_azure.sh --skip-webhook-sync
+bash scripts/ph.sh demo:e2e --skip-webhook-sync
 
 # Reset demo fixtures only
-scripts/demo/reset_demo_fixtures.sh
+bash scripts/ph.sh demo:reset
 
 # Re-run quickly with shorter wait
-scripts/demo/run_e2e_azure.sh --wait-seconds 40
+bash scripts/ph.sh demo:e2e --wait-seconds 40
 ```
 
 ## 1) Backend Setup (Host-Native)
@@ -126,14 +126,14 @@ Verify:
 - Backend: `https://<backend-fqdn>/health`
 - Frontend: `https://<frontend-fqdn>`
 
-## 1C) Redeploy Azure Apps After New Commits (Recommended Copy-Paste)
+## 1F) Redeploy Azure Apps After New Commits (Recommended)
 
 Use this when `main` has new commits and you want Azure Container Apps to reflect them.
 Run as a script (not inline) to avoid shell restarts in interactive terminals.
 
 ```bash
 cd <repo-root>/pipelinehealer
-bash scripts/deploy/redeploy_azure_containerapps.sh
+bash scripts/ph.sh deploy
 ```
 
 Important:
@@ -143,13 +143,13 @@ Set only `ADMIN_API_KEY` (if image is already current):
 
 ```bash
 cd <repo-root>/pipelinehealer
-bash scripts/deploy/redeploy_azure_containerapps.sh --env-only
+bash scripts/ph.sh deploy:env
 ```
 
 Script help:
 
 ```bash
-bash scripts/deploy/redeploy_azure_containerapps.sh --help
+bash scripts/ph.sh help
 ```
 
 ## 1D) Local Dev vs Azure Dev (Important)
@@ -171,49 +171,19 @@ Container Apps often use `minReplicas: 0` to save cost.
 Check min replicas:
 
 ```bash
-RG="rg-canepro-ph-dev-eus"
-az containerapp show -g "$RG" -n ca-canepro-ph-backend --query "properties.template.scale.minReplicas" -o tsv
-az containerapp show -g "$RG" -n ca-canepro-ph-frontend --query "properties.template.scale.minReplicas" -o tsv
+bash scripts/ph.sh status
 ```
 
 Keep apps warm during active demos:
 
 ```bash
-RG="rg-canepro-ph-dev-eus"
-az containerapp update -g "$RG" -n ca-canepro-ph-backend --min-replicas 1
-az containerapp update -g "$RG" -n ca-canepro-ph-frontend --min-replicas 1
+bash scripts/ph.sh warm
 ```
 
 Return to low-cost mode afterward:
 
 ```bash
-RG="rg-canepro-ph-dev-eus"
-az containerapp update -g "$RG" -n ca-canepro-ph-backend --min-replicas 0
-az containerapp update -g "$RG" -n ca-canepro-ph-frontend --min-replicas 0
-```
-
-> **Recommended Copy-Paste Block: Toggle Warm Mode Before/After Demo**
->
-> Change only `MODE`:
-> - `MODE=warm` for demo reliability (`min-replicas=1`)
-> - `MODE=lowcost` after demo (`min-replicas=0`)
-
-```bash
-RG="rg-canepro-ph-dev-eus"
-BACKEND_APP="ca-canepro-ph-backend"
-FRONTEND_APP="ca-canepro-ph-frontend"
-MODE="warm"   # warm | lowcost
-
-if [ "$MODE" = "warm" ]; then
-  MIN=1
-else
-  MIN=0
-fi
-
-az containerapp update -g "$RG" -n "$BACKEND_APP" --min-replicas "$MIN"
-az containerapp update -g "$RG" -n "$FRONTEND_APP" --min-replicas "$MIN"
-
-echo "Set min-replicas=$MIN on $BACKEND_APP and $FRONTEND_APP"
+bash scripts/ph.sh lowcost
 ```
 
 ## 2) Azure OpenAI Smoke Test (Optional But Recommended)

@@ -226,24 +226,24 @@ For the exact commands to reproduce the full demo flow (backend + smee.io + `gh 
 - `docs/LOCAL_DEMO_RUNBOOK.md`
 - `docs/DEMO_SCRIPT.md` (2-minute recording script + checklist)
 
-For Azure-hosted demos, use the automation script (recommended):
+For Azure-hosted demos, use the one-command runner (recommended):
 
 ```bash
 cd <repo-root>/pipelinehealer
-scripts/demo/run_e2e_azure.sh
+bash scripts/ph.sh demo:e2e
 ```
 
 Useful options:
 
 ```bash
 # Skip webhook sync if already configured
-scripts/demo/run_e2e_azure.sh --skip-webhook-sync
+bash scripts/ph.sh demo:e2e --skip-webhook-sync
 
 # Only reset fixtures
-scripts/demo/reset_demo_fixtures.sh
+bash scripts/ph.sh demo:reset
 
 # Faster verify window for repeated test runs
-scripts/demo/run_e2e_azure.sh --wait-seconds 40
+bash scripts/ph.sh demo:e2e --wait-seconds 40
 ```
 
 ### Shell Safety For Copy-Paste Blocks
@@ -285,17 +285,17 @@ azd up
 
 ### Redeploy After Code Changes (Azure Container Apps)
 
-If you already have Azure resources provisioned, use the script (recommended for non-developers and safer than pasting long inline blocks).
+If you already have Azure resources provisioned, use one command:
 
 ```bash
 cd <repo-root>/pipelinehealer
-bash scripts/deploy/redeploy_azure_containerapps.sh
+bash scripts/ph.sh deploy
 ```
 
 Important:
 - Run with `bash ...` (execute), not `. scripts/...` or `source scripts/...`.
 
-What this script does:
+What this does:
 
 - Builds and pushes backend/frontend images
 - Updates both Container Apps
@@ -306,17 +306,23 @@ Set only `ADMIN_API_KEY` (no image rebuild):
 
 ```bash
 cd <repo-root>/pipelinehealer
-bash scripts/deploy/redeploy_azure_containerapps.sh --env-only
+bash scripts/ph.sh deploy:env
 ```
 
 Common options:
 
 ```bash
-# Use a specific tag that already exists in ACR
-bash scripts/deploy/redeploy_azure_containerapps.sh --image-tag <tag> --env-only
+# Background deploy that survives terminal restarts
+bash scripts/ph.sh deploy:bg
 
-# Skip endpoint verification (rarely needed)
-bash scripts/deploy/redeploy_azure_containerapps.sh --no-verify
+# Follow background deploy logs
+bash scripts/ph.sh deploy:logs
+
+# Check background deploy status
+bash scripts/ph.sh deploy:status
+
+# See all one-command options
+bash scripts/ph.sh help
 ```
 
 ### Dev Environment Status
@@ -329,8 +335,7 @@ The Azure `dev` environment stays reachable until you delete its resource group.
 Quick status check:
 
 ```bash
-RG="rg-canepro-ph-dev-eus"
-az containerapp list -g "$RG" --query "[].{name:name,fqdn:properties.configuration.ingress.fqdn}" -o table
+bash scripts/ph.sh status
 ```
 
 ### What "Scale To Zero" Means (Plain English)
@@ -345,49 +350,19 @@ This affects Azure-hosted URLs only, not your local `podman compose` stack.
 Check current min replicas:
 
 ```bash
-RG="rg-canepro-ph-dev-eus"
-az containerapp show -g "$RG" -n ca-canepro-ph-backend --query "properties.template.scale.minReplicas" -o tsv
-az containerapp show -g "$RG" -n ca-canepro-ph-frontend --query "properties.template.scale.minReplicas" -o tsv
+bash scripts/ph.sh status
 ```
 
 Keep apps warm during demos (disable scale-to-zero temporarily):
 
 ```bash
-RG="rg-canepro-ph-dev-eus"
-az containerapp update -g "$RG" -n ca-canepro-ph-backend --min-replicas 1
-az containerapp update -g "$RG" -n ca-canepro-ph-frontend --min-replicas 1
+bash scripts/ph.sh warm
 ```
 
 Re-enable low-cost behavior after demo:
 
 ```bash
-RG="rg-canepro-ph-dev-eus"
-az containerapp update -g "$RG" -n ca-canepro-ph-backend --min-replicas 0
-az containerapp update -g "$RG" -n ca-canepro-ph-frontend --min-replicas 0
-```
-
-> **Recommended Copy-Paste Block: Toggle Warm Mode Before/After Demo**
->
-> Change only `MODE`:
-> - `MODE=warm` for demo reliability (`min-replicas=1`)
-> - `MODE=lowcost` after demo (`min-replicas=0`)
-
-```bash
-RG="rg-canepro-ph-dev-eus"
-BACKEND_APP="ca-canepro-ph-backend"
-FRONTEND_APP="ca-canepro-ph-frontend"
-MODE="warm"   # warm | lowcost
-
-if [ "$MODE" = "warm" ]; then
-  MIN=1
-else
-  MIN=0
-fi
-
-az containerapp update -g "$RG" -n "$BACKEND_APP" --min-replicas "$MIN"
-az containerapp update -g "$RG" -n "$FRONTEND_APP" --min-replicas "$MIN"
-
-echo "Set min-replicas=$MIN on $BACKEND_APP and $FRONTEND_APP"
+bash scripts/ph.sh lowcost
 ```
 
 ## Configuration
