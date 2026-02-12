@@ -77,7 +77,7 @@ restore_autostash() {
   if [[ "$AUTOSTASH_CREATED" == "1" && -n "$AUTOSTASH_REF" ]]; then
     echo "Restoring local demo-repo changes from autostash..."
     # If pop conflicts, keep stash entry so user can recover manually.
-    git stash pop "$AUTOSTASH_REF" >/dev/null || {
+    git -C "$DEMO_REPO_DIR" stash pop "$AUTOSTASH_REF" >/dev/null || {
       echo "Autostash restore had conflicts. Stash kept as: $AUTOSTASH_REF" >&2
     }
   fi
@@ -89,13 +89,8 @@ trap restore_autostash EXIT
 if ! git diff --quiet || ! git diff --cached --quiet || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
   AUTOSTASH_TAG="pipelinehealer-demo-reset-autostash-$(date +%s)"
   git stash push -u -m "$AUTOSTASH_TAG" >/dev/null
-  AUTOSTASH_REF="$(
-    git stash list --format='%gd %s' \
-      | awk -v tag="$AUTOSTASH_TAG" 'index($0, tag) { print $1; exit }'
-  )"
-  if [[ -n "$AUTOSTASH_REF" ]]; then
-    AUTOSTASH_CREATED="1"
-  fi
+  AUTOSTASH_REF="stash@{0}"
+  AUTOSTASH_CREATED="1"
 fi
 
 git checkout "$BRANCH_NAME"
