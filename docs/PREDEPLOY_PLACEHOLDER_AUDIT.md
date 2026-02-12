@@ -103,3 +103,22 @@ Mark this audit complete when all stop-ship checks pass:
 - [ ] Webhook signature verification enforced
 - [ ] API auth enforced for `/api/*` in non-dev
 - [ ] Storage and remediation behavior verified in target environment
+
+## 9) Latest Dev Sign-Off Snapshot (Feb 12, 2026)
+
+Applied environment:
+
+- Resource group: `rg-canepro-ph-dev-eus`
+- Backend app: `ca-canepro-ph-backend`
+- Frontend app: `ca-canepro-ph-frontend`
+- Azure OpenAI deployment: `gpt-5-mini`
+- Backend mode: `ENVIRONMENT=production`
+
+Verified:
+
+- [x] Infra images are real (ACR-backed backend/frontend images in Container Apps)
+- [x] Service mapping is correct (Container Apps only, no placeholder Functions service)
+- [x] No placeholder secrets in active env values
+- [x] Webhook signature verification enforced (`VERIFY_WEBHOOK_SIGNATURE=true`)
+- [x] API auth enforced for `/api/*` in non-dev (`401` without key, `200` with key)
+- [x] Storage and remediation behavior verified in deployed environment

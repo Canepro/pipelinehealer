@@ -53,7 +53,7 @@ azd up                         # provision infra (Bicep) + deploy services
 
 ## Phased Execution Plan (Track Here)
 
-**Last updated:** Feb 11, 2026
+**Last updated:** Feb 12, 2026
 
 This section is the working checklist for getting PipelineHealer demo-ready and submission-ready. As we complete work, we:
 
@@ -67,11 +67,11 @@ This section is the working checklist for getting PipelineHealer demo-ready and 
 |------:|------|--------|---------------|
 | 0 | Hygiene baseline (lint/typecheck/tests) | Completed | `backend/pyproject.toml`, `backend/src/*` |
 | 1 | Correctness (IDs, auto-fix PRs, retry behavior) | Completed | `backend/src/workflows/pipeline_healer.py`, `backend/src/agents/orchestrator.py`, `backend/src/tools/fix_generators.py`, `backend/src/agents/remediation.py`, `backend/src/api/dashboard.py` |
-| 1.5 | Safe+demo mode (more self-healing without breaking safety) | In progress | `backend/src/config.py`, `backend/src/tools/fix_generators.py`, `backend/src/agents/remediation.py`, `demo-repo/.github/workflows/ci.yml` |
+| 1.5 | Safe+demo mode (more self-healing without breaking safety) | Completed | `backend/src/config.py`, `backend/src/tools/fix_generators.py`, `backend/src/agents/remediation.py`, `demo-repo/.github/workflows/ci.yml` |
 | 2 | Security (API auth, webhook hardening) | Completed | `backend/src/main.py`, `backend/src/api/*`, `backend/src/config.py` |
 | 3 | Reliability (timeouts, retries/backoff, log handling) | Completed (backend) | `backend/src/tools/github_tools.py`, `backend/src/agents/*` |
-| 4 | Deployment alignment (azd/bicep/images/functions) | In progress | `azure.yaml`, `infra/main.bicep`, `backend/Dockerfile`, `frontend/Dockerfile` |
-| 5 | Demo + submission polish | Not started | `README.md`, `demo-repo/.github/workflows/ci.yml`, `PROJECT_STATUS.md` |
+| 4 | Deployment alignment (azd/bicep/images/container apps) | Completed (Azure dev environment provisioned and validated) | `azure.yaml`, `infra/main.bicep`, `backend/Dockerfile`, `frontend/Dockerfile` |
+| 5 | Demo + submission polish | In progress | `README.md`, `demo-repo/.github/workflows/ci.yml`, `PROJECT_STATUS.md` |
 
 ### Phase 0: Hygiene Baseline (lint/typecheck/tests)
 
@@ -197,13 +197,14 @@ Exit criteria:
 
 - `azd up` deploys the real backend/frontend images.
 - Infra no longer references placeholder hello-world images.
-- “Functions” service configuration matches real code (or is removed/adjusted).
+- Service configuration matches real code (Container Apps only for current architecture).
 
 Work items:
 
 - [x] Replace placeholder images in `infra/main.bicep` with ACR-backed backend/frontend image references.
 - [x] Align `azure.yaml` services to Container Apps (removed placeholder Functions mapping).
-- [ ] Run and sign off `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md` before `azd up`.
+- [x] Provisioned Azure dev environment in `rg-canepro-ph-dev-eus` and verified backend/frontend FQDNs.
+- [x] Run and sign off `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md` (dev signoff recorded after provisioning/verification).
 
 ### Phase 5: Demo + Submission Polish
 
@@ -216,7 +217,7 @@ Exit criteria:
 
 Work items:
 
-- [ ] Validate `demo-repo/.github/workflows/ci.yml` triggers all 5 failure types reliably.
+- [x] Validate `demo-repo/.github/workflows/ci.yml` triggers all 5 failure types reliably.
 - [ ] Add Mermaid architecture diagram to `README.md`.
 - [ ] Write a short demo script and checklist for recording.
 - [ ] Publish the next blog post in the portfolio repo and update its roadmap:
@@ -276,6 +277,12 @@ Decisions made (Recommended defaults for this repo):
 - Feb 11, 2026: Phase 4 deployment alignment started: removed `functions` service from `azure.yaml`, switched post-provision outputs to backend/frontend URLs, replaced placeholder Container App images in `infra/main.bicep` with ACR-backed backend/frontend image references, and added Canepro naming defaults in `infra/main.bicepparam`.
 - Feb 11, 2026: Fixed frontend Azure crash-loop by making Nginx backend proxy runtime-configurable (`BACKEND_UPSTREAM`), wiring local compose to `http://backend:8000` and Bicep frontend env to backend Container App FQDN.
 - Feb 11, 2026: Fixed Azure frontend `/api/*` proxy loop/auth behavior by forwarding `Host: $proxy_host`, enabling SNI (`proxy_ssl_server_name on`), and adding server-side `X-API-Key` injection from frontend `API_AUTH_KEY`.
+- Feb 12, 2026: Provisioned Azure dev stack successfully in `rg-canepro-ph-dev-eus` (ACR, Container Apps env, backend/frontend apps, OpenAI, Cosmos, Key Vault, App Insights) and verified backend health + frontend reachability.
+- Feb 12, 2026: Set production backend runtime env on Azure Container Apps (`ENVIRONMENT=production`, API auth enabled, webhook signature verification enabled) and validated `/api/settings` requires `X-API-Key`.
+- Feb 12, 2026: Azure OpenAI deployment switched to `gpt-5-mini` on backend runtime config; settings endpoint now reports `AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-mini`.
+- Feb 12, 2026: Phase 4 completed: frontend runtime proxy and API key forwarding are now stable on Azure Container Apps; backend/frontend FQDNs and auth behavior verified end-to-end.
+- Feb 12, 2026: Added recommended warm/low-cost copy-paste toggle block in README + runbook to switch `min-replicas` between demo reliability (`1`) and cost-saving idle mode (`0`).
+- Feb 12, 2026: Phase 5 started: submission checklist updated with Azure deployment complete; remaining focus is demo polish, architecture diagram, and final video/script assets.
 
 ## Project Layout
 
@@ -418,18 +425,18 @@ Recommended before switching public:
 
 - **Grand Prize: Agentic DevOps** (primary) — Automating CI/CD incident response
 - **Best Multi-Agent System** — Four-agent orchestration pipeline
-- **Best Azure Integration** — Cosmos DB, OpenAI, Container Apps, Functions, Key Vault, App Insights
+- **Best Azure Integration** — Cosmos DB, OpenAI, Container Apps, Key Vault, App Insights
 
 ### Required Technologies (must use at least one)
 
 - Microsoft Agent Framework ✅ (agent orchestration)
-- Azure OpenAI ✅ (GPT-4o for agent reasoning)
-- Azure services ✅ (Cosmos DB, Container Apps, Functions, Key Vault, App Insights)
+- Azure OpenAI ✅ (model deployment configurable; current dev uses `gpt-5-mini`)
+- Azure services ✅ (Cosmos DB, Container Apps, Key Vault, App Insights, ACR)
 - GitHub ✅ (public repo, webhooks, PR/issue creation)
 
 ### Submission Checklist
 
-- [ ] Working project deployed to Azure (`azd up`)
+- [x] Working project deployed to Azure (`azd up`)
 - [ ] Public GitHub repository
 - [ ] Project description (features, problem solved, technologies)
 - [ ] Demo video (2 min max, YouTube/Vimeo, shows the product working)
@@ -469,10 +476,9 @@ Recommended before switching public:
 
 | Service | Purpose | Config |
 |---------|---------|--------|
-| Azure OpenAI | GPT-4o for agent reasoning | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT_NAME` |
+| Azure OpenAI | Model inference for agent reasoning (`gpt-5-mini` in current dev env) | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT_NAME` |
 | Cosmos DB | Activity/healing record storage | `COSMOS_DB_ENDPOINT`, serverless tier |
 | Container Apps | Backend + frontend hosting | Defined in `azure.yaml` |
-| Functions | Webhook handler | Defined in `azure.yaml` |
 | Key Vault | Secrets (GitHub App key, etc.) | `KEY_VAULT_URL` |
 | Application Insights | Observability, tracing | `APPLICATIONINSIGHTS_CONNECTION_STRING` |
 
@@ -483,7 +489,7 @@ All variables are documented in `backend/.env.example`. Required for production:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `AZURE_OPENAI_ENDPOINT` | Yes | Azure OpenAI service endpoint |
-| `AZURE_OPENAI_DEPLOYMENT_NAME` | Yes | GPT-4o deployment name |
+| `AZURE_OPENAI_DEPLOYMENT_NAME` | Yes | Azure OpenAI deployment name (for example `gpt-5-mini` or `gpt-4o`) |
 | `COSMOS_DB_ENDPOINT` | Yes | Cosmos DB endpoint |
 | `GITHUB_WEBHOOK_SECRET` | Prod | Webhook HMAC secret |
 | `GITHUB_PERSONAL_ACCESS_TOKEN` | Dev | PAT for local development |
