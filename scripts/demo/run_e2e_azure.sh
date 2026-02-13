@@ -211,12 +211,13 @@ if [[ "${#DISPATCHED_RUN_IDS[@]}" -gt 0 ]]; then
       activities_json="$(curl -sS "$BACKEND_URL/api/activities?limit=100")"
     fi
 
-    if python3 - "${DISPATCHED_RUN_IDS[@]}" <<'PY' <<<"$activities_json"
+    if ACTIVITIES_JSON="$activities_json" python3 - "${DISPATCHED_RUN_IDS[@]}" <<'PY'
 import json
+import os
 import sys
 
 target_ids = {int(x) for x in sys.argv[1:] if x}
-payload = json.load(sys.stdin)
+payload = json.loads(os.environ.get("ACTIVITIES_JSON", "[]"))
 status_by_run = {}
 for item in payload:
     rid = item.get("workflow_run_id")
