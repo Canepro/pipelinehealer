@@ -24,6 +24,10 @@ import {
 import { api } from '../api/client'
 import StatsCard from '../components/StatsCard'
 import ActivityTable from '../components/ActivityTable'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const COLORS = ['#2563eb', '#0ea5e9', '#14b8a6', '#16a34a', '#f59e0b', '#64748b']
 
@@ -109,57 +113,72 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard
-          title="Total Processed"
-          value={showStatsLoading ? '...' : stats?.total_runs_processed || 0}
-          icon={Activity}
-          color="blue"
-        />
-        <StatsCard
-          title="Actioned"
-          value={showStatsLoading ? '...' : stats?.actioned_remediations || 0}
-          icon={CheckCircle}
-          color="green"
-        />
-        <StatsCard
-          title="Failed"
-          value={showStatsLoading ? '...' : stats?.failed_remediations || 0}
-          icon={XCircle}
-          color="red"
-        />
-        <StatsCard
-          title="Action Rate"
-          value={showStatsLoading ? '...' : `${actionRate}%`}
-          icon={TrendingUp}
-          color="blue"
-        />
-      </div>
+      {showStatsLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Card key={`stats-skeleton-${index}`}>
+              <CardContent className="p-6 space-y-3">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-8 w-20" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatsCard
+            title="Total Processed"
+            value={stats?.total_runs_processed || 0}
+            icon={Activity}
+            color="blue"
+          />
+          <StatsCard
+            title="Actioned"
+            value={stats?.actioned_remediations || 0}
+            icon={CheckCircle}
+            color="green"
+          />
+          <StatsCard
+            title="Failed"
+            value={stats?.failed_remediations || 0}
+            icon={XCircle}
+            color="red"
+          />
+          <StatsCard
+            title="Action Rate"
+            value={`${actionRate}%`}
+            icon={TrendingUp}
+            color="blue"
+          />
+        </div>
+      )}
 
       {/* Outcome Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatsCard
           title="Auto PR Rate"
-          value={showStatsLoading ? '...' : `${autoPrRate}% (${stats?.auto_pr_remediations || 0})`}
+          value={`${autoPrRate}% (${stats?.auto_pr_remediations || 0})`}
           icon={GitPullRequest}
           color="blue"
         />
         <StatsCard
           title="Issue Rate"
-          value={showStatsLoading ? '...' : `${issueRate}% (${stats?.issue_remediations || 0})`}
+          value={`${issueRate}% (${stats?.issue_remediations || 0})`}
           icon={FileText}
           color="yellow"
         />
         <StatsCard
           title="Safety-Blocked"
-          value={
-            showStatsLoading
-              ? '...'
-              : `${safetyBlockedRate}% (${stats?.safety_blocked_remediations || 0})`
-          }
+          value={`${safetyBlockedRate}% (${stats?.safety_blocked_remediations || 0})`}
           icon={ShieldAlert}
           color="red"
         />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="outline">Auto PR Rate</Badge>
+        <Badge variant="outline">Issue Rate</Badge>
+        <Badge variant="outline">Safety Blocked</Badge>
       </div>
 
       {statsError && (
@@ -171,10 +190,11 @@ export default function Dashboard() {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Failure Types Pie Chart */}
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Failure Types (Last 30 Days)
-          </h2>
+        <Card>
+          <CardHeader>
+            <CardTitle>Failure Types (Last 30 Days)</CardTitle>
+          </CardHeader>
+          <CardContent>
           {pieData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
@@ -206,13 +226,15 @@ export default function Dashboard() {
               No failure data available
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Top Repositories Bar Chart */}
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Top Repositories
-          </h2>
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Repositories</CardTitle>
+          </CardHeader>
+          <CardContent>
           {repoData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={repoData}>
@@ -237,7 +259,8 @@ export default function Dashboard() {
               No repository data available
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Recent Activities */}
@@ -246,12 +269,9 @@ export default function Dashboard() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Recent Activities
           </h2>
-          <a
-            href="/activities"
-            className="text-sm text-azure-600 hover:text-azure-700 dark:text-azure-400"
-          >
-            View all
-          </a>
+          <Button asChild size="sm" variant="ghost">
+            <a href="/activities">View all</a>
+          </Button>
         </div>
         <ActivityTable
           activities={activities || []}
@@ -261,7 +281,8 @@ export default function Dashboard() {
 
       {/* Average Resolution Time */}
       {stats && stats.average_resolution_time_seconds > 0 && (
-        <div className="card p-6">
+        <Card>
+          <CardContent className="p-6">
           <div className="flex items-center">
             <Clock className="h-8 w-8 text-azure-500" />
             <div className="ml-4">
@@ -273,7 +294,8 @@ export default function Dashboard() {
               </p>
             </div>
           </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

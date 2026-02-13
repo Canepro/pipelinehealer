@@ -1,5 +1,7 @@
 import clsx from 'clsx'
 import { LucideIcon } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface StatsCardProps {
   title: string
@@ -27,8 +29,9 @@ export default function StatsCard({
   color = 'blue',
 }: StatsCardProps) {
   return (
-    <div className="card p-6">
-      <div className="flex items-center">
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center">
         <div className={clsx('p-3 rounded-lg', colorClasses[color])}>
           <Icon className="h-6 w-6" />
         </div>
@@ -41,18 +44,14 @@ export default function StatsCard({
               {value}
             </p>
             {trend && (
-              <span
-                className={clsx(
-                  'ml-2 text-sm font-medium',
-                  trend.isPositive ? 'text-green-600' : 'text-red-600'
-                )}
-              >
+              <Badge className="ml-2" variant={trend.isPositive ? 'success' : 'destructive'}>
                 {trend.isPositive ? '+' : '-'}{Math.abs(trend.value)}%
-              </span>
+              </Badge>
             )}
           </div>
         </div>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Info, LockKeyhole, Save, Shield, SlidersHorizontal, Wrench } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../api/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 
 function BoolBadge({ value }: { value: boolean }) {
@@ -76,6 +78,14 @@ export default function SettingsPage() {
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['app-settings', adminKey] })
+      toast.success('Settings saved', {
+        description: 'Runtime settings were updated successfully.',
+      })
+    },
+    onError: (err) => {
+      toast.error('Failed to save settings', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      })
     },
   })
 
@@ -119,9 +129,13 @@ export default function SettingsPage() {
       </Card>
 
       {adminKey && isLoading && (
-        <div className="card p-6 text-sm text-gray-500 dark:text-gray-400">
-          Loading admin settings...
-        </div>
+        <Card className="p-6">
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-44" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        </Card>
       )}
 
       {adminKey && isError && (

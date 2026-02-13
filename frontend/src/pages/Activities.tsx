@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Filter, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../api/client'
 import ActivityTable from '../components/ActivityTable'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
@@ -34,6 +37,17 @@ export default function Activities() {
     queryFn: () => api.getActivities(filters),
   })
 
+  const handleRefresh = async () => {
+    try {
+      await refetch({ cancelRefetch: false })
+      toast.success('Activities refreshed')
+    } catch (err) {
+      toast.error('Refresh failed', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      })
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -46,53 +60,53 @@ export default function Activities() {
             All CI/CD healing activities
           </p>
         </div>
-        <button
-          onClick={() => {
-            void refetch({ cancelRefetch: false })
-          }}
+        <Button
+          variant="secondary"
+          onClick={() => void handleRefresh()}
           disabled={isLoading}
-          className="btn-secondary flex items-center"
           aria-busy={isFetching}
         >
           <RefreshCw
             className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`}
           />
           {isFetching ? 'Refreshing...' : 'Refresh'}
-        </button>
+        </Button>
       </div>
 
       {/* Filters */}
-      <div className="card p-4">
-        <div className="flex items-center space-x-4">
-          <Filter className="h-5 w-5 text-gray-400" />
-          <select
-            value={filters.status}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, status: e.target.value }))
-            }
-            className="bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-azure-500"
-          >
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filters.failure_type}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, failure_type: e.target.value }))
-            }
-            className="bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-azure-500"
-          >
-            {failureTypeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center space-x-4">
+            <Filter className="h-5 w-5 text-gray-400" />
+            <select
+              value={filters.status}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, status: e.target.value }))
+              }
+              className="h-10 rounded-lg border border-[var(--ph-border)] bg-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-azure-500 dark:bg-gray-700 dark:text-gray-100"
+            >
+              {statusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filters.failure_type}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, failure_type: e.target.value }))
+              }
+              className="h-10 rounded-lg border border-[var(--ph-border)] bg-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-azure-500 dark:bg-gray-700 dark:text-gray-100"
+            >
+              {failureTypeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Activities Table */}
       <ActivityTable activities={activities || []} isLoading={isLoading} />

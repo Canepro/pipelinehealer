@@ -4,6 +4,10 @@ import { ExternalLink, GitBranch } from 'lucide-react'
 import type { Activity } from '../api/client'
 import StatusBadge from './StatusBadge'
 import FailureTypeBadge from './FailureTypeBadge'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface ActivityTableProps {
   activities: Activity[]
@@ -31,31 +35,41 @@ function getIssueProposalMeta(activity: Activity): {
 export default function ActivityTable({ activities, isLoading }: ActivityTableProps) {
   if (isLoading) {
     return (
-      <div className="card">
-        <div className="p-8 text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-azure-500 border-t-transparent rounded-full mx-auto"></div>
-          <p className="mt-4 text-gray-500">Loading activities...</p>
-        </div>
-      </div>
+      <Card>
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <Skeleton className="h-5 w-40" />
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="grid grid-cols-6 gap-4">
+                <Skeleton className="h-10 col-span-2" />
+                <Skeleton className="h-10 col-span-1" />
+                <Skeleton className="h-10 col-span-1" />
+                <Skeleton className="h-10 col-span-1" />
+                <Skeleton className="h-10 col-span-1" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     )
   }
 
   if (activities.length === 0) {
     return (
-      <div className="card">
-        <div className="p-8 text-center">
+      <Card>
+        <CardContent className="p-8 text-center">
           <GitBranch className="h-12 w-12 text-gray-400 mx-auto" />
           <p className="mt-4 text-gray-500">No activities found</p>
           <p className="text-sm text-gray-400">
             Activities will appear here when workflow failures are processed
           </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="card overflow-hidden">
+    <Card className="overflow-hidden">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-slate-100/70 dark:bg-slate-800/60">
@@ -110,20 +124,20 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
                   <StatusBadge status={activity.status} size="sm" />
                   <div className="mt-2 flex flex-wrap gap-1">
                     {meta.output && (
-                      <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-slate-700/60 dark:text-slate-200">
+                      <Badge className="rounded-md text-[11px]" variant="secondary">
                         Output: {meta.output}
-                      </span>
+                      </Badge>
                     )}
                   </div>
                   {meta.includesProposedFix && (
                     <div className="mt-2 flex flex-wrap gap-1">
-                      <span className="inline-flex items-center rounded-md bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">
+                      <Badge className="rounded-md text-[11px]" variant="outline">
                         Includes Proposed Fix
-                      </span>
+                      </Badge>
                       {meta.reasonCode && (
-                        <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
+                        <Badge className="rounded-md text-[11px]" variant="secondary">
                           {meta.reasonCode}
-                        </span>
+                        </Badge>
                       )}
                     </div>
                   )}
@@ -140,21 +154,19 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <div className="flex items-center space-x-2">
-                    <Link
-                      to={`/activities/${activity.id}`}
-                      className="text-sky-600 hover:text-sky-700 dark:text-sky-400"
-                    >
-                      View
-                    </Link>
+                    <Button asChild variant="ghost" size="sm">
+                      <Link to={`/activities/${activity.id}`}>View</Link>
+                    </Button>
                     {activity.remediation_result?.pr_url && (
-                      <a
-                        href={activity.remediation_result.pr_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-gray-400 hover:text-gray-500"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
+                      <Button asChild variant="ghost" size="icon">
+                        <a
+                          href={activity.remediation_result.pr_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
                     )}
                   </div>
                 </td>
@@ -163,6 +175,6 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   )
 }
