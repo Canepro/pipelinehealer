@@ -78,11 +78,22 @@ export interface AppSettings {
   github_pat_configured: boolean
   github_app_configured: boolean
   github_auth_mode: string
+  ph_allowed_repos: string[]
   cors_allowed_origins: string[]
   cors_allow_origin_regex: string
   azure_openai_endpoint: string
   azure_openai_deployment_name: string
   azure_openai_api_version: string
+}
+
+export interface AdminSettingsAuditEntry {
+  timestamp: string
+  changed_keys: string[]
+  changes: Record<string, { old: unknown; new: unknown }>
+  actor?: string
+  request_id?: string
+  client_ip?: string
+  user_agent?: string
 }
 
 export interface AdminSettingsUpdate {
@@ -147,6 +158,11 @@ export const api = {
   getStats: () => fetchJson<DashboardStats>('/api/stats'),
   getSettings: (adminKey: string) =>
     fetchJson<AppSettings>('/api/settings', { adminKey }),
+  getSettingsAudit: (adminKey: string, limit = 50) =>
+    fetchJson<AdminSettingsAuditEntry[]>(
+      `/api/settings/audit?limit=${Math.max(1, Math.min(limit, 200))}`,
+      { adminKey }
+    ),
   updateSettings: (adminKey: string, payload: AdminSettingsUpdate) =>
     fetchJson<AppSettings>('/api/settings', {
       method: 'PATCH',
