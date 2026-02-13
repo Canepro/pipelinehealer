@@ -76,6 +76,25 @@ The solution is built for DevOps engineers, software developers, and engineering
 
 PipelineHealer's architecture uses coordinated agents for log analysis, failure diagnosis, remediation, and workflow orchestration. The system leverages technologies including the Microsoft Agent Framework, Azure OpenAI, FastAPI, React/TypeScript, Azure Cosmos DB, Azure Container Apps, Azure Key Vault, and Azure Application Insights. All activity is tracked and visualized in a professional dashboard for real-time transparency and admin controls.
 
+## What Problem This Solves
+
+CI failures often force teams into repetitive, low-signal triage loops. PipelineHealer reduces that operational drag by turning failed runs into structured, actionable outputs:
+
+- deterministic PRs for bounded, high-confidence fixes
+- review-ready issues for ambiguous or policy-gated cases
+- one-click drilldown from dashboard summary to specific evidence and artifacts
+
+This shortens time-to-understanding without requiring blind automation.
+
+## Why This Is Safe To Trust
+
+PipelineHealer prioritizes governed remediation over unchecked autonomy:
+
+- **Safety gating**: policy boundaries are explicit (for example allowlist scope), with reason codes visible in UI.
+- **Explainability panels**: each selected activity surfaces failure type, confidence, proposed action, reason code, and evidence lines.
+- **Request-id propagation**: responses include trace identifiers so actions can be correlated across UI and backend logs.
+- **Admin audit trail**: settings changes are recorded with old/new diffs, actor fingerprints, and trace data (`/api/settings/audit`).
+
 ## What Uses AI vs Pure Logic
 
 PipelineHealer intentionally mixes deterministic logic with LLM calls.
