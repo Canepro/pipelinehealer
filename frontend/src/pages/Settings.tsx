@@ -328,11 +328,11 @@ export default function SettingsPage() {
               </div>
               <dl className="space-y-3 text-sm">
                 <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">API auth key configured</dt>
+                  <dt className="text-gray-500 dark:text-gray-400">API auth key</dt>
                   <dd><BoolBadge value={data.api_auth_enabled} /></dd>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Admin key configured</dt>
+                  <dt className="text-gray-500 dark:text-gray-400">Admin key</dt>
                   <dd><BoolBadge value={data.admin_api_auth_enabled} /></dd>
                 </div>
                 <div className="flex justify-between gap-4">
@@ -463,11 +463,11 @@ export default function SettingsPage() {
                   </dd>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">PAT configured</dt>
+                  <dt className="text-gray-500 dark:text-gray-400">PAT auth</dt>
                   <dd><BoolBadge value={data.github_pat_configured} /></dd>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">GitHub App configured</dt>
+                  <dt className="text-gray-500 dark:text-gray-400">GitHub App auth</dt>
                   <dd><BoolBadge value={data.github_app_configured} /></dd>
                 </div>
                 <div className="flex justify-between gap-4">
