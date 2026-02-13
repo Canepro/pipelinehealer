@@ -98,6 +98,7 @@ Edit `backend/.env`:
 - `AZURE_OPENAI_API_KEY` (recommended for local)
 - `GITHUB_PERSONAL_ACCESS_TOKEN` (recommended for local)
 - `ADMIN_API_KEY` (required for `/api/settings` admin read/write)
+- `API_AUTH_KEY` (required for `/api/*` in non-development; `/api/settings*` uses API key + admin key)
 - `HEAL_MODE=safe` (recommended) or `HEAL_MODE=demo`
 - Optional reliability knobs:
   - `PIPELINE_STEP_TIMEOUT_SECONDS=120`
@@ -375,13 +376,14 @@ Expected:
 Optional settings check (runtime config snapshot):
 
 ```bash
-curl -sS -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings"
+curl -sS -H "X-API-Key: $API_AUTH_KEY" -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings"
 ```
 
 Optional runtime override check (applies immediately, resets on backend restart):
 
 ```bash
 curl -sS -X PATCH \
+  -H "X-API-Key: $API_AUTH_KEY" \
   -H "X-Admin-Key: $ADMIN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"heal_mode":"safe","pipeline_step_timeout_seconds":120}' \
@@ -391,6 +393,7 @@ curl -sS -X PATCH \
 Frontend Settings page:
 
 - Open `/settings` in the UI (for example `http://127.0.0.1:3000/settings` in dev), paste `ADMIN_API_KEY`, and use **Load Settings**.
+- Audit panel behavior is explicit by design: use **Load Audit** to fetch `GET /api/settings/audit` only when needed.
 
 ## Troubleshooting
 

@@ -12,6 +12,8 @@ Use this index to find the right doc quickly.
   - Pre-deploy stop-ship checklist.
 - `FUTURE_PLAN.md`
   - Post-demo roadmap and next-priority backlog.
+- `UI_PLAN.md`
+  - UI maturity plan, principles, and weekly tracking through submission.
 - `../AGENTS.md`
   - Concise repo operating rules for agents and maintainers.
 - `../CONTRIBUTING.md`

@@ -25,6 +25,7 @@ PipelineHealer is an Azure-deployed, multi-agent CI remediation system built for
 - Runtime verification commands:
   - `bash scripts/ph.sh status`
   - `bash scripts/ph.sh settings:check`
+  - Admin audit proof (dual-key): `PATCH /api/settings` + `GET /api/settings/audit`
 
 Use `bash scripts/ph.sh status` to print current backend/frontend Azure FQDNs before sharing links.
 
@@ -34,6 +35,7 @@ Use `bash scripts/ph.sh status` to print current backend/frontend Azure FQDNs be
 - `docs/DEMO_SCRIPT.md`: single-file recording checklist and 2-minute script
 - `docs/LOCAL_DEMO_RUNBOOK.md`: detailed local + Azure E2E operations
 - `docs/HACKATHON_LOG.md`: phase status, submission checklist, and milestones
+- `docs/UI_PLAN.md`: UI maturity plan, design principles, and weekly tracking
 - `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md`: pre-deploy safety audit
 - `docs/FUTURE_PLAN.md`: post-demo and post-hackathon roadmap
 - `CONTRIBUTING.md`: contributor workflow and quality gates
@@ -157,8 +159,9 @@ flowchart LR
 - **Multi-Agent Architecture**: Specialized agents for log analysis, diagnosis, and remediation
 - **Intelligent Diagnosis**: Pattern-based and AI-powered root cause analysis
 - **Automated Remediation**: Creates PRs for auto-fixable issues, detailed issues for others
-- **Professional Dashboard UI**: Refined visual system for clearer status and activity triage
+- **Professional Dashboard UI**: Shadcn-style component system with polished dashboard/activity states
 - **Admin Settings Surface**: Admin-key-protected runtime settings page (`/settings`) with safe in-memory overrides
+- **Admin Audit Visibility**: Explicit-load audit panel with request IDs, actor fingerprints, and old/new setting diffs
 - **Enterprise Ready**: Azure-native with full observability and security
 
 ## Deterministic Fix Matrix
@@ -338,7 +341,7 @@ bash scripts/ph.sh demo:e2e --skip-webhook-sync
 bash scripts/ph.sh demo:reset
 
 # Faster verify window for repeated test runs
-bash scripts/ph.sh demo:e2e --wait-seconds 40
+bash scripts/ph.sh demo:e2e --wait-seconds 120
 ```
 
 ### Shell Safety For Copy-Paste Blocks
@@ -615,7 +618,7 @@ Use the included `demo-repo/` fixtures or the public demo repository `Canepro/pi
 For the fastest path, run from repo root:
 
 ```bash
-bash scripts/ph.sh demo:e2e --wait-seconds 40
+bash scripts/ph.sh demo:e2e --wait-seconds 120
 ```
 
 If you need manual control, the demo workflow supports dispatch by failure type:
