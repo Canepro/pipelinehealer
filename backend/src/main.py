@@ -3,6 +3,7 @@
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from uuid import uuid4
 
 import structlog
 from fastapi import FastAPI
@@ -109,6 +110,15 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def request_id_middleware(request, call_next):  # type: ignore[no-untyped-def]
+        """Attach/request a stable request ID and return it in response headers."""
+        request_id = request.headers.get("X-Request-Id") or str(uuid4())
+        request.state.request_id = request_id
+        response = await call_next(request)
+        response.headers["X-Request-Id"] = request_id
+        return response
 
     # Include routers
     app.include_router(webhook.router)

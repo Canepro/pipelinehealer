@@ -248,5 +248,7 @@ class AdminSettingsAuditEntry(BaseModel):
     timestamp: datetime = Field(default_factory=utcnow)
     changed_keys: list[str] = Field(default_factory=list)
     changes: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    actor: str | None = None
+    request_id: str | None = None
     client_ip: str | None = None
     user_agent: str | None = None

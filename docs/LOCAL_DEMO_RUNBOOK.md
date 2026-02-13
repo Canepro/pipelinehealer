@@ -175,6 +175,8 @@ Admin settings audit trail (latest first, admin-only):
 curl -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings/audit?limit=20"
 ```
 
+Entries include `request_id`, actor fingerprint, changed keys, and old/new values. This trail is in-memory for demo use and resets on backend restart/revision.
+
 Script help:
 
 ```bash

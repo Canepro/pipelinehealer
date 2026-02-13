@@ -476,6 +476,7 @@ bash scripts/ph.sh lowcost
 | `GITHUB_PERSONAL_ACCESS_TOKEN` | GitHub PAT for API access | Yes |
 | `API_AUTH_KEY` | Required `X-API-Key` value for `/api/*` in non-development envs | Yes (non-dev) |
 | `ADMIN_API_KEY` | Required `X-Admin-Key` value for admin settings endpoints (`GET/PATCH /api/settings`) | Yes (recommended in all envs) |
+| `AUDIT_SALT` | Optional salt used to derive admin actor fingerprints for settings-audit records | Optional |
 | `VERIFY_WEBHOOK_SIGNATURE` | Enable webhook signature verification | Recommended `true` |
 | `VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT` | Enforce signature checks in development too | Optional |
 | `CORS_ALLOWED_ORIGINS` | Exact CORS origins (CSV or JSON array) | Optional |
@@ -516,6 +517,12 @@ curl -X PATCH \
 
 curl -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings/audit?limit=20"
 ```
+
+Audit trail notes:
+
+- `/api/settings/audit` is a lightweight in-memory audit trail for hackathon demos.
+- Entries include `request_id`, actor fingerprint (`admin_key:sha256:<short>`), changed keys, and old/new values.
+- In-memory entries reset on backend restart/revision; durable persistence is a post-submission roadmap item.
 
 ### GitHub Webhook Setup
 

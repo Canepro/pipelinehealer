@@ -248,6 +248,7 @@ async def test_settings_endpoint_requires_admin_key(monkeypatch) -> None:
 async def test_admin_can_patch_runtime_settings(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("AUDIT_SALT", "audit-salt-1")
     get_settings.cache_clear()
 
     dashboard.set_storage(InMemoryStorage())
@@ -263,9 +264,10 @@ async def test_admin_can_patch_runtime_settings(monkeypatch) -> None:
             "log_prompt_head_chars": 6000,
             "log_prompt_tail_chars": 6000,
         },
-        headers={"X-Admin-Key": "admin-secret"},
+        headers={"X-Admin-Key": "admin-secret", "X-Request-Id": "req-abc-123"},
     )
     assert response.status_code == 200
+    assert response.headers.get("X-Request-Id") == "req-abc-123"
 
     data = response.json()
     assert data["heal_mode"] == "demo"
@@ -280,3 +282,5 @@ async def test_admin_can_patch_runtime_settings(monkeypatch) -> None:
     latest = entries[0]
     assert "heal_mode" in latest["changed_keys"]
     assert latest["changes"]["heal_mode"]["new"] == "demo"
+    assert latest["request_id"] == "req-abc-123"
+    assert str(latest["actor"]).startswith("admin_key:sha256:")

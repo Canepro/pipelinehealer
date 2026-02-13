@@ -52,6 +52,7 @@ The following are already implemented in the current project state:
 - Add dashboard views for remediation trend lines and outcome ratios over time.
 - Add exportable run summary for demos and incident review.
 - Add structured audit trail fields for policy decisions (why PR vs issue).
+- Move admin settings audit trail from in-memory runtime storage to durable storage (Cosmos DB or Log Analytics).
 
 ## 7) Demo Experience Hardening
 

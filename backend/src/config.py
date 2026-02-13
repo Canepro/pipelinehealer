@@ -103,6 +103,10 @@ class Settings(BaseSettings):
         default="",
         description="Admin API key required for admin settings operations (sent via X-Admin-Key)",
     )
+    audit_salt: str = Field(
+        default="",
+        description="Optional salt used when generating admin actor fingerprints for audit entries",
+    )
 
     # CORS
     cors_allowed_origins: Annotated[list[str], NoDecode] = Field(

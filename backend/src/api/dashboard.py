@@ -1,5 +1,6 @@
 """Dashboard API endpoints for PipelineHealer."""
 
+import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -164,6 +165,7 @@ async def update_app_settings(
     update: AdminSettingsUpdateRequest,
     request: Request,
     user_agent: str | None = Header(default=None, alias="User-Agent"),
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
 ) -> AppSettingsView:
     """Apply admin runtime overrides (in-memory until backend restart)."""
     settings = get_settings()
@@ -197,12 +199,19 @@ async def update_app_settings(
     workflow = get_workflow()
     workflow.refresh_runtime_settings()
 
+    actor_fingerprint: str | None = None
+    if x_admin_key:
+        salted = f"{settings.audit_salt}:{x_admin_key}" if settings.audit_salt else x_admin_key
+        actor_fingerprint = f"admin_key:sha256:{hashlib.sha256(salted.encode('utf-8')).hexdigest()[:12]}"
+
     audit_entry = AdminSettingsAuditEntry(
         changed_keys=sorted(changes.keys()),
         changes={
             key: {"old": previous_values[key], "new": changes[key]}
             for key in sorted(changes.keys())
         },
+        actor=actor_fingerprint,
+        request_id=getattr(request.state, "request_id", None),
         client_ip=request.client.host if request.client else None,
         user_agent=user_agent,
     )

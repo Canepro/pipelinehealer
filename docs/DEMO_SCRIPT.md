@@ -107,7 +107,7 @@ Expected result pattern:
 
 - PRs: dependency + lint
 - Issues: test + build_config + timeout
-- Admin audit endpoint returns recent settings changes (if any were applied)
+- Admin audit endpoint returns recent settings changes (if any were applied), including `request_id` and actor fingerprint.
 
 ## 5) 2-Minute Recording Script (Final)
 
