@@ -150,6 +150,21 @@ These are enforceable defaults for all primary product screens.
   - snapshot includes compact evidence lines and direct workflow-run link
   - Activities supports `?focus=<activity_id>` with focused badge + timed row highlight + clear-focus control
 
+### Week 2 Evidence
+
+- Screenshots:
+  - `docs/screens/week2-dashboard-1440x900.png` (story row + safety framing + explainability actions)
+  - `docs/screens/week2-activities-focus-390x844.png` (focused view badge + highlight + clear focus)
+- Focused activity used:
+  - `84cf0bc9-15e3-49bd-851e-2a24286c64a3`
+- Proof links:
+  - Example issue: `https://github.com/Canepro/pipelinehealer-demo/issues/60`
+  - Example workflow run: `https://github.com/Canepro/pipelinehealer-demo/actions/runs/21976047389`
+- Quality gates:
+  - `bun run lint` pass
+  - `bun run build` pass
+  - no horizontal overflow at `1440x900` and `390x844`
+
 ## Week 3 Plan
 
 - [ ] Settings/audit micro-UX polish:
