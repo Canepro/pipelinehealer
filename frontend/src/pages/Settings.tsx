@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { formatDistanceToNow } from 'date-fns'
 import { Copy, Info, LockKeyhole, Save, Shield, SlidersHorizontal, Wrench } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, type AdminSettingsAuditEntry } from '../api/client'
@@ -143,7 +144,9 @@ export default function SettingsPage() {
 
     const tracePayload = [
       `X-Request-Id: ${entry.request_id}`,
+      '',
       `Actor: ${entry.actor || 'unknown'}`,
+      '',
       `When: ${new Date(entry.timestamp).toISOString()}`,
     ].join('\n')
 
@@ -717,7 +720,12 @@ export default function SettingsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-xs text-gray-600 dark:text-gray-300">
-                          {new Date(entry.timestamp).toLocaleString()}
+                          <span
+                            className="cursor-help"
+                            title={new Date(entry.timestamp).toISOString()}
+                          >
+                            {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
+                          </span>
                         </TableCell>
                       </TableRow>
                     ))}
