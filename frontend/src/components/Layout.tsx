@@ -84,7 +84,7 @@ export default function Layout({ children }: LayoutProps) {
       </div>
 
       {/* Main content */}
-      <div className="flex flex-col flex-1">
+      <div className="min-w-0 flex flex-col flex-1">
         <main className="flex-1 md:pt-0 pt-16">
           <div className="py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">

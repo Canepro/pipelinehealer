@@ -82,7 +82,7 @@ These are enforceable defaults for all primary product screens.
   - use shared shadcn `Table` primitives only
   - avoid custom `<div>`-based table layouts.
 
-## Week 1 Plan (In Progress)
+## Week 1 Plan (Completed)
 
 - [x] Establish shared primitives and remove one-off markup for core pages.
 - [x] Add skeleton loading states for key dashboard/activity views.
@@ -102,9 +102,23 @@ These are enforceable defaults for all primary product screens.
   - Dashboard
   - Activities
   - Settings
-- [ ] Screens verified:
+- [x] Screens verified:
   - desktop width
   - mobile width
+
+### Evidence (2026-02-13)
+
+- Verified with Playwright Firefox on local preview (`http://127.0.0.1:4174`).
+- Desktop checks:
+  - `1280x800`: Dashboard, Activities, Settings
+  - `1440x900`: Dashboard, Activities, Settings
+- Mobile/tablet checks:
+  - `390x844`: Dashboard, Activities, Settings
+  - `768x1024`: Dashboard, Activities, Settings
+- Validation result:
+  - no horizontal overflow (`scrollWidth === innerWidth`) on all verified pages/viewports
+  - activities list remains readable in card mode at smaller breakpoints
+  - settings audit panel remains readable at mobile and tablet widths
 
 ## Week 2 Plan
 
