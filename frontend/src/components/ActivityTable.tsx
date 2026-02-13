@@ -10,6 +10,24 @@ interface ActivityTableProps {
   isLoading?: boolean
 }
 
+function getIssueProposalMeta(activity: Activity): {
+  includesProposedFix: boolean
+  reasonCode: string | null
+  output: string | null
+} {
+  const details = activity.remediation_result?.details
+  const includes = details?.includes_proposed_fix === true
+  const reason =
+    typeof details?.not_auto_reason_code === 'string'
+      ? details.not_auto_reason_code
+      : null
+  const output =
+    typeof activity.remediation_result?.action_taken === 'string'
+      ? activity.remediation_result.action_taken.replace('_', ' ').toUpperCase()
+      : null
+  return { includesProposedFix: includes, reasonCode: reason, output }
+}
+
 export default function ActivityTable({ activities, isLoading }: ActivityTableProps) {
   if (isLoading) {
     return (
@@ -63,7 +81,9 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
             </tr>
           </thead>
           <tbody className="bg-transparent divide-y divide-gray-200 dark:divide-gray-700">
-            {activities.map((activity) => (
+            {activities.map((activity) => {
+              const meta = getIssueProposalMeta(activity)
+              return (
               <tr key={activity.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
@@ -88,6 +108,25 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <StatusBadge status={activity.status} size="sm" />
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {meta.output && (
+                      <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-slate-700/60 dark:text-slate-200">
+                        Output: {meta.output}
+                      </span>
+                    )}
+                  </div>
+                  {meta.includesProposedFix && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      <span className="inline-flex items-center rounded-md bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">
+                        Includes Proposed Fix
+                      </span>
+                      {meta.reasonCode && (
+                        <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
+                          {meta.reasonCode}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {activity.failure_type ? (
@@ -120,7 +159,7 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
                   </div>
                 </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>

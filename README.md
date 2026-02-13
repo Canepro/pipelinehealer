@@ -156,6 +156,13 @@ The remediation policy is intentionally conservative: deterministic, bounded edi
 
 Issue output may include a `Proposed Fix (For Review Only)` section. These patches are suggestions for human review and are never auto-applied.
 
+Reason code legend for non-auto-applied issue suggestions:
+- `LOW_CONFIDENCE`: confidence score is below auto-remediation threshold.
+- `AMBIGUOUS_RESOLUTION`: multiple valid remediations detected; human choice required.
+- `OUTSIDE_ALLOWED_FILES`: suggested change touches files outside the safe allowlist.
+- `REQUIRES_ENV_CONTEXT`: fix depends on repository/environment context not available at runtime.
+- `SAFETY_BOUND`: blocked by configured safety constraints or mode restrictions.
+
 ## Safety Model
 
 PipelineHealer is built for controlled remediation, not unconstrained autonomous edits.

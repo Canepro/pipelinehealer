@@ -585,6 +585,11 @@ class RemediationAgent:
             # Add workflow run link to the issue body
             body = plan.issue_body or ""
             body += f"\n\n**Workflow Run:** https://github.com/{owner}/{repo}/actions/runs/{workflow_run_id}"
+            includes_proposed_fix = "### Proposed Fix (For Review Only)" in body
+            reason_code_match = re.search(r"Reason Code:\s*([A-Z_]+)", body)
+            not_auto_reason_code = reason_code_match.group(1) if reason_code_match else None
+            reason_detail_match = re.search(r"Detail:\s*(.+)", body)
+            not_auto_reason_detail = reason_detail_match.group(1).strip() if reason_detail_match else None
 
             issue_result = await self._github_tools.create_issue(
                 owner=owner,
@@ -601,7 +606,12 @@ class RemediationAgent:
                 success=True,
                 action_taken=RemediationAction.CREATE_ISSUE,
                 issue_url=issue_url,
-                details={"issue_number": issue_result.get("number")},
+                details={
+                    "issue_number": issue_result.get("number"),
+                    "includes_proposed_fix": includes_proposed_fix,
+                    "not_auto_reason_code": not_auto_reason_code,
+                    "not_auto_reason_detail": not_auto_reason_detail,
+                },
             )
 
         except Exception as e:

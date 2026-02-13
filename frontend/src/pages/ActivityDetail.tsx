@@ -13,6 +13,23 @@ import { api } from '../api/client'
 import StatusBadge from '../components/StatusBadge'
 import FailureTypeBadge from '../components/FailureTypeBadge'
 
+function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
+  includesProposedFix: boolean
+  reasonCode: string | null
+  reasonDetail: string | null
+} {
+  const includes = details?.includes_proposed_fix === true
+  const reason =
+    typeof details?.not_auto_reason_code === 'string'
+      ? details.not_auto_reason_code
+      : null
+  const reasonDetail =
+    typeof details?.not_auto_reason_detail === 'string'
+      ? details.not_auto_reason_detail
+      : null
+  return { includesProposedFix: includes, reasonCode: reason, reasonDetail }
+}
+
 export default function ActivityDetail() {
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
@@ -54,6 +71,7 @@ export default function ActivityDetail() {
       </div>
     )
   }
+  const remediationMeta = getIssueProposalMeta(activity.remediation_result?.details)
 
   return (
     <div className="space-y-6">
@@ -305,6 +323,28 @@ export default function ActivityDetail() {
                   {activity.remediation_result.issue_url}
                   <ExternalLink className="h-4 w-4 ml-1" />
                 </a>
+              </div>
+            )}
+            {remediationMeta.includesProposedFix && (
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Issue Metadata
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center rounded-md bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">
+                    Includes Proposed Fix
+                  </span>
+                  {remediationMeta.reasonCode && (
+                    <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
+                      {remediationMeta.reasonCode}
+                    </span>
+                  )}
+                </div>
+                {remediationMeta.reasonDetail && (
+                  <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                    {remediationMeta.reasonDetail}
+                  </p>
+                )}
               </div>
             )}
             {activity.remediation_result.error_message && (

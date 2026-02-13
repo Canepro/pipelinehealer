@@ -218,6 +218,9 @@ async def test_remediation_low_confidence_creates_review_issue() -> None:
     assert result.success is True
     assert result.action_taken == RemediationAction.CREATE_ISSUE
     assert result.issue_url is not None
+    assert result.details.get("includes_proposed_fix") is True
+    assert result.details.get("not_auto_reason_code") == NotAutoApplyReason.LOW_CONFIDENCE.value
+    assert isinstance(result.details.get("not_auto_reason_detail"), str)
     assert gh.issue_calls
     body = gh.issue_calls[0]["body"]
     assert "### Proposed Fix (For Review Only)" in body
