@@ -26,6 +26,10 @@ PipelineHealer is an Azure-deployed, multi-agent CI remediation system built for
   - `bash scripts/ph.sh status`
   - `bash scripts/ph.sh settings:check`
   - Admin audit proof (dual-key): `PATCH /api/settings` + `GET /api/settings/audit`
+- Quality gates:
+  - Responsive verified at `1280x800`, `1440x900`, `390x844`, `768x1024`
+  - No horizontal overflow (`scrollWidth === innerWidth`)
+  - Frontend `lint` and `build` passing
 
 Use `bash scripts/ph.sh status` to print current backend/frontend Azure FQDNs before sharing links.
 
