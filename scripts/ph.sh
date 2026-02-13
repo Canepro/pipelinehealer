@@ -61,6 +61,7 @@ need_cmd() {
 }
 
 env_file() {
+  # Single source of truth for runtime settings used by helper commands.
   echo "$REPO_ROOT/backend/.env"
 }
 
@@ -84,6 +85,7 @@ upsert_env_key() {
     exit 1
   fi
 
+  # Replace in place if key exists; append if missing.
   local tmp
   tmp="$(mktemp)"
   awk -v k="$key" -v v="$value" '
@@ -125,6 +127,7 @@ sync_repo_webhook() {
     exit 1
   fi
 
+  # We keep exactly one active Azure direct webhook and disable stale smee channels.
   local smee_hook_ids azure_hook_ids azure_hook_id
   smee_hook_ids="$(gh api "repos/$repo/hooks" --jq '.[] | select((.config.url // "") | contains("smee.io")) | .id' || true)"
   azure_hook_ids="$(gh api "repos/$repo/hooks" --jq ".[] | select((.config.url // \"\") | contains(\"$backend_fqdn\")) | .id" || true)"
@@ -143,6 +146,7 @@ sync_repo_webhook() {
     return 0
   fi
 
+  # Disable smee hooks to avoid duplicate deliveries when using Azure direct routing.
   if [[ -n "${smee_hook_ids:-}" ]]; then
     while IFS= read -r hook_id; do
       [[ -z "${hook_id:-}" ]] && continue
@@ -257,12 +261,14 @@ cmd_rollout_canary() {
     exit 2
   fi
 
+  # Canary defaults: constrain scope and keep remediation conservative.
   upsert_env_key "PH_ALLOWED_REPOS" "$normalized_csv"
   upsert_env_key "HEAL_MODE" "safe"
   if [[ "$issue_only" == "1" ]]; then
     upsert_env_key "AUTO_CREATE_PR" "false"
   fi
 
+  # Push updated env to Azure before wiring hooks so runtime policy is active first.
   if [[ "$apply_env" == "1" ]]; then
     bash "$SCRIPT_DIR/deploy/redeploy_azure_containerapps.sh" --env-only
   fi

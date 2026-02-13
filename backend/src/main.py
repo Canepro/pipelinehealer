@@ -114,6 +114,7 @@ def create_app() -> FastAPI:
     @app.middleware("http")
     async def request_id_middleware(request, call_next):  # type: ignore[no-untyped-def]
         """Attach/request a stable request ID and return it in response headers."""
+        # Preserve caller-supplied IDs so operators can correlate curl/UI actions with logs.
         request_id = request.headers.get("X-Request-Id") or str(uuid4())
         request.state.request_id = request_id
         response = await call_next(request)

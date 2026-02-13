@@ -98,6 +98,7 @@ def _build_settings_view() -> AppSettingsView:
 # Storage instance (will be properly initialized)
 _storage: ActivityStorage | None = None
 _workflow: PipelineHealerWorkflow | None = None
+# Lightweight demo audit buffer (non-durable by design for hackathon runtime).
 _admin_settings_audit: list[AdminSettingsAuditEntry] = []
 _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES = 200
 
@@ -192,6 +193,7 @@ async def update_app_settings(
             detail="log_prompt_head_chars + log_prompt_tail_chars must be <= log_prompt_max_chars",
         )
 
+    # Capture the pre-change snapshot so audit entries can store old -> new values.
     previous_values = {key: getattr(settings, key, None) for key in changes}
     for key, value in changes.items():
         setattr(settings, key, value)
@@ -199,6 +201,7 @@ async def update_app_settings(
     workflow = get_workflow()
     workflow.refresh_runtime_settings()
 
+    # Never store raw admin credentials. Keep a short salted fingerprint for traceability.
     actor_fingerprint: str | None = None
     if x_admin_key:
         salted = f"{settings.audit_salt}:{x_admin_key}" if settings.audit_salt else x_admin_key
@@ -211,11 +214,13 @@ async def update_app_settings(
             for key in sorted(changes.keys())
         },
         actor=actor_fingerprint,
+        # request_id is injected by middleware to correlate audit entries with API logs.
         request_id=getattr(request.state, "request_id", None),
         client_ip=request.client.host if request.client else None,
         user_agent=user_agent,
     )
     _admin_settings_audit.append(audit_entry)
+    # Keep memory bounded for long-running pods.
     if len(_admin_settings_audit) > _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES:
         del _admin_settings_audit[: len(_admin_settings_audit) - _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES]
 

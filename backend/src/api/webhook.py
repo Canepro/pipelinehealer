@@ -49,6 +49,7 @@ def verify_github_signature(payload: bytes, signature: str, secret: str) -> bool
 
 def _is_allowed_repo(repo_full_name: str, allowed_repos: list[str]) -> bool:
     """Return True when repo is in allowlist (or allowlist is empty)."""
+    # Empty allowlist means "no repo restriction" for local/demo convenience.
     if not allowed_repos:
         return True
     normalized = repo_full_name.strip().lower()
@@ -167,6 +168,7 @@ async def handle_workflow_run_event(
 
     settings = get_settings()
     repo_full_name = event.repository.full_name
+    # Server-side repository scope guard. This protects PAT-based deployments from acting org-wide.
     if not _is_allowed_repo(repo_full_name, settings.ph_allowed_repos):
         logger.info(
             "webhook ignored: repo %s not in PH_ALLOWED_REPOS (delivery=%s)",
