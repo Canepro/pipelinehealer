@@ -14,6 +14,7 @@ from .models import (
     ActivityRecord,
     DashboardStats,
     FailureType,
+    RemediationAction,
     RemediationStatus,
 )
 
@@ -244,6 +245,10 @@ class ActivityStorage:
         repo_counts: dict[str, int] = {}
         total_duration = 0.0
         completed_with_duration = 0
+        actioned_remediations = 0
+        auto_pr_remediations = 0
+        issue_remediations = 0
+        safety_blocked_remediations = 0
 
         async for activity in self._iter_activities():
             status_key = activity.status.value if activity.status else "unknown"
@@ -263,14 +268,42 @@ class ActivityStorage:
                 total_duration += float(activity.duration_seconds)
                 completed_with_duration += 1
 
+            remediation = activity.remediation_result
+            if (
+                activity.status == RemediationStatus.COMPLETED
+                and remediation
+                and remediation.success
+                and remediation.action_taken in {
+                    RemediationAction.CREATE_PR,
+                    RemediationAction.CREATE_ISSUE,
+                    RemediationAction.RETRY_WORKFLOW,
+                }
+            ):
+                actioned_remediations += 1
+                if remediation.action_taken == RemediationAction.CREATE_PR:
+                    auto_pr_remediations += 1
+                elif remediation.action_taken == RemediationAction.CREATE_ISSUE:
+                    issue_remediations += 1
+
+                details = remediation.details or {}
+                if (
+                    isinstance(details.get("not_auto_reason_code"), str)
+                    or details.get("fallback_from") == "create_pr"
+                ):
+                    safety_blocked_remediations += 1
+
         total = sum(status_counts.values())
         avg_duration = total_duration / completed_with_duration if completed_with_duration > 0 else 0.0
 
         return DashboardStats(
             total_runs_processed=total,
-            successful_remediations=status_counts.get(RemediationStatus.COMPLETED.value, 0),
+            actioned_remediations=actioned_remediations,
+            successful_remediations=actioned_remediations,
             failed_remediations=status_counts.get(RemediationStatus.FAILED.value, 0),
             pending_remediations=status_counts.get(RemediationStatus.PENDING.value, 0),
+            auto_pr_remediations=auto_pr_remediations,
+            issue_remediations=issue_remediations,
+            safety_blocked_remediations=safety_blocked_remediations,
             by_failure_type=failure_counts,
             by_repository=repo_counts,
             average_resolution_time_seconds=avg_duration,
@@ -486,6 +519,10 @@ class InMemoryStorage(ActivityStorage):
         repo_counts: dict[str, int] = {}
         total_duration = 0.0
         completed_count = 0
+        actioned_remediations = 0
+        auto_pr_remediations = 0
+        issue_remediations = 0
+        safety_blocked_remediations = 0
 
         for activity in activities:
             # Count by status
@@ -505,13 +542,41 @@ class InMemoryStorage(ActivityStorage):
                 total_duration += activity.duration_seconds
                 completed_count += 1
 
+            remediation = activity.remediation_result
+            if (
+                activity.status == RemediationStatus.COMPLETED
+                and remediation
+                and remediation.success
+                and remediation.action_taken in {
+                    RemediationAction.CREATE_PR,
+                    RemediationAction.CREATE_ISSUE,
+                    RemediationAction.RETRY_WORKFLOW,
+                }
+            ):
+                actioned_remediations += 1
+                if remediation.action_taken == RemediationAction.CREATE_PR:
+                    auto_pr_remediations += 1
+                elif remediation.action_taken == RemediationAction.CREATE_ISSUE:
+                    issue_remediations += 1
+
+                details = remediation.details or {}
+                if (
+                    isinstance(details.get("not_auto_reason_code"), str)
+                    or details.get("fallback_from") == "create_pr"
+                ):
+                    safety_blocked_remediations += 1
+
         avg_duration = total_duration / completed_count if completed_count > 0 else 0.0
 
         return DashboardStats(
             total_runs_processed=len(activities),
-            successful_remediations=status_counts.get(RemediationStatus.COMPLETED.value, 0),
+            actioned_remediations=actioned_remediations,
+            successful_remediations=actioned_remediations,
             failed_remediations=status_counts.get(RemediationStatus.FAILED.value, 0),
             pending_remediations=status_counts.get(RemediationStatus.PENDING.value, 0),
+            auto_pr_remediations=auto_pr_remediations,
+            issue_remediations=issue_remediations,
+            safety_blocked_remediations=safety_blocked_remediations,
             by_failure_type=failure_counts,
             by_repository=repo_counts,
             average_resolution_time_seconds=avg_duration,

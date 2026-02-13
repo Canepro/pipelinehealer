@@ -181,9 +181,13 @@ class DashboardStats(BaseModel):
     """Statistics for the dashboard."""
 
     total_runs_processed: int = 0
+    actioned_remediations: int = 0
     successful_remediations: int = 0
     failed_remediations: int = 0
     pending_remediations: int = 0
+    auto_pr_remediations: int = 0
+    issue_remediations: int = 0
+    safety_blocked_remediations: int = 0
     by_failure_type: dict[str, int] = Field(default_factory=dict)
     by_repository: dict[str, int] = Field(default_factory=dict)
     average_resolution_time_seconds: float = 0.0

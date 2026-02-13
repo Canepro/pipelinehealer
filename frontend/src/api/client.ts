@@ -4,9 +4,13 @@ const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || '15000')
 
 export interface DashboardStats {
   total_runs_processed: number
+  actioned_remediations: number
   successful_remediations: number
   failed_remediations: number
   pending_remediations: number
+  auto_pr_remediations: number
+  issue_remediations: number
+  safety_blocked_remediations: number
   by_failure_type: Record<string, number>
   by_repository: Record<string, number>
   average_resolution_time_seconds: number

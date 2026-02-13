@@ -17,6 +17,9 @@ import {
   XCircle,
   Clock,
   TrendingUp,
+  GitPullRequest,
+  FileText,
+  ShieldAlert,
 } from 'lucide-react'
 import { api } from '../api/client'
 import StatsCard from '../components/StatsCard'
@@ -64,11 +67,26 @@ export default function Dashboard() {
         }))
     : []
 
-  const successRate = stats
+  const actionRate = stats
     ? stats.total_runs_processed > 0
       ? Math.round(
-          (stats.successful_remediations / stats.total_runs_processed) * 100
+          (stats.actioned_remediations / stats.total_runs_processed) * 100
         )
+      : 0
+    : 0
+  const autoPrRate = stats
+    ? stats.actioned_remediations > 0
+      ? Math.round((stats.auto_pr_remediations / stats.actioned_remediations) * 100)
+      : 0
+    : 0
+  const issueRate = stats
+    ? stats.actioned_remediations > 0
+      ? Math.round((stats.issue_remediations / stats.actioned_remediations) * 100)
+      : 0
+    : 0
+  const safetyBlockedRate = stats
+    ? stats.actioned_remediations > 0
+      ? Math.round((stats.safety_blocked_remediations / stats.actioned_remediations) * 100)
       : 0
     : 0
 
@@ -99,8 +117,8 @@ export default function Dashboard() {
           color="blue"
         />
         <StatsCard
-          title="Successful"
-          value={showStatsLoading ? '...' : stats?.successful_remediations || 0}
+          title="Actioned"
+          value={showStatsLoading ? '...' : stats?.actioned_remediations || 0}
           icon={CheckCircle}
           color="green"
         />
@@ -111,10 +129,36 @@ export default function Dashboard() {
           color="red"
         />
         <StatsCard
-          title="Success Rate"
-          value={showStatsLoading ? '...' : `${successRate}%`}
+          title="Action Rate"
+          value={showStatsLoading ? '...' : `${actionRate}%`}
           icon={TrendingUp}
           color="blue"
+        />
+      </div>
+
+      {/* Outcome Breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatsCard
+          title="Auto PR Rate"
+          value={showStatsLoading ? '...' : `${autoPrRate}% (${stats?.auto_pr_remediations || 0})`}
+          icon={GitPullRequest}
+          color="blue"
+        />
+        <StatsCard
+          title="Issue Rate"
+          value={showStatsLoading ? '...' : `${issueRate}% (${stats?.issue_remediations || 0})`}
+          icon={FileText}
+          color="yellow"
+        />
+        <StatsCard
+          title="Safety-Blocked"
+          value={
+            showStatsLoading
+              ? '...'
+              : `${safetyBlockedRate}% (${stats?.safety_blocked_remediations || 0})`
+          }
+          icon={ShieldAlert}
+          color="red"
         />
       </div>
 

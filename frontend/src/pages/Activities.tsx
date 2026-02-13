@@ -47,14 +47,17 @@ export default function Activities() {
           </p>
         </div>
         <button
-          onClick={() => refetch()}
-          disabled={isFetching}
+          onClick={() => {
+            void refetch({ cancelRefetch: false })
+          }}
+          disabled={isLoading}
           className="btn-secondary flex items-center"
+          aria-busy={isFetching}
         >
           <RefreshCw
             className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`}
           />
-          Refresh
+          {isFetching ? 'Refreshing...' : 'Refresh'}
         </button>
       </div>
 
