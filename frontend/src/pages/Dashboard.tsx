@@ -25,6 +25,7 @@ import {
 import { toast } from 'sonner'
 import { api } from '../api/client'
 import type { Activity as ActivityItem } from '../api/client'
+import { EMPTY_STATES } from '../constants/emptyStates'
 import StatsCard from '../components/StatsCard'
 import ActivityTable from '../components/ActivityTable'
 import { Button } from '@/components/ui/button'
@@ -249,9 +250,10 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-400">
-              No safety-gated cases in current activity window.
-            </p>
+            <div>
+              <p className="text-sm font-medium text-gray-200">{EMPTY_STATES.safetyGated.title}</p>
+              <p className="mt-1 text-sm text-gray-400">{EMPTY_STATES.safetyGated.body}</p>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -312,7 +314,7 @@ export default function Dashboard() {
               </ResponsiveContainer>
             ) : (
               <div className="flex h-[250px] flex-col items-center justify-center gap-3 text-sm text-gray-400">
-                <p>No activity yet. Trigger a workflow run to generate data.</p>
+                <p>{EMPTY_STATES.activities.body}</p>
                 <Button asChild size="sm" variant="secondary">
                   <a
                     href="https://github.com/Canepro/pipelinehealer-demo"
@@ -376,7 +378,7 @@ export default function Dashboard() {
               </ResponsiveContainer>
             ) : (
               <div className="flex h-[250px] flex-col items-center justify-center gap-3 text-sm text-gray-400">
-                <p>No activity yet. Trigger a workflow run to generate data.</p>
+                <p>{EMPTY_STATES.activities.body}</p>
                 <Button asChild size="sm" variant="secondary">
                   <a
                     href="https://github.com/Canepro/pipelinehealer-demo"
@@ -503,7 +505,7 @@ export default function Dashboard() {
             </>
           ) : (
             <p className="text-sm text-gray-400">
-              No activities available yet. Trigger a workflow run to populate explainability data.
+              {EMPTY_STATES.activities.body}
             </p>
           )}
         </CardContent>

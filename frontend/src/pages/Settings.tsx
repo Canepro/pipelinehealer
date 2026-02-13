@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, Info, LockKeyhole, Save, Shield, SlidersHorizontal, Wrench } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, type AdminSettingsAuditEntry } from '../api/client'
+import { EMPTY_STATES } from '../constants/emptyStates'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -134,17 +135,23 @@ export default function SettingsPage() {
     }
   }
 
-  const handleCopyRequestId = async (entry: AdminSettingsAuditEntry) => {
+  const handleCopyTrace = async (entry: AdminSettingsAuditEntry) => {
     if (!entry.request_id) {
-      toast.error('No request id available for this entry')
+      toast.error('No trace id available for this entry')
       return
     }
 
+    const tracePayload = [
+      `X-Request-Id: ${entry.request_id}`,
+      `Actor: ${entry.actor || 'unknown'}`,
+      `When: ${new Date(entry.timestamp).toISOString()}`,
+    ].join('\n')
+
     try {
-      await navigator.clipboard.writeText(entry.request_id)
-      toast.success('Request ID copied')
+      await navigator.clipboard.writeText(tracePayload)
+      toast.success('Trace copied')
     } catch {
-      toast.error('Unable to copy request ID')
+      toast.error('Unable to copy trace')
     }
   }
 
@@ -667,18 +674,15 @@ export default function SettingsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Timestamp</TableHead>
-                      <TableHead>Changes</TableHead>
+                      <TableHead>What Changed</TableHead>
                       <TableHead>Actor</TableHead>
-                      <TableHead>Request ID</TableHead>
+                      <TableHead>Trace</TableHead>
+                      <TableHead>When</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {auditEntries.map((entry) => (
                       <TableRow key={`${entry.timestamp}-${entry.request_id ?? 'none'}`}>
-                        <TableCell className="text-xs text-gray-600 dark:text-gray-300">
-                          {new Date(entry.timestamp).toLocaleString()}
-                        </TableCell>
                         <TableCell className="text-xs text-gray-700 dark:text-gray-200">
                           <div className="space-y-1">
                             {entry.changed_keys.map((key) => {
@@ -701,15 +705,19 @@ export default function SettingsPage() {
                             {entry.request_id && (
                               <Button
                                 type="button"
-                                size="icon"
+                                size="sm"
                                 variant="ghost"
-                                onClick={() => void handleCopyRequestId(entry)}
-                                aria-label="Copy request id"
+                                onClick={() => void handleCopyTrace(entry)}
+                                aria-label="Copy trace"
                               >
                                 <Copy className="h-4 w-4" />
+                                Copy Trace
                               </Button>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-gray-600 dark:text-gray-300">
+                          {new Date(entry.timestamp).toLocaleString()}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -719,9 +727,10 @@ export default function SettingsPage() {
             )}
 
             {auditEntries && auditEntries.length === 0 && (
-              <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-                No audit entries yet in this runtime. Change one admin setting, save, then load audit again.
-              </p>
+              <div className="mt-4 rounded-lg border border-[var(--ph-border)] p-4">
+                <p className="text-sm font-medium text-gray-200">{EMPTY_STATES.audit.title}</p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{EMPTY_STATES.audit.body}</p>
+              </div>
             )}
           </Card>
         </>

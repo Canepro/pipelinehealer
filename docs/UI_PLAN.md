@@ -176,6 +176,18 @@ These are enforceable defaults for all primary product screens.
   - contrast checks for badges and table text
   - hit area checks for small icon actions.
 
+### Week 3 Checkpoint (2026-02-13)
+
+- Admin audit trust polish:
+  - audit columns standardized to `What Changed`, `Actor`, `Trace`, `When`
+  - actor fingerprints and trace IDs rendered in monospace
+  - per-row `Copy Trace` action copies request-id + actor + timestamp bundle
+- Edge-state consistency:
+  - unified copy for `No activities`, `No safety-gated cases`, `No audit entries yet`
+  - empty-state tone and structure aligned across Dashboard, Activities, Settings
+- Micro-interaction consistency:
+  - secondary/ghost button disabled + hover behavior standardized in shared button variants
+
 ## Week 4 Plan (Submission Freeze)
 
 - [ ] Freeze non-critical UI changes.

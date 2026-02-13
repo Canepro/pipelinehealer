@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
 import { ExternalLink, GitBranch } from 'lucide-react'
 import type { Activity } from '../api/client'
+import { EMPTY_STATES } from '../constants/emptyStates'
 import StatusBadge from './StatusBadge'
 import FailureTypeBadge from './FailureTypeBadge'
 import { Badge } from '@/components/ui/badge'
@@ -74,9 +75,9 @@ export default function ActivityTable({
       <Card>
         <CardContent className="p-8 text-center">
           <GitBranch className="h-12 w-12 text-gray-400 mx-auto" />
-          <p className="mt-4 text-gray-500">No activities found</p>
+          <p className="mt-4 text-gray-500">{EMPTY_STATES.activities.title}</p>
           <p className="text-sm text-gray-400">
-            Trigger a workflow run, then refresh to see new remediation activity.
+            {EMPTY_STATES.activities.body}
           </p>
         </CardContent>
       </Card>
