@@ -18,7 +18,7 @@ PipelineHealer is an Azure-deployed, multi-agent CI remediation system built for
 - Reproducible demo path: `docs/DEMO_SCRIPT.md` (single-file recording runbook)
 - Operator runbook: `docs/LOCAL_DEMO_RUNBOOK.md` (Azure + local fallback)
 - Deterministic auto-fix PR example: `https://github.com/Canepro/pipelinehealer-demo/pull/53`
-- Structured issue example (manual-review path, with Proposed Fix + Reason Code): `https://github.com/Canepro/pipelinehealer-demo/issues/56`
+- Structured issue example (manual-review path, with Proposed Fix + Reason Code): `https://github.com/Canepro/pipelinehealer-demo/issues/60`
 - Runtime verification commands:
   - `bash scripts/ph.sh status`
   - `bash scripts/ph.sh settings:check`
