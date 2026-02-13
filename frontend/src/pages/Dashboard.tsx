@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   BarChart,
@@ -14,12 +15,10 @@ import {
 import {
   Activity,
   CheckCircle,
-  XCircle,
   Clock,
-  TrendingUp,
-  GitPullRequest,
   FileText,
   ShieldAlert,
+  SearchCheck,
 } from 'lucide-react'
 import { api } from '../api/client'
 import StatsCard from '../components/StatsCard'
@@ -43,8 +42,8 @@ export default function Dashboard() {
   })
 
   const { data: activities, isLoading: activitiesLoading } = useQuery({
-    queryKey: ['activities', { limit: 5 }],
-    queryFn: () => api.getActivities({ limit: 5 }),
+    queryKey: ['activities', { limit: 50 }],
+    queryFn: () => api.getActivities({ limit: 50 }),
   })
 
   const { data: failureBreakdown } = useQuery({
@@ -70,16 +69,9 @@ export default function Dashboard() {
         }))
     : []
 
-  const actionRate = stats
-    ? stats.total_runs_processed > 0
-      ? Math.round(
-          (stats.actioned_remediations / stats.total_runs_processed) * 100
-        )
-      : 0
-    : 0
-  const autoPrRate = stats
+  const safetyGatedRate = stats
     ? stats.actioned_remediations > 0
-      ? Math.round((stats.auto_pr_remediations / stats.actioned_remediations) * 100)
+      ? Math.round((stats.safety_blocked_remediations / stats.actioned_remediations) * 100)
       : 0
     : 0
   const issueRate = stats
@@ -87,11 +79,50 @@ export default function Dashboard() {
       ? Math.round((stats.issue_remediations / stats.actioned_remediations) * 100)
       : 0
     : 0
-  const safetyBlockedRate = stats
-    ? stats.actioned_remediations > 0
-      ? Math.round((stats.safety_blocked_remediations / stats.actioned_remediations) * 100)
-      : 0
-    : 0
+  const recentActivities = (activities || []).slice(0, 5)
+  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!selectedActivityId && recentActivities.length > 0) {
+      setSelectedActivityId(recentActivities[0].id)
+    }
+  }, [recentActivities, selectedActivityId])
+
+  const selectedActivity = useMemo(() => {
+    if (recentActivities.length === 0) return null
+    return (
+      recentActivities.find((activity) => activity.id === selectedActivityId) ||
+      recentActivities[0]
+    )
+  }, [recentActivities, selectedActivityId])
+
+  const selectedReasonCode =
+    typeof selectedActivity?.remediation_result?.details?.not_auto_reason_code === 'string'
+      ? selectedActivity.remediation_result.details.not_auto_reason_code
+      : null
+  const selectedActionTaken =
+    typeof selectedActivity?.remediation_result?.action_taken === 'string'
+      ? selectedActivity.remediation_result.action_taken.replace('_', ' ').toUpperCase()
+      : 'N/A'
+  const selectedConfidence =
+    typeof selectedActivity?.diagnosis?.confidence === 'number'
+      ? `${Math.round(selectedActivity.diagnosis.confidence * 100)}%`
+      : 'N/A'
+  const selectedFailureType = selectedActivity?.failure_type || 'unknown'
+
+  const safetyGateReasonCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const activity of activities || []) {
+      const reason = activity?.remediation_result?.details?.not_auto_reason_code
+      if (typeof reason === 'string' && reason.length > 0) {
+        counts.set(reason, (counts.get(reason) || 0) + 1)
+      }
+    }
+    return Array.from(counts.entries())
+      .map(([code, count]) => ({ code, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4)
+  }, [activities])
 
   const showStatsLoading = statsLoading && !statsError
   const statsErrorMessage =
@@ -111,7 +142,7 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* Stats Grid */}
+      {/* Story-First Metrics */}
       {showStatsLoading ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
@@ -126,7 +157,7 @@ export default function Dashboard() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatsCard
-            title="Total Processed"
+            title="Processed"
             value={stats?.total_runs_processed || 0}
             icon={Activity}
             color="blue"
@@ -138,41 +169,47 @@ export default function Dashboard() {
             color="green"
           />
           <StatsCard
-            title="Failed"
-            value={stats?.failed_remediations || 0}
-            icon={XCircle}
+            title="Safety Gated"
+            value={`${stats?.safety_blocked_remediations || 0} (${safetyGatedRate}%)`}
+            icon={ShieldAlert}
             color="red"
           />
           <StatsCard
-            title="Action Rate"
-            value={`${actionRate}%`}
-            icon={TrendingUp}
-            color="blue"
+            title="Issue-Only"
+            value={`${stats?.issue_remediations || 0} (${issueRate}%)`}
+            icon={FileText}
+            color="yellow"
           />
         </div>
       )}
 
-      {/* Outcome Breakdown */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatsCard
-          title="Auto PR Rate"
-          value={`${autoPrRate}% (${stats?.auto_pr_remediations || 0})`}
-          icon={GitPullRequest}
-          color="blue"
-        />
-        <StatsCard
-          title="Issue Rate"
-          value={`${issueRate}% (${stats?.issue_remediations || 0})`}
-          icon={FileText}
-          color="yellow"
-        />
-        <StatsCard
-          title="Safety-Blocked"
-          value={`${safetyBlockedRate}% (${stats?.safety_blocked_remediations || 0})`}
-          icon={ShieldAlert}
-          color="red"
-        />
-      </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Why Safety Gated</CardTitle>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            We create review-ready proposals when changes touch non-allowlisted paths or require
+            extra context.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3 pt-0">
+          {safetyGateReasonCounts.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {safetyGateReasonCounts.map((item) => (
+                <div
+                  key={item.code}
+                  className="rounded-md border border-[var(--ph-border)] bg-slate-800/40 px-3 py-1 text-xs text-slate-200"
+                >
+                  <span className="font-semibold">{item.code}</span> ({item.count})
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">
+              No safety-gated cases in current activity window.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {statsError && (
         <div className="rounded-lg border border-amber-300/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
@@ -253,6 +290,68 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Explainability Snapshot */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <SearchCheck className="h-4 w-4 text-azure-400" />
+            Explainability Snapshot
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {recentActivities.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <label className="space-y-1">
+                  <span className="text-xs uppercase tracking-wide text-gray-400">
+                    Selected Activity
+                  </span>
+                  <select
+                    value={selectedActivity?.id || ''}
+                    onChange={(e) => setSelectedActivityId(e.target.value)}
+                    className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-azure-500 dark:bg-gray-700 dark:text-gray-100"
+                  >
+                    {recentActivities.map((activity) => (
+                      <option key={activity.id} value={activity.id}>
+                        Run #{activity.workflow_run_id} · {activity.failure_type || 'unknown'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="flex items-end">
+                  <Button asChild variant="secondary" size="sm">
+                    <a href={`/activities/${selectedActivity?.id || ''}`}>Open Trace</a>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
+                <div className="rounded-lg border border-[var(--ph-border)] p-3">
+                  <p className="text-xs uppercase tracking-wide text-gray-400">Failure Type</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{selectedFailureType}</p>
+                </div>
+                <div className="rounded-lg border border-[var(--ph-border)] p-3">
+                  <p className="text-xs uppercase tracking-wide text-gray-400">Confidence</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{selectedConfidence}</p>
+                </div>
+                <div className="rounded-lg border border-[var(--ph-border)] p-3 lg:col-span-2">
+                  <p className="text-xs uppercase tracking-wide text-gray-400">Proposed Action</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{selectedActionTaken}</p>
+                </div>
+                <div className="rounded-lg border border-[var(--ph-border)] p-3">
+                  <p className="text-xs uppercase tracking-wide text-gray-400">Reason Code</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{selectedReasonCode || 'N/A'}</p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-gray-400">
+              No activities available yet. Trigger a workflow run to populate explainability data.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Recent Activities */}
       <section className="space-y-4">
         <div className="mb-4 flex items-center justify-between">
@@ -264,7 +363,7 @@ export default function Dashboard() {
           </Button>
         </div>
         <ActivityTable
-          activities={activities || []}
+          activities={recentActivities}
           isLoading={activitiesLoading}
         />
       </section>

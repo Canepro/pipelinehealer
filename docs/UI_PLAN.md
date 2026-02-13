@@ -122,10 +122,23 @@ These are enforceable defaults for all primary product screens.
 
 ## Week 2 Plan
 
-- [ ] Dashboard hierarchy pass:
+- [x] Dashboard hierarchy pass:
   - processed -> actioned -> blocked -> reason.
-- [ ] Outcome area emphasis pass (clarity without color overload).
+- [x] Outcome area emphasis pass (clarity without color overload).
 - [ ] Chart legibility pass (labels, contrast, spacing).
+
+### Week 2 Checkpoint (2026-02-13)
+
+- Dashboard above-the-fold now follows story order:
+  - Processed -> Actioned -> Safety Gated -> Issue-Only
+- Safety framing is explicit:
+  - "Why Safety Gated" panel with non-allowlisted/context-aware microcopy
+  - reason-code frequency chips sourced from recent activity window
+- Explainability is visible without leaving dashboard:
+  - selected activity snapshot (failure type, confidence, proposed action, reason code)
+  - direct trace link to activity details
+- Responsive sanity check (Playwright Firefox, local preview):
+  - `1440x900` and `390x844` dashboard overflow check passed (`scrollWidth === innerWidth`)
 
 ## Week 3 Plan
 
