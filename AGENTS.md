@@ -69,6 +69,7 @@ bun run build
 - API routes (`/api/*`) are protected by `X-API-Key` in non-development.
 - Admin settings routes (`/api/settings`) require `X-Admin-Key`.
 - Recommended demo mode: `HEAL_MODE=safe`.
+- Current demo fixture trigger set: `dependency,lint,test,build_config,timeout`.
 - For demo reliability: `bash scripts/ph.sh warm` before recording; `lowcost` afterward.
 
 ## Public Repo Hygiene

@@ -55,6 +55,7 @@ The following are already implemented in the current project state:
 - Add a `demo:prep` command to combine `warm`, `settings:check`, and baseline validation.
 - Add a `demo:cleanup` command to merge/close demo artifacts and return to low-cost mode.
 - Add optional “recording-safe” mode that suppresses noisy logs during video capture.
+- Expand demo-repo workflow fixtures with additional deterministic trigger types (`prettier`, `permissions`) once the fixture workflow and backend routing are re-aligned.
 
 ## Guiding Principles
 

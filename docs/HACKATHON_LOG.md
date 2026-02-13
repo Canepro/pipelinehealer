@@ -40,7 +40,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 - Recommended healing mode: `HEAL_MODE=safe`
 - Demo trigger command:
-  - `bash scripts/ph.sh demo:e2e --triggers dependency,lint,prettier,permissions,test,build_config,timeout --wait-seconds 40`
+  - `bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 40`
 - Demo scale toggle:
   - pre-demo: `bash scripts/ph.sh warm`
   - post-demo: `bash scripts/ph.sh lowcost`
@@ -101,7 +101,7 @@ This is the long-form project tracker for hackathon execution status, submission
 ## Known Risks / Follow-Ups
 
 - Demo video is still open.
-- Auto-fix branch collisions can still produce GitHub `422` in repeated reruns if prior fix branches already exist.
+- Auto-fix branch collision risk is mitigated by per-run branch naming (`...-run-<workflow_run_id>`); monitor for edge-case Git ref conflicts.
 - Dependency remediations currently focus on manifest changes and may not update lockfiles in all package-manager variants.
 
 ## File Map for Ongoing Work

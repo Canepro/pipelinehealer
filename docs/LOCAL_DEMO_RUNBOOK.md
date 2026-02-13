@@ -261,8 +261,6 @@ In your demo repo checkout (or from anywhere), run:
 ```bash
 gh workflow run CI -R <owner>/<repo> -f failure_type=dependency
 gh workflow run CI -R <owner>/<repo> -f failure_type=lint
-gh workflow run CI -R <owner>/<repo> -f failure_type=prettier
-gh workflow run CI -R <owner>/<repo> -f failure_type=permissions
 gh workflow run CI -R <owner>/<repo> -f failure_type=test
 gh workflow run CI -R <owner>/<repo> -f failure_type=build_config
 gh workflow run CI -R <owner>/<repo> -f failure_type=timeout
@@ -337,8 +335,6 @@ In a third terminal:
 cd demo-repo
 gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=dependency
 gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=lint
-gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=prettier
-gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=permissions
 gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=test
 gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=build_config
 gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=timeout
@@ -446,10 +442,13 @@ Frontend Settings page:
        ```
 
 - PR remediation fails with `422 Unprocessable Entity` on `POST /git/refs`
-  - Cause: target fix branch already exists (common after repeated dependency/lint demo runs).
+  - Cause: uncommon edge case where Git ref creation still collides or GitHub rejects a ref update.
   - Fix:
-    - Merge/close existing fix PRs first (for example `fix/update-left-pad`, `fix/lint-eslint-config`).
-    - Or manually delete stale fix branches in the demo repo before re-running that failure type.
+    - PipelineHealer now appends `-run-<workflow_run_id>` to fix branches to reduce collisions.
+    - If `422` still appears, re-run the workflow once, then verify branch/ref state:
+      ```bash
+      gh api repos/<owner>/<repo>/git/matching-refs/heads/fix/
+      ```
 
 - Azure backend can read webhooks but cannot call GitHub API
   - Symptom: webhook creates activity, then failures appear when fetching jobs/logs or creating refs/PRs.

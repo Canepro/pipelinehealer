@@ -69,14 +69,14 @@ Pass check:
 
 ```bash
 cd <repo-root>/pipelinehealer
-bash scripts/ph.sh demo:e2e --triggers dependency,lint,prettier,permissions,test,build_config,timeout --wait-seconds 40
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 40
 ```
 
 What this command does:
 
 - syncs webhooks (disables stale `smee.io`, enables Azure webhook)
 - ensures demo fixtures are in the expected state
-- triggers all five failure scenarios
+- triggers all five demo failure scenarios (`dependency`, `lint`, `test`, `build_config`, `timeout`)
 - prints runs, PRs, issues, and backend activity output
 
 Pass checks in output:
@@ -126,7 +126,7 @@ TELL: PipelineHealer listens for `workflow_run.completed` failures, then runs a 
 SHOW: Terminal running:
 
 ```bash
-bash scripts/ph.sh demo:e2e --triggers dependency,lint,prettier,permissions,test,build_config,timeout --wait-seconds 40
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 40
 ```
 
 SHOW: Output with webhook sync, workflow/activity output, and dashboard updating in real time.
