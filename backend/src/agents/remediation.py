@@ -193,6 +193,12 @@ class RemediationAgent:
                 error_message=f"Unknown action: {plan.action}",
             )
 
+    def _branch_name_for_run(self, base_branch_name: str, workflow_run_id: int) -> str:
+        """Return a stable unique branch name for a workflow run to avoid ref collisions."""
+        candidate = f"{base_branch_name}-run-{workflow_run_id}"
+        # Keep branch names under common platform limits.
+        return candidate[:240]
+
     async def _create_pull_request(
         self,
         plan: RemediationPlan,
@@ -223,6 +229,7 @@ class RemediationAgent:
         try:
             tracking_issue_number: int | None = None
             tracking_issue_url: str | None = None
+            run_branch_name = self._branch_name_for_run(plan.branch_name, workflow_run_id)
 
             # Materialize structured file changes into full file contents.
             try:
@@ -257,10 +264,10 @@ class RemediationAgent:
             await self._github_tools.create_branch(
                 owner=owner,
                 repo=repo,
-                branch_name=plan.branch_name,
+                branch_name=run_branch_name,
                 from_ref=base_branch,
             )
-            logger.info(f"Created branch: {plan.branch_name}")
+            logger.info(f"Created branch: {run_branch_name}")
 
             # Apply file changes
             for change in rendered_changes:
@@ -274,7 +281,7 @@ class RemediationAgent:
                         path=file_path,
                         content=content,
                         message=f"fix: {plan.description}",
-                        branch=plan.branch_name,
+                        branch=run_branch_name,
                     )
                     logger.info(f"Updated file: {file_path}")
 
@@ -313,7 +320,7 @@ class RemediationAgent:
                 repo=repo,
                 title=plan.pr_title or f"[PipelineHealer] {plan.description}",
                 body=pr_body,
-                head=plan.branch_name,
+                head=run_branch_name,
                 base=base_branch,
             )
 
@@ -328,6 +335,7 @@ class RemediationAgent:
                 details={
                     "pr_number": pr_result.get("number"),
                     "tracking_issue_number": tracking_issue_number,
+                    "branch_name": run_branch_name,
                 },
             )
 

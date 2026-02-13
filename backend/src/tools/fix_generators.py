@@ -609,16 +609,31 @@ The following test(s) appear to be flaky (intermittent failures):
 
         # For regular test failures, create detailed issue
         test_errors = error_details.get("test_errors", {})
+        affected_blob = " ".join(diagnosis.affected_files).lower()
+        workflow_step_failure = (
+            len(failed_tests) == 0
+            and (
+                "workflow" in affected_blob
+                or "github_run_attempt" in str(diagnosis.root_cause).lower()
+                or "process.exit(1)" in str(diagnosis.root_cause).lower()
+            )
+        )
         error_details_str = "\n\n".join(
             f"**{test}**\n```\n{error}\n```" for test, error in list(test_errors.items())[:5]
         )
+        issue_title = (
+            "[PipelineHealer] Workflow step failure (non-test)"
+            if workflow_step_failure
+            else f"[PipelineHealer] Test failures: {len(failed_tests)} test(s) failed"
+        )
+        heading = "## Workflow Step Failure" if workflow_step_failure else "## Test Failures"
 
         return RemediationPlan(
             action=RemediationAction.CREATE_ISSUE,
             description="Create issue for test failure investigation",
-            issue_title=f"[PipelineHealer] Test failures: {len(failed_tests)} test(s) failed",
+            issue_title=issue_title,
             issue_body=self._append_review_only_proposal(
-                f"""## Test Failures
+                f"""{heading}
 
 **Test Framework:** {test_framework}
 **Failed Tests:** {len(failed_tests)}

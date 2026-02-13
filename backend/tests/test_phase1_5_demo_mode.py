@@ -118,6 +118,26 @@ async def test_issue_plan_contains_review_only_proposed_fix_section() -> None:
 
 
 @pytest.mark.asyncio
+async def test_test_fix_uses_workflow_step_title_when_no_failed_tests() -> None:
+    gen = FixGenerators(heal_mode="safe")
+    plan = await gen.generate_fix(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.TEST,
+            confidence=0.9,
+            root_cause='Step intentionally executes node -e "process.exit(1)" when GITHUB_RUN_ATTEMPT == 1.',
+            is_auto_fixable=True,
+            affected_files=[".github/workflows/ci.yml"],
+            error_details={"failed_tests": [], "test_framework": "unknown"},
+        ),
+        repository_info={},
+    )
+    assert plan.action == RemediationAction.CREATE_ISSUE
+    assert plan.issue_title == "[PipelineHealer] Workflow step failure (non-test)"
+    assert plan.issue_body is not None
+    assert "## Workflow Step Failure" in plan.issue_body
+
+
+@pytest.mark.asyncio
 async def test_review_issue_out_of_scope_paths_are_blocked_in_proposed_fix() -> None:
     gen = FixGenerators(heal_mode="safe")
     plan = gen.generate_review_issue(
