@@ -18,12 +18,28 @@ This document tracks visual and UX refinement work for PipelineHealer without ch
   - Activities (filters + table + actions)
   - Settings (controls + explicit-load audit panel).
 
+## Token Baseline (Week 1)
+
+- Surface tiers:
+  - `--ph-bg: #091321`
+  - `--ph-bg-elevated: #0f1b2f`
+  - `--ph-surface: #13233a`
+  - `--ph-border: #213651`
+- Core text:
+  - `--ph-text: #dbe6f4`
+  - `--ph-muted: #95a6bc`
+- Primary accent:
+  - `--ph-accent: #4a86c7`
+  - Tailwind `azure` scale updated to a calmer, lower-saturation range (`50`..`900`).
+- Card depth:
+  - shadow standardized to `0 10px 30px -24px rgba(8, 18, 36, 0.55)`.
+
 ## Week 1 Plan (In Progress)
 
 - [x] Establish shared primitives and remove one-off markup for core pages.
 - [x] Add skeleton loading states for key dashboard/activity views.
 - [x] Add toast feedback for explicit user actions (save/refresh/copy).
-- [ ] Finalize visual tokens:
+- [x] Finalize visual tokens:
   - primary blue (single signature accent)
   - semantic status accents (success/warn/block)
   - background/card/border contrast tiers.

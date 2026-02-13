@@ -115,6 +115,7 @@ This is the long-form project tracker for hackathon execution status, submission
   - skeleton loading states and toast feedback
 - Added explicit-load admin audit panel in Settings with request ID copy action.
 - Synced frontend/backend contracts for admin settings and audit types (including `ph_allowed_repos` and `AdminSettingsAuditEntry`).
+- Established Week 1 UI token baseline (surface tiers, calmer signature blue palette, sidebar de-emphasis, and spacing normalization in app layout).
 - Verified Azure live proof with dual-key admin audit commands:
   - `PATCH /api/settings` with `X-Request-Id`
   - `GET /api/settings/audit?limit=...`
@@ -129,7 +130,7 @@ This plan is the source of truth for controlled polish work without drift.
 - [x] Create explicit doc-sync baseline after each behavior change (`README` -> `DEMO_SCRIPT` -> `LOCAL_DEMO_RUNBOOK` -> `HACKATHON_LOG`).
 - [x] Establish shadcn primitive base (`button`, `card`, `input`, `badge`, `switch`, `table`, `skeleton`, `toast`).
 - [x] Migrate Dashboard + Activities + Settings core surfaces to primitive layer.
-- [ ] Finalize Week 1 design tokens:
+- [x] Finalize Week 1 design tokens:
   - one signature primary blue
   - semantic status accents (green/amber/red) only where meaning exists
   - calibrated background/card/border contrast tiers

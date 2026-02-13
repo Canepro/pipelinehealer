@@ -5,13 +5,13 @@
 @tailwind utilities;
 
 :root {
-  --ph-bg: #f5f7fb;
-  --ph-bg-elevated: #ffffff;
+  --ph-bg: #f3f6fb;
+  --ph-bg-elevated: #edf2f9;
   --ph-surface: #ffffff;
-  --ph-border: #e2e8f0;
+  --ph-border: #d8e1ef;
   --ph-text: #0f172a;
   --ph-muted: #64748b;
-  --ph-accent: #2563eb;
+  --ph-accent: #356fae;
   font-family: 'Public Sans', 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -23,13 +23,13 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ph-bg: #0b1220;
-    --ph-bg-elevated: #111b2e;
-    --ph-surface: #172338;
-    --ph-border: #27344c;
-    --ph-text: #e2e8f0;
-    --ph-muted: #94a3b8;
-    --ph-accent: #60a5fa;
+    --ph-bg: #091321;
+    --ph-bg-elevated: #0f1b2f;
+    --ph-surface: #13233a;
+    --ph-border: #213651;
+    --ph-text: #dbe6f4;
+    --ph-muted: #95a6bc;
+    --ph-accent: #4a86c7;
   }
 }
 
@@ -48,7 +48,7 @@ body {
     @apply rounded-xl border;
     background: var(--ph-surface);
     border-color: var(--ph-border);
-    box-shadow: 0 8px 24px -18px rgba(15, 23, 42, 0.45);
+    box-shadow: 0 10px 30px -24px rgba(8, 18, 36, 0.55);
   }
 
   .btn-primary {
@@ -57,7 +57,7 @@ body {
   }
 
   .btn-primary:hover {
-    background: #1d4ed8;
+    background: #2c5b8f;
   }
 
   .btn-secondary {
