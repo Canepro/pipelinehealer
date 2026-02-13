@@ -29,7 +29,7 @@ Use:
 ## Auth and Runtime Security Defaults
 
 - `/api/*` requires `X-API-Key` outside development.
-- `/api/settings` requires `X-Admin-Key`.
+- `/api/settings*` uses dual-key auth outside development: `X-API-Key` + `X-Admin-Key`.
 - Production should keep webhook signature verification enabled.
 
 ## Supported Hardening Areas

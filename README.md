@@ -544,8 +544,7 @@ bash scripts/ph.sh lowcost
 ### API Security
 
 - `/api/*` endpoints require `X-API-Key` when `ENVIRONMENT` is not `development`.
-- `/api/settings` and `/api/settings/audit` require `X-Admin-Key`.
-- In non-development environments, admin endpoints require both `X-API-Key` and `X-Admin-Key`.
+- `/api/settings` and `/api/settings/audit` use `X-Admin-Key` and, in non-development, also require `X-API-Key`.
 - In `development`, API key auth is bypassed for local iteration.
 - In `production`, keep `VERIFY_WEBHOOK_SIGNATURE=true` and set `GITHUB_WEBHOOK_SECRET`.
 

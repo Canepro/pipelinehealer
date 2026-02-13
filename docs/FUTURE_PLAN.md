@@ -6,7 +6,7 @@ This document tracks post-demo improvements beyond the current stable baseline.
 
 The following are already implemented in the current project state:
 
-- API and admin auth (`X-API-Key` for `/api/*`, `X-Admin-Key` for `/api/settings`)
+- API and admin auth (`X-API-Key` for `/api/*`; `/api/settings*` uses `X-API-Key` + `X-Admin-Key` outside development)
 - GitHub API retry/backoff and orchestrator step timeouts
 - Timed-out workflow log handling and prompt truncation safeguards
 - Safe/demo healing mode split

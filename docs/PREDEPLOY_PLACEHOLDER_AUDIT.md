@@ -55,7 +55,10 @@ Run (against the active backend URL):
 
 ```bash
 BACKEND_URL="https://<backend-fqdn>"
-curl -sS -H "X-Admin-Key: $ADMIN_API_KEY" "$BACKEND_URL/api/settings"
+curl -sS \
+  -H "X-API-Key: $API_AUTH_KEY" \
+  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  "$BACKEND_URL/api/settings"
 ```
 
 Expected for non-dev:
