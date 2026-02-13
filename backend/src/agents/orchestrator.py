@@ -111,8 +111,15 @@ class OrchestratorAgent:
         is_debug = self._settings.heal_mode == "debug"
         src_logger = logging.getLogger("src")
         prev_level = src_logger.level
+        prev_handler_levels: list[tuple[logging.Handler, int]] = []
         if is_debug:
             src_logger.setLevel(logging.DEBUG)
+            # Also lower the root handler levels so DEBUG messages aren't
+            # suppressed by basicConfig's handler-level filter.
+            for handler in logging.getLogger().handlers:
+                prev_handler_levels.append((handler, handler.level))
+                if handler.level > logging.DEBUG:
+                    handler.setLevel(logging.DEBUG)
             logger.debug("[debug-mode] Verbose pipeline logging enabled for this run")
 
         # Use the pre-created activity record when provided (webhook/start() returns this ID).
@@ -252,6 +259,8 @@ class OrchestratorAgent:
         finally:
             if is_debug:
                 src_logger.setLevel(prev_level)
+                for handler, level in prev_handler_levels:
+                    handler.setLevel(level)
 
     async def get_status(self, activity_id: str) -> ActivityRecord | None:
         """Get the status of a healing activity.
