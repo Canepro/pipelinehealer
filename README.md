@@ -195,6 +195,8 @@ PipelineHealer is built for controlled remediation, not unconstrained autonomous
 - Explicitly not modified automatically:
   - application business logic
   - secrets and credential material
+- Server-side scope enforcement:
+  - `PH_ALLOWED_REPOS` allowlist is enforced in the webhook handler to prevent unintended PAT-wide or org-wide actions
 - Operational bounds:
   - one remediation result per activity
   - capped retry and timeout controls via env settings

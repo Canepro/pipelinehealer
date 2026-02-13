@@ -169,7 +169,7 @@ async def handle_workflow_run_event(
     repo_full_name = event.repository.full_name
     if not _is_allowed_repo(repo_full_name, settings.ph_allowed_repos):
         logger.info(
-            "Ignoring workflow run for repo outside allowlist: repo=%s delivery=%s",
+            "webhook ignored: repo %s not in PH_ALLOWED_REPOS (delivery=%s)",
             repo_full_name,
             delivery_id,
         )

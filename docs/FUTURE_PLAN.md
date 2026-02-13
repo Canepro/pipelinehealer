@@ -37,6 +37,10 @@ The following are already implemented in the current project state:
 - Add optional persistence for runtime setting overrides (currently in-memory).
 - Add repo/org allowlist controls for remediation scope.
 - Add configurable governance limits (max remediations per repo/time window).
+- Add lightweight admin session auth for settings operations (post-submission):
+  - Replace direct admin-key-only UX with short-lived, password-backed admin sessions.
+  - Keep `X-Admin-Key` as emergency fallback via feature flag.
+  - Record admin setting changes in a minimal audit trail.
 
 ## 5) CI Platform Extensibility
 
