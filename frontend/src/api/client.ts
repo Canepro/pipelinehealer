@@ -158,6 +158,8 @@ export const api = {
   getStats: () => fetchJson<DashboardStats>('/api/stats'),
   getSettings: (adminKey: string) =>
     fetchJson<AppSettings>('/api/settings', { adminKey }),
+  // Intentionally not auto-loaded.
+  // Admin audit access is gated and activated via explicit UI action.
   getSettingsAudit: (adminKey: string, limit = 50) =>
     fetchJson<AdminSettingsAuditEntry[]>(
       `/api/settings/audit?limit=${Math.max(1, Math.min(limit, 200))}`,

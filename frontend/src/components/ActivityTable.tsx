@@ -8,6 +8,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 interface ActivityTableProps {
   activities: Activity[]
@@ -70,36 +78,23 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
 
   return (
     <Card className="overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-slate-100/70 dark:bg-slate-800/60">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Repository
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Workflow
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Failure Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Time
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-transparent divide-y divide-gray-200 dark:divide-gray-700">
+      <Table>
+        <TableHeader className="bg-slate-100/70 dark:bg-slate-800/60">
+          <TableRow>
+            <TableHead className="pl-6">Repository</TableHead>
+            <TableHead>Workflow</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Failure Type</TableHead>
+            <TableHead>Time</TableHead>
+            <TableHead className="pr-6">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
             {activities.map((activity) => {
               const meta = getIssueProposalMeta(activity)
               return (
-              <tr key={activity.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                <td className="px-6 py-4 whitespace-nowrap">
+              <TableRow key={activity.id}>
+                <TableCell className="pl-6 whitespace-nowrap">
                   <div className="flex items-center">
                     <GitBranch className="h-5 w-5 text-gray-400 mr-2" />
                     <div>
@@ -111,16 +106,16 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
                       </div>
                     </div>
                   </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                </TableCell>
+                <TableCell className="whitespace-nowrap">
                   <div className="text-sm text-gray-900 dark:text-white">
                     {activity.workflow_name}
                   </div>
                   <div className="text-xs text-gray-500">
                     Run #{activity.workflow_run_id}
                   </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                </TableCell>
+                <TableCell className="whitespace-nowrap">
                   <StatusBadge status={activity.status} size="sm" />
                   <div className="mt-2 flex flex-wrap gap-1">
                     {meta.output && (
@@ -141,18 +136,18 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
                       )}
                     </div>
                   )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                </TableCell>
+                <TableCell className="whitespace-nowrap">
                   {activity.failure_type ? (
                     <FailureTypeBadge type={activity.failure_type} />
                   ) : (
                     <span className="text-gray-400">-</span>
                   )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                </TableCell>
+                <TableCell className="whitespace-nowrap text-sm text-gray-500">
                   {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                </TableCell>
+                <TableCell className="pr-6 whitespace-nowrap text-sm">
                   <div className="flex items-center space-x-2">
                     <Button asChild variant="ghost" size="sm">
                       <Link to={`/activities/${activity.id}`}>View</Link>
@@ -167,14 +162,13 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
                           <ExternalLink className="h-4 w-4" />
                         </a>
                       </Button>
-                    )}
+                      )}
                   </div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )})}
-          </tbody>
-        </table>
-      </div>
+        </TableBody>
+      </Table>
     </Card>
   )
 }

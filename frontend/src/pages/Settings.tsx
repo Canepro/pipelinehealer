@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Info, LockKeyhole, Save, Shield, SlidersHorizontal, Wrench } from 'lucide-react'
+import { Copy, Info, LockKeyhole, Save, Shield, SlidersHorizontal, Wrench } from 'lucide-react'
 import { toast } from 'sonner'
-import { api } from '../api/client'
+import { api, type AdminSettingsAuditEntry } from '../api/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 function BoolBadge({ value }: { value: boolean }) {
   return <Badge variant={value ? 'success' : 'destructive'}>{value ? 'Enabled' : 'Disabled'}</Badge>
@@ -37,6 +45,19 @@ export default function SettingsPage() {
     queryKey: ['app-settings', adminKey],
     queryFn: () => api.getSettings(adminKey),
     enabled: adminKey.length > 0,
+    retry: false,
+  })
+
+  const {
+    data: auditEntries,
+    refetch: refetchAudit,
+    isFetching: isAuditLoading,
+    isError: isAuditError,
+    error: auditError,
+  } = useQuery({
+    queryKey: ['settings-audit', adminKey],
+    queryFn: () => api.getSettingsAudit(adminKey, 20),
+    enabled: false,
     retry: false,
   })
 
@@ -88,6 +109,44 @@ export default function SettingsPage() {
       })
     },
   })
+
+  const formatAuditValue = (value: unknown) => {
+    if (typeof value === 'string') {
+      return value
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value)
+    }
+    if (value === null || value === undefined) {
+      return 'null'
+    }
+    return JSON.stringify(value)
+  }
+
+  const handleLoadAudit = async () => {
+    try {
+      await refetchAudit()
+      toast.success('Audit log loaded')
+    } catch (err) {
+      toast.error('Failed to load audit log', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      })
+    }
+  }
+
+  const handleCopyRequestId = async (entry: AdminSettingsAuditEntry) => {
+    if (!entry.request_id) {
+      toast.error('No request id available for this entry')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(entry.request_id)
+      toast.success('Request ID copied')
+    } catch {
+      toast.error('Unable to copy request ID')
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -576,6 +635,95 @@ export default function SettingsPage() {
               </Button>
             </div>
           </div>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Admin Audit Trail
+                </h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Intentionally not auto-loaded. Audit access is gated and pulled only on explicit admin action.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={isAuditLoading || !adminKey}
+                onClick={() => void handleLoadAudit()}
+              >
+                {isAuditLoading ? 'Loading...' : 'Load Audit'}
+              </Button>
+            </div>
+
+            {isAuditError && (
+              <p className="mt-4 text-sm text-red-600 dark:text-red-400">
+                {auditError instanceof Error ? auditError.message : 'Failed to load audit entries'}
+              </p>
+            )}
+
+            {auditEntries && auditEntries.length > 0 && (
+              <div className="mt-4 rounded-md border border-[var(--ph-border)]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Timestamp</TableHead>
+                      <TableHead>Changes</TableHead>
+                      <TableHead>Actor</TableHead>
+                      <TableHead>Request ID</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {auditEntries.map((entry) => (
+                      <TableRow key={`${entry.timestamp}-${entry.request_id ?? 'none'}`}>
+                        <TableCell className="text-xs text-gray-600 dark:text-gray-300">
+                          {new Date(entry.timestamp).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-xs text-gray-700 dark:text-gray-200">
+                          <div className="space-y-1">
+                            {entry.changed_keys.map((key) => {
+                              const diff = entry.changes[key]
+                              return (
+                                <p key={key}>
+                                  <span className="font-medium">{key}</span>: {formatAuditValue(diff?.old)} {'->'}{' '}
+                                  {formatAuditValue(diff?.new)}
+                                </p>
+                              )
+                            })}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-gray-600 dark:text-gray-300">
+                          {entry.actor || 'unknown'}
+                        </TableCell>
+                        <TableCell className="text-xs text-gray-600 dark:text-gray-300">
+                          <div className="flex items-center gap-2">
+                            <span>{entry.request_id || 'n/a'}</span>
+                            {entry.request_id && (
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => void handleCopyRequestId(entry)}
+                                aria-label="Copy request id"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            {auditEntries && auditEntries.length === 0 && (
+              <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                No audit entries yet in this runtime.
+              </p>
+            )}
+          </Card>
         </>
       )}
     </div>
