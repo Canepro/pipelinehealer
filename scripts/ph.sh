@@ -30,24 +30,31 @@ Commands:
   deploy:bg         Run redeploy in background and write log to /tmp/ph-redeploy.log
   deploy:logs       Follow detached redeploy logs
   deploy:status     Show detached redeploy process status
+  urls              Print Azure backend/frontend URLs
   webhook:add       Add/update Azure webhook for one repo and disable stale smee hook
   webhook:disable   Disable Azure webhook for one repo
   rollout:canary    Configure issue-only canary mode for selected repos and attach webhooks
   demo:e2e          Run scripted Azure E2E demo flow
+  demo:proof        Show latest CI runs, PRs, and issues for a repo (default demo repo)
   demo:reset        Reset demo fixture repo for dependency/lint failures
   warm              Set backend/frontend min-replicas to 1
   lowcost           Set backend/frontend min-replicas to 0
   status            Show backend/frontend Container App status
   settings:check    Call backend /api/settings using ADMIN_API_KEY from backend/.env
+  settings:audit    Call backend /api/settings/audit using API+ADMIN keys from backend/.env
+  audit:proof       Create two traceable admin audit entries and print latest audit records
   help              Show this help
 
 Examples:
   bash scripts/ph.sh deploy
   bash scripts/ph.sh deploy:bg
   bash scripts/ph.sh deploy:logs
+  bash scripts/ph.sh urls
   bash scripts/ph.sh webhook:add --repo owner/repo
   bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
   bash scripts/ph.sh demo:e2e --skip-webhook-sync
+  bash scripts/ph.sh demo:proof --repo owner/repo
+  bash scripts/ph.sh audit:proof --limit 5
   bash scripts/ph.sh warm
   bash scripts/ph.sh lowcost
 EOF
@@ -104,6 +111,34 @@ resolve_backend_fqdn() {
     -n "$BACKEND_APP" \
     --query properties.configuration.ingress.fqdn \
     -o tsv | tr -d '\r\n'
+}
+
+resolve_frontend_fqdn() {
+  need_cmd az
+  az containerapp show \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$FRONTEND_APP" \
+    --query properties.configuration.ingress.fqdn \
+    -o tsv | tr -d '\r\n'
+}
+
+read_auth_keys() {
+  local api_key admin_key
+  api_key="$(read_env_key "API_AUTH_KEY")"
+  admin_key="$(read_env_key "ADMIN_API_KEY")"
+  if [[ -z "${api_key:-}" ]]; then
+    echo "API_AUTH_KEY missing in backend/.env" >&2
+    exit 1
+  fi
+  if [[ -z "${admin_key:-}" ]]; then
+    echo "ADMIN_API_KEY missing in backend/.env" >&2
+    exit 1
+  fi
+  if [[ "$api_key" == *"replace_me"* || "$admin_key" == *"replace_me"* ]]; then
+    echo "API_AUTH_KEY/ADMIN_API_KEY are placeholder values in backend/.env. Set real keys first." >&2
+    exit 1
+  fi
+  printf '%s\n%s\n' "$api_key" "$admin_key"
 }
 
 sync_repo_webhook() {
@@ -303,29 +338,141 @@ settings_check() {
     echo "Missing env file: $REPO_ROOT/backend/.env" >&2
     exit 1
   fi
-  local api_key
-  local admin_key
-  api_key="$(grep '^API_AUTH_KEY=' "$REPO_ROOT/backend/.env" | tail -n1 | cut -d= -f2- | tr -d '\r\n' || true)"
-  admin_key="$(grep '^ADMIN_API_KEY=' "$REPO_ROOT/backend/.env" | tail -n1 | cut -d= -f2- | tr -d '\r\n' || true)"
-  if [[ -z "${api_key:-}" ]]; then
-    echo "API_AUTH_KEY missing in backend/.env" >&2
-    exit 1
-  fi
-  if [[ -z "${admin_key:-}" ]]; then
-    echo "ADMIN_API_KEY missing in backend/.env" >&2
-    exit 1
-  fi
-  if [[ "$api_key" == *"replace_me"* || "$admin_key" == *"replace_me"* ]]; then
-    echo "API_AUTH_KEY/ADMIN_API_KEY are placeholder values in backend/.env. Set real keys first." >&2
-    exit 1
-  fi
+  local api_key admin_key
+  mapfile -t _keys < <(read_auth_keys)
+  api_key="${_keys[0]}"
+  admin_key="${_keys[1]}"
   local backend_fqdn
-  backend_fqdn="$(az containerapp show -g "$AZ_RESOURCE_GROUP" -n "$BACKEND_APP" --query properties.configuration.ingress.fqdn -o tsv | tr -d '\r\n')"
+  backend_fqdn="$(resolve_backend_fqdn)"
   curl -fsS \
     -H "X-API-Key: $api_key" \
     -H "X-Admin-Key: $admin_key" \
     "https://$backend_fqdn/api/settings"
   echo
+}
+
+settings_audit() {
+  need_cmd curl
+  local limit="20"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --limit)
+        limit="$2"
+        shift 2
+        ;;
+      *)
+        echo "Unknown argument for settings:audit: $1" >&2
+        exit 2
+        ;;
+    esac
+  done
+  local api_key admin_key
+  mapfile -t _keys < <(read_auth_keys)
+  api_key="${_keys[0]}"
+  admin_key="${_keys[1]}"
+  local backend_fqdn
+  backend_fqdn="$(resolve_backend_fqdn)"
+  curl -fsS \
+    -H "X-API-Key: $api_key" \
+    -H "X-Admin-Key: $admin_key" \
+    "https://$backend_fqdn/api/settings/audit?limit=$limit"
+  echo
+}
+
+audit_proof() {
+  need_cmd curl
+  need_cmd python3
+  local limit="5"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --limit)
+        limit="$2"
+        shift 2
+        ;;
+      *)
+        echo "Unknown argument for audit:proof: $1" >&2
+        exit 2
+        ;;
+    esac
+  done
+
+  local api_key admin_key backend_fqdn base_url current_auto next_auto
+  mapfile -t _keys < <(read_auth_keys)
+  api_key="${_keys[0]}"
+  admin_key="${_keys[1]}"
+  backend_fqdn="$(resolve_backend_fqdn)"
+  base_url="https://$backend_fqdn"
+
+  current_auto="$(curl -fsS \
+    -H "X-API-Key: $api_key" \
+    -H "X-Admin-Key: $admin_key" \
+    "$base_url/api/settings" | python3 -c 'import sys,json; print("true" if json.load(sys.stdin).get("auto_create_pr", False) else "false")')"
+  if [[ "$current_auto" == "true" ]]; then
+    next_auto="false"
+  else
+    next_auto="true"
+  fi
+
+  local rid_a rid_b
+  rid_a="ph-audit-proof-a"
+  rid_b="ph-audit-proof-b"
+
+  curl -fsS -X PATCH \
+    -H "X-API-Key: $api_key" \
+    -H "X-Admin-Key: $admin_key" \
+    -H "Content-Type: application/json" \
+    -H "X-Request-Id: $rid_a" \
+    -d "{\"auto_create_pr\":$next_auto}" \
+    "$base_url/api/settings" >/dev/null
+
+  curl -fsS -X PATCH \
+    -H "X-API-Key: $api_key" \
+    -H "X-Admin-Key: $admin_key" \
+    -H "Content-Type: application/json" \
+    -H "X-Request-Id: $rid_b" \
+    -d "{\"auto_create_pr\":$current_auto}" \
+    "$base_url/api/settings" >/dev/null
+
+  echo "Created audit proof entries: $rid_a, $rid_b"
+  settings_audit "$limit"
+}
+
+cmd_demo_proof() {
+  need_cmd gh
+  local repo="Canepro/pipelinehealer-demo"
+  local limit="10"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --repo)
+        repo="$2"
+        shift 2
+        ;;
+      --limit)
+        limit="$2"
+        shift 2
+        ;;
+      *)
+        echo "Unknown argument for demo:proof: $1" >&2
+        exit 2
+        ;;
+    esac
+  done
+  echo "Recent CI runs:"
+  gh run list -R "$repo" --workflow CI --limit "$limit"
+  echo
+  echo "Open PRs:"
+  gh pr list -R "$repo"
+  echo
+  echo "Open issues:"
+  gh issue list -R "$repo" --state open --limit "$limit"
+}
+
+show_urls() {
+  local backend_fqdn frontend_fqdn
+  backend_fqdn="$(resolve_backend_fqdn)"
+  frontend_fqdn="$(resolve_frontend_fqdn)"
+  echo "Backend URL : https://$backend_fqdn"
+  echo "Frontend URL: https://$frontend_fqdn"
 }
 
 show_status() {
@@ -396,8 +543,14 @@ case "$COMMAND" in
   deploy:status)
     deploy_status
     ;;
+  urls)
+    show_urls
+    ;;
   demo:e2e)
     bash "$SCRIPT_DIR/demo/run_e2e_azure.sh" "$@"
+    ;;
+  demo:proof)
+    cmd_demo_proof "$@"
     ;;
   webhook:add)
     cmd_webhook_add "$@"
@@ -422,6 +575,12 @@ case "$COMMAND" in
     ;;
   settings:check)
     settings_check
+    ;;
+  settings:audit)
+    settings_audit "$@"
+    ;;
+  audit:proof)
+    audit_proof "$@"
     ;;
   *)
     echo "Unknown command: $COMMAND" >&2

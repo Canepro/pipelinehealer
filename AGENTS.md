@@ -22,15 +22,19 @@ From repo root:
 bash scripts/ph.sh help
 bash scripts/ph.sh deploy
 bash scripts/ph.sh deploy:env
+bash scripts/ph.sh urls
 bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
 bash scripts/ph.sh webhook:add --repo owner/repo1
 bash scripts/ph.sh webhook:disable --repo owner/repo1
 bash scripts/ph.sh demo:e2e
+bash scripts/ph.sh demo:proof
 bash scripts/ph.sh demo:reset
 bash scripts/ph.sh warm
 bash scripts/ph.sh lowcost
 bash scripts/ph.sh status
 bash scripts/ph.sh settings:check
+bash scripts/ph.sh settings:audit --limit 5
+bash scripts/ph.sh audit:proof --limit 5
 ```
 
 Important:
