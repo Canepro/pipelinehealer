@@ -360,6 +360,10 @@ settings_audit() {
         limit="$2"
         shift 2
         ;;
+      --limit=*)
+        limit="${1#*=}"
+        shift
+        ;;
       *)
         echo "Unknown argument for settings:audit: $1" >&2
         exit 2
@@ -388,6 +392,10 @@ audit_proof() {
       --limit)
         limit="$2"
         shift 2
+        ;;
+      --limit=*)
+        limit="${1#*=}"
+        shift
         ;;
       *)
         echo "Unknown argument for audit:proof: $1" >&2
@@ -434,7 +442,7 @@ audit_proof() {
     "$base_url/api/settings" >/dev/null
 
   echo "Created audit proof entries: $rid_a, $rid_b"
-  settings_audit "$limit"
+  settings_audit --limit "$limit"
 }
 
 cmd_demo_proof() {
@@ -450,6 +458,10 @@ cmd_demo_proof() {
       --limit)
         limit="$2"
         shift 2
+        ;;
+      --limit=*)
+        limit="${1#*=}"
+        shift
         ;;
       *)
         echo "Unknown argument for demo:proof: $1" >&2
