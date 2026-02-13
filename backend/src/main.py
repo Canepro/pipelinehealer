@@ -59,6 +59,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
+    # Suppress noisy Azure SDK HTTP loggers that flood container log retention
+    for _noisy in ("azure.cosmos", "azure.identity", "azure.core"):
+        logging.getLogger(_noisy).setLevel(logging.WARNING)
+
     logger.info(
         "Starting PipelineHealer",
         environment=settings.environment,
