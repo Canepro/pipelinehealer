@@ -188,6 +188,18 @@ These are enforceable defaults for all primary product screens.
 - Micro-interaction consistency:
   - secondary/ghost button disabled + hover behavior standardized in shared button variants
 
+### Week 3 Evidence
+
+- Screenshots:
+  - `docs/screens/week3-settings-audit-1440x900.png` (audit table labels + monospace trace fields + Copy Trace actions)
+  - `docs/screens/week3-settings-audit-390x844.png` (mobile settings with audit section visible)
+- Proof references:
+  - audit trace IDs used for proof: `week3-proof-audit`, `week3-proof-audit-2`
+  - example issue artifact: `https://github.com/Canepro/pipelinehealer-demo/issues/60`
+- Quality gates:
+  - `bun run lint` pass
+  - `bun run build` pass
+
 ## Week 4 Plan (Submission Freeze)
 
 - [ ] Freeze non-critical UI changes.
