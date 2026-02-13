@@ -139,6 +139,12 @@ SHOW: Final dashboard state, with PRs and issues clearly listed.
 
 TELL: PipelineHealer shifts teams from reactive troubleshooting to structured, automated remediation, improving CI/CD reliability with clear, auditable actions.
 
+### Optional 30-Second Differentiator Insert
+
+Use this if you want to emphasize why PipelineHealer stands out in a crowded AI hackathon field:
+
+TELL: PipelineHealer is not just an AI that opens PRs. It is an AI-governed remediation system with explicit trust boundaries. High-confidence, deterministic cases become reviewable PRs. Low-confidence cases become structured issues with a proposed fix, reason code, and validation steps, so uncertainty is visible instead of hidden. That gives teams speed without losing control: every action is policy-bound, auditable, and observable in the dashboard.
+
 ## 6) Post-Record Cleanup
 
 Merge or close demo artifacts if needed:
