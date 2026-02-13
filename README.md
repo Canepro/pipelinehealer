@@ -11,14 +11,17 @@ PipelineHealer is an Azure-deployed, multi-agent CI remediation system built for
 
 ## Proof (Azure-First)
 
-- Live deployment target (hackathon requirement): Azure Container Apps (backend + frontend)
-- Live frontend (Azure): `https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io`
-- Live backend API (Azure): `https://ca-canepro-ph-backend.kinddune-53ac219d.eastus2.azurecontainerapps.io`
-- Live backend health: `https://ca-canepro-ph-backend.kinddune-53ac219d.eastus2.azurecontainerapps.io/health`
-- Reproducible demo path: `docs/DEMO_SCRIPT.md` (single-file recording runbook)
-- Operator runbook: `docs/LOCAL_DEMO_RUNBOOK.md` (Azure + local fallback)
-- Deterministic auto-fix PR example: `https://github.com/Canepro/pipelinehealer-demo/pull/53`
-- Structured issue example (manual-review path, with Proposed Fix + Reason Code): `https://github.com/Canepro/pipelinehealer-demo/issues/60`
+- Platform: Azure Container Apps (backend + frontend)
+- Live app:
+  - Frontend: [PipelineHealer UI](https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io)
+  - Backend API: [Backend Base URL](https://ca-canepro-ph-backend.kinddune-53ac219d.eastus2.azurecontainerapps.io)
+  - Health endpoint: [GET /health](https://ca-canepro-ph-backend.kinddune-53ac219d.eastus2.azurecontainerapps.io/health)
+- Reproducibility:
+  - Recording runbook: `docs/DEMO_SCRIPT.md`
+  - Full operator runbook: `docs/LOCAL_DEMO_RUNBOOK.md`
+- Evidence artifacts:
+  - Deterministic PR path: [demo-repo PR #53](https://github.com/Canepro/pipelinehealer-demo/pull/53)
+  - Manual-review issue path (Proposed Fix + Reason Code): [demo-repo Issue #60](https://github.com/Canepro/pipelinehealer-demo/issues/60)
 - Runtime verification commands:
   - `bash scripts/ph.sh status`
   - `bash scripts/ph.sh settings:check`
