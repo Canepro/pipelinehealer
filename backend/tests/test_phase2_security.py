@@ -166,6 +166,7 @@ def test_allowed_repos_parse_from_csv() -> None:
 @pytest.mark.asyncio
 async def test_workflow_run_ignored_when_repo_not_in_allowlist(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT", "false")
     monkeypatch.setenv("PH_ALLOWED_REPOS", "Canepro/allowed-repo")
     get_settings.cache_clear()
 
