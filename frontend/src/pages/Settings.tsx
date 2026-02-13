@@ -445,7 +445,34 @@ export default function SettingsPage() {
                   <dt className="text-gray-500 dark:text-gray-400">GitHub App configured</dt>
                   <dd><BoolBadge value={data.github_app_configured} /></dd>
                 </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-gray-500 dark:text-gray-400">Repo allowlist</dt>
+                  <dd className="font-medium text-gray-900 dark:text-white">
+                    {data.ph_allowed_repos.length > 0
+                      ? `${data.ph_allowed_repos.length} repos`
+                      : 'All repos (unrestricted)'}
+                  </dd>
+                </div>
               </dl>
+              <div className="mt-3">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Allowed repositories</p>
+                {data.ph_allowed_repos.length > 0 ? (
+                  <div className="space-y-1">
+                    {data.ph_allowed_repos.map((repo) => (
+                      <div
+                        key={repo}
+                        className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 break-all text-xs"
+                      >
+                        {repo}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    No repo allowlist set. Backend is not restricted to specific repositories.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
