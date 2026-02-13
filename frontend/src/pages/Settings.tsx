@@ -125,6 +125,39 @@ export default function SettingsPage() {
     return JSON.stringify(value)
   }
 
+  const isAuditValueEqual = (left: unknown, right: unknown) => {
+    if (Object.is(left, right)) {
+      return true
+    }
+    if (typeof left === 'object' && left !== null && typeof right === 'object' && right !== null) {
+      try {
+        return JSON.stringify(left) === JSON.stringify(right)
+      } catch {
+        return false
+      }
+    }
+    return false
+  }
+
+  const getEffectiveAuditChanges = (entry: AdminSettingsAuditEntry) =>
+    entry.changed_keys
+      .map((key) => ({ key, diff: entry.changes[key] }))
+      .filter(({ diff }) => !isAuditValueEqual(diff?.old, diff?.new))
+
+  const formatActorLabel = (actor?: string) => {
+    if (!actor) {
+      return 'Unknown actor'
+    }
+    const fingerprintPrefix = 'admin_key:sha256:'
+    if (actor.startsWith(fingerprintPrefix)) {
+      return `Admin (${actor.slice(fingerprintPrefix.length)})`
+    }
+    return actor
+  }
+
+  const formatAuditTimestampUtc = (timestamp: string) =>
+    new Date(timestamp).toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
+
   const handleLoadAudit = async () => {
     try {
       await refetchAudit()
@@ -684,51 +717,61 @@ export default function SettingsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {auditEntries.map((entry) => (
-                      <TableRow key={`${entry.timestamp}-${entry.request_id ?? 'none'}`}>
-                        <TableCell className="text-xs text-gray-700 dark:text-gray-200">
-                          <div className="space-y-1">
-                            {entry.changed_keys.map((key) => {
-                              const diff = entry.changes[key]
-                              return (
-                                <p key={key}>
-                                  <span className="font-medium">{key}</span>: {formatAuditValue(diff?.old)} {'->'}{' '}
-                                  {formatAuditValue(diff?.new)}
-                                </p>
-                              )
-                            })}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-mono text-[11px] text-gray-600 dark:text-gray-300">
-                          {entry.actor || 'unknown'}
-                        </TableCell>
-                        <TableCell className="text-xs text-gray-600 dark:text-gray-300">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-[11px]">{entry.request_id || 'n/a'}</span>
-                            {entry.request_id && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => void handleCopyTrace(entry)}
-                                aria-label="Copy trace"
-                              >
-                                <Copy className="h-4 w-4" />
-                                Copy Trace
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs text-gray-600 dark:text-gray-300">
-                          <span
-                            className="cursor-help"
-                            title={new Date(entry.timestamp).toISOString()}
+                    {auditEntries.map((entry) => {
+                      const effectiveChanges = getEffectiveAuditChanges(entry)
+                      return (
+                        <TableRow key={`${entry.timestamp}-${entry.request_id ?? 'none'}`}>
+                          <TableCell className="text-xs text-gray-700 dark:text-gray-200">
+                            <div className="space-y-1">
+                              {effectiveChanges.map(({ key, diff }) => {
+                                return (
+                                  <p key={key}>
+                                    <span className="font-medium">{key}</span>: {formatAuditValue(diff?.old)} {'->'}{' '}
+                                    {formatAuditValue(diff?.new)}
+                                  </p>
+                                )
+                              })}
+                              {effectiveChanges.length === 0 && (
+                                <p className="text-gray-500 dark:text-gray-400">No effective value changes recorded.</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell
+                            className="font-mono text-[11px] text-gray-600 dark:text-gray-300"
+                            title={entry.actor || 'unknown'}
                           >
-                            {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                            {formatActorLabel(entry.actor)}
+                          </TableCell>
+                          <TableCell className="text-xs text-gray-600 dark:text-gray-300">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-[11px]">{entry.request_id || 'n/a'}</span>
+                              {entry.request_id && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => void handleCopyTrace(entry)}
+                                  aria-label="Copy trace"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                  Copy Trace
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs text-gray-600 dark:text-gray-300">
+                            <span
+                              className="cursor-help"
+                              title={new Date(entry.timestamp).toISOString()}
+                            >
+                              {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
+                              {' · '}
+                              {formatAuditTimestampUtc(entry.timestamp)}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>
