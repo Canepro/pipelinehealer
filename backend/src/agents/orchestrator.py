@@ -109,8 +109,10 @@ class OrchestratorAgent:
         logger.info(f"Processing workflow failure: {owner}/{repo} run {run_id}")
 
         is_debug = self._settings.heal_mode == "debug"
+        src_logger = logging.getLogger("src")
+        prev_level = src_logger.level
         if is_debug:
-            logging.getLogger("src").setLevel(logging.DEBUG)
+            src_logger.setLevel(logging.DEBUG)
             logger.debug("[debug-mode] Verbose pipeline logging enabled for this run")
 
         # Use the pre-created activity record when provided (webhook/start() returns this ID).
@@ -247,6 +249,9 @@ class OrchestratorAgent:
             activity.error = str(e)
             await self._storage.update_activity(activity)
             return activity
+        finally:
+            if is_debug:
+                src_logger.setLevel(prev_level)
 
     async def get_status(self, activity_id: str) -> ActivityRecord | None:
         """Get the status of a healing activity.
