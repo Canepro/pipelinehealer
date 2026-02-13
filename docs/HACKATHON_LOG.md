@@ -40,7 +40,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 - Recommended healing mode: `HEAL_MODE=safe`
 - Demo trigger command:
-  - `bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 40`
+  - `bash scripts/ph.sh demo:e2e --triggers dependency,lint,prettier,permissions,test,build_config,timeout --wait-seconds 40`
 - Demo scale toggle:
   - pre-demo: `bash scripts/ph.sh warm`
   - post-demo: `bash scripts/ph.sh lowcost`

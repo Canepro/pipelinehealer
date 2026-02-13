@@ -62,6 +62,32 @@ async def test_demo_mode_timeout_generates_timeout_bump_pr_plan() -> None:
 
 
 @pytest.mark.asyncio
+async def test_build_config_permissions_error_generates_permissions_pr_plan() -> None:
+    gen = FixGenerators(heal_mode="safe")
+    plan = await gen.generate_fix(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.BUILD_CONFIG,
+            confidence=0.9,
+            root_cause="Insufficient GitHub Actions token permissions",
+            is_auto_fixable=True,
+            error_details={
+                "workflow_permissions_fix": True,
+                "permissions": {
+                    "contents": "write",
+                    "pull-requests": "write",
+                },
+            },
+        ),
+        repository_info={},
+    )
+    assert plan.action == RemediationAction.CREATE_PR
+    assert plan.branch_name == "fix/ci-workflow-permissions"
+    assert plan.file_changes
+    assert plan.file_changes[0].get("type") == "line_update"
+    assert plan.file_changes[0].get("pattern") == r"^jobs:\s*$"
+
+
+@pytest.mark.asyncio
 async def test_render_line_update_supports_backrefs_and_file_selection() -> None:
     gh = FakeGitHubToolsWithFiles(
         files={

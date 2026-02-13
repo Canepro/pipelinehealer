@@ -21,7 +21,7 @@ Options:
   --backend-app <name>        Azure backend Container App (default: ca-canepro-ph-backend)
   --demo-repo-dir <path>      Local checkout of demo repo (default: ./demo-repo)
   --wait-seconds <n>          Wait after triggers before verification (default: 75)
-  --triggers <csv>            Failure types CSV (default: dependency,lint,test,build_config,timeout)
+  --triggers <csv>            Failure types CSV (default: dependency,lint,prettier,permissions,test,build_config,timeout)
   --skip-webhook-sync         Do not alter GitHub webhooks
   --skip-reset                Do not reset demo fixtures
   --skip-trigger              Do not dispatch workflow runs
@@ -37,7 +37,7 @@ AZ_RESOURCE_GROUP="rg-canepro-ph-dev-eus"
 BACKEND_APP="ca-canepro-ph-backend"
 DEMO_REPO_DIR="$REPO_ROOT/demo-repo"
 WAIT_SECONDS="75"
-TRIGGERS_CSV="dependency,lint,test,build_config,timeout"
+TRIGGERS_CSV="dependency,lint,prettier,permissions,test,build_config,timeout"
 DO_WEBHOOK_SYNC="1"
 DO_RESET="1"
 DO_TRIGGER="1"

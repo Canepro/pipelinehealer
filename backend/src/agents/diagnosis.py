@@ -206,6 +206,7 @@ Be specific about:
             # ESLint v9+ uses flat config by default; missing config is common and fixable by adding eslint.config.js.
             (r"eslint.*eslint\.config\.(?:js|mjs|cjs)", "eslint", "ESLint missing flat config", True),
             (r"prettier.*error", "prettier", "Prettier formatting issue", False),
+            (r"code style issues found", "prettier", "Prettier formatting issue", False),
             (r"black.*would reformat", "black", "Black formatting required", False),
             (r"ruff.*error", "ruff", "Ruff linting error", False),
             (r"flake8.*error", "flake8", "Flake8 violation", False),
@@ -271,6 +272,34 @@ Be specific about:
                 )
 
         # Check for build config issues
+        workflow_permission_patterns = [
+            (
+                r"resource not accessible by integration",
+                "Insufficient GitHub Actions token permissions",
+            ),
+            (
+                r"insufficient permissions",
+                "Insufficient GitHub Actions token permissions",
+            ),
+        ]
+
+        for pattern, description in workflow_permission_patterns:
+            if re.search(pattern, error_text, re.IGNORECASE):
+                return Diagnosis(
+                    failure_type=FailureType.BUILD_CONFIG,
+                    confidence=0.9,
+                    root_cause=description,
+                    is_auto_fixable=True,
+                    suggested_fix="Add minimal `permissions` block to the workflow",
+                    error_details={
+                        "workflow_permissions_fix": True,
+                        "permissions": {
+                            "contents": "write",
+                            "pull-requests": "write",
+                        },
+                    },
+                )
+
         config_patterns = [
             (r"env.*not.*set", "Environment variable not set"),
             (r"secret.*not.*found", "Secret not configured"),

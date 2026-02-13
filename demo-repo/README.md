@@ -22,6 +22,8 @@ You can manually trigger different types of failures using GitHub Actions workfl
    - `none` - Normal successful build
    - `dependency` - Simulates a dependency installation failure
    - `lint` - Simulates a linting error
+   - `prettier` - Simulates a formatter check failure
+   - `permissions` - Simulates GitHub token permission failure signature
    - `test` - Simulates a test failure
    - `build_config` - Simulates a missing configuration error
    - `timeout` - Simulates a timeout
@@ -48,6 +50,14 @@ When a failure occurs, PipelineHealer will:
 ### Test Failure
 - **Trigger**: Select `test` failure type
 - **Expected**: PipelineHealer creates an issue with test failure analysis
+
+### Prettier Failure
+- **Trigger**: Select `prettier` failure type
+- **Expected (Recommended)**: PipelineHealer opens a deterministic remediation PR path for formatter/lint handling
+
+### Permissions Failure
+- **Trigger**: Select `permissions` failure type
+- **Expected (Recommended)**: PipelineHealer creates a PR that adds minimal workflow `permissions` (`contents: write`, `pull-requests: write`)
 
 ### Config Failure
 - **Trigger**: Select `build_config` failure type

@@ -261,6 +261,8 @@ In your demo repo checkout (or from anywhere), run:
 ```bash
 gh workflow run CI -R <owner>/<repo> -f failure_type=dependency
 gh workflow run CI -R <owner>/<repo> -f failure_type=lint
+gh workflow run CI -R <owner>/<repo> -f failure_type=prettier
+gh workflow run CI -R <owner>/<repo> -f failure_type=permissions
 gh workflow run CI -R <owner>/<repo> -f failure_type=test
 gh workflow run CI -R <owner>/<repo> -f failure_type=build_config
 gh workflow run CI -R <owner>/<repo> -f failure_type=timeout
@@ -335,6 +337,8 @@ In a third terminal:
 cd demo-repo
 gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=dependency
 gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=lint
+gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=prettier
+gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=permissions
 gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=test
 gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=build_config
 gh workflow run CI -R Canepro/pipelinehealer-demo -f failure_type=timeout

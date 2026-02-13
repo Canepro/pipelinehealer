@@ -19,6 +19,8 @@ on:
           - none
           - dependency
           - lint
+          - prettier
+          - permissions
           - test
           - build_config
           - timeout
@@ -65,6 +67,25 @@ jobs:
           # ESLint v9+ requires eslint.config.js by default; missing it produces a clear failure
           # that PipelineHealer can remediate by opening a PR that adds the config.
           bunx eslint temp.js
+
+      # Simulate formatter failure (Prettier)
+      - name: Prettier (may fail)
+        if: ${{ github.event.inputs.failure_type == 'prettier' }}
+        run: |
+          echo "Simulating prettier check failure..."
+          cat > bad-format.js <<'JS'
+          const   x={a:1,b:2}
+          console.log(x)
+          JS
+          bunx prettier --check bad-format.js
+
+      # Simulate workflow permission failure signature
+      - name: Permissions (may fail)
+        if: ${{ github.event.inputs.failure_type == 'permissions' }}
+        run: |
+          echo "Simulating GitHub token permission failure..."
+          echo "403 Resource not accessible by integration"
+          exit 1
       
       # Build step
       - name: Build

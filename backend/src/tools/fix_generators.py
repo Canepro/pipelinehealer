@@ -409,6 +409,49 @@ The following test(s) appear to be flaky (intermittent failures):
         """Generate a fix for build configuration issues."""
         error_details = diagnosis.error_details
 
+        if bool(error_details.get("workflow_permissions_fix")):
+            permissions = error_details.get("permissions", {})
+            contents_level = str(permissions.get("contents") or "write")
+            pr_level = str(permissions.get("pull-requests") or "write")
+            permissions_block = (
+                "permissions:\n"
+                f"  contents: {contents_level}\n"
+                f"  pull-requests: {pr_level}\n\n"
+                "jobs:"
+            )
+            return RemediationPlan(
+                action=RemediationAction.CREATE_PR,
+                description="Add minimal GitHub Actions workflow permissions",
+                file_changes=[
+                    {
+                        "type": "line_update",
+                        "files": [
+                            ".github/workflows/ci.yml",
+                            ".github/workflows/ci.yaml",
+                        ],
+                        "pattern": r"^jobs:\s*$",
+                        "replacement": permissions_block,
+                        "append_if_missing": False,
+                        "all_matches": False,
+                        "require_existing": True,
+                    }
+                ],
+                branch_name="fix/ci-workflow-permissions",
+                pr_title="fix(ci): add minimal workflow permissions",
+                pr_body=(
+                    "## CI Permission Fix\n\n"
+                    "This PR adds a minimal workflow `permissions` block to resolve "
+                    "`GITHUB_TOKEN` authorization failures.\n\n"
+                    "### Added Permissions\n"
+                    f"- `contents: {contents_level}`\n"
+                    f"- `pull-requests: {pr_level}`\n\n"
+                    "### Root Cause\n"
+                    f"{diagnosis.root_cause}\n\n"
+                    "---\n"
+                    "*This PR was automatically created by PipelineHealer*\n"
+                ),
+            )
+
         missing_vars = error_details.get("missing_env_vars", [])
         config_file = error_details.get("config_file", "")
         config_error = error_details.get("config_error", "")

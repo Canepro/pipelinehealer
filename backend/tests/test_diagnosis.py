@@ -59,6 +59,22 @@ class TestPatternBasedDiagnosis:
         assert "eslint" in diagnosis.error_details.get("linter", "")
         assert diagnosis.error_details.get("missing_file", "") == ""
 
+    def test_detect_prettier_code_style_message(self) -> None:
+        """Test detection of Prettier check output signature."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="format",
+            raw_logs="Code style issues found in the above file. Run Prettier with --write to fix.",
+            error_lines=["Code style issues found in the above file."],
+            summary="Formatting failed",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.LINT
+        assert diagnosis.error_details.get("linter") == "prettier"
+
     def test_detect_eslint_missing_flat_config(self) -> None:
         """Test detection of missing eslint flat config."""
         log_analysis = LogAnalysis(
@@ -106,6 +122,23 @@ class TestPatternBasedDiagnosis:
 
         assert diagnosis is not None
         assert diagnosis.failure_type == FailureType.TIMEOUT
+
+    def test_detect_workflow_permission_error(self) -> None:
+        """Test detection of GitHub token permission errors."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="build",
+            raw_logs="403 Resource not accessible by integration",
+            error_lines=["403 Resource not accessible by integration"],
+            summary="Insufficient permissions",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.BUILD_CONFIG
+        assert diagnosis.is_auto_fixable is True
+        assert diagnosis.error_details.get("workflow_permissions_fix") is True
 
     def test_no_pattern_match_returns_none(self) -> None:
         """Test that unrecognized errors return None."""
