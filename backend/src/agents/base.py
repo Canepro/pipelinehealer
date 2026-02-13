@@ -98,6 +98,7 @@ def create_cloud_agent(
     endpoint = getattr(settings, "azure_openai_endpoint", "") or ""
     deployment_name = getattr(settings, "azure_openai_deployment_name", "") or ""
     api_version = getattr(settings, "azure_openai_api_version", "") or ""
+    chat_api_version = getattr(settings, "azure_openai_chat_api_version", "") or ""
     api_key = getattr(settings, "azure_openai_api_key", "") or ""
 
     if not endpoint:
@@ -109,18 +110,16 @@ def create_cloud_agent(
     # Foundry commonly provisions OpenAI deployments behind an "AI Services" endpoint
     # like `https://<name>.cognitiveservices.azure.com/`.
     if "cognitiveservices.azure.com" in endpoint:
-        # Foundry deployment pages commonly recommend a dated preview version for chat completions
-        # (for example `2024-12-01-preview`). If the user left the default `preview`, prefer that.
-        chat_api_version = api_version
-        if chat_api_version in ("", "preview"):
-            chat_api_version = "2024-12-01-preview"
+        # For cognitiveservices endpoints, prefer the chat API version from config.
+        # Fall back to the primary api_version if chat version is unset.
+        effective_chat_version = chat_api_version or api_version
 
         from agent_framework.azure import AzureOpenAIChatClient
 
         chat_client: Any = AzureOpenAIChatClient(
             endpoint=endpoint,
             deployment_name=deployment_name,
-            api_version=chat_api_version or None,
+            api_version=effective_chat_version or None,
             api_key=api_key or None,
             credential=credential,
         )
@@ -129,12 +128,8 @@ def create_cloud_agent(
     # For classic Azure OpenAI resources (openai.azure.com), use the Responses API.
     from agent_framework.azure import AzureOpenAIChatClient, AzureOpenAIResponsesClient
 
-    # Responses API is enabled only for certain preview versions on some resources.
-    # If the user left the default `preview`, prefer a known-working dated preview.
-    # Keep this configurable via AZURE_OPENAI_API_VERSION; we only provide safe defaults.
+    # Primary version comes from AZURE_OPENAI_API_VERSION (env-driven).
     responses_api_version = api_version
-    if responses_api_version in ("", "preview"):
-        responses_api_version = "2025-04-01-preview"
 
     responses_client: Any = AzureOpenAIResponsesClient(
         endpoint=endpoint,
@@ -146,12 +141,12 @@ def create_cloud_agent(
     primary_agent = _as_agent_compat(responses_client, name=name, instructions=instructions)
 
     # Compatibility fallback: certain resources/deployments may reject Responses API versions
-    # while still supporting chat completions on a dated preview API version.
-    chat_api_version = "2024-12-01-preview"
+    # while still supporting chat completions. Version from AZURE_OPENAI_CHAT_API_VERSION.
+    fallback_chat_version = chat_api_version or api_version
     chat_client: Any = AzureOpenAIChatClient(
         endpoint=endpoint,
         deployment_name=deployment_name,
-        api_version=chat_api_version,
+        api_version=fallback_chat_version,
         api_key=api_key or None,
         credential=credential,
     )

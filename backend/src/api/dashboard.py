@@ -92,6 +92,7 @@ def _build_settings_view() -> AppSettingsView:
         azure_openai_endpoint=settings.azure_openai_endpoint,
         azure_openai_deployment_name=settings.azure_openai_deployment_name,
         azure_openai_api_version=settings.azure_openai_api_version,
+        azure_openai_chat_api_version=settings.azure_openai_chat_api_version,
     )
 
 

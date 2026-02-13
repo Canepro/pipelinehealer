@@ -93,8 +93,9 @@ cp .env.example .env
 Edit `backend/.env`:
 
 - `AZURE_OPENAI_ENDPOINT`
-- `AZURE_OPENAI_DEPLOYMENT_NAME` (current dev deployment: `gpt-5-mini`)
-- `AZURE_OPENAI_API_VERSION` (use the version shown in your Azure deployment target URI; current working value here is `2025-04-01-preview`)
+- `AZURE_OPENAI_DEPLOYMENT_NAME` (use the name from your Azure deployment)
+- `AZURE_OPENAI_API_VERSION` (primary Responses client version; default `2025-04-01-preview` — check your deployment Target URI)
+- `AZURE_OPENAI_CHAT_API_VERSION` (fallback Chat Completions version; default `2024-12-01-preview`)
 - `AZURE_OPENAI_API_KEY` (recommended for local)
 - `GITHUB_PERSONAL_ACCESS_TOKEN` (recommended for local)
 - `ADMIN_API_KEY` (required for `/api/settings` admin read/write)
@@ -236,8 +237,7 @@ Expected output ends with:
 
 - `model connectivity OK.`
 
-If you see "API version not supported", use the exact API version shown in your Azure OpenAI deployment **Target URI**.
-For this current environment, `2025-04-01-preview` is working.
+If you see "API version not supported", the fallback Chat Completions client will retry automatically with `AZURE_OPENAI_CHAT_API_VERSION`. If both fail, check your Azure deployment **Target URI** for the correct version and update your `.env` accordingly.
 
 ## 3) Run Backend (FastAPI, host-native only)
 

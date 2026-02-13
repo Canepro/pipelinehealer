@@ -521,6 +521,8 @@ bash scripts/ph.sh lowcost
 |----------|-------------|----------|
 | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint URL | Yes |
 | `AZURE_OPENAI_DEPLOYMENT_NAME` | Model deployment name (for example `gpt-5-mini` or `gpt-4o`) | Yes |
+| `AZURE_OPENAI_API_VERSION` | API version for the primary Responses client (default: `2025-04-01-preview`) | Optional |
+| `AZURE_OPENAI_CHAT_API_VERSION` | API version for the fallback Chat Completions client (default: `2024-12-01-preview`) | Optional |
 | `COSMOS_DB_ENDPOINT` | Cosmos DB endpoint | Yes |
 | `GITHUB_WEBHOOK_SECRET` | Webhook signature secret | Yes (prod) |
 | `GITHUB_PERSONAL_ACCESS_TOKEN` | GitHub PAT for API access | Yes |

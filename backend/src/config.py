@@ -25,12 +25,23 @@ class Settings(BaseSettings):
         description="Azure OpenAI service endpoint",
     )
     azure_openai_deployment_name: str = Field(
-        default="gpt-4o",
-        description="Azure OpenAI deployment name",
+        default="",
+        description="Azure OpenAI deployment name (e.g. gpt-4o, gpt-5-mini)",
     )
     azure_openai_api_version: str = Field(
-        default="2025-03-01-preview",
-        description="Azure OpenAI API version (Agent Framework Responses client requires 2025-03-01-preview or later)",
+        default="2025-04-01-preview",
+        description=(
+            "Azure OpenAI API version for the primary (Responses) client. "
+            "Also used for cognitiveservices.azure.com chat completions when set explicitly."
+        ),
+    )
+    azure_openai_chat_api_version: str = Field(
+        default="2024-12-01-preview",
+        description=(
+            "API version for the fallback Chat Completions client. "
+            "Used when the primary Responses client returns an API-version error, "
+            "and as the default for cognitiveservices.azure.com endpoints."
+        ),
     )
     azure_openai_api_key: str = Field(
         default="",
