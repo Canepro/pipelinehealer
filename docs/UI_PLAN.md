@@ -98,7 +98,7 @@ These are enforceable defaults for all primary product screens.
 - [x] Rules written:
   - token baseline
   - spacing/typography/color/component contracts
-- [ ] Rules applied across:
+- [x] Rules applied across:
   - Dashboard
   - Activities
   - Settings

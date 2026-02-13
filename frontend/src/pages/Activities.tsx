@@ -75,15 +75,15 @@ export default function Activities() {
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center space-x-4">
+        <CardContent className="p-4 md:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <Filter className="h-5 w-5 text-gray-400" />
             <select
               value={filters.status}
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, status: e.target.value }))
               }
-              className="h-10 rounded-lg border border-[var(--ph-border)] bg-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-azure-500 dark:bg-gray-700 dark:text-gray-100"
+              className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-azure-500 dark:bg-gray-700 dark:text-gray-100 sm:w-52"
             >
               {statusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -96,7 +96,7 @@ export default function Activities() {
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, failure_type: e.target.value }))
               }
-              className="h-10 rounded-lg border border-[var(--ph-border)] bg-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-azure-500 dark:bg-gray-700 dark:text-gray-100"
+              className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-azure-500 dark:bg-gray-700 dark:text-gray-100 sm:w-52"
             >
               {failureTypeOptions.map((option) => (
                 <option key={option.value} value={option.value}>

@@ -49,11 +49,11 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
             <Skeleton className="h-5 w-40" />
             {Array.from({ length: 5 }).map((_, index) => (
               <div key={index} className="grid grid-cols-6 gap-4">
-                <Skeleton className="h-10 col-span-2" />
-                <Skeleton className="h-10 col-span-1" />
-                <Skeleton className="h-10 col-span-1" />
-                <Skeleton className="h-10 col-span-1" />
-                <Skeleton className="h-10 col-span-1" />
+                <Skeleton className="col-span-2 h-11" />
+                <Skeleton className="col-span-1 h-11" />
+                <Skeleton className="col-span-1 h-11" />
+                <Skeleton className="col-span-1 h-11" />
+                <Skeleton className="col-span-1 h-11" />
               </div>
             ))}
           </div>
@@ -69,7 +69,7 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
           <GitBranch className="h-12 w-12 text-gray-400 mx-auto" />
           <p className="mt-4 text-gray-500">No activities found</p>
           <p className="text-sm text-gray-400">
-            Activities will appear here when workflow failures are processed
+            Trigger a workflow run, then refresh to see new remediation activity.
           </p>
         </CardContent>
       </Card>
@@ -90,9 +90,9 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
           </TableRow>
         </TableHeader>
         <TableBody>
-            {activities.map((activity) => {
-              const meta = getIssueProposalMeta(activity)
-              return (
+          {activities.map((activity) => {
+            const meta = getIssueProposalMeta(activity)
+            return (
               <TableRow key={activity.id}>
                 <TableCell className="pl-6 whitespace-nowrap">
                   <div className="flex items-center">
@@ -153,20 +153,22 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
                       <Link to={`/activities/${activity.id}`}>View</Link>
                     </Button>
                     {activity.remediation_result?.pr_url && (
-                      <Button asChild variant="ghost" size="icon">
+                      <Button asChild variant="ghost" size="sm">
                         <a
                           href={activity.remediation_result.pr_url}
                           target="_blank"
                           rel="noopener noreferrer"
+                          aria-label="Open pull request"
                         >
                           <ExternalLink className="h-4 w-4" />
                         </a>
                       </Button>
-                      )}
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
-            )})}
+            )
+          })}
         </TableBody>
       </Table>
     </Card>

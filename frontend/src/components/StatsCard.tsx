@@ -30,27 +30,28 @@ export default function StatsCard({
 }: StatsCardProps) {
   return (
     <Card>
-      <CardContent className="p-6">
-        <div className="flex items-center">
-        <div className={clsx('p-3 rounded-lg', colorClasses[color])}>
-          <Icon className="h-6 w-6" />
-        </div>
-        <div className="ml-4 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            {title}
-          </p>
-          <div className="flex items-baseline">
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {value}
+      <CardContent className="p-4 md:p-5">
+        <div className="flex items-center gap-3">
+          <div className={clsx('rounded-lg border p-2.5', colorClasses[color])}>
+            <Icon className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {title}
             </p>
-            {trend && (
-              <Badge className="ml-2" variant={trend.isPositive ? 'success' : 'destructive'}>
-                {trend.isPositive ? '+' : '-'}{Math.abs(trend.value)}%
-              </Badge>
-            )}
+            <div className="mt-1 flex items-baseline gap-2">
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {value}
+              </p>
+              {trend && (
+                <Badge className="ml-0" variant={trend.isPositive ? 'success' : 'destructive'}>
+                  {trend.isPositive ? '+' : '-'}
+                  {Math.abs(trend.value)}%
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
-      </div>
       </CardContent>
     </Card>
   )

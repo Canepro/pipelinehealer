@@ -160,7 +160,7 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <Card className="p-6">
+      <Card className="p-4 md:p-6">
         <div className="flex items-center gap-2 mb-4">
           <LockKeyhole className="h-5 w-5 text-azure-500" />
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -188,7 +188,7 @@ export default function SettingsPage() {
       </Card>
 
       {adminKey && isLoading && (
-        <Card className="p-6">
+        <Card className="p-4 md:p-6">
           <div className="space-y-3">
             <Skeleton className="h-4 w-44" />
             <Skeleton className="h-4 w-full" />
@@ -198,7 +198,7 @@ export default function SettingsPage() {
       )}
 
       {adminKey && isError && (
-        <div className="card p-6">
+        <div className="card p-4 md:p-6">
           <div className="flex items-start gap-3">
             <Info className="h-5 w-5 text-red-500 mt-0.5" />
             <div>
@@ -216,7 +216,7 @@ export default function SettingsPage() {
       {data && (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="card p-6">
+            <div className="card p-4 md:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <SlidersHorizontal className="h-5 w-5 text-azure-500" />
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -251,7 +251,7 @@ export default function SettingsPage() {
               </dl>
             </div>
 
-            <div className="card p-6">
+            <div className="card p-4 md:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Shield className="h-5 w-5 text-azure-500" />
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -284,7 +284,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="card p-6">
+            <div className="card p-4 md:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Wrench className="h-5 w-5 text-azure-500" />
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -313,7 +313,7 @@ export default function SettingsPage() {
               </dl>
             </div>
 
-            <div className="card p-6">
+            <div className="card p-4 md:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Info className="h-5 w-5 text-azure-500" />
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -345,7 +345,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="card p-6">
+            <div className="card p-4 md:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <SlidersHorizontal className="h-5 w-5 text-azure-500" />
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -380,7 +380,7 @@ export default function SettingsPage() {
               </dl>
             </div>
 
-            <div className="card p-6">
+            <div className="card p-4 md:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Shield className="h-5 w-5 text-azure-500" />
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -406,7 +406,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="card p-6">
+          <div className="card p-4 md:p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Admin Controls
             </h2>
@@ -636,7 +636,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <Card className="p-6">
+          <Card className="p-4 md:p-6">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -692,12 +692,12 @@ export default function SettingsPage() {
                             })}
                           </div>
                         </TableCell>
-                        <TableCell className="text-xs text-gray-600 dark:text-gray-300">
+                        <TableCell className="font-mono text-[11px] text-gray-600 dark:text-gray-300">
                           {entry.actor || 'unknown'}
                         </TableCell>
                         <TableCell className="text-xs text-gray-600 dark:text-gray-300">
                           <div className="flex items-center gap-2">
-                            <span>{entry.request_id || 'n/a'}</span>
+                            <span className="font-mono text-[11px]">{entry.request_id || 'n/a'}</span>
                             {entry.request_id && (
                               <Button
                                 type="button"
@@ -720,7 +720,7 @@ export default function SettingsPage() {
 
             {auditEntries && auditEntries.length === 0 && (
               <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-                No audit entries yet in this runtime.
+                No audit entries yet in this runtime. Change one admin setting, save, then load audit again.
               </p>
             )}
           </Card>
