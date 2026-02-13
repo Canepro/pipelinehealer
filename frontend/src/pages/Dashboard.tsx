@@ -58,6 +58,7 @@ export default function Dashboard() {
         value,
       }))
     : []
+  const totalFailures = pieData.reduce((sum, item) => sum + item.value, 0)
 
   // Transform repository data for bar chart
   const repoData = stats?.by_repository
@@ -68,6 +69,7 @@ export default function Dashboard() {
           count: value,
         }))
     : []
+  const topRepository = repoData[0]
 
   const safetyGatedRate = stats
     ? stats.actioned_remediations > 0
@@ -221,8 +223,11 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Failure Types Pie Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle>Failure Types (Last 30 Days)</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Failure Types (Last 30 Days)</CardTitle>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Total failures observed: <span className="font-semibold text-white">{totalFailures}</span>
+            </p>
           </CardHeader>
           <CardContent>
             {pieData.length > 0 ? (
@@ -244,13 +249,36 @@ export default function Dashboard() {
                         fill={COLORS[index % COLORS.length]}
                       />
                     ))}
-                  </Pie>
-                  <Tooltip />
+                </Pie>
+                  <Tooltip
+                    formatter={(value: number, _name, item) => [
+                      `${value} case${value === 1 ? '' : 's'}`,
+                      item.payload.name,
+                    ]}
+                    contentStyle={{
+                      backgroundColor: '#0f172a',
+                      border: '1px solid #334155',
+                      borderRadius: '8px',
+                      color: '#e2e8f0',
+                      fontSize: '12px',
+                      padding: '8px 10px',
+                    }}
+                    wrapperStyle={{ maxWidth: 'min(90vw, 320px)' }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-[250px] items-center justify-center text-sm text-gray-400">
-                No failure data yet. Trigger a workflow run to populate this chart.
+              <div className="flex h-[250px] flex-col items-center justify-center gap-3 text-sm text-gray-400">
+                <p>No activity yet. Trigger a workflow run to generate data.</p>
+                <Button asChild size="sm" variant="secondary">
+                  <a
+                    href="https://github.com/Canepro/pipelinehealer-demo"
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    Open demo repo
+                  </a>
+                </Button>
               </div>
             )}
           </CardContent>
@@ -258,32 +286,63 @@ export default function Dashboard() {
 
         {/* Top Repositories Bar Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle>Top Repositories</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Top Repositories</CardTitle>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Most active repo: <span className="font-semibold text-white">{topRepository?.name || 'N/A'}</span>{' '}
+              <span className="text-gray-400">({topRepository?.count || 0} runs)</span>
+            </p>
           </CardHeader>
           <CardContent>
             {repoData.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={repoData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <CartesianGrid
+                    strokeDasharray="2 4"
+                    stroke="#334155"
+                    strokeOpacity={0.25}
+                    vertical={false}
+                  />
                   <XAxis
                     dataKey="name"
                     tick={{ fill: '#9ca3af', fontSize: 12 }}
+                    interval={0}
+                    axisLine={false}
+                    tickLine={false}
                   />
-                  <YAxis tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                  <YAxis
+                    tick={{ fill: '#9ca3af', fontSize: 12 }}
+                    tickCount={5}
+                    axisLine={false}
+                    tickLine={false}
+                  />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#1f2937',
-                      border: 'none',
+                      backgroundColor: '#0f172a',
+                      border: '1px solid #334155',
                       borderRadius: '8px',
+                      color: '#e2e8f0',
+                      fontSize: '12px',
+                      padding: '8px 10px',
                     }}
+                    formatter={(value: number) => [`${value} run${value === 1 ? '' : 's'}`, 'Runs']}
+                    wrapperStyle={{ maxWidth: 'min(90vw, 320px)' }}
                   />
                   <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-[250px] items-center justify-center text-sm text-gray-400">
-                No repository data yet. Trigger a workflow run to populate this chart.
+              <div className="flex h-[250px] flex-col items-center justify-center gap-3 text-sm text-gray-400">
+                <p>No activity yet. Trigger a workflow run to generate data.</p>
+                <Button asChild size="sm" variant="secondary">
+                  <a
+                    href="https://github.com/Canepro/pipelinehealer-demo"
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    Open demo repo
+                  </a>
+                </Button>
               </div>
             )}
           </CardContent>

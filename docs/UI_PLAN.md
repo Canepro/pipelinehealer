@@ -125,7 +125,7 @@ These are enforceable defaults for all primary product screens.
 - [x] Dashboard hierarchy pass:
   - processed -> actioned -> blocked -> reason.
 - [x] Outcome area emphasis pass (clarity without color overload).
-- [ ] Chart legibility pass (labels, contrast, spacing).
+- [x] Chart legibility pass (labels, contrast, spacing).
 
 ### Week 2 Checkpoint (2026-02-13)
 
@@ -139,6 +139,11 @@ These are enforceable defaults for all primary product screens.
   - direct trace link to activity details
 - Responsive sanity check (Playwright Firefox, local preview):
   - `1440x900` and `390x844` dashboard overflow check passed (`scrollWidth === innerWidth`)
+- Chart readability/empty-state polish:
+  - reduced chart visual noise (lighter, horizontal-only gridlines; fewer axis marks)
+  - key summary numbers moved into chart card headers
+  - consistent tooltip copy and compact tooltip styling for mobile
+  - empty states standardized with CTA (`Open demo repo`)
 
 ## Week 3 Plan
 
