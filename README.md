@@ -28,6 +28,8 @@ Use `bash scripts/ph.sh status` to print current backend/frontend Azure FQDNs be
 - `docs/HACKATHON_LOG.md`: phase status, submission checklist, and milestones
 - `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md`: pre-deploy safety audit
 - `docs/FUTURE_PLAN.md`: post-demo and post-hackathon roadmap
+- `CONTRIBUTING.md`: contributor workflow and quality gates
+- `SECURITY.md`: vulnerability reporting and secret hygiene policy
 
 ## One-Command Operations
 
@@ -152,6 +154,38 @@ In `HEAL_MODE=demo`, PipelineHealer may:
 
 - Retry flaky test runs once (`retry_workflow`)
 - Open a PR to bump `timeout-minutes` in a known workflow file
+
+## Deterministic Fix Matrix
+
+The remediation policy is intentionally conservative: deterministic, bounded edits create PRs; lower-confidence cases create issues.
+
+| Failure Signal (example) | Deterministic Action | Confidence | Output |
+|---|---|---|---|
+| `Cannot find module 'left-pad'` | Add missing dependency in manifest | High | PR |
+| `ESLint could not find eslint.config.js` | Add deterministic ESLint flat-config scaffold | High | PR |
+| `Code style issues found` / formatter violations | Apply formatter/lint autofix in bounded scope | High | PR |
+| `403 Resource not accessible by integration` | Patch minimal workflow permissions block | High | PR |
+| Workflow timeout exceeded (`timeout-minutes`) | Bounded timeout bump for known workflow file (demo mode) | Medium-High | PR |
+| Test assertions failing | Summarize failures + rerun guidance | Low | Issue |
+| External service failures (`ECONNREFUSED`, auth) | Structured diagnosis + operator next steps | Low | Issue |
+
+## Safety Model
+
+PipelineHealer is built for controlled remediation, not unconstrained autonomous edits.
+
+- Allowed edit domains:
+  - dependency manifests / lockfile-adjacent deterministic updates
+  - lint/format remediation outputs
+  - bounded workflow YAML adjustments for known CI failure patterns
+- Explicitly not modified automatically:
+  - application business logic
+  - secrets and credential material
+- Operational bounds:
+  - one remediation result per activity
+  - capped retry and timeout controls via env settings
+  - issue fallback when confidence is not sufficient for safe PR generation
+- Human-in-the-loop:
+  - PRs are reviewable artifacts; safe mode favors conservative, auditable changes
 
 ## Technology Stack
 

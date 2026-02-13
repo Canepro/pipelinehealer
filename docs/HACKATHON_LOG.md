@@ -1,6 +1,6 @@
 # PipelineHealer Hackathon Log
 
-**Last updated:** February 12, 2026
+**Last updated:** February 13, 2026
 
 This is the long-form project tracker for hackathon execution status, submission readiness, and milestone history.
 
@@ -12,6 +12,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Runtime security: `X-API-Key` for `/api/*`, `X-Admin-Key` for `/api/settings`
 - Demo operations: consolidated to one-command runner `bash scripts/ph.sh ...`
 - Recording script: single-source runbook in `docs/DEMO_SCRIPT.md`
+- Repo policy docs: `CONTRIBUTING.md` and `SECURITY.md` added
 
 ## Phase Overview
 
@@ -90,6 +91,12 @@ This is the long-form project tracker for hackathon execution status, submission
 - Consolidated recording workflow into `docs/DEMO_SCRIPT.md`.
 - Slimmed `AGENTS.md` into a concise operator/agent contract and moved long-form tracking here.
 - Added `docs/README.md` as a docs index and aligned README/runbook wording with current runtime behavior.
+
+### Feb 13, 2026
+
+- Updated docs framing to explicitly Azure-first (hackathon compliance) with local fallback for evaluator convenience.
+- Expanded README with deterministic fix matrix and explicit safety model.
+- Added `CONTRIBUTING.md` and `SECURITY.md` and linked them from `docs/README.md`.
 
 ## Known Risks / Follow-Ups
 

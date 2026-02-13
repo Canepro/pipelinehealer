@@ -14,3 +14,7 @@ Use this index to find the right doc quickly.
   - Post-demo roadmap and next-priority backlog.
 - `../AGENTS.md`
   - Concise repo operating rules for agents and maintainers.
+- `../CONTRIBUTING.md`
+  - Contributor workflow, quality gates, and docs update policy.
+- `../SECURITY.md`
+  - Vulnerability reporting and secret hygiene policy.
