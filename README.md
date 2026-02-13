@@ -49,6 +49,19 @@ bash scripts/ph.sh help
 
 Use the help output as the source of truth for all available one-command operations.
 
+Real-repo onboarding (canary-safe defaults):
+
+```bash
+# 1) Configure repo allowlist + issue-only safe mode, then sync Azure runtime env
+bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
+
+# 2) Add/update webhook for one repo (workflow_run only)
+bash scripts/ph.sh webhook:add --repo owner/repo1
+
+# 3) Disable Azure webhook for one repo
+bash scripts/ph.sh webhook:disable --repo owner/repo1
+```
+
 ## Submission-Ready Project Description
 
 PipelineHealer is an AI-powered multi-agent system designed to automatically detect, diagnose, and remediate failures in GitHub Actions CI/CD pipelines. It addresses repeated pipeline interruptions by shifting teams from reactive troubleshooting to faster, structured remediation workflows.
@@ -472,6 +485,7 @@ bash scripts/ph.sh lowcost
 | `LOG_PROMPT_MAX_CHARS` | Max log characters sent to model prompt | Optional |
 | `LOG_PROMPT_HEAD_CHARS` | Head chars preserved when truncating prompt logs | Optional |
 | `LOG_PROMPT_TAIL_CHARS` | Tail chars preserved when truncating prompt logs | Optional |
+| `PH_ALLOWED_REPOS` | Optional repo allowlist (CSV or JSON array of `owner/repo`) for webhook processing scope | Optional |
 | `VITE_API_AUTH_KEY` | Frontend API key header value (`X-API-Key`) when calling protected `/api/*` routes | Optional |
 
 ### API Security
@@ -514,6 +528,29 @@ gh api repos/<owner>/<repo>/hooks --jq '.[] | {id,active,url:.config.url,last_re
 ```
 
 For Azure mode, the active hook should point to `https://<backend-fqdn>/webhook/github` and recent deliveries should show `200`.
+
+### Real-Repo Canary Rollout (Issue-Only First)
+
+Use this when attaching PipelineHealer to real repositories outside the demo fixture repo:
+
+```bash
+# Set repo allowlist + safe mode + disable auto-PRs, then sync env and attach hooks
+bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
+```
+
+Default `rollout:canary` behavior:
+
+- Sets `PH_ALLOWED_REPOS` to the provided repo list
+- Sets `HEAL_MODE=safe`
+- Sets `AUTO_CREATE_PR=false` (issue-only observation mode)
+- Runs env-only Azure sync
+- Adds/updates Azure `workflow_run` webhooks for each listed repo
+
+Optional: keep PR creation enabled while still using repo allowlist and webhook automation:
+
+```bash
+bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2 --allow-prs
+```
 
 ### Demo Note: Repeated Runs
 

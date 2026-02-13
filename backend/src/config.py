@@ -66,6 +66,13 @@ class Settings(BaseSettings):
         default="",
         description="GitHub personal access token (recommended for local dev)",
     )
+    ph_allowed_repos: Annotated[list[str], NoDecode] = Field(
+        default_factory=list,
+        description=(
+            "Optional allowlist of repository full names (owner/repo). "
+            "When set, webhook events for other repos are ignored."
+        ),
+    )
     github_private_key_secret_name: str = Field(
         default="github-app-private-key",
         description="Name of the secret in Key Vault containing GitHub App private key",
@@ -193,6 +200,22 @@ class Settings(BaseSettings):
             if text.startswith("["):
                 return json.loads(text)
             return [origin.strip() for origin in text.split(",") if origin.strip()]
+        return value
+
+    @field_validator("ph_allowed_repos", mode="before")
+    @classmethod
+    def parse_allowed_repos(cls, value: Any) -> Any:
+        """Allow repo allowlist from JSON arrays or comma-separated env values."""
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return []
+            if text.startswith("["):
+                parsed = json.loads(text)
+                return [str(item).strip() for item in parsed if str(item).strip()]
+            return [repo.strip() for repo in text.split(",") if repo.strip()]
+        if isinstance(value, list):
+            return [str(repo).strip() for repo in value if str(repo).strip()]
         return value
 
     @field_validator("azure_openai_endpoint")

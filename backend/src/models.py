@@ -217,6 +217,7 @@ class AppSettingsView(BaseModel):
     github_pat_configured: bool
     github_app_configured: bool
     github_auth_mode: str
+    ph_allowed_repos: list[str]
     cors_allowed_origins: list[str]
     cors_allow_origin_regex: str
     azure_openai_endpoint: str

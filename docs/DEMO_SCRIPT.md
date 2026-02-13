@@ -22,6 +22,12 @@ bash scripts/ph.sh <command>
 
 Local mode remains available for fallback testing and evaluator convenience (`docs/LOCAL_DEMO_RUNBOOK.md`).
 
+Real-repo canary rollout is available when needed:
+
+```bash
+bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
+```
+
 ## 1) Pre-Record Setup (5-10 minutes before)
 
 Run from repo root:

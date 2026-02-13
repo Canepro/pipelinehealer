@@ -47,6 +47,14 @@ def verify_github_signature(payload: bytes, signature: str, secret: str) -> bool
     return hmac.compare_digest(f"sha256={expected_signature}", signature)
 
 
+def _is_allowed_repo(repo_full_name: str, allowed_repos: list[str]) -> bool:
+    """Return True when repo is in allowlist (or allowlist is empty)."""
+    if not allowed_repos:
+        return True
+    normalized = repo_full_name.strip().lower()
+    return normalized in {repo.strip().lower() for repo in allowed_repos if repo.strip()}
+
+
 @router.post("/github")
 async def handle_github_webhook(
     request: Request,
@@ -157,9 +165,23 @@ async def handle_workflow_run_event(
             detail=f"Invalid workflow_run event format: {e}",
         ) from e
 
+    settings = get_settings()
+    repo_full_name = event.repository.full_name
+    if not _is_allowed_repo(repo_full_name, settings.ph_allowed_repos):
+        logger.info(
+            "Ignoring workflow run for repo outside allowlist: repo=%s delivery=%s",
+            repo_full_name,
+            delivery_id,
+        )
+        return {
+            "status": "ignored",
+            "reason": f"repository '{repo_full_name}' is outside PH_ALLOWED_REPOS",
+            "delivery_id": delivery_id,
+        }
+
     logger.info(
         f"Processing failed workflow run: "
-        f"repo={event.repository.full_name}, "
+        f"repo={repo_full_name}, "
         f"workflow={event.workflow_run.name}, "
         f"run_id={event.workflow_run.id}, "
         f"conclusion={conclusion}"

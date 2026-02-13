@@ -11,6 +11,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Project positioning: **Azure-first** for hackathon compliance, local mode as evaluation fallback
 - Runtime security: `X-API-Key` for `/api/*`, `X-Admin-Key` for `/api/settings`
 - Demo operations: consolidated to one-command runner `bash scripts/ph.sh ...`
+- Real-repo rollout ops: `rollout:canary`, `webhook:add`, `webhook:disable` added for issue-first canary onboarding
 - Recording script: single-source runbook in `docs/DEMO_SCRIPT.md`
 - Repo policy docs: `CONTRIBUTING.md` and `SECURITY.md` added
 
@@ -97,6 +98,8 @@ This is the long-form project tracker for hackathon execution status, submission
 - Updated docs framing to explicitly Azure-first (hackathon compliance) with local fallback for evaluator convenience.
 - Expanded README with deterministic fix matrix and explicit safety model.
 - Added `CONTRIBUTING.md` and `SECURITY.md` and linked them from `docs/README.md`.
+- Added repo allowlist gate (`PH_ALLOWED_REPOS`) so webhook processing can be scoped to selected repos.
+- Added one-command canary rollout + webhook management paths in `scripts/ph.sh`.
 
 ## Known Risks / Follow-Ups
 

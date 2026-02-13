@@ -62,6 +62,22 @@ async def _post_ping(
         return await client.post("/webhook/github", content=payload, headers=merged_headers)
 
 
+async def _post_workflow_run(
+    payload: dict[str, object],
+    headers: dict[str, str] | None = None,
+) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    merged_headers = {
+        "X-GitHub-Event": "workflow_run",
+        "X-GitHub-Delivery": "delivery-workflow-1",
+        "Content-Type": "application/json",
+    }
+    if headers:
+        merged_headers.update(headers)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.post("/webhook/github", json=payload, headers=merged_headers)
+
+
 def _sign(payload: bytes, secret: str) -> str:
     digest = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
     return f"sha256={digest}"
@@ -132,6 +148,51 @@ def test_cors_origins_parse_from_csv() -> None:
         "http://a.example.com",
         "http://b.example.com",
     ]
+
+
+def test_allowed_repos_parse_from_csv() -> None:
+    settings = Settings(ph_allowed_repos="owner/repo1, owner/repo2")
+    assert settings.ph_allowed_repos == ["owner/repo1", "owner/repo2"]
+
+
+@pytest.mark.asyncio
+async def test_workflow_run_ignored_when_repo_not_in_allowlist(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("PH_ALLOWED_REPOS", "Canepro/allowed-repo")
+    get_settings.cache_clear()
+
+    payload = {
+        "action": "completed",
+        "workflow_run": {
+            "id": 123456,
+            "name": "CI",
+            "workflow_id": 987654,
+            "head_branch": "main",
+            "head_sha": "abc123def",
+            "status": "completed",
+            "conclusion": "failure",
+            "html_url": "https://github.com/Canepro/not-allowed/actions/runs/123456",
+            "created_at": "2026-02-13T00:00:00Z",
+            "updated_at": "2026-02-13T00:01:00Z",
+            "run_attempt": 1,
+            "run_number": 10,
+        },
+        "repository": {
+            "id": 123,
+            "name": "not-allowed",
+            "full_name": "Canepro/not-allowed",
+            "owner": {"login": "Canepro", "id": 1},
+            "default_branch": "main",
+            "html_url": "https://github.com/Canepro/not-allowed",
+        },
+        "sender": {"login": "github-actions[bot]"},
+    }
+
+    response = await _post_workflow_run(payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ignored"
+    assert "outside PH_ALLOWED_REPOS" in data["reason"]
 
 
 @pytest.mark.asyncio

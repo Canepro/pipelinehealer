@@ -84,6 +84,7 @@ def _build_settings_view() -> AppSettingsView:
         github_pat_configured=has_pat,
         github_app_configured=has_app,
         github_auth_mode=github_auth_mode,
+        ph_allowed_repos=settings.ph_allowed_repos,
         cors_allowed_origins=settings.cors_allowed_origins,
         cors_allow_origin_regex=settings.cors_allow_origin_regex,
         azure_openai_endpoint=settings.azure_openai_endpoint,

@@ -30,6 +30,9 @@ Commands:
   deploy:bg         Run redeploy in background and write log to /tmp/ph-redeploy.log
   deploy:logs       Follow detached redeploy logs
   deploy:status     Show detached redeploy process status
+  webhook:add       Add/update Azure webhook for one repo and disable stale smee hook
+  webhook:disable   Disable Azure webhook for one repo
+  rollout:canary    Configure issue-only canary mode for selected repos and attach webhooks
   demo:e2e          Run scripted Azure E2E demo flow
   demo:reset        Reset demo fixture repo for dependency/lint failures
   warm              Set backend/frontend min-replicas to 1
@@ -42,6 +45,8 @@ Examples:
   bash scripts/ph.sh deploy
   bash scripts/ph.sh deploy:bg
   bash scripts/ph.sh deploy:logs
+  bash scripts/ph.sh webhook:add --repo owner/repo
+  bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
   bash scripts/ph.sh demo:e2e --skip-webhook-sync
   bash scripts/ph.sh warm
   bash scripts/ph.sh lowcost
@@ -52,6 +57,228 @@ need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "Missing required command: $1" >&2
     exit 1
+  fi
+}
+
+env_file() {
+  echo "$REPO_ROOT/backend/.env"
+}
+
+read_env_key() {
+  local key="$1"
+  local file
+  file="$(env_file)"
+  if [[ ! -f "$file" ]]; then
+    return 0
+  fi
+  grep -E "^${key}=" "$file" | tail -n1 | cut -d= -f2- | tr -d '\r\n' || true
+}
+
+upsert_env_key() {
+  local key="$1"
+  local value="$2"
+  local file
+  file="$(env_file)"
+  if [[ ! -f "$file" ]]; then
+    echo "Missing env file: $file" >&2
+    exit 1
+  fi
+
+  local tmp
+  tmp="$(mktemp)"
+  awk -v k="$key" -v v="$value" '
+    BEGIN { done = 0 }
+    $0 ~ ("^" k "=") { print k "=" v; done = 1; next }
+    { print }
+    END { if (!done) print k "=" v }
+  ' "$file" > "$tmp"
+  mv "$tmp" "$file"
+}
+
+resolve_backend_fqdn() {
+  need_cmd az
+  az containerapp show \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$BACKEND_APP" \
+    --query properties.configuration.ingress.fqdn \
+    -o tsv | tr -d '\r\n'
+}
+
+sync_repo_webhook() {
+  local repo="$1"
+  local mode="$2"  # add|disable
+  need_cmd gh
+  need_cmd az
+
+  if [[ -z "${repo:-}" || "$repo" != */* ]]; then
+    echo "Invalid repo value: '$repo' (expected owner/name)" >&2
+    exit 2
+  fi
+
+  local backend_fqdn backend_url webhook_secret
+  backend_fqdn="$(resolve_backend_fqdn)"
+  backend_url="https://$backend_fqdn"
+  webhook_secret="$(read_env_key "GITHUB_WEBHOOK_SECRET")"
+
+  if [[ "$mode" == "add" && -z "${webhook_secret:-}" ]]; then
+    echo "GITHUB_WEBHOOK_SECRET is empty in $(env_file); cannot create/update webhook." >&2
+    exit 1
+  fi
+
+  local smee_hook_ids azure_hook_ids azure_hook_id
+  smee_hook_ids="$(gh api "repos/$repo/hooks" --jq '.[] | select((.config.url // "") | contains("smee.io")) | .id' || true)"
+  azure_hook_ids="$(gh api "repos/$repo/hooks" --jq ".[] | select((.config.url // \"\") | contains(\"$backend_fqdn\")) | .id" || true)"
+  azure_hook_id="$(echo "${azure_hook_ids:-}" | head -n1 | tr -d '\r\n')"
+
+  if [[ "$mode" == "disable" ]]; then
+    if [[ -z "${azure_hook_ids:-}" ]]; then
+      echo "No Azure webhook found for $repo ($backend_fqdn)."
+      return 0
+    fi
+    while IFS= read -r hook_id; do
+      [[ -z "${hook_id:-}" ]] && continue
+      gh api -X PATCH "repos/$repo/hooks/$hook_id" -F active=false >/dev/null
+      echo "Disabled Azure webhook id=$hook_id for $repo"
+    done <<< "$azure_hook_ids"
+    return 0
+  fi
+
+  if [[ -n "${smee_hook_ids:-}" ]]; then
+    while IFS= read -r hook_id; do
+      [[ -z "${hook_id:-}" ]] && continue
+      gh api -X PATCH "repos/$repo/hooks/$hook_id" -F active=false >/dev/null
+      echo "Disabled stale smee webhook id=$hook_id for $repo"
+    done <<< "$smee_hook_ids"
+  fi
+
+  if [[ -z "${azure_hook_id:-}" ]]; then
+    gh api -X POST "repos/$repo/hooks" \
+      -f name=web \
+      -F active=true \
+      -f config[url]="$backend_url/webhook/github" \
+      -f config[content_type]=json \
+      -f config[secret]="$webhook_secret" \
+      -f events[]="workflow_run" >/dev/null
+    echo "Created Azure webhook for $repo -> $backend_url/webhook/github"
+  else
+    gh api -X PATCH "repos/$repo/hooks/$azure_hook_id" \
+      -F active=true \
+      -f config[url]="$backend_url/webhook/github" \
+      -f config[content_type]=json \
+      -f config[secret]="$webhook_secret" \
+      -f events[]="workflow_run" >/dev/null
+    echo "Updated Azure webhook id=$azure_hook_id for $repo -> $backend_url/webhook/github"
+  fi
+}
+
+cmd_webhook_add() {
+  local repo=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --repo)
+        repo="$2"
+        shift 2
+        ;;
+      *)
+        echo "Unknown argument for webhook:add: $1" >&2
+        exit 2
+        ;;
+    esac
+  done
+  if [[ -z "${repo:-}" ]]; then
+    echo "Usage: bash scripts/ph.sh webhook:add --repo owner/name" >&2
+    exit 2
+  fi
+  sync_repo_webhook "$repo" "add"
+}
+
+cmd_webhook_disable() {
+  local repo=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --repo)
+        repo="$2"
+        shift 2
+        ;;
+      *)
+        echo "Unknown argument for webhook:disable: $1" >&2
+        exit 2
+        ;;
+    esac
+  done
+  if [[ -z "${repo:-}" ]]; then
+    echo "Usage: bash scripts/ph.sh webhook:disable --repo owner/name" >&2
+    exit 2
+  fi
+  sync_repo_webhook "$repo" "disable"
+}
+
+cmd_rollout_canary() {
+  local repos_csv=""
+  local issue_only="1"
+  local apply_env="1"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --repos)
+        repos_csv="$2"
+        shift 2
+        ;;
+      --allow-prs)
+        issue_only="0"
+        shift
+        ;;
+      --skip-env-sync)
+        apply_env="0"
+        shift
+        ;;
+      *)
+        echo "Unknown argument for rollout:canary: $1" >&2
+        exit 2
+        ;;
+    esac
+  done
+
+  if [[ -z "${repos_csv:-}" ]]; then
+    echo "Usage: bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2 [--allow-prs] [--skip-env-sync]" >&2
+    exit 2
+  fi
+
+  local normalized_csv
+  normalized_csv="$(echo "$repos_csv" | tr -d '[:space:]')"
+  if [[ -z "${normalized_csv:-}" ]]; then
+    echo "No valid repos found in --repos input." >&2
+    exit 2
+  fi
+
+  IFS=',' read -r -a repos <<< "$normalized_csv"
+  if [[ "${#repos[@]}" -eq 0 ]]; then
+    echo "No valid repos found in --repos input." >&2
+    exit 2
+  fi
+
+  upsert_env_key "PH_ALLOWED_REPOS" "$normalized_csv"
+  upsert_env_key "HEAL_MODE" "safe"
+  if [[ "$issue_only" == "1" ]]; then
+    upsert_env_key "AUTO_CREATE_PR" "false"
+  fi
+
+  if [[ "$apply_env" == "1" ]]; then
+    bash "$SCRIPT_DIR/deploy/redeploy_azure_containerapps.sh" --env-only
+  fi
+
+  local repo
+  for repo in "${repos[@]}"; do
+    sync_repo_webhook "$repo" "add"
+  done
+
+  echo "Canary rollout complete."
+  echo "  PH_ALLOWED_REPOS=$normalized_csv"
+  echo "  HEAL_MODE=safe"
+  if [[ "$issue_only" == "1" ]]; then
+    echo "  AUTO_CREATE_PR=false (issue-only observation mode)"
+  else
+    echo "  AUTO_CREATE_PR unchanged (PR creation allowed)"
   fi
 }
 
@@ -165,6 +392,15 @@ case "$COMMAND" in
     ;;
   demo:e2e)
     bash "$SCRIPT_DIR/demo/run_e2e_azure.sh" "$@"
+    ;;
+  webhook:add)
+    cmd_webhook_add "$@"
+    ;;
+  webhook:disable)
+    cmd_webhook_disable "$@"
+    ;;
+  rollout:canary)
+    cmd_rollout_canary "$@"
     ;;
   demo:reset)
     bash "$SCRIPT_DIR/demo/reset_demo_fixtures.sh" "$@"

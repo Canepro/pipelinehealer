@@ -64,6 +64,17 @@ bash scripts/ph.sh demo:reset
 bash scripts/ph.sh demo:e2e --wait-seconds 40
 ```
 
+Real-repo canary onboarding (issue-only first):
+
+```bash
+# Configure allowlist + safe mode + issue-only behavior, sync Azure env, and attach hooks
+bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
+
+# Manage one repo webhook directly
+bash scripts/ph.sh webhook:add --repo owner/repo1
+bash scripts/ph.sh webhook:disable --repo owner/repo1
+```
+
 ## 1) Backend Setup (Host-Native)
 
 From the repo root (`pipelinehealer/`):

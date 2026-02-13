@@ -22,6 +22,9 @@ From repo root:
 bash scripts/ph.sh help
 bash scripts/ph.sh deploy
 bash scripts/ph.sh deploy:env
+bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
+bash scripts/ph.sh webhook:add --repo owner/repo1
+bash scripts/ph.sh webhook:disable --repo owner/repo1
 bash scripts/ph.sh demo:e2e
 bash scripts/ph.sh demo:reset
 bash scripts/ph.sh warm
@@ -69,6 +72,7 @@ bun run build
 - API routes (`/api/*`) are protected by `X-API-Key` in non-development.
 - Admin settings routes (`/api/settings`) require `X-Admin-Key`.
 - Recommended demo mode: `HEAL_MODE=safe`.
+- Real-repo canary mode: `PH_ALLOWED_REPOS` + `HEAL_MODE=safe` with `AUTO_CREATE_PR=false` for issue-only observation.
 - Current demo fixture trigger set: `dependency,lint,test,build_config,timeout`.
 - For demo reliability: `bash scripts/ph.sh warm` before recording; `lowcost` afterward.
 
