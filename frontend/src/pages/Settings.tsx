@@ -258,6 +258,31 @@ export default function SettingsPage() {
 
       {data && (
         <>
+          <Card className="p-4 md:p-6">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Effective Runtime Policy
+                </h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Current operational guardrails applied by the backend.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">Mode: {data.heal_mode}</Badge>
+                <Badge variant={data.auto_create_pr ? 'destructive' : 'success'}>
+                  PR Creation: {data.auto_create_pr ? 'ON' : 'OFF'}
+                </Badge>
+                <Badge variant={data.ph_allowed_repos.length > 0 ? 'success' : 'destructive'}>
+                  Scope: {data.ph_allowed_repos.length > 0 ? `Allowlist (${data.ph_allowed_repos.length})` : 'Unrestricted'}
+                </Badge>
+                <Badge variant={data.verify_webhook_signature ? 'success' : 'destructive'}>
+                  Signature: {data.verify_webhook_signature ? 'ON' : 'OFF'}
+                </Badge>
+              </div>
+            </div>
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card p-4 md:p-6">
               <div className="flex items-center gap-2 mb-4">
