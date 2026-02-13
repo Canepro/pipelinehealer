@@ -494,7 +494,8 @@ bash scripts/ph.sh lowcost
 ### API Security
 
 - `/api/*` endpoints require `X-API-Key` when `ENVIRONMENT` is not `development`.
-- `/api/settings` (`GET`/`PATCH`) always requires `X-Admin-Key`.
+- `/api/settings` and `/api/settings/audit` require `X-Admin-Key`.
+- In non-development environments, admin endpoints require both `X-API-Key` and `X-Admin-Key`.
 - In `development`, API key auth is bypassed for local iteration.
 - In `production`, keep `VERIFY_WEBHOOK_SIGNATURE=true` and set `GITHUB_WEBHOOK_SECRET`.
 
@@ -507,15 +508,16 @@ curl -H "X-API-Key: $API_AUTH_KEY" "http://127.0.0.1:8000/api/activities?limit=2
 Admin settings examples:
 
 ```bash
-curl -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings"
+curl -H "X-API-Key: $API_AUTH_KEY" -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings"
 
 curl -X PATCH \
+  -H "X-API-Key: $API_AUTH_KEY" \
   -H "X-Admin-Key: $ADMIN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"heal_mode":"safe","pipeline_step_timeout_seconds":120}' \
   "http://127.0.0.1:8000/api/settings"
 
-curl -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings/audit?limit=20"
+curl -H "X-API-Key: $API_AUTH_KEY" -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings/audit?limit=20"
 ```
 
 Audit trail notes:

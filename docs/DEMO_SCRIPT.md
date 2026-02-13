@@ -100,14 +100,18 @@ gh run list -R "$DEMO_REPO" --workflow CI --limit 10
 gh pr list -R "$DEMO_REPO"
 gh issue list -R "$DEMO_REPO" --state open
 bash scripts/ph.sh settings:check
-curl -sS -H "X-Admin-Key: $(grep '^ADMIN_API_KEY=' backend/.env | cut -d= -f2-)" "https://$(az containerapp show -g rg-canepro-ph-dev-eus -n ca-canepro-ph-backend --query properties.configuration.ingress.fqdn -o tsv)/api/settings/audit?limit=5"
+API_AUTH_KEY="$(sed -n 's/^API_AUTH_KEY=//p' backend/.env | tail -n1)"
+ADMIN_API_KEY="$(sed -n 's/^ADMIN_API_KEY=//p' backend/.env | tail -n1)"
+BACKEND_FQDN="$(az containerapp show -g rg-canepro-ph-dev-eus -n ca-canepro-ph-backend --query properties.configuration.ingress.fqdn -o tsv | xargs)"
+curl -sS -X PATCH -H "X-API-Key: $API_AUTH_KEY" -H "X-Admin-Key: $ADMIN_API_KEY" -H "Content-Type: application/json" -H "X-Request-Id: judge-trace-2" -d '{"auto_create_pr":false}' "https://$BACKEND_FQDN/api/settings" >/dev/null
+curl -i -sS -H "X-API-Key: $API_AUTH_KEY" -H "X-Admin-Key: $ADMIN_API_KEY" -H "X-Request-Id: judge-trace-3" "https://$BACKEND_FQDN/api/settings/audit?limit=5"
 ```
 
 Expected result pattern:
 
 - PRs: dependency + lint
 - Issues: test + build_config + timeout
-- Admin audit endpoint returns recent settings changes (if any were applied), including `request_id` and actor fingerprint.
+- Admin audit proof should show `x-request-id` response header and a latest entry containing `request_id` + actor fingerprint.
 
 ## 5) 2-Minute Recording Script (Final)
 
