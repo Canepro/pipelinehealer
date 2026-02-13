@@ -3,6 +3,7 @@
 import json
 import logging
 import re
+from enum import StrEnum
 from typing import Any
 
 from ..models import Diagnosis, FailureType, RemediationAction, RemediationPlan
@@ -10,11 +11,36 @@ from ..models import Diagnosis, FailureType, RemediationAction, RemediationPlan
 logger = logging.getLogger(__name__)
 
 
+class NotAutoApplyReason(StrEnum):
+    """Machine-readable reasons for review-only issue output."""
+
+    LOW_CONFIDENCE = "LOW_CONFIDENCE"
+    AMBIGUOUS_RESOLUTION = "AMBIGUOUS_RESOLUTION"
+    OUTSIDE_ALLOWED_FILES = "OUTSIDE_ALLOWED_FILES"
+    REQUIRES_ENV_CONTEXT = "REQUIRES_ENV_CONTEXT"
+    SAFETY_BOUND = "SAFETY_BOUND"
+
+
 class FixGenerators:
     """Generators for creating fixes based on diagnosed failures."""
 
     def __init__(self, heal_mode: str = "safe") -> None:
         """Initialize fix generators."""
+        self._max_proposed_fix_chars = 3000
+        self._proposed_fix_allowed_exact = {
+            "package.json",
+            "requirements.txt",
+            "eslint.config.js",
+            "eslint.config.mjs",
+            ".github/workflows/ci.yml",
+        }
+        self._proposed_fix_allowed_prefixes = (
+            ".github/workflows/",
+            ".eslintrc",
+            ".prettierrc",
+            "prettier.config.",
+            "pyproject.toml",
+        )
         self._heal_mode = ""
         self._is_demo_mode = False
         self.set_heal_mode(heal_mode)
@@ -76,6 +102,7 @@ class FixGenerators:
         diagnosis: Diagnosis,
         repository_info: dict[str, Any],
         not_auto_reason: str,
+        reason_code: NotAutoApplyReason = NotAutoApplyReason.LOW_CONFIDENCE,
     ) -> RemediationPlan:
         """Generate an issue plan with explicit non-auto-apply reason."""
         return RemediationPlan(
@@ -86,6 +113,7 @@ class FixGenerators:
                 diagnosis,
                 repository_info,
                 not_auto_reason=not_auto_reason,
+                reason_code=reason_code,
             ),
         )
 
@@ -94,6 +122,7 @@ class FixGenerators:
         diagnosis: Diagnosis,
         repository_info: dict[str, Any],
         not_auto_reason: str | None = None,
+        reason_code: NotAutoApplyReason | None = None,
     ) -> str:
         """Format the issue body with diagnosis details."""
         affected_files = (
@@ -121,15 +150,75 @@ class FixGenerators:
 ---
 *This issue was automatically created by PipelineHealer*
 """
-        return self._append_review_only_proposal(issue, diagnosis, not_auto_reason)
+        return self._append_review_only_proposal(
+            issue,
+            diagnosis,
+            not_auto_reason=not_auto_reason,
+            reason_code=reason_code,
+        )
 
-    def _default_not_auto_reason(self, diagnosis: Diagnosis) -> str:
-        """Generate a user-facing reason why a fix was not auto-applied."""
+    def _default_not_auto_reason(self, diagnosis: Diagnosis) -> tuple[NotAutoApplyReason, str]:
+        """Generate a user-facing reason and code for why a fix was not auto-applied."""
         if diagnosis.confidence < 0.5:
-            return "Confidence is below the automatic remediation threshold."
+            return (
+                NotAutoApplyReason.LOW_CONFIDENCE,
+                "Confidence is below the automatic remediation threshold.",
+            )
         if not diagnosis.is_auto_fixable:
-            return "This failure type requires human judgment or environment-specific context."
-        return "Automatic application is disabled for this remediation path."
+            return (
+                NotAutoApplyReason.REQUIRES_ENV_CONTEXT,
+                "This failure type requires human judgment or environment-specific context.",
+            )
+        return (
+            NotAutoApplyReason.SAFETY_BOUND,
+            "Automatic application is disabled for this remediation path.",
+        )
+
+    def _sanitize_proposed_fix_text(self, text: str) -> str:
+        """Trim and redact obvious secret-like content in proposed fixes."""
+        cleaned = (text or "").strip()
+        if not cleaned:
+            return "No deterministic proposal available."
+        cleaned = re.sub(r"ghp_[A-Za-z0-9]{20,}", "[REDACTED_GITHUB_TOKEN]", cleaned)
+        cleaned = re.sub(r"sk-[A-Za-z0-9]{20,}", "[REDACTED_API_KEY]", cleaned)
+        cleaned = re.sub(
+            r"(?i)(api[_-]?key|token|secret)\s*[:=]\s*['\"]?[^'\"\s]{6,}",
+            r"\1=[REDACTED]",
+            cleaned,
+        )
+        if len(cleaned) > self._max_proposed_fix_chars:
+            cleaned = cleaned[: self._max_proposed_fix_chars].rstrip() + "\n...[truncated]"
+        return cleaned
+
+    def _is_allowed_proposal_path(self, path: str) -> bool:
+        normalized = path.strip().strip("`").strip("/")
+        if not normalized or " " in normalized:
+            return False
+        if normalized in self._proposed_fix_allowed_exact:
+            return True
+        return any(normalized.startswith(prefix) for prefix in self._proposed_fix_allowed_prefixes)
+
+    def _validate_proposed_fix_scope(self, diagnosis: Diagnosis) -> tuple[bool, str]:
+        """Verify proposed fix scope is limited to safe path domains."""
+        for file_path in diagnosis.affected_files:
+            if file_path and not self._is_allowed_proposal_path(file_path):
+                return False, file_path
+        return True, ""
+
+    def _build_validation_steps(self, diagnosis: Diagnosis) -> str:
+        """Build concise verification steps for manual review path."""
+        details = diagnosis.error_details or {}
+        lines = [
+            "1. Apply the proposed change in a branch.",
+            "2. Re-run the failing GitHub Actions workflow.",
+            "3. Confirm the original failing step now passes and no new failures are introduced.",
+        ]
+        if diagnosis.failure_type == FailureType.TEST:
+            framework = str(details.get("test_framework") or "test")
+            lines.insert(2, f"3. Run the related {framework} tests locally before pushing.")
+            lines[3] = "4. Re-run the failing GitHub Actions workflow."
+            lines.append("5. Confirm the original failing step now passes and no new failures are introduced.")
+        return "\n".join(lines)
 
     def _build_proposed_fix_text(self, diagnosis: Diagnosis) -> str:
         """Build a review-only proposed fix snippet for issue bodies."""
@@ -216,10 +305,26 @@ class FixGenerators:
         issue_body: str,
         diagnosis: Diagnosis,
         not_auto_reason: str | None = None,
+        reason_code: NotAutoApplyReason | None = None,
     ) -> str:
         """Append a clear review-only proposal block to issue bodies."""
-        reason = not_auto_reason or self._default_not_auto_reason(diagnosis)
-        proposal = self._build_proposed_fix_text(diagnosis)
+        default_code, default_reason = self._default_not_auto_reason(diagnosis)
+        final_code = reason_code or default_code
+        final_reason = not_auto_reason or default_reason
+        scope_ok, out_of_scope_path = self._validate_proposed_fix_scope(diagnosis)
+        if not scope_ok:
+            final_code = NotAutoApplyReason.OUTSIDE_ALLOWED_FILES
+            final_reason = (
+                f"Proposed change touches non-allowlisted path `{out_of_scope_path}`; "
+                "manual review is required."
+            )
+            proposal = (
+                "No patch body included because suggested changes touch non-allowlisted files.\n"
+                f"Out-of-scope path: {out_of_scope_path}"
+            )
+        else:
+            proposal = self._sanitize_proposed_fix_text(self._build_proposed_fix_text(diagnosis))
+        validate = self._build_validation_steps(diagnosis)
         return (
             issue_body.rstrip()
             + "\n\n### Proposed Fix (For Review Only)\n"
@@ -228,7 +333,10 @@ class FixGenerators:
             + proposal
             + "\n```\n\n"
             + "### Why Not Auto-Applied\n"
-            + reason
+            + f"- Reason Code: {final_code.value}\n"
+            + f"- Detail: {final_reason}\n\n"
+            + "### How to Validate\n"
+            + validate
             + "\n"
         )
 

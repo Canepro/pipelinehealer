@@ -154,6 +154,8 @@ The remediation policy is intentionally conservative: deterministic, bounded edi
 | Test assertions failing | Summarize failures + rerun guidance | Low | Issue |
 | External service failures (`ECONNREFUSED`, auth) | Structured diagnosis + operator next steps | Low | Issue |
 
+Issue output may include a `Proposed Fix (For Review Only)` section. These patches are suggestions for human review and are never auto-applied.
+
 ## Safety Model
 
 PipelineHealer is built for controlled remediation, not unconstrained autonomous edits.

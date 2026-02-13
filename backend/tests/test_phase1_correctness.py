@@ -20,6 +20,7 @@ from src.models import (
     RemediationStatus,
     WorkflowRunEvent,
 )
+from src.tools.fix_generators import NotAutoApplyReason
 from src.storage import InMemoryStorage
 
 
@@ -221,3 +222,5 @@ async def test_remediation_low_confidence_creates_review_issue() -> None:
     body = gh.issue_calls[0]["body"]
     assert "### Proposed Fix (For Review Only)" in body
     assert "### Why Not Auto-Applied" in body
+    assert "### How to Validate" in body
+    assert f"Reason Code: {NotAutoApplyReason.LOW_CONFIDENCE.value}" in body

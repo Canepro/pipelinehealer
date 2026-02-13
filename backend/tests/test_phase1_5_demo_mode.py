@@ -7,7 +7,7 @@ import pytest
 
 from src.agents.remediation import RemediationAgent
 from src.models import Diagnosis, FailureType, RemediationAction
-from src.tools.fix_generators import FixGenerators
+from src.tools.fix_generators import FixGenerators, NotAutoApplyReason
 
 
 class FakeGitHubToolsWithFiles:
@@ -112,7 +112,31 @@ async def test_issue_plan_contains_review_only_proposed_fix_section() -> None:
     assert plan.issue_body is not None
     assert "### Proposed Fix (For Review Only)" in plan.issue_body
     assert "### Why Not Auto-Applied" in plan.issue_body
+    assert "### How to Validate" in plan.issue_body
     assert "UNVERIFIED AI SUGGESTION" in plan.issue_body
+    assert f"Reason Code: {NotAutoApplyReason.LOW_CONFIDENCE.value}" in plan.issue_body
+
+
+@pytest.mark.asyncio
+async def test_review_issue_out_of_scope_paths_are_blocked_in_proposed_fix() -> None:
+    gen = FixGenerators(heal_mode="safe")
+    plan = gen.generate_review_issue(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.UNKNOWN,
+            confidence=0.4,
+            root_cause="Ambiguous failure",
+            is_auto_fixable=False,
+            affected_files=["src/main.py"],
+            error_details={
+                "proposed_patch": "src/main.py\n- old\n+ new",
+            },
+        ),
+        repository_info={},
+        not_auto_reason="Ambiguous resolution requires human review.",
+    )
+    assert plan.issue_body is not None
+    assert f"Reason Code: {NotAutoApplyReason.OUTSIDE_ALLOWED_FILES.value}" in plan.issue_body
+    assert "Out-of-scope path: src/main.py" in plan.issue_body
 
 
 @pytest.mark.asyncio

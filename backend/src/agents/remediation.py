@@ -16,7 +16,7 @@ from ..models import (
     RemediationPlan,
     RemediationResult,
 )
-from ..tools.fix_generators import FixGenerators
+from ..tools.fix_generators import FixGenerators, NotAutoApplyReason
 from ..tools.github_tools import GitHubTools
 from .base import create_cloud_agent, get_agent_prompt
 
@@ -99,6 +99,7 @@ class RemediationAgent:
                 not_auto_reason=(
                     f"Confidence too low ({diagnosis.confidence:.0%}) for automatic remediation."
                 ),
+                reason_code=NotAutoApplyReason.LOW_CONFIDENCE,
             )
             if dry_run:
                 return RemediationResult(
