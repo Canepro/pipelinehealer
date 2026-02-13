@@ -34,6 +34,54 @@ This document tracks visual and UX refinement work for PipelineHealer without ch
 - Card depth:
   - shadow standardized to `0 10px 30px -24px rgba(8, 18, 36, 0.55)`.
 
+## UI Contracts (Week 1)
+
+These are enforceable defaults for all primary product screens.
+
+### Spacing
+
+- Page section gap:
+  - default `24px` (`space-y-6`)
+  - elevated sections can use `32px` (`space-y-8`) sparingly
+- Card padding:
+  - mobile `16px` (`p-4`)
+  - desktop `20-24px` (`md:p-5` or `md:p-6`)
+- Card-to-card gap:
+  - default `16px` (`gap-4`)
+  - larger groups `24px` (`gap-6`) only for major section boundaries
+- Table density:
+  - default comfortable mode only in production pages
+  - no ad-hoc per-row padding overrides outside shared table primitives.
+
+### Typography
+
+- One page headline style per page (`text-2xl font-bold`).
+- Metadata labels use one muted style (`text-sm text-gray-500 dark:text-gray-400`).
+- Table content uses one base size (`text-sm`) with `text-xs` only for subordinate metadata.
+- Monospace is reserved for IDs/hashes (request IDs, fingerprints).
+
+### Colors
+
+- Blue is reserved for primary actions and active navigation state.
+- Green/amber/red are semantic-only: success/warning/blocked.
+- No decorative gradients, neon edges, or non-semantic accent colors.
+- Border contrast remains subtle and consistent with `--ph-border`.
+
+### Components
+
+- Buttons:
+  - use only `default`, `secondary`, `ghost`, `destructive`
+  - use consistent sizing per context (`sm` in dense tables, default elsewhere)
+- Badges:
+  - use semantic variants (`success`, `destructive`) for status
+  - use subdued variants (`secondary`, `outline`) for metadata
+- Inputs/selects:
+  - one consistent control height (`h-10`)
+  - one focus-ring behavior (`focus:ring-2 focus:ring-azure-500`)
+- Tables:
+  - use shared shadcn `Table` primitives only
+  - avoid custom `<div>`-based table layouts.
+
 ## Week 1 Plan (In Progress)
 
 - [x] Establish shared primitives and remove one-off markup for core pages.
@@ -43,7 +91,20 @@ This document tracks visual and UX refinement work for PipelineHealer without ch
   - primary blue (single signature accent)
   - semantic status accents (success/warn/block)
   - background/card/border contrast tiers.
-- [ ] Formalize component usage rules (when to use `Badge` variants, table density, card spacing).
+- [x] Formalize component usage rules (when to use `Badge` variants, table density, card spacing).
+
+## Week 1 Checkpoint Log
+
+- [x] Rules written:
+  - token baseline
+  - spacing/typography/color/component contracts
+- [ ] Rules applied across:
+  - Dashboard
+  - Activities
+  - Settings
+- [ ] Screens verified:
+  - desktop width
+  - mobile width
 
 ## Week 2 Plan
 
