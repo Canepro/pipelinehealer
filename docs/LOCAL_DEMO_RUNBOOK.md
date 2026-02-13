@@ -173,7 +173,9 @@ bash scripts/ph.sh deploy:env
 Admin settings audit trail (latest first, admin-only):
 
 ```bash
-curl -H "X-API-Key: $API_AUTH_KEY" -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings/audit?limit=20"
+bash scripts/ph.sh settings:audit --limit 20
+# or generate two fresh traceable entries and print latest audit rows:
+bash scripts/ph.sh audit:proof --limit 5
 ```
 
 Entries include `request_id`, actor fingerprint, changed keys, and old/new values. This trail is in-memory for demo use and resets on backend restart/revision.

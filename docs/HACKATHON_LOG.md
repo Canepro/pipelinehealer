@@ -29,7 +29,7 @@ This is the long-form project tracker for hackathon execution status, submission
 | 3 | Reliability (timeouts/retries/log handling) | Completed |
 | 4 | Azure deployment alignment | Completed |
 | 5 | Demo + submission polish | In progress |
-| 6 | UI maturity and design-system consolidation | In progress |
+| 6 | UI maturity and design-system consolidation | Completed (Weeks 1-3) |
 
 ## Submission Checklist
 
@@ -120,6 +120,20 @@ This is the long-form project tracker for hackathon execution status, submission
   - `PATCH /api/settings` with `X-Request-Id`
   - `GET /api/settings/audit?limit=...`
   - response contains `request_id`, actor fingerprint, and old/new change values.
+- Completed Week 2 storytelling pass:
+  - dashboard story-first hierarchy
+  - safety reason microcopy
+  - explainability drilldown from snapshot to focused activity
+  - chart legibility + empty-state polish
+- Completed Week 3 trust pass:
+  - audit table clarity (`What Changed`, `Actor`, `Trace`, `When`)
+  - `Copy Trace` bundle format
+  - relative time with absolute UTC tooltip
+  - edge-state copy consistency across dashboard/activities/settings
+- Added Week 2 and Week 3 proof screenshots under `docs/screens/` and evidence blocks in `docs/UI_PLAN.md`.
+- Expanded one-command operator surface in `scripts/ph.sh`:
+  - `urls`, `settings:audit`, `audit:proof`, `demo:proof`
+  - updated demo/runbook docs to prefer these commands over manual multi-line curl blocks.
 
 ## Project Tracking Plan (Now -> Mar 15)
 
@@ -142,15 +156,15 @@ This plan is the source of truth for controlled polish work without drift.
 
 ### Week 2: Information Hierarchy + Narrative Flow
 
-- [ ] Dashboard narrative layout pass (processed -> actioned -> blocked -> why).
-- [ ] Outcome/safety visual prioritization pass with minimal color noise.
-- [ ] Table density and typography calibration for scanability.
+- [x] Dashboard narrative layout pass (processed -> actioned -> blocked -> why).
+- [x] Outcome/safety visual prioritization pass with minimal color noise.
+- [x] Table density and typography calibration for scanability.
 
 ### Week 3: Admin and Governance UX Refinement
 
-- [ ] Polish Settings and Audit panel micro-interactions (copy confirmations, empty/error states, spacing).
-- [ ] Add lightweight judge-mode walkthrough notes tied to UI states.
-- [ ] Confirm all governance claims are visible in both docs and UI.
+- [x] Polish Settings and Audit panel micro-interactions (copy confirmations, empty/error states, spacing).
+- [x] Add lightweight judge-mode walkthrough notes tied to UI states.
+- [x] Confirm governance claims are visible in docs and UI (reason microcopy, explainability snapshot, traceable audit).
 
 ### Week 4: Submission Freeze and Evidence Pack
 

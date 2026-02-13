@@ -14,6 +14,8 @@ Use this index to find the right doc quickly.
   - Post-demo roadmap and next-priority backlog.
 - `UI_PLAN.md`
   - UI maturity plan, principles, and weekly tracking through submission.
+- `screens/`
+  - Versioned UI proof screenshots used by Week 2 and Week 3 evidence checkpoints.
 - `../AGENTS.md`
   - Concise repo operating rules for agents and maintainers.
 - `../CONTRIBUTING.md`

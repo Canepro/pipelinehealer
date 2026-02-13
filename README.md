@@ -55,6 +55,20 @@ bash scripts/ph.sh help
 
 Use the help output as the source of truth for all available one-command operations.
 
+Common operators:
+
+```bash
+bash scripts/ph.sh deploy
+bash scripts/ph.sh deploy:env
+bash scripts/ph.sh urls
+bash scripts/ph.sh status
+bash scripts/ph.sh settings:check
+bash scripts/ph.sh settings:audit --limit 5
+bash scripts/ph.sh audit:proof --limit 5
+bash scripts/ph.sh demo:e2e
+bash scripts/ph.sh demo:proof --repo Canepro/pipelinehealer-demo --limit 10
+```
+
 Real-repo onboarding (canary-safe defaults):
 
 ```bash
@@ -367,6 +381,13 @@ bash scripts/ph.sh demo:reset
 bash scripts/ph.sh demo:e2e --wait-seconds 120
 ```
 
+### Demo Flow (3-4 Minutes)
+
+1. Dashboard story: show `Processed`, `Actioned`, `Safety Gated`, and `Issue-Only` in one glance.
+2. Explainability drilldown: open selected activity details from the snapshot and show reason/evidence context.
+3. Safety gate rationale: highlight reason-code microcopy and why policy-gated changes become review issues.
+4. Audit proof: run `bash scripts/ph.sh audit:proof --limit 5` and show traceable admin change entries.
+
 ### Shell Safety For Copy-Paste Blocks
 
 You do **not** need this for every one-line command.
@@ -544,6 +565,14 @@ curl -X PATCH \
   "http://127.0.0.1:8000/api/settings"
 
 curl -H "X-API-Key: $API_AUTH_KEY" -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings/audit?limit=20"
+```
+
+One-command equivalents (recommended for demos/operators):
+
+```bash
+bash scripts/ph.sh settings:check
+bash scripts/ph.sh settings:audit --limit 20
+bash scripts/ph.sh audit:proof --limit 5
 ```
 
 Audit trail notes:
