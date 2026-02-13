@@ -2,17 +2,14 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Info, LockKeyhole, Save, Shield, SlidersHorizontal, Wrench } from 'lucide-react'
 import { api } from '../api/client'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 
 function BoolBadge({ value }: { value: boolean }) {
-  return (
-    <span
-      className={`status-badge ${
-        value ? 'status-completed' : 'status-failed'
-      }`}
-    >
-      {value ? 'Enabled' : 'Disabled'}
-    </span>
-  )
+  return <Badge variant={value ? 'success' : 'destructive'}>{value ? 'Enabled' : 'Disabled'}</Badge>
 }
 
 export default function SettingsPage() {
@@ -94,7 +91,7 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <div className="card p-6">
+      <Card className="p-6">
         <div className="flex items-center gap-2 mb-4">
           <LockKeyhole className="h-5 w-5 text-azure-500" />
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -102,25 +99,24 @@ export default function SettingsPage() {
           </h2>
         </div>
         <div className="flex flex-col md:flex-row gap-3">
-          <input
+          <Input
             type="password"
             value={adminKeyInput}
             onChange={(e) => setAdminKeyInput(e.target.value)}
             placeholder="Enter X-Admin-Key"
-            className="flex-1 bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-azure-500"
+            className="flex-1"
           />
-          <button
-            className="btn-primary"
+          <Button
             onClick={() => setAdminKey(adminKeyInput.trim())}
             disabled={!adminKeyInput.trim() || isLoading}
           >
             Load Settings
-          </button>
+          </Button>
         </div>
         <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
           Uses header <code>X-Admin-Key</code>. Keep this key private.
         </p>
-      </div>
+      </Card>
 
       {adminKey && isLoading && (
         <div className="card p-6 text-sm text-gray-500 dark:text-gray-400">
@@ -361,7 +357,7 @@ export default function SettingsPage() {
 
               <label className="space-y-1">
                 <span className="text-gray-500 dark:text-gray-400">Max remediation attempts</span>
-                <input
+                <Input
                   type="number"
                   min={1}
                   max={50}
@@ -372,13 +368,12 @@ export default function SettingsPage() {
                       max_remediation_attempts: Number(e.target.value),
                     }))
                   }
-                  className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 focus:ring-2 focus:ring-azure-500"
                 />
               </label>
 
               <label className="space-y-1">
                 <span className="text-gray-500 dark:text-gray-400">Pipeline step timeout (s)</span>
-                <input
+                <Input
                   type="number"
                   min={1}
                   max={600}
@@ -389,13 +384,12 @@ export default function SettingsPage() {
                       pipeline_step_timeout_seconds: Number(e.target.value),
                     }))
                   }
-                  className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 focus:ring-2 focus:ring-azure-500"
                 />
               </label>
 
               <label className="space-y-1">
                 <span className="text-gray-500 dark:text-gray-400">GitHub API max retries</span>
-                <input
+                <Input
                   type="number"
                   min={0}
                   max={10}
@@ -406,13 +400,12 @@ export default function SettingsPage() {
                       github_api_max_retries: Number(e.target.value),
                     }))
                   }
-                  className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 focus:ring-2 focus:ring-azure-500"
                 />
               </label>
 
               <label className="space-y-1">
                 <span className="text-gray-500 dark:text-gray-400">Retry base seconds</span>
-                <input
+                <Input
                   type="number"
                   min={0.1}
                   max={30}
@@ -424,13 +417,12 @@ export default function SettingsPage() {
                       github_api_retry_base_seconds: Number(e.target.value),
                     }))
                   }
-                  className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 focus:ring-2 focus:ring-azure-500"
                 />
               </label>
 
               <label className="space-y-1">
                 <span className="text-gray-500 dark:text-gray-400">Retry max seconds</span>
-                <input
+                <Input
                   type="number"
                   min={0.1}
                   max={120}
@@ -442,13 +434,12 @@ export default function SettingsPage() {
                       github_api_retry_max_seconds: Number(e.target.value),
                     }))
                   }
-                  className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 focus:ring-2 focus:ring-azure-500"
                 />
               </label>
 
               <label className="space-y-1">
                 <span className="text-gray-500 dark:text-gray-400">Log prompt max chars</span>
-                <input
+                <Input
                   type="number"
                   min={1000}
                   max={200000}
@@ -459,13 +450,12 @@ export default function SettingsPage() {
                       log_prompt_max_chars: Number(e.target.value),
                     }))
                   }
-                  className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 focus:ring-2 focus:ring-azure-500"
                 />
               </label>
 
               <label className="space-y-1">
                 <span className="text-gray-500 dark:text-gray-400">Log prompt head chars</span>
-                <input
+                <Input
                   type="number"
                   min={100}
                   max={200000}
@@ -476,13 +466,12 @@ export default function SettingsPage() {
                       log_prompt_head_chars: Number(e.target.value),
                     }))
                   }
-                  className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 focus:ring-2 focus:ring-azure-500"
                 />
               </label>
 
               <label className="space-y-1">
                 <span className="text-gray-500 dark:text-gray-400">Log prompt tail chars</span>
-                <input
+                <Input
                   type="number"
                   min={100}
                   max={200000}
@@ -493,29 +482,26 @@ export default function SettingsPage() {
                       log_prompt_tail_chars: Number(e.target.value),
                     }))
                   }
-                  className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 focus:ring-2 focus:ring-azure-500"
                 />
               </label>
 
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+                <Switch
                   checked={form.auto_create_pr}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, auto_create_pr: e.target.checked }))
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({ ...prev, auto_create_pr: checked }))
                   }
                 />
                 <span className="text-gray-500 dark:text-gray-400">Auto-create PRs</span>
               </label>
 
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+                <Switch
                   checked={form.auto_create_tracking_issue_for_prs}
-                  onChange={(e) =>
+                  onCheckedChange={(checked) =>
                     setForm((prev) => ({
                       ...prev,
-                      auto_create_tracking_issue_for_prs: e.target.checked,
+                      auto_create_tracking_issue_for_prs: checked,
                     }))
                   }
                 />
@@ -525,13 +511,12 @@ export default function SettingsPage() {
               </label>
 
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+                <Switch
                   checked={form.verify_webhook_signature_in_development}
-                  onChange={(e) =>
+                  onCheckedChange={(checked) =>
                     setForm((prev) => ({
                       ...prev,
-                      verify_webhook_signature_in_development: e.target.checked,
+                      verify_webhook_signature_in_development: checked,
                     }))
                   }
                 />
@@ -563,8 +548,8 @@ export default function SettingsPage() {
             )}
 
             <div className="mt-4 flex justify-end">
-              <button
-                className="btn-primary flex items-center"
+              <Button
+                className="flex items-center"
                 disabled={
                   saveMutation.isPending ||
                   form.log_prompt_head_chars + form.log_prompt_tail_chars >
@@ -574,7 +559,7 @@ export default function SettingsPage() {
               >
                 <Save className="h-4 w-4 mr-2" />
                 {saveMutation.isPending ? 'Saving...' : 'Save Settings'}
-              </button>
+              </Button>
             </div>
           </div>
         </>
