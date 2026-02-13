@@ -75,6 +75,12 @@ class DiagnosisAgent:
 
         if pattern_diagnosis and pattern_diagnosis.confidence >= 0.8:
             logger.info(f"Pattern-based diagnosis: {pattern_diagnosis.failure_type}")
+            logger.debug(
+                "[debug-mode] Pattern matched: type=%s confidence=%.2f root_cause=%s",
+                pattern_diagnosis.failure_type.value,
+                pattern_diagnosis.confidence,
+                pattern_diagnosis.root_cause[:200] if pattern_diagnosis.root_cause else "N/A",
+            )
             return pattern_diagnosis
 
         # Use the agent for more complex analysis
@@ -108,8 +114,18 @@ Be specific about:
 """
 
         try:
+            logger.debug(
+                "[debug-mode] Pattern match did not reach 0.8 threshold (got %s); calling LLM. prompt_len=%d",
+                f"{pattern_diagnosis.confidence:.2f}" if pattern_diagnosis else "no match",
+                len(prompt),
+            )
             response = await agent.run(prompt)
             response_text = str(response) if response else ""
+            logger.debug(
+                "[debug-mode] LLM response_len=%d response_preview=%s",
+                len(response_text),
+                response_text[:500],
+            )
 
             # Extract JSON from response
             diagnosis = self._parse_diagnosis_response(response_text, pattern_diagnosis)

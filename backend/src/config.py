@@ -151,7 +151,10 @@ class Settings(BaseSettings):
     # Agent Configuration
     heal_mode: str = Field(
         default="safe",
-        description="Healing mode: 'safe' (conservative) or 'demo' (more aggressive, hackathon-friendly)",
+        description=(
+            "Healing mode: 'safe' (conservative), 'demo' (aggressive, hackathon-friendly), "
+            "or 'debug' (same behavior as safe with verbose diagnostic logging)"
+        ),
     )
     max_remediation_attempts: int = Field(
         default=3,

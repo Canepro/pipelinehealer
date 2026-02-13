@@ -123,6 +123,9 @@ class LogAnalyzerAgent:
         warning_lines = self._extract_warning_lines(raw_logs)
         key_events = self._extract_key_events(raw_logs)
 
+        # Emit debug diagnostics (only visible when HEAL_MODE=debug sets log level)
+        self._log_debug_extraction(job_name, len(raw_logs), error_lines, warning_lines, key_events)
+
         # Use the agent to generate a summary
         agent = await self._get_agent()
 
@@ -169,6 +172,25 @@ Provide a concise summary of:
             key_events=key_events,
             summary=summary,
         )
+
+    def _log_debug_extraction(
+        self,
+        job_name: str,
+        raw_len: int,
+        error_lines: list[str],
+        warning_lines: list[str],
+        key_events: list[str],
+    ) -> None:
+        """Emit debug-mode diagnostics for log extraction results."""
+        logger.debug(
+            "[debug-mode] Log extraction for job=%s: raw_len=%d error_lines=%d warning_lines=%d key_events=%d",
+            job_name, raw_len, len(error_lines), len(warning_lines), len(key_events),
+        )
+        if error_lines:
+            for i, line in enumerate(error_lines[:10]):
+                logger.debug("[debug-mode]   error_line[%d]: %s", i, line[:300])
+            if len(error_lines) > 10:
+                logger.debug("[debug-mode]   ... and %d more error lines", len(error_lines) - 10)
 
     def _truncate_logs(
         self,

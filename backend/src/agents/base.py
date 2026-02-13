@@ -43,7 +43,9 @@ class FallbackAgent:
 
     async def run(self, prompt: str) -> Any:
         try:
-            return await self._primary.run(prompt)
+            result = await self._primary.run(prompt)
+            logger.debug("[debug-mode] Primary agent (Responses) succeeded")
+            return result
         except Exception as exc:
             message = str(exc).lower()
             version_error = "api version not supported" in message
@@ -55,7 +57,9 @@ class FallbackAgent:
                 "retrying with fallback client. error=%s",
                 exc,
             )
-            return await self._fallback.run(prompt)
+            result = await self._fallback.run(prompt)
+            logger.debug("[debug-mode] Fallback agent (Chat) succeeded")
+            return result
 
 
 def _as_agent_compat(client: Any, *, name: str, instructions: str) -> Any:

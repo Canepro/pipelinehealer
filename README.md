@@ -132,6 +132,7 @@ Pure logic:
 
 - `safe` (Recommended): conservative, demo-stable behavior.
 - `demo`: more aggressive hackathon-friendly behavior (for example retry flaky test runs, open PRs that bump workflow timeouts when it can patch a known workflow file).
+- `debug`: identical behavior to `safe`, but emits verbose diagnostic logging at each pipeline step (log extraction details, pattern vs LLM diagnosis path, step timings, which OpenAI client was used). Toggle via admin `PATCH /api/settings` or env var.
 
 See `backend/.env.example`.
 

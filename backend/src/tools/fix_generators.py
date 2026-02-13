@@ -43,6 +43,7 @@ class FixGenerators:
         )
         self._heal_mode = ""
         self._is_demo_mode = False
+        self._is_debug_mode = False
         self.set_heal_mode(heal_mode)
         self._generators = {
             FailureType.DEPENDENCY: self._generate_dependency_fix,
@@ -55,8 +56,10 @@ class FixGenerators:
     def set_heal_mode(self, heal_mode: str) -> None:
         """Update healing mode without recreating the generator object."""
         normalized = (heal_mode or "safe").strip().lower()
-        self._heal_mode = normalized if normalized in {"safe", "demo"} else "safe"
+        self._heal_mode = normalized if normalized in {"safe", "demo", "debug"} else "safe"
+        # debug behaves like safe for all remediation decisions
         self._is_demo_mode = self._heal_mode == "demo"
+        self._is_debug_mode = self._heal_mode == "debug"
 
     async def generate_fix(
         self,

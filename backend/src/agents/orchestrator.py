@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import time
 from collections.abc import Awaitable
 from typing import Any, TypeVar
 
@@ -107,6 +108,11 @@ class OrchestratorAgent:
 
         logger.info(f"Processing workflow failure: {owner}/{repo} run {run_id}")
 
+        is_debug = self._settings.heal_mode == "debug"
+        if is_debug:
+            logging.getLogger("src").setLevel(logging.DEBUG)
+            logger.debug("[debug-mode] Verbose pipeline logging enabled for this run")
+
         # Use the pre-created activity record when provided (webhook/start() returns this ID).
         activity: ActivityRecord | None = None
         if activity_id:
@@ -130,10 +136,17 @@ class OrchestratorAgent:
             activity.status = RemediationStatus.ANALYZING
             await self._storage.update_activity(activity)
 
+            t0 = time.monotonic()
             log_analyses = await self._run_with_timeout(
                 step_name="Analyze",
                 coro=self._log_analyzer.analyze(owner, repo, run_id),
             )
+            if is_debug:
+                logger.debug(
+                    "[debug-mode] Step 1 completed in %.2fs — %d job(s) analyzed",
+                    time.monotonic() - t0,
+                    len(log_analyses),
+                )
 
             if not log_analyses:
                 logger.warning("No log analyses produced")
@@ -154,6 +167,7 @@ class OrchestratorAgent:
                 "conclusion": event.workflow_run.conclusion,
             }
 
+            t1 = time.monotonic()
             diagnosis = await self._run_with_timeout(
                 step_name="Diagnose",
                 coro=self._diagnosis_agent.diagnose(log_analyses, workflow_info),
@@ -165,6 +179,14 @@ class OrchestratorAgent:
                 f"Diagnosis: {diagnosis.failure_type.value} "
                 f"(confidence: {diagnosis.confidence:.0%})"
             )
+            if is_debug:
+                logger.debug(
+                    "[debug-mode] Step 2 completed in %.2fs — type=%s confidence=%.2f root_cause=%s",
+                    time.monotonic() - t1,
+                    diagnosis.failure_type.value,
+                    diagnosis.confidence,
+                    diagnosis.root_cause[:200] if diagnosis.root_cause else "N/A",
+                )
 
             # Step 3: Remediate
             logger.info("Step 3: Generating remediation...")
@@ -182,6 +204,7 @@ class OrchestratorAgent:
             # Check if auto-creation is enabled
             dry_run = not self._settings.auto_create_pr
 
+            t2 = time.monotonic()
             result = await self._run_with_timeout(
                 step_name="Remediate",
                 coro=self._remediation_agent.remediate(
@@ -193,6 +216,14 @@ class OrchestratorAgent:
             )
 
             activity.remediation_result = result
+
+            if is_debug:
+                logger.debug(
+                    "[debug-mode] Step 3 completed in %.2fs — action=%s success=%s",
+                    time.monotonic() - t2,
+                    result.action_taken.value if result.action_taken else "none",
+                    result.success,
+                )
 
             # Update final status
             if result.success:

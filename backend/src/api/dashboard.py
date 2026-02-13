@@ -178,10 +178,10 @@ async def update_app_settings(
 
     if "heal_mode" in changes:
         heal_mode = str(changes["heal_mode"]).strip().lower()
-        if heal_mode not in {"safe", "demo"}:
+        if heal_mode not in {"safe", "demo", "debug"}:
             raise HTTPException(
                 status_code=422,
-                detail="heal_mode must be one of: safe, demo",
+                detail="heal_mode must be one of: safe, demo, debug",
             )
         changes["heal_mode"] = heal_mode
 
