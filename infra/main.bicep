@@ -31,6 +31,22 @@ param frontendImageName string = 'pipelinehealer-frontend'
 @description('Image tag for backend/frontend images')
 param imageTag string = 'latest'
 
+@secure()
+@description('API key for X-API-Key protected /api/* routes')
+param apiAuthKey string = 'replace_me_api_auth_key'
+
+@secure()
+@description('Admin API key for X-Admin-Key protected /api/settings* routes')
+param adminApiKey string = 'replace_me_admin_api_key'
+
+@secure()
+@description('GitHub webhook secret used to validate webhook signatures')
+param githubWebhookSecret string = 'replace_me_webhook_secret'
+
+@secure()
+@description('GitHub PAT for API access (leave empty when using GitHub App auth only)')
+param githubPersonalAccessToken string = ''
+
 @description('User-assigned identity name used by Container Apps to pull from ACR')
 param acrPullIdentityName string = 'id-canepro-ph-acrpull'
 
@@ -303,6 +319,22 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsights.properties.ConnectionString
             }
+            {
+              name: 'API_AUTH_KEY'
+              value: apiAuthKey
+            }
+            {
+              name: 'ADMIN_API_KEY'
+              value: adminApiKey
+            }
+            {
+              name: 'GITHUB_WEBHOOK_SECRET'
+              value: githubWebhookSecret
+            }
+            {
+              name: 'GITHUB_PERSONAL_ACCESS_TOKEN'
+              value: githubPersonalAccessToken
+            }
           ]
         }
       ]
@@ -357,6 +389,10 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'BACKEND_UPSTREAM'
               value: 'https://${backendApp.properties.configuration.ingress.fqdn}'
+            }
+            {
+              name: 'API_AUTH_KEY'
+              value: apiAuthKey
             }
           ]
         }

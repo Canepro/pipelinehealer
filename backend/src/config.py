@@ -193,17 +193,6 @@ class Settings(BaseSettings):
         default=9000,
         description="Tail characters to keep when truncating logs for prompt context",
     )
-    supported_failure_types: list[str] = Field(
-        default=[
-            "dependency",
-            "test",
-            "lint",
-            "build_config",
-            "timeout",
-        ],
-        description="List of failure types the agent can handle",
-    )
-
     @field_validator("cors_allowed_origins", mode="before")
     @classmethod
     def parse_cors_allowed_origins(cls, value: Any) -> Any:

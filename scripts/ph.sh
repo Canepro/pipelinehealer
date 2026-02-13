@@ -95,6 +95,7 @@ upsert_env_key() {
   # Replace in place if key exists; append if missing.
   local tmp
   tmp="$(mktemp)"
+  chmod 600 "$tmp"
   awk -v k="$key" -v v="$value" '
     BEGIN { done = 0 }
     $0 ~ ("^" k "=") { print k "=" v; done = 1; next }
@@ -102,6 +103,7 @@ upsert_env_key() {
     END { if (!done) print k "=" v }
   ' "$file" > "$tmp"
   mv "$tmp" "$file"
+  chmod 600 "$file"
 }
 
 resolve_backend_fqdn() {
@@ -500,6 +502,14 @@ deploy_bg() {
   nohup bash "$SCRIPT_DIR/deploy/redeploy_azure_containerapps.sh" "$@" >"$DEPLOY_LOG" 2>&1 &
   local pid="$!"
   echo "$pid" > "$DEPLOY_PID"
+  sleep 1
+  if ! ps -p "$pid" >/dev/null 2>&1; then
+    echo "Background deploy failed to start. Recent log output:" >&2
+    if [[ -f "$DEPLOY_LOG" ]]; then
+      tail -n 40 "$DEPLOY_LOG" >&2 || true
+    fi
+    exit 1
+  fi
   echo "Started redeploy in background."
   echo "PID: $pid"
   echo "Log: $DEPLOY_LOG"

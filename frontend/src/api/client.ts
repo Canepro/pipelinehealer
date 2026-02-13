@@ -115,6 +115,30 @@ type ApiRequestOptions = RequestInit & {
   adminKey?: string
 }
 
+function getApiErrorMessage(status: number, statusText: string, bodyText: string): string {
+  const trimmed = bodyText.trim()
+  if (!trimmed) {
+    return `API error: ${status} ${statusText}`
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as { detail?: unknown; message?: unknown; error?: unknown }
+    const detail =
+      typeof parsed.detail === 'string'
+        ? parsed.detail
+        : typeof parsed.message === 'string'
+          ? parsed.message
+          : typeof parsed.error === 'string'
+            ? parsed.error
+            : ''
+    if (detail) {
+      return `API error: ${status} ${statusText} - ${detail}`
+    }
+  } catch {
+    // Non-JSON upstream errors (for example an HTML proxy page) should surface clearly.
+  }
+  return `API error: ${status} ${statusText} - ${trimmed.slice(0, 300)}`
+}
+
 async function fetchJson<T>(path: string, options?: ApiRequestOptions): Promise<T> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
@@ -139,11 +163,20 @@ async function fetchJson<T>(path: string, options?: ApiRequestOptions): Promise<
       },
     })
 
+    const rawText = await response.text()
     if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`)
+      throw new Error(getApiErrorMessage(response.status, response.statusText, rawText))
     }
-
-    return response.json()
+    if (!rawText.trim()) {
+      throw new Error(`API error: ${response.status} ${response.statusText} - empty response body`)
+    }
+    try {
+      return JSON.parse(rawText) as T
+    } catch {
+      throw new Error(
+        `API error: ${response.status} ${response.statusText} - expected JSON response body`
+      )
+    }
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw new Error(`API timeout after ${API_TIMEOUT_MS}ms`)

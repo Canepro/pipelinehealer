@@ -424,7 +424,12 @@ Roadmap and next AI expansions:
 ```bash
 # Using Azure Developer CLI
 # 1) complete docs/PREDEPLOY_PLACEHOLDER_AUDIT.md
-# 2) then deploy
+# 2) set required runtime secrets for infra/main.bicepparam
+azd env set API_AUTH_KEY "<strong-api-key>"
+azd env set ADMIN_API_KEY "<strong-admin-key>"
+azd env set GITHUB_WEBHOOK_SECRET "<github-webhook-secret>"
+azd env set GITHUB_PERSONAL_ACCESS_TOKEN "<github-pat>"
+# 3) then deploy
 azd up
 ```
 
