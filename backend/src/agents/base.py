@@ -34,6 +34,29 @@ class NoopAgent:
         _ = prompt
         return ""
 
+class FallbackAgent:
+    """Agent wrapper that retries with a fallback agent for known compatibility errors."""
+
+    def __init__(self, primary: Any, fallback: Any):
+        self._primary = primary
+        self._fallback = fallback
+
+    async def run(self, prompt: str) -> Any:
+        try:
+            return await self._primary.run(prompt)
+        except Exception as exc:
+            message = str(exc).lower()
+            version_error = "api version not supported" in message
+            if not version_error:
+                raise
+
+            logger.warning(
+                "Primary Azure OpenAI client failed with API-version compatibility error; "
+                "retrying with fallback client. error=%s",
+                exc,
+            )
+            return await self._fallback.run(prompt)
+
 
 def _as_agent_compat(client: Any, *, name: str, instructions: str) -> Any:
     """Build an agent from a client across Agent Framework versions.
@@ -104,13 +127,14 @@ def create_cloud_agent(
         return _as_agent_compat(chat_client, name=name, instructions=instructions)
 
     # For classic Azure OpenAI resources (openai.azure.com), use the Responses API.
-    from agent_framework.azure import AzureOpenAIResponsesClient
+    from agent_framework.azure import AzureOpenAIChatClient, AzureOpenAIResponsesClient
 
     # Responses API is enabled only for certain preview versions on some resources.
     # If the user left the default `preview`, prefer a known-working dated preview.
+    # Keep this configurable via AZURE_OPENAI_API_VERSION; we only provide safe defaults.
     responses_api_version = api_version
     if responses_api_version in ("", "preview"):
-        responses_api_version = "2025-03-01-preview"
+        responses_api_version = "2025-04-01-preview"
 
     responses_client: Any = AzureOpenAIResponsesClient(
         endpoint=endpoint,
@@ -119,7 +143,21 @@ def create_cloud_agent(
         api_key=api_key or None,
         credential=credential,
     )
-    return _as_agent_compat(responses_client, name=name, instructions=instructions)
+    primary_agent = _as_agent_compat(responses_client, name=name, instructions=instructions)
+
+    # Compatibility fallback: certain resources/deployments may reject Responses API versions
+    # while still supporting chat completions on a dated preview API version.
+    chat_api_version = "2024-12-01-preview"
+    chat_client: Any = AzureOpenAIChatClient(
+        endpoint=endpoint,
+        deployment_name=deployment_name,
+        api_version=chat_api_version,
+        api_key=api_key or None,
+        credential=credential,
+    )
+    fallback_agent = _as_agent_compat(chat_client, name=name, instructions=instructions)
+
+    return FallbackAgent(primary_agent, fallback_agent)
 
 
 def get_azure_openai_config() -> dict[str, Any]:
