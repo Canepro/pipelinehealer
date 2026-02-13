@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Filter, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import ActivityTable from '../components/ActivityTable'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 
 const statusOptions = [
@@ -26,16 +28,37 @@ const failureTypeOptions = [
 ]
 
 export default function Activities() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const focusedActivityId = searchParams.get('focus')
   const [filters, setFilters] = useState({
     status: '',
     failure_type: '',
     limit: 50,
   })
+  const [highlightedActivityId, setHighlightedActivityId] = useState<string | null>(null)
 
   const { data: activities, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['activities', filters],
     queryFn: () => api.getActivities(filters),
   })
+  const hasFocusedActivity = useMemo(
+    () => !!focusedActivityId && !!activities?.some((activity) => activity.id === focusedActivityId),
+    [activities, focusedActivityId]
+  )
+
+  useEffect(() => {
+    if (!focusedActivityId || !activities || !hasFocusedActivity) return
+
+    setHighlightedActivityId(focusedActivityId)
+    const timer = window.setTimeout(() => setHighlightedActivityId(null), 3000)
+
+    const target = document.querySelector<HTMLElement>(`[data-activity-id=\"${focusedActivityId}\"]`)
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+
+    return () => window.clearTimeout(timer)
+  }, [focusedActivityId, activities, hasFocusedActivity])
 
   const handleRefresh = async () => {
     try {
@@ -51,7 +74,7 @@ export default function Activities() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Activities
@@ -60,17 +83,35 @@ export default function Activities() {
             All CI/CD healing activities
           </p>
         </div>
-        <Button
-          variant="secondary"
-          onClick={() => void handleRefresh()}
-          disabled={isLoading}
-          aria-busy={isFetching}
-        >
-          <RefreshCw
-            className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`}
-          />
-          {isFetching ? 'Refreshing...' : 'Refresh'}
-        </Button>
+        <div className="flex items-center gap-2">
+          {focusedActivityId && (
+            <>
+              <Badge variant="secondary">Focused View</Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const nextParams = new URLSearchParams(searchParams)
+                  nextParams.delete('focus')
+                  setSearchParams(nextParams)
+                }}
+              >
+                Clear focus
+              </Button>
+            </>
+          )}
+          <Button
+            variant="secondary"
+            onClick={() => void handleRefresh()}
+            disabled={isLoading}
+            aria-busy={isFetching}
+          >
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`}
+            />
+            {isFetching ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -109,7 +150,20 @@ export default function Activities() {
       </Card>
 
       {/* Activities Table */}
-      <ActivityTable activities={activities || []} isLoading={isLoading} />
+      {!hasFocusedActivity && focusedActivityId && (
+        <Card>
+          <CardContent className="p-4 text-sm text-amber-300">
+            Focused activity not in the current page. Refresh or adjust filters.
+          </CardContent>
+        </Card>
+      )}
+
+      <ActivityTable
+        activities={activities || []}
+        isLoading={isLoading}
+        focusedActivityId={focusedActivityId}
+        highlightedActivityId={highlightedActivityId}
+      />
 
       {/* Pagination info */}
       {activities && activities.length > 0 && (

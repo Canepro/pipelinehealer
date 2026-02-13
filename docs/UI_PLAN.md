@@ -144,6 +144,11 @@ These are enforceable defaults for all primary product screens.
   - key summary numbers moved into chart card headers
   - consistent tooltip copy and compact tooltip styling for mobile
   - empty states standardized with CTA (`Open demo repo`)
+- Explainability drilldown polish:
+  - dashboard snapshot actions now support traceable drilldown (`View activity`, `Open Issue/PR`, `Copy ID`)
+  - safety reason codes include short human-readable microcopy
+  - snapshot includes compact evidence lines and direct workflow-run link
+  - Activities supports `?focus=<activity_id>` with focused badge + timed row highlight + clear-focus control
 
 ## Week 3 Plan
 

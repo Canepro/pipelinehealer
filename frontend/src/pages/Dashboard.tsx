@@ -19,15 +19,46 @@ import {
   FileText,
   ShieldAlert,
   SearchCheck,
+  Copy,
+  ExternalLink,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../api/client'
+import type { Activity as ActivityItem } from '../api/client'
 import StatsCard from '../components/StatsCard'
 import ActivityTable from '../components/ActivityTable'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const COLORS = ['#2563eb', '#0ea5e9', '#14b8a6', '#16a34a', '#f59e0b', '#64748b']
+const REASON_LABELS: Record<string, string> = {
+  OUTSIDE_ALLOWED_FILES: 'Touches non-allowlisted files.',
+  LOW_CONFIDENCE: 'Model confidence below threshold.',
+  MISSING_CONTEXT: 'Insufficient logs or stack trace.',
+  REQUIRES_ENV_CONTEXT: 'Needs repo/environment context not available.',
+  SAFETY_BOUND: 'Blocked by configured safety policy.',
+}
+
+function getEvidenceLines(activity: ActivityItem | null): string[] {
+  if (!activity?.diagnosis?.error_details) return []
+  const details = activity.diagnosis.error_details as Record<string, unknown>
+  const listKeys = ['key_log_lines', 'relevant_log_lines', 'log_messages', 'evidence']
+  for (const key of listKeys) {
+    const value = details[key]
+    if (Array.isArray(value)) {
+      return value
+        .filter((line): line is string => typeof line === 'string' && line.trim().length > 0)
+        .slice(0, 2)
+    }
+  }
+  const message = details.message
+  if (typeof message === 'string' && message.trim().length > 0) {
+    return [message]
+  }
+  return []
+}
 
 export default function Dashboard() {
   const {
@@ -111,6 +142,13 @@ export default function Dashboard() {
       ? `${Math.round(selectedActivity.diagnosis.confidence * 100)}%`
       : 'N/A'
   const selectedFailureType = selectedActivity?.failure_type || 'unknown'
+  const selectedArtifactUrl =
+    selectedActivity?.remediation_result?.pr_url || selectedActivity?.remediation_result?.issue_url || null
+  const selectedRunUrl =
+    selectedActivity?.repository_name && selectedActivity?.workflow_run_id
+      ? `https://github.com/${selectedActivity.repository_name}/actions/runs/${selectedActivity.workflow_run_id}`
+      : null
+  const evidenceLines = useMemo(() => getEvidenceLines(selectedActivity), [selectedActivity])
 
   const safetyGateReasonCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -199,9 +237,14 @@ export default function Dashboard() {
               {safetyGateReasonCounts.map((item) => (
                 <div
                   key={item.code}
-                  className="rounded-md border border-[var(--ph-border)] bg-slate-800/40 px-3 py-1 text-xs text-slate-200"
+                  className="rounded-md border border-[var(--ph-border)] bg-slate-800/40 px-3 py-2 text-xs text-slate-200"
                 >
-                  <span className="font-semibold">{item.code}</span> ({item.count})
+                  <div className="font-semibold">
+                    {item.code} ({item.count})
+                  </div>
+                  <div className="mt-1 text-gray-400">
+                    {REASON_LABELS[item.code] || 'Manual review required.'}
+                  </div>
                 </div>
               ))}
             </div>
@@ -377,9 +420,32 @@ export default function Dashboard() {
                     ))}
                   </select>
                 </label>
-                <div className="flex items-end">
+                <div className="flex flex-wrap items-end gap-2">
                   <Button asChild variant="secondary" size="sm">
-                    <a href={`/activities/${selectedActivity?.id || ''}`}>Open Trace</a>
+                    <a href={`/activities?focus=${selectedActivity?.id || ''}`}>View activity</a>
+                  </Button>
+                  {selectedArtifactUrl && (
+                    <Button asChild variant="ghost" size="sm">
+                      <a href={selectedArtifactUrl} rel="noopener noreferrer" target="_blank">
+                        Open Issue/PR
+                      </a>
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      const traceId = selectedActivity?.id || ''
+                      try {
+                        await navigator.clipboard.writeText(traceId)
+                        toast.success('Activity ID copied')
+                      } catch {
+                        toast.error('Copy failed')
+                      }
+                    }}
+                  >
+                    <Copy className="mr-1 h-4 w-4" />
+                    Copy ID
                   </Button>
                 </div>
               </div>
@@ -401,6 +467,38 @@ export default function Dashboard() {
                   <p className="text-xs uppercase tracking-wide text-gray-400">Reason Code</p>
                   <p className="mt-1 text-sm font-semibold text-white">{selectedReasonCode || 'N/A'}</p>
                 </div>
+              </div>
+
+              <div className="rounded-lg border border-[var(--ph-border)] p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs uppercase tracking-wide text-gray-400">Evidence</p>
+                  <div className="flex items-center gap-2">
+                    {selectedRunUrl && (
+                      <Button asChild size="sm" variant="ghost">
+                        <a href={selectedRunUrl} rel="noopener noreferrer" target="_blank">
+                          Workflow run
+                          <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                        </a>
+                      </Button>
+                    )}
+                    {selectedActivity?.id && (
+                      <Badge variant="secondary" className="font-mono text-[11px]">
+                        {selectedActivity.id}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                {evidenceLines.length > 0 ? (
+                  <ul className="space-y-1 text-sm text-gray-300">
+                    {evidenceLines.map((line, index) => (
+                      <li key={index} className="truncate">
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-400">No structured evidence lines available.</p>
+                )}
               </div>
             </>
           ) : (

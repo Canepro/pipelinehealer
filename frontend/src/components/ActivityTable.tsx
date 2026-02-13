@@ -20,6 +20,8 @@ import {
 interface ActivityTableProps {
   activities: Activity[]
   isLoading?: boolean
+  focusedActivityId?: string | null
+  highlightedActivityId?: string | null
 }
 
 function getIssueProposalMeta(activity: Activity): {
@@ -40,7 +42,12 @@ function getIssueProposalMeta(activity: Activity): {
   return { includesProposedFix: includes, reasonCode: reason, output }
 }
 
-export default function ActivityTable({ activities, isLoading }: ActivityTableProps) {
+export default function ActivityTable({
+  activities,
+  isLoading,
+  focusedActivityId,
+  highlightedActivityId,
+}: ActivityTableProps) {
   if (isLoading) {
     return (
       <Card>
@@ -82,7 +89,13 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
         {activities.map((activity) => {
           const meta = getIssueProposalMeta(activity)
           return (
-            <div key={activity.id} className="space-y-3 p-4">
+            <div
+              key={activity.id}
+              data-activity-id={activity.id}
+              className={`space-y-3 p-4 transition-colors ${
+                activity.id === highlightedActivityId ? 'bg-azure-500/10' : ''
+              }`}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
@@ -94,6 +107,11 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                {activity.id === focusedActivityId && (
+                  <Badge className="rounded-md text-[11px]" variant="success">
+                    Focused View
+                  </Badge>
+                )}
                 {activity.failure_type ? (
                   <FailureTypeBadge type={activity.failure_type} />
                 ) : (
@@ -159,7 +177,13 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
             {activities.map((activity) => {
               const meta = getIssueProposalMeta(activity)
               return (
-                <TableRow key={activity.id}>
+                <TableRow
+                  key={activity.id}
+                  data-activity-id={activity.id}
+                  className={`transition-colors ${
+                    activity.id === highlightedActivityId ? 'bg-azure-500/10' : ''
+                  }`}
+                >
                   <TableCell className="pl-6 whitespace-nowrap">
                     <div className="flex items-center">
                       <GitBranch className="mr-2 h-5 w-5 text-gray-400" />
@@ -182,6 +206,13 @@ export default function ActivityTable({ activities, isLoading }: ActivityTablePr
                     </div>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
+                    {activity.id === focusedActivityId && (
+                      <div className="mb-2">
+                        <Badge className="rounded-md text-[11px]" variant="success">
+                          Focused View
+                        </Badge>
+                      </div>
+                    )}
                     <StatusBadge status={activity.status} size="sm" />
                     <div className="mt-2 flex flex-wrap gap-1">
                       {meta.output && (
