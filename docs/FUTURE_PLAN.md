@@ -40,7 +40,6 @@ The following are already implemented in the current project state:
 - Add lightweight admin session auth for settings operations (post-submission):
   - Replace direct admin-key-only UX with short-lived, password-backed admin sessions.
   - Keep `X-Admin-Key` as emergency fallback via feature flag.
-  - Record admin setting changes in a minimal audit trail.
 
 ## 5) CI Platform Extensibility
 

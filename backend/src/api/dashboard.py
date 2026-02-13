@@ -4,11 +4,12 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
 from ..config import get_settings
 from ..models import (
     ActivityRecord,
+    AdminSettingsAuditEntry,
     AdminSettingsUpdateRequest,
     AppSettingsView,
     DashboardStats,
@@ -96,6 +97,8 @@ def _build_settings_view() -> AppSettingsView:
 # Storage instance (will be properly initialized)
 _storage: ActivityStorage | None = None
 _workflow: PipelineHealerWorkflow | None = None
+_admin_settings_audit: list[AdminSettingsAuditEntry] = []
+_MAX_ADMIN_SETTINGS_AUDIT_ENTRIES = 200
 
 
 def set_storage(storage: ActivityStorage) -> None:
@@ -108,6 +111,11 @@ def set_workflow(workflow: PipelineHealerWorkflow) -> None:
     """Set the workflow instance for retry operations."""
     global _workflow
     _workflow = workflow
+
+
+def clear_admin_settings_audit() -> None:
+    """Clear in-memory admin settings audit log (useful for tests)."""
+    _admin_settings_audit.clear()
 
 
 def get_storage() -> ActivityStorage:
@@ -152,7 +160,11 @@ async def get_app_settings() -> AppSettingsView:
     response_model=AppSettingsView,
     dependencies=[Depends(require_admin_key)],
 )
-async def update_app_settings(update: AdminSettingsUpdateRequest) -> AppSettingsView:
+async def update_app_settings(
+    update: AdminSettingsUpdateRequest,
+    request: Request,
+    user_agent: str | None = Header(default=None, alias="User-Agent"),
+) -> AppSettingsView:
     """Apply admin runtime overrides (in-memory until backend restart)."""
     settings = get_settings()
     changes = update.model_dump(exclude_none=True)
@@ -178,14 +190,46 @@ async def update_app_settings(update: AdminSettingsUpdateRequest) -> AppSettings
             detail="log_prompt_head_chars + log_prompt_tail_chars must be <= log_prompt_max_chars",
         )
 
+    previous_values = {key: getattr(settings, key, None) for key in changes}
     for key, value in changes.items():
         setattr(settings, key, value)
 
     workflow = get_workflow()
     workflow.refresh_runtime_settings()
+
+    audit_entry = AdminSettingsAuditEntry(
+        changed_keys=sorted(changes.keys()),
+        changes={
+            key: {"old": previous_values[key], "new": changes[key]}
+            for key in sorted(changes.keys())
+        },
+        client_ip=request.client.host if request.client else None,
+        user_agent=user_agent,
+    )
+    _admin_settings_audit.append(audit_entry)
+    if len(_admin_settings_audit) > _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES:
+        del _admin_settings_audit[: len(_admin_settings_audit) - _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES]
+
     logger.info("Admin runtime settings updated; changed_keys=%s", sorted(changes.keys()))
 
     return _build_settings_view()
+
+
+@router.get(
+    "/settings/audit",
+    response_model=list[AdminSettingsAuditEntry],
+    dependencies=[Depends(require_admin_key)],
+)
+async def get_settings_audit(
+    limit: int = Query(
+        50,
+        ge=1,
+        le=_MAX_ADMIN_SETTINGS_AUDIT_ENTRIES,
+        description="Maximum number of admin settings audit records",
+    ),
+) -> list[AdminSettingsAuditEntry]:
+    """Get recent admin settings change records (latest first)."""
+    return list(reversed(_admin_settings_audit))[:limit]
 
 
 @router.get("/activities", response_model=list[ActivityRecord])

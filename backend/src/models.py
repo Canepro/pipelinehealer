@@ -240,3 +240,13 @@ class AdminSettingsUpdateRequest(BaseModel):
     log_prompt_max_chars: int | None = Field(default=None, ge=1000, le=200000)
     log_prompt_head_chars: int | None = Field(default=None, ge=100, le=200000)
     log_prompt_tail_chars: int | None = Field(default=None, ge=100, le=200000)
+
+
+class AdminSettingsAuditEntry(BaseModel):
+    """Admin settings change audit record (in-memory, runtime-scoped)."""
+
+    timestamp: datetime = Field(default_factory=utcnow)
+    changed_keys: list[str] = Field(default_factory=list)
+    changes: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    client_ip: str | None = None
+    user_agent: str | None = None

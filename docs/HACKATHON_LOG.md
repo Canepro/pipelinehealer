@@ -10,6 +10,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Azure deployment: **Live** on Container Apps (backend + frontend)
 - Project positioning: **Azure-first** for hackathon compliance, local mode as evaluation fallback
 - Runtime security: `X-API-Key` for `/api/*`, `X-Admin-Key` for `/api/settings`
+- Admin governance visibility: lightweight in-memory audit trail for settings changes (`GET /api/settings/audit`)
 - Demo operations: consolidated to one-command runner `bash scripts/ph.sh ...`
 - Real-repo rollout ops: `rollout:canary`, `webhook:add`, `webhook:disable` added for issue-first canary onboarding
 - Recording script: single-source runbook in `docs/DEMO_SCRIPT.md`
@@ -100,6 +101,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Added `CONTRIBUTING.md` and `SECURITY.md` and linked them from `docs/README.md`.
 - Added repo allowlist gate (`PH_ALLOWED_REPOS`) so webhook processing can be scoped to selected repos.
 - Added one-command canary rollout + webhook management paths in `scripts/ph.sh`.
+- Added minimal admin settings audit trail endpoint (`/api/settings/audit`) for change visibility.
 
 ## Known Risks / Follow-Ups
 

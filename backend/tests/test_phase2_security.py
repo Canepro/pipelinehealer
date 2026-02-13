@@ -14,8 +14,10 @@ from src.storage import InMemoryStorage
 
 @pytest.fixture(autouse=True)
 def clear_settings_cache() -> None:
+    dashboard.clear_admin_settings_audit()
     get_settings.cache_clear()
     yield
+    dashboard.clear_admin_settings_audit()
     get_settings.cache_clear()
 
 
@@ -43,6 +45,12 @@ async def _patch_settings(
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         return await client.patch("/api/settings", json=payload, headers=headers or {})
+
+
+async def _get_settings_audit(headers: dict[str, str] | None = None) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.get("/api/settings/audit", headers=headers or {})
 
 
 async def _post_ping(
@@ -264,3 +272,11 @@ async def test_admin_can_patch_runtime_settings(monkeypatch) -> None:
     assert data["max_remediation_attempts"] == 7
     assert data["pipeline_step_timeout_seconds"] == 45
     assert data["github_api_max_retries"] == 5
+
+    audit = await _get_settings_audit(headers={"X-Admin-Key": "admin-secret"})
+    assert audit.status_code == 200
+    entries = audit.json()
+    assert len(entries) >= 1
+    latest = entries[0]
+    assert "heal_mode" in latest["changed_keys"]
+    assert latest["changes"]["heal_mode"]["new"] == "demo"

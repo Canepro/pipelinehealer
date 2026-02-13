@@ -169,6 +169,12 @@ bash scripts/ph.sh deploy:env
 
 `deploy:env` now syncs backend runtime keys from `backend/.env`, including `MAX_REMEDIATION_ATTEMPTS`.
 
+Admin settings audit trail (latest first, admin-only):
+
+```bash
+curl -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings/audit?limit=20"
+```
+
 Script help:
 
 ```bash

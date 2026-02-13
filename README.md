@@ -513,6 +513,8 @@ curl -X PATCH \
   -H "Content-Type: application/json" \
   -d '{"heal_mode":"safe","pipeline_step_timeout_seconds":120}' \
   "http://127.0.0.1:8000/api/settings"
+
+curl -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings/audit?limit=20"
 ```
 
 ### GitHub Webhook Setup

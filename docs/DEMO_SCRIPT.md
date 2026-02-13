@@ -100,12 +100,14 @@ gh run list -R "$DEMO_REPO" --workflow CI --limit 10
 gh pr list -R "$DEMO_REPO"
 gh issue list -R "$DEMO_REPO" --state open
 bash scripts/ph.sh settings:check
+curl -sS -H "X-Admin-Key: $(grep '^ADMIN_API_KEY=' backend/.env | cut -d= -f2-)" "https://$(az containerapp show -g rg-canepro-ph-dev-eus -n ca-canepro-ph-backend --query properties.configuration.ingress.fqdn -o tsv)/api/settings/audit?limit=5"
 ```
 
 Expected result pattern:
 
 - PRs: dependency + lint
 - Issues: test + build_config + timeout
+- Admin audit endpoint returns recent settings changes (if any were applied)
 
 ## 5) 2-Minute Recording Script (Final)
 
