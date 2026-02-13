@@ -71,17 +71,35 @@ class FixGenerators:
             issue_body=self._format_issue_body(diagnosis, repository_info),
         )
 
+    def generate_review_issue(
+        self,
+        diagnosis: Diagnosis,
+        repository_info: dict[str, Any],
+        not_auto_reason: str,
+    ) -> RemediationPlan:
+        """Generate an issue plan with explicit non-auto-apply reason."""
+        return RemediationPlan(
+            action=RemediationAction.CREATE_ISSUE,
+            description=f"Creating review-only issue for {diagnosis.failure_type.value} failure",
+            issue_title=f"[PipelineHealer] Review required: {diagnosis.failure_type.value}",
+            issue_body=self._format_issue_body(
+                diagnosis,
+                repository_info,
+                not_auto_reason=not_auto_reason,
+            ),
+        )
+
     def _format_issue_body(
         self,
         diagnosis: Diagnosis,
         repository_info: dict[str, Any],
+        not_auto_reason: str | None = None,
     ) -> str:
         """Format the issue body with diagnosis details."""
         affected_files = (
             "\n".join(f"- `{f}`" for f in diagnosis.affected_files) or "None identified"
         )
-
-        return f"""## CI/CD Failure Analysis
+        issue = f"""## CI/CD Failure Analysis
 
 **Failure Type:** {diagnosis.failure_type.value}
 **Confidence:** {diagnosis.confidence:.0%}
@@ -103,6 +121,116 @@ class FixGenerators:
 ---
 *This issue was automatically created by PipelineHealer*
 """
+        return self._append_review_only_proposal(issue, diagnosis, not_auto_reason)
+
+    def _default_not_auto_reason(self, diagnosis: Diagnosis) -> str:
+        """Generate a user-facing reason why a fix was not auto-applied."""
+        if diagnosis.confidence < 0.5:
+            return "Confidence is below the automatic remediation threshold."
+        if not diagnosis.is_auto_fixable:
+            return "This failure type requires human judgment or environment-specific context."
+        return "Automatic application is disabled for this remediation path."
+
+    def _build_proposed_fix_text(self, diagnosis: Diagnosis) -> str:
+        """Build a review-only proposed fix snippet for issue bodies."""
+        details = diagnosis.error_details or {}
+        explicit_patch = str(details.get("proposed_patch") or "").strip()
+        if explicit_patch:
+            return explicit_patch
+
+        if diagnosis.failure_type == FailureType.DEPENDENCY:
+            package = str(details.get("package_name") or "").strip()
+            version = str(details.get("required_version") or "latest").strip()
+            manager = str(details.get("package_manager") or "npm").strip().lower()
+            if package and manager == "npm":
+                return (
+                    "package.json\n"
+                    f'  "dependencies": {{\n    "{package}": "{version}"\n  }}'
+                )
+            if package and manager in {"pip", "uv"}:
+                pin = f"{package}=={version}" if version and version != "latest" else package
+                return f"requirements.txt\n  {pin}"
+
+        if diagnosis.failure_type == FailureType.LINT:
+            linter = str(details.get("linter") or "").strip().lower()
+            missing_file = str(details.get("missing_file") or "").strip()
+            if linter == "eslint" and missing_file.startswith("eslint.config"):
+                return (
+                    f"{missing_file}\n"
+                    "export default [\n"
+                    "  {\n"
+                    "    files: [\"**/*.{js,mjs,cjs}\"],\n"
+                    "    rules: {},\n"
+                    "  },\n"
+                    "];"
+                )
+            fix_cmd = {
+                "prettier": "npx prettier --write .",
+                "eslint": "npx eslint --fix .",
+                "black": "black .",
+                "ruff": "ruff check --fix . && ruff format .",
+            }.get(linter)
+            if fix_cmd:
+                return f"Run locally:\n{fix_cmd}"
+
+        if diagnosis.failure_type == FailureType.BUILD_CONFIG:
+            if bool(details.get("workflow_permissions_fix")):
+                perms = details.get("permissions", {})
+                contents = str(perms.get("contents") or "write")
+                prs = str(perms.get("pull-requests") or "write")
+                return (
+                    ".github/workflows/ci.yml\n"
+                    "permissions:\n"
+                    f"  contents: {contents}\n"
+                    f"  pull-requests: {prs}\n"
+                    "jobs:"
+                )
+            missing_vars = details.get("missing_env_vars") or []
+            if missing_vars:
+                lines = "\n".join(f"- {v}" for v in missing_vars if v)
+                if lines:
+                    return "Configure missing repository variables/secrets:\n" + lines
+
+        if diagnosis.failure_type == FailureType.TIMEOUT:
+            suggested = details.get("suggested_timeout")
+            if isinstance(suggested, int) and suggested > 0:
+                return (
+                    ".github/workflows/ci.yml\n"
+                    f"timeout-minutes: {suggested}"
+                )
+
+        if diagnosis.failure_type == FailureType.TEST:
+            framework = str(details.get("test_framework") or "test framework")
+            return (
+                "Run locally and verify failing tests:\n"
+                f"- {framework} test run\n"
+                "- re-run flaky candidates once before code changes"
+            )
+
+        if diagnosis.suggested_fix:
+            return diagnosis.suggested_fix
+        return "No deterministic proposal available."
+
+    def _append_review_only_proposal(
+        self,
+        issue_body: str,
+        diagnosis: Diagnosis,
+        not_auto_reason: str | None = None,
+    ) -> str:
+        """Append a clear review-only proposal block to issue bodies."""
+        reason = not_auto_reason or self._default_not_auto_reason(diagnosis)
+        proposal = self._build_proposed_fix_text(diagnosis)
+        return (
+            issue_body.rstrip()
+            + "\n\n### Proposed Fix (For Review Only)\n"
+            + "> WARNING: UNVERIFIED AI SUGGESTION - not applied automatically.\n\n"
+            + "```text\n"
+            + proposal
+            + "\n```\n\n"
+            + "### Why Not Auto-Applied\n"
+            + reason
+            + "\n"
+        )
 
     async def _generate_dependency_fix(
         self,
@@ -296,7 +424,8 @@ This PR adds an auto-fix workflow for {linter} issues.
             action=RemediationAction.CREATE_ISSUE,
             description=f"Create issue for {linter} violations",
             issue_title=f"[PipelineHealer] Fix {linter} violations ({len(violations)} issues)",
-            issue_body=f"""## Lint Violations
+            issue_body=self._append_review_only_proposal(
+                f"""## Lint Violations
 
 **Linter:** {linter}
 **Total Violations:** {len(violations)}
@@ -314,6 +443,8 @@ Run `{fix_command or f"{linter} --fix"}` locally to fix these issues.
 ---
 *This issue was automatically created by PipelineHealer*
 """,
+                diagnosis=diagnosis,
+            ),
         )
 
     async def _generate_test_fix(
@@ -342,7 +473,8 @@ Run `{fix_command or f"{linter} --fix"}` locally to fix these issues.
                 action=RemediationAction.CREATE_ISSUE,
                 description="Create issue for flaky test investigation",
                 issue_title="[PipelineHealer] Flaky test detected",
-                issue_body=f"""## Flaky Test Detected
+                issue_body=self._append_review_only_proposal(
+                    f"""## Flaky Test Detected
 
 The following test(s) appear to be flaky (intermittent failures):
 
@@ -363,6 +495,8 @@ The following test(s) appear to be flaky (intermittent failures):
 ---
 *This issue was automatically created by PipelineHealer*
 """,
+                    diagnosis=diagnosis,
+                ),
             )
 
         # For regular test failures, create detailed issue
@@ -375,7 +509,8 @@ The following test(s) appear to be flaky (intermittent failures):
             action=RemediationAction.CREATE_ISSUE,
             description="Create issue for test failure investigation",
             issue_title=f"[PipelineHealer] Test failures: {len(failed_tests)} test(s) failed",
-            issue_body=f"""## Test Failures
+            issue_body=self._append_review_only_proposal(
+                f"""## Test Failures
 
 **Test Framework:** {test_framework}
 **Failed Tests:** {len(failed_tests)}
@@ -399,6 +534,8 @@ The following test(s) appear to be flaky (intermittent failures):
 ---
 *This issue was automatically created by PipelineHealer*
 """,
+                diagnosis=diagnosis,
+            ),
         )
 
     async def _generate_build_config_fix(
@@ -514,7 +651,8 @@ The following test(s) appear to be flaky (intermittent failures):
                 action=RemediationAction.CREATE_ISSUE,
                 description="Create issue for missing environment variables",
                 issue_title="[PipelineHealer] Missing environment variables in CI",
-                issue_body=f"""## Missing Environment Variables
+                issue_body=self._append_review_only_proposal(
+                    f"""## Missing Environment Variables
 
 The CI workflow failed due to missing environment variables.
 
@@ -532,6 +670,8 @@ The CI workflow failed due to missing environment variables.
 ---
 *This issue was automatically created by PipelineHealer*
 """,
+                    diagnosis=diagnosis,
+                ),
             )
 
         # Generic build config issue
@@ -539,7 +679,8 @@ The CI workflow failed due to missing environment variables.
             action=RemediationAction.CREATE_ISSUE,
             description="Create issue for build configuration error",
             issue_title="[PipelineHealer] Build configuration error",
-            issue_body=f"""## Build Configuration Error
+            issue_body=self._append_review_only_proposal(
+                f"""## Build Configuration Error
 
 **Config File:** {config_file or "Unknown"}
 
@@ -557,6 +698,8 @@ The CI workflow failed due to missing environment variables.
 ---
 *This issue was automatically created by PipelineHealer*
 """,
+                diagnosis=diagnosis,
+            ),
         )
 
     async def _generate_timeout_fix(
@@ -611,7 +754,8 @@ The CI workflow failed due to missing environment variables.
             action=RemediationAction.CREATE_ISSUE,
             description="Create issue for timeout investigation",
             issue_title=f"[PipelineHealer] Workflow timeout in '{timed_out_step}'",
-            issue_body=f"""## Workflow Timeout
+            issue_body=self._append_review_only_proposal(
+                f"""## Workflow Timeout
 
 The CI workflow timed out during execution.
 
@@ -645,4 +789,6 @@ jobs:
 ---
 *This issue was automatically created by PipelineHealer*
 """,
+                diagnosis=diagnosis,
+            ),
         )

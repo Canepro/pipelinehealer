@@ -28,6 +28,7 @@ class FakeGitHubTools:
 
     def __init__(self) -> None:
         self.rerun_calls: list[tuple[str, str, int]] = []
+        self.issue_calls: list[dict[str, str]] = []
 
     async def get_file_contents(self, owner: str, repo: str, path: str, ref: str | None = None):
         raise NotImplementedError
@@ -35,6 +36,17 @@ class FakeGitHubTools:
     async def rerun_failed_jobs(self, owner: str, repo: str, run_id: int):
         self.rerun_calls.append((owner, repo, run_id))
         return {}
+
+    async def create_issue(self, owner: str, repo: str, title: str, body: str, labels: list[str]):
+        self.issue_calls.append(
+            {
+                "owner": owner,
+                "repo": repo,
+                "title": title,
+                "body": body,
+            }
+        )
+        return {"number": 1, "html_url": f"https://github.com/{owner}/{repo}/issues/1"}
 
 
 class FakeGitHubToolsWithFiles(FakeGitHubTools):
@@ -182,3 +194,30 @@ async def test_dashboard_retry_calls_rerun_failed_jobs() -> None:
     assert resp["status"] == "queued"
     assert gh.rerun_calls == [("octo", "demo", 123)]
 
+
+@pytest.mark.asyncio
+async def test_remediation_low_confidence_creates_review_issue() -> None:
+    gh = FakeGitHubTools()
+    agent = RemediationAgent(github_tools=gh)
+
+    result = await agent.remediate(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.UNKNOWN,
+            confidence=0.3,
+            root_cause="Insufficient evidence for deterministic remediation",
+            is_auto_fixable=False,
+            suggested_fix="Inspect full logs and verify environment assumptions",
+            error_details={},
+        ),
+        repository_info={"owner": {"login": "octo"}, "name": "demo", "default_branch": "main"},
+        workflow_run_id=123,
+        dry_run=False,
+    )
+
+    assert result.success is True
+    assert result.action_taken == RemediationAction.CREATE_ISSUE
+    assert result.issue_url is not None
+    assert gh.issue_calls
+    body = gh.issue_calls[0]["body"]
+    assert "### Proposed Fix (For Review Only)" in body
+    assert "### Why Not Auto-Applied" in body

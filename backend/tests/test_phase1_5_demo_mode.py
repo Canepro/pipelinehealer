@@ -88,6 +88,34 @@ async def test_build_config_permissions_error_generates_permissions_pr_plan() ->
 
 
 @pytest.mark.asyncio
+async def test_issue_plan_contains_review_only_proposed_fix_section() -> None:
+    gen = FixGenerators(heal_mode="safe")
+    plan = gen.generate_review_issue(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.BUILD_CONFIG,
+            confidence=0.4,
+            root_cause="Insufficient token permissions",
+            is_auto_fixable=True,
+            error_details={
+                "workflow_permissions_fix": True,
+                "permissions": {
+                    "contents": "write",
+                    "pull-requests": "write",
+                },
+            },
+            suggested_fix="Add minimal workflow permissions block",
+        ),
+        repository_info={},
+        not_auto_reason="Confidence too low for automatic remediation.",
+    )
+    assert plan.action == RemediationAction.CREATE_ISSUE
+    assert plan.issue_body is not None
+    assert "### Proposed Fix (For Review Only)" in plan.issue_body
+    assert "### Why Not Auto-Applied" in plan.issue_body
+    assert "UNVERIFIED AI SUGGESTION" in plan.issue_body
+
+
+@pytest.mark.asyncio
 async def test_render_line_update_supports_backrefs_and_file_selection() -> None:
     gh = FakeGitHubToolsWithFiles(
         files={

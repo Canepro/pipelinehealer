@@ -90,14 +90,31 @@ class RemediationAgent:
             f"(confidence: {diagnosis.confidence:.0%}, auto-fixable: {diagnosis.is_auto_fixable})"
         )
 
-        # Check if we should skip remediation
+        # Low-confidence cases are escalated as review-only issues with a proposed fix section.
         if diagnosis.confidence < 0.5:
-            logger.info(f"Skipping remediation due to low confidence: {diagnosis.confidence}")
-            return RemediationResult(
-                success=False,
-                action_taken=RemediationAction.SKIP,
-                error_message=f"Confidence too low ({diagnosis.confidence:.0%}) for automatic remediation",
+            logger.info(f"Creating review issue due to low confidence: {diagnosis.confidence}")
+            low_conf_plan = self._fix_generators.generate_review_issue(
+                diagnosis=diagnosis,
+                repository_info=repository_info,
+                not_auto_reason=(
+                    f"Confidence too low ({diagnosis.confidence:.0%}) for automatic remediation."
+                ),
             )
+            if dry_run:
+                return RemediationResult(
+                    success=True,
+                    action_taken=low_conf_plan.action,
+                    details={"plan": low_conf_plan.model_dump(), "dry_run": True},
+                )
+            try:
+                return await self._apply_remediation(low_conf_plan, repository_info, workflow_run_id)
+            except Exception as e:
+                logger.exception(f"Failed to create low-confidence issue: {e}")
+                return RemediationResult(
+                    success=False,
+                    action_taken=RemediationAction.CREATE_ISSUE,
+                    error_message=f"Failed to create low-confidence issue: {e}",
+                )
 
         # Generate the remediation plan
         try:
