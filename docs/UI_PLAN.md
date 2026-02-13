@@ -142,7 +142,7 @@ These are enforceable defaults for all primary product screens.
 - Chart readability/empty-state polish:
   - reduced chart visual noise (lighter, horizontal-only gridlines; fewer axis marks)
   - key summary numbers moved into chart card headers
-  - consistent tooltip copy and compact tooltip styling for mobile
+  - consistent chart tooltip copy and compact tooltip styling for mobile
   - empty states standardized with CTA (`Open demo repo`)
 - Explainability drilldown polish:
   - dashboard snapshot actions now support traceable drilldown (`View activity`, `Open Issue/PR`, `Copy ID`)
@@ -167,11 +167,11 @@ These are enforceable defaults for all primary product screens.
 
 ## Week 3 Plan
 
-- [ ] Settings/audit micro-UX polish:
+- [x] Settings/audit micro-UX polish:
   - copy feedback consistency
   - empty/error state consistency
   - request ID readability (monospace where appropriate).
-- [ ] Accessibility pass:
+- [x] Accessibility pass:
   - keyboard focus visibility
   - contrast checks for badges and table text
   - hit area checks for small icon actions.
@@ -182,11 +182,18 @@ These are enforceable defaults for all primary product screens.
   - audit columns standardized to `What Changed`, `Actor`, `Trace`, `When`
   - actor fingerprints and trace IDs rendered in monospace
   - per-row `Copy Trace` action copies request-id + actor + timestamp bundle
+  - no-op audit diffs suppressed to reduce scan noise (`old === new` entries hidden)
+  - actor display simplified to `Admin (<fingerprint>)` with raw value preserved in tooltip
+  - `When` column shows relative + absolute UTC inline
 - Edge-state consistency:
   - unified copy for `No activities`, `No safety-gated cases`, `No audit entries yet`
   - empty-state tone and structure aligned across Dashboard, Activities, Settings
 - Micro-interaction consistency:
   - secondary/ghost button disabled + hover behavior standardized in shared button variants
+- Runtime trust surfaces:
+  - added Effective Runtime Policy banner in Settings
+  - surfaced `PH_ALLOWED_REPOS` scope and explicit repo list in GitHub Integration
+  - mobile nav upgraded to route-safe, notch-safe sheet behavior
 
 ### Week 3 Evidence
 

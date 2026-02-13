@@ -128,12 +128,22 @@ This is the long-form project tracker for hackathon execution status, submission
 - Completed Week 3 trust pass:
   - audit table clarity (`What Changed`, `Actor`, `Trace`, `When`)
   - `Copy Trace` bundle format
-  - relative time with absolute UTC tooltip
+  - relative time with absolute UTC inline timestamp
   - edge-state copy consistency across dashboard/activities/settings
 - Added Week 2 and Week 3 proof screenshots under `docs/screens/` and evidence blocks in `docs/UI_PLAN.md`.
 - Expanded one-command operator surface in `scripts/ph.sh`:
   - `urls`, `settings:audit`, `audit:proof`, `demo:proof`
   - updated demo/runbook docs to prefer these commands over manual multi-line curl blocks.
+- Added mobile navigation hardening for portrait usage:
+  - route-safe sheet close on path change
+  - notch-safe top spacing with safe-area insets
+- Added settings trust-surface enhancements:
+  - Effective Runtime Policy banner (mode, PR state, scope, signature)
+  - explicit repo allowlist visibility (`PH_ALLOWED_REPOS`) in GitHub Integration
+  - audit readability improvements (hide no-op changes, cleaner actor label)
+- Fixed one-command parser consistency:
+  - `settings:audit`, `audit:proof`, and `demo:proof` accept both `--limit N` and `--limit=N`
+  - `audit:proof` correctly forwards `--limit` to `settings:audit`
 
 ## Project Tracking Plan (Now -> Mar 15)
 

@@ -198,7 +198,10 @@ flowchart LR
 - **Automated Remediation**: Creates PRs for auto-fixable issues, detailed issues for others
 - **Professional Dashboard UI**: Shadcn-style component system with polished dashboard/activity states
 - **Admin Settings Surface**: Admin-key-protected runtime settings page (`/settings`) with safe in-memory overrides
+- **Effective Runtime Policy Banner**: Read-only trust surface for current mode, PR toggle, webhook signature state, and allowlist scope
+- **Repo Scope Visibility**: Settings page shows `PH_ALLOWED_REPOS` summary and explicit repository list
 - **Admin Audit Visibility**: Explicit-load audit panel with request IDs, actor fingerprints, and old/new setting diffs
+- **Mobile Navigation Reliability**: Route-safe, notch-safe sheet navigation for portrait mobile workflows
 - **Enterprise Ready**: Azure-native with full observability and security
 
 ## Deterministic Fix Matrix

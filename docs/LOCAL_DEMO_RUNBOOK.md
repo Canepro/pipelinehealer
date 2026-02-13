@@ -395,6 +395,8 @@ curl -sS -X PATCH \
 Frontend Settings page:
 
 - Open `/settings` in the UI (for example `http://127.0.0.1:3000/settings` in dev), paste `ADMIN_API_KEY`, and use **Load Settings**.
+- Verify the **Effective Runtime Policy** banner reflects current runtime guardrails (`HEAL_MODE`, PR toggle, allowlist scope, signature state).
+- Verify repo scope is explicit in **GitHub Integration** via `PH_ALLOWED_REPOS` summary/list.
 - Audit panel behavior is explicit by design: use **Load Audit** to fetch `GET /api/settings/audit` only when needed.
 
 ## Troubleshooting

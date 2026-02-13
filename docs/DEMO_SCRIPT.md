@@ -27,7 +27,7 @@ Local mode remains available for fallback testing and evaluator convenience (`do
 1. Dashboard story: show `Processed`, `Actioned`, `Safety Gated`, and `Issue-Only`.
 2. Explainability drilldown: open a focused activity and show reason code + evidence context.
 3. Safety boundary: show `Why Safety Gated` microcopy and explain policy-driven issue fallback.
-4. Audit proof: run `bash scripts/ph.sh audit:proof --limit 5` and show traceable admin entries.
+4. Runtime policy + audit proof: open `/settings`, show the Effective Runtime Policy banner (mode, PR toggle, scope), then run `bash scripts/ph.sh audit:proof --limit 5`.
 
 Real-repo canary rollout is available when needed:
 
@@ -115,6 +115,7 @@ Expected result pattern:
 - PRs: dependency + lint
 - Issues: test + build_config + timeout
 - Admin audit proof should show latest entries containing `request_id`, actor fingerprint, and old/new change values.
+- Settings page should show runtime scope clearly (`Allowlist (N)` or `Unrestricted`) in the Effective Runtime Policy banner.
 
 ## 5) 2-Minute Recording Script (Final)
 
