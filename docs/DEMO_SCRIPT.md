@@ -14,11 +14,13 @@ Related docs:
 
 ## Scope
 
-This runbook assumes Azure-hosted demo mode with the one-command runner:
+This runbook is Azure-first for hackathon compliance and assumes Azure-hosted demo mode with the one-command runner:
 
 ```bash
 bash scripts/ph.sh <command>
 ```
+
+Local mode remains available for fallback testing and evaluator convenience (`docs/LOCAL_DEMO_RUNBOOK.md`).
 
 ## 1) Pre-Record Setup (5-10 minutes before)
 

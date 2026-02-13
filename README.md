@@ -7,6 +7,19 @@
 
 PipelineHealer is an AI-powered multi-agent system that automatically detects, diagnoses, and remediates CI/CD pipeline failures in GitHub Actions workflows.
 
+PipelineHealer is an Azure-deployed, multi-agent CI remediation system built for the Microsoft AI Dev Days Hackathon, with a local mode provided for fast evaluation and reproducible demos.
+
+## Proof (Azure-First)
+
+- Live deployment target (hackathon requirement): Azure Container Apps (backend + frontend)
+- Reproducible demo path: `docs/DEMO_SCRIPT.md` (single-file recording runbook)
+- Operator runbook: `docs/LOCAL_DEMO_RUNBOOK.md` (Azure + local fallback)
+- Runtime verification commands:
+  - `bash scripts/ph.sh status`
+  - `bash scripts/ph.sh settings:check`
+
+Use `bash scripts/ph.sh status` to print current backend/frontend Azure FQDNs before sharing links.
+
 ## Documentation Map
 
 - `docs/README.md`: quick index of all project docs
@@ -241,6 +254,9 @@ Note:
 
 - `Local dev` means services run on your machine (`127.0.0.1`), usually with `podman compose`.
 - `Azure dev` means services run in Azure Container Apps with public FQDN URLs.
+
+For hackathon submission, Azure deployment is the primary runtime path.
+Local mode is kept as a fast, reproducible evaluation path when Azure is unavailable or when you need rapid iteration.
 
 Important:
 - If local backend/frontend containers are running, your local dev is still accessible even if Azure has issues.

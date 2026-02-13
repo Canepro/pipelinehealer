@@ -8,6 +8,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 - Repo visibility: **Public** (`https://github.com/Canepro/pipelinehealer`)
 - Azure deployment: **Live** on Container Apps (backend + frontend)
+- Project positioning: **Azure-first** for hackathon compliance, local mode as evaluation fallback
 - Runtime security: `X-API-Key` for `/api/*`, `X-Admin-Key` for `/api/settings`
 - Demo operations: consolidated to one-command runner `bash scripts/ph.sh ...`
 - Recording script: single-source runbook in `docs/DEMO_SCRIPT.md`
@@ -48,6 +49,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Retry behavior: rerun failed GitHub jobs from dashboard, then process follow-up webhook event.
 - Auth model: API key for user routes and admin key for runtime settings routes.
 - Hosting target: Azure Container Apps only (for demo reliability and operational simplicity).
+- Submission framing: Azure-hosted runtime is primary; local mode is retained for reproducible evaluation and fallback troubleshooting.
 - Operator UX: prefer script-first workflows (`scripts/ph.sh`) over manual multi-command runbooks.
 
 ## Milestone Log

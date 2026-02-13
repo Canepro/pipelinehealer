@@ -1,6 +1,13 @@
 # Local Demo Runbook (PipelineHealer)
 
-This runbook documents the exact local workflow used to validate the end-to-end demo:
+This runbook documents the detailed operator workflow for both Azure and local execution.
+
+Positioning for this project:
+
+- Azure deployment is the primary runtime path for hackathon submission requirements.
+- Local mode is an evaluation and troubleshooting fallback for fast iteration.
+
+Local validation workflow:
 
 - GitHub Actions workflow fails in a demo repo
 - Webhook is forwarded into local FastAPI via `smee.io`
