@@ -12,10 +12,13 @@ PipelineHealer is an Azure-deployed, multi-agent CI remediation system built for
 ## Proof (Azure-First)
 
 - Live deployment target (hackathon requirement): Azure Container Apps (backend + frontend)
+- Live frontend (Azure): `https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io`
+- Live backend API (Azure): `https://ca-canepro-ph-backend.kinddune-53ac219d.eastus2.azurecontainerapps.io`
+- Live backend health: `https://ca-canepro-ph-backend.kinddune-53ac219d.eastus2.azurecontainerapps.io/health`
 - Reproducible demo path: `docs/DEMO_SCRIPT.md` (single-file recording runbook)
 - Operator runbook: `docs/LOCAL_DEMO_RUNBOOK.md` (Azure + local fallback)
 - Deterministic auto-fix PR example: `https://github.com/Canepro/pipelinehealer-demo/pull/53`
-- Structured issue example (manual-review path): `https://github.com/Canepro/pipelinehealer-demo/issues/51`
+- Structured issue example (manual-review path, with Proposed Fix + Reason Code): `https://github.com/Canepro/pipelinehealer-demo/issues/56`
 - Runtime verification commands:
   - `bash scripts/ph.sh status`
   - `bash scripts/ph.sh settings:check`
