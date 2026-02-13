@@ -140,21 +140,6 @@ flowchart LR
 - **Admin Settings Surface**: Admin-key-protected runtime settings page (`/settings`) with safe in-memory overrides
 - **Enterprise Ready**: Azure-native with full observability and security
 
-## Failure Types Supported
-
-| Type | Detection | Auto-Fix |
-|------|-----------|----------|
-| Dependency Issues | ✅ | ✅ |
-| Lint/Format Errors | ✅ | ✅ |
-| Test Failures | ✅ | ❌ (creates issue) |
-| Build Config Errors | ✅ | ❌ (creates issue) |
-| Timeouts | ✅ | ❌ (creates issue) |
-
-In `HEAL_MODE=demo`, PipelineHealer may:
-
-- Retry flaky test runs once (`retry_workflow`)
-- Open a PR to bump `timeout-minutes` in a known workflow file
-
 ## Deterministic Fix Matrix
 
 The remediation policy is intentionally conservative: deterministic, bounded edits create PRs; lower-confidence cases create issues.
