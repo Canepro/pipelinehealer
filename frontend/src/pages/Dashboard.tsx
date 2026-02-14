@@ -287,6 +287,9 @@ export default function Dashboard() {
                   fill="#8884d8"
                   paddingAngle={2}
                   dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
+                  fontSize={12}
                 >
                     {pieData.map((_, index) => (
                       <Cell
@@ -350,16 +353,17 @@ export default function Dashboard() {
                   />
                   <XAxis
                     dataKey="name"
-                    tick={{ fill: '#9ca3af', fontSize: 12 }}
+                    tick={{ fill: '#e2e8f0', fontSize: 12 }}
                     interval={0}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fill: '#9ca3af', fontSize: 12 }}
+                    tick={{ fill: '#e2e8f0', fontSize: 12 }}
                     tickCount={5}
                     axisLine={false}
                     tickLine={false}
+                    width={40}
                   />
                   <Tooltip
                     contentStyle={{

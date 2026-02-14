@@ -100,7 +100,7 @@ Edit `backend/.env`:
 - `GITHUB_PERSONAL_ACCESS_TOKEN` (recommended for local)
 - `ADMIN_API_KEY` (required for `/api/settings` admin read/write)
 - `API_AUTH_KEY` (required for `/api/*` in non-development; `/api/settings*` uses API key + admin key)
-- `HEAL_MODE=safe` (recommended) or `HEAL_MODE=demo`
+- `HEAL_MODE=safe` (recommended) or `HEAL_MODE=demo` or `HEAL_MODE=debug` (verbose diagnostic logging)
 - Optional reliability knobs:
   - `PIPELINE_STEP_TIMEOUT_SECONDS=120`
   - `GITHUB_API_MAX_RETRIES=3`

@@ -97,7 +97,7 @@ export interface AdminSettingsAuditEntry {
 }
 
 export interface AdminSettingsUpdate {
-  heal_mode?: 'safe' | 'demo'
+  heal_mode?: 'safe' | 'demo' | 'debug'
   auto_create_pr?: boolean
   auto_create_tracking_issue_for_prs?: boolean
   max_remediation_attempts?: number

@@ -1,6 +1,6 @@
 # PipelineHealer Hackathon Log
 
-**Last updated:** February 13, 2026
+**Last updated:** February 14, 2026
 
 This is the long-form project tracker for hackathon execution status, submission readiness, and milestone history.
 
@@ -144,6 +144,21 @@ This is the long-form project tracker for hackathon execution status, submission
 - Fixed one-command parser consistency:
   - `settings:audit`, `audit:proof`, and `demo:proof` accept both `--limit N` and `--limit=N`
   - `audit:proof` correctly forwards `--limit` to `settings:audit`
+
+### Feb 14, 2026
+
+- Suppressed Azure Cosmos SDK verbose HTTP logging (`azure.cosmos`, `azure.core.pipeline`) to preserve pipeline logs in Azure Container Apps log retention window.
+- Added `debug` heal mode to Settings UI (safe/demo/debug toggle) and synced frontend types (`AdminSettingsUpdate`, form state) to accept all three modes.
+- Added Docker base image failure patterns to diagnosis agent pattern matcher:
+  - `failed to resolve source metadata for` (Docker image not found)
+  - `manifest.*not found` (Docker image manifest not found)
+  - `pull access denied|repository does not exist` (Docker image pull failed)
+- Added one-command log inspection to `scripts/ph.sh`:
+  - `logs` — filtered backend container logs (Cosmos noise stripped)
+  - `logs:raw` — unfiltered backend container logs
+  - `logs:grep --pattern <regex>` — grep backend logs for a pattern
+- Fixed dashboard chart font visibility: changed axis tick fill from `#9ca3af` to `#e2e8f0` for dark-theme legibility; added pie chart inline labels.
+- Updated all docs per update policy (AGENTS.md, README.md, DEMO_SCRIPT.md, LOCAL_DEMO_RUNBOOK.md, HACKATHON_LOG.md).
 
 ## Project Tracking Plan (Now -> Mar 15)
 

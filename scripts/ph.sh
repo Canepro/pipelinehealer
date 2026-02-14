@@ -40,6 +40,9 @@ Commands:
   warm              Set backend/frontend min-replicas to 1
   lowcost           Set backend/frontend min-replicas to 0
   status            Show backend/frontend Container App status
+  logs              Show recent backend container logs (filtered, last 300 lines)
+  logs:raw          Show raw unfiltered backend container logs (last 200 lines)
+  logs:grep         Grep backend logs for a pattern: --pattern <regex>
   settings:check    Call backend /api/settings using ADMIN_API_KEY from backend/.env
   settings:audit    Call backend /api/settings/audit using API+ADMIN keys from backend/.env
   audit:proof       Create two traceable admin audit entries and print latest audit records
@@ -55,6 +58,8 @@ Examples:
   bash scripts/ph.sh demo:e2e --skip-webhook-sync
   bash scripts/ph.sh demo:proof --repo owner/repo
   bash scripts/ph.sh audit:proof --limit 5
+  bash scripts/ph.sh logs
+  bash scripts/ph.sh logs:grep --pattern "debug-mode"
   bash scripts/ph.sh warm
   bash scripts/ph.sh lowcost
 EOF
@@ -534,6 +539,78 @@ deploy_status() {
   fi
 }
 
+cmd_logs() {
+  need_cmd az
+  local tail_count="300"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --tail) tail_count="$2"; shift 2 ;;
+      --tail=*) tail_count="${1#*=}"; shift ;;
+      *) echo "Unknown argument for logs: $1" >&2; exit 2 ;;
+    esac
+  done
+  az containerapp logs show \
+    -n "$BACKEND_APP" \
+    -g "$AZ_RESOURCE_GROUP" \
+    --tail "$tail_count" \
+    --type console 2>/dev/null \
+    | grep -v "azure.cosmos" \
+    | grep -v "x-ms-" \
+    | grep -v "headers:" \
+    | grep -v "'Content" \
+    | grep -v "'Cache" \
+    | grep -v "'Accept" \
+    | grep -v "'authorization" \
+    | grep -v "'Server'" \
+    | grep -v "'Date'" \
+    | grep -v "'lsn'" \
+    | grep -v "body is sent" \
+    | grep -v "method:" \
+    | grep -v "Connecting to" \
+    | grep -v "Successfully Connected"
+}
+
+cmd_logs_raw() {
+  need_cmd az
+  local tail_count="200"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --tail) tail_count="$2"; shift 2 ;;
+      --tail=*) tail_count="${1#*=}"; shift ;;
+      *) echo "Unknown argument for logs:raw: $1" >&2; exit 2 ;;
+    esac
+  done
+  az containerapp logs show \
+    -n "$BACKEND_APP" \
+    -g "$AZ_RESOURCE_GROUP" \
+    --tail "$tail_count" \
+    --type console 2>/dev/null
+}
+
+cmd_logs_grep() {
+  need_cmd az
+  local pattern="" tail_count="500"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --pattern) pattern="$2"; shift 2 ;;
+      --pattern=*) pattern="${1#*=}"; shift ;;
+      --tail) tail_count="$2"; shift 2 ;;
+      --tail=*) tail_count="${1#*=}"; shift ;;
+      *) echo "Unknown argument for logs:grep: $1" >&2; exit 2 ;;
+    esac
+  done
+  if [[ -z "${pattern:-}" ]]; then
+    echo "Usage: bash scripts/ph.sh logs:grep --pattern <regex> [--tail N]" >&2
+    exit 2
+  fi
+  az containerapp logs show \
+    -n "$BACKEND_APP" \
+    -g "$AZ_RESOURCE_GROUP" \
+    --tail "$tail_count" \
+    --type console 2>/dev/null \
+    | grep -iE "$pattern"
+}
+
 if [[ $# -lt 1 ]]; then
   usage
   exit 0
@@ -603,6 +680,15 @@ case "$COMMAND" in
     ;;
   audit:proof)
     audit_proof "$@"
+    ;;
+  logs)
+    cmd_logs "$@"
+    ;;
+  logs:raw)
+    cmd_logs_raw "$@"
+    ;;
+  logs:grep)
+    cmd_logs_grep "$@"
     ;;
   *)
     echo "Unknown command: $COMMAND" >&2

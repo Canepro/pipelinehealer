@@ -65,6 +65,8 @@ bash scripts/ph.sh status
 bash scripts/ph.sh settings:check
 bash scripts/ph.sh settings:audit --limit 5
 bash scripts/ph.sh audit:proof --limit 5
+bash scripts/ph.sh logs
+bash scripts/ph.sh logs:grep --pattern "debug-mode"
 bash scripts/ph.sh demo:e2e
 bash scripts/ph.sh demo:proof --repo Canepro/pipelinehealer-demo --limit 10
 ```

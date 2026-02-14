@@ -29,7 +29,7 @@ export default function SettingsPage() {
   const [adminKeyInput, setAdminKeyInput] = useState('')
   const [adminKey, setAdminKey] = useState('')
   const [form, setForm] = useState({
-    heal_mode: 'safe' as 'safe' | 'demo',
+    heal_mode: 'safe' as 'safe' | 'demo' | 'debug',
     auto_create_pr: true,
     auto_create_tracking_issue_for_prs: true,
     max_remediation_attempts: 3,
@@ -68,7 +68,7 @@ export default function SettingsPage() {
       return
     }
     setForm({
-      heal_mode: data.heal_mode === 'demo' ? 'demo' : 'safe',
+      heal_mode: data.heal_mode === 'demo' ? 'demo' : data.heal_mode === 'debug' ? 'debug' : 'safe',
       auto_create_pr: data.auto_create_pr,
       auto_create_tracking_issue_for_prs: data.auto_create_tracking_issue_for_prs,
       max_remediation_attempts: data.max_remediation_attempts,
@@ -510,16 +510,18 @@ export default function SettingsPage() {
                 <span className="text-gray-500 dark:text-gray-400">Heal mode</span>
                 <select
                   value={form.heal_mode}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const v = e.target.value
                     setForm((prev) => ({
                       ...prev,
-                      heal_mode: e.target.value === 'demo' ? 'demo' : 'safe',
+                      heal_mode: v === 'demo' ? 'demo' : v === 'debug' ? 'debug' : 'safe',
                     }))
-                  }
+                  }}
                   className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 focus:ring-2 focus:ring-azure-500"
                 >
                   <option value="safe">safe</option>
                   <option value="demo">demo</option>
+                  <option value="debug">debug</option>
                 </select>
               </label>
 

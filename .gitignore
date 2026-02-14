@@ -72,3 +72,4 @@ azurite/
 *.key
 credentials.json
 secrets.json
+.playwright-cli/

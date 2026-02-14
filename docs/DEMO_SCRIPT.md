@@ -108,6 +108,8 @@ bash scripts/ph.sh urls
 bash scripts/ph.sh settings:check
 bash scripts/ph.sh audit:proof --limit 5
 bash scripts/ph.sh settings:audit --limit 5
+bash scripts/ph.sh logs
+bash scripts/ph.sh logs:grep --pattern "debug-mode"
 ```
 
 Expected result pattern:

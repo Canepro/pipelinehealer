@@ -170,6 +170,9 @@ Be specific about:
             (r"ModuleNotFoundError.*No module named", "missing Python module"),
             (r"Cannot find module", "missing Node.js module"),
             (r"Package .* was not found", "missing package"),
+            (r"failed to resolve source metadata for", "Docker base image not found"),
+            (r"manifest.*not found", "Docker image manifest not found"),
+            (r"(?:pull access denied|repository does not exist)", "Docker image pull failed"),
         ]
 
         for pattern, description in dep_patterns:
