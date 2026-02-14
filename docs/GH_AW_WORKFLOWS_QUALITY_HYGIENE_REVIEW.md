@@ -55,16 +55,18 @@ Runtime clarification:
 ## Next PR Sequence
 
 1. **PR A (Recommended)**: add Layer 2 backend scaffolding (`gh_aw_tools` config + adapter interface).
-2. **PR B**: implement passive `ci-doctor` signal ingestion + capability/timing handling (native fallback always-on).
-3. **PR C**: add dashboard/operator visibility for `gh aw` tool status and findings.
+2. **PR B**: implement universal native diagnosis upgrades (history signals, PR-file correlation, richer deterministic patterns).
+3. **PR C**: implement passive `ci-doctor` signal ingestion + capability/timing handling (native fallback always-on).
+4. **PR D**: add dashboard/operator visibility, hardening, and demo reliability checks.
 
 ## Layer 2 Integration Blueprint (Product Feature)
 
 1. Add a `gh_aw_tools` config surface (enabled signals, mode, allowlisted repos).
-2. Add a `gh-aw` adapter for capability discovery and passive findings ingestion.
-3. Keep PipelineHealer native diagnosis/remediation as primary path; external findings only enrich confidence/risk assessment.
-4. Show external findings and fallback reasons in activity views for operator traceability.
-5. Add dispatch only as a later enhancement where workflow semantics explicitly support `workflow_dispatch`.
+2. Upgrade native diagnosis first using repo history and change-correlation signals.
+3. Add a `gh-aw` adapter for capability discovery and passive findings ingestion.
+4. Keep PipelineHealer native diagnosis/remediation as primary path; external findings only enrich confidence/risk assessment.
+5. Show external findings and fallback reasons in activity views for operator traceability.
+6. Add dispatch only as a later enhancement where workflow semantics explicitly support `workflow_dispatch`.
 
 ## Practical Leverage Patterns
 

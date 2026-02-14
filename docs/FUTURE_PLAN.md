@@ -26,14 +26,17 @@ The following are already implemented in the current project state:
 - Sequence delivery explicitly:
   - **PR 0**: settings reliability + allowlist UX fixes
   - **PR A**: config/contracts
-  - **PR B**: passive ingestion MVP (no mandatory dispatch)
-  - **PR C**: dashboard/operator surface
-  - **PR D**: hardening + demo reliability
+  - **PR B**: universal diagnosis upgrades (history + PR-file correlation + richer patterns)
+  - **PR C**: passive ingestion MVP (optional external diagnostics, no mandatory dispatch)
+  - **PR D**: UI/operator surface + hardening + demo reliability
 - Resolve settings/allowlist reliability before enabling Layer 2 for demo-critical paths.
 - Add explicit UX semantics for runtime settings:
   - draft vs saved state
   - effective scope confirmation
   - persistence behavior across restart/redeploy
+- Prioritize universal diagnosis gains before optional external integrations:
+  - improve native diagnosis quality for every monitored repo
+  - keep external diagnostics strictly additive
 - Handle `ci-doctor` timing and repo capability gaps in MVP:
   - bounded wait/poll before fallback to native diagnosis
   - explicit "workflow not installed/capability unavailable" handling with non-blocking native fallback

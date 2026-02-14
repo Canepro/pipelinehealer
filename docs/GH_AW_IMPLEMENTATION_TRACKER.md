@@ -38,6 +38,7 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
   - [ ] Fix/clarify persistence semantics for allowed-repo settings in UI/ops docs.
   - [ ] Add regression tests for `ph_allowed_repos` update + webhook enforcement.
 - [ ] Add `gh_aw_tools` configuration model (enabled workflows, mode, repo scope).
+- [ ] Implement universal diagnosis upgrades (history signals, PR-file correlation, richer deterministic patterns).
 - [ ] Implement backend adapter for capability discovery + optional `gh aw` signal ingestion.
 - [ ] Ingest `gh aw` outputs (issues/comments/discussions) into diagnosis/remediation signals without blocking native diagnosis/remediation.
 - [ ] Surface `gh aw` run status and findings in dashboard activity views.
@@ -81,7 +82,7 @@ Implementation note:
 
 #### D2: Runtime settings durability model
 
-Status: **Pending decision before PR B**
+Status: **Pending decision before PR A**
 
 Current behavior:
 
@@ -134,57 +135,70 @@ Acceptance:
 - Feature flag defaults off with no behavior regression.
 - Existing tests pass unchanged.
 
-#### PR B: API-first Signal Integration (MVP = passive ingestion first)
+#### PR B: Universal Diagnosis Upgrades (Native Path First)
+
+Scope:
+
+- Extend GitHub API tooling for diagnosis context:
+  - issue/history search for related failures.
+  - PR changed-files retrieval for run-linked correlation.
+  - run/commit context helpers required for deterministic correlation.
+- Upgrade Diagnosis/Log analysis to use new signals:
+  - correlate failing run with `run_id` / `head_sha` / changed files before LLM fallback.
+  - enrich deterministic pattern matching for common CI failure modes.
+- Keep behavior policy-safe:
+  - no new autonomous write behavior.
+  - preserve existing remediation controls and feature flags.
+
+Acceptance:
+
+- Diagnosis quality improves for all monitored repos (including repos without `gh aw`).
+- Fewer failures require LLM fallback for known patterns.
+- API responses and existing webhook/remediation flows remain backward compatible.
+
+#### PR C: Optional External Diagnostics Ingestion (`ci-doctor` passive MVP)
 
 Scope:
 
 - Add capability discovery for monitored repos:
-  - detect whether target repo has expected `gh aw` workflow outputs/signals available.
+  - detect whether target repo exposes expected external workflow artifacts/signals.
   - record capability status per repo for operator visibility.
-- Implement **passive ingestion MVP** for `ci-doctor`:
-  - ingest `ci-doctor` issue/comment/discussion evidence when present.
-  - do not block remediation pipeline waiting indefinitely for external findings.
+- Implement **passive ingestion MVP** for `ci-doctor` findings:
+  - ingest issue/comment/discussion evidence when present.
+  - correlate by run metadata (`run_id`, `head_sha`, bounded time window) before text heuristics.
 - Add controlled timing strategy for `ci-doctor` lag:
   - bounded polling/backoff window for evidence lookup.
-  - fallback to native diagnosis path when evidence is not yet available.
-- Keep dispatch path out of MVP unless workflow semantics explicitly support `workflow_dispatch`.
+  - explicit fallback reason when external findings are unavailable in-window.
 - Keep PipelineHealer native diagnosis/remediation as the primary path regardless of external workflow availability.
-- Add structured evidence fields to activity records.
+- Keep dispatch path out of MVP unless workflow semantics explicitly support `workflow_dispatch`.
+- Add structured external evidence fields to activity records.
 
 Acceptance:
 
-- PipelineHealer attaches external findings without breaking primary diagnosis path.
-- `ci-doctor` timing is deterministic (bounded wait + explicit fallback reason).
-- Missing external workflow capability on target repo is handled explicitly (no hard failure, no blocked healing).
+- Optional external findings enrich diagnosis without blocking primary path.
+- `ci-doctor` timing handling is deterministic (bounded wait + explicit fallback reason).
+- Missing external workflow capability on target repo is explicit and non-fatal.
 - API responses remain backward compatible.
 
 Future enhancement (post-MVP):
 
 - Add API-first dispatch path for workflows that support explicit trigger semantics.
 
-#### PR C: Operator and Dashboard Surface
+#### PR D: UI Surface + Hardening and Demo Reliability (Recommended)
 
 Scope:
 
 - Show `gh aw` status/findings in activity detail view (run id, workflow id, summary, links).
 - Add settings visibility for enabled workflows/mode.
 - Add concise operator troubleshooting for `gh aw` failures.
-
-Acceptance:
-
-- Operators can reliably answer: "Was `gh aw` used? What did it find? What action followed?"
-- UI type safety and empty-state handling verified.
-
-#### PR D: Hardening and Demo Reliability (Recommended)
-
-Scope:
-
 - Add deterministic fallbacks for missing token/permissions/workflow unavailability.
 - Add integration tests for success path + degraded path.
 - Finalize demo narrative for "PipelineHealer + gh-aw" loop.
 
 Acceptance:
 
+- Operators can reliably answer: "Was `gh aw` used? What did it find? What action followed?"
+- UI type safety and empty-state handling verified.
 - Reliable demo under safe-mode defaults.
 - Clear logs/reason codes when `gh aw` is unavailable.
 
@@ -220,7 +234,8 @@ Acceptance:
 ### Definition of Done (Layer 2 MVP)
 
 - Known allowlist UI/behavior bugs are resolved or explicitly accepted with documented constraints.
-- API-first `gh aw` integration is live behind controlled config.
+- Universal diagnosis upgrades are live for all monitored repos.
+- Optional `gh aw` ingestion is live behind controlled config.
 - External diagnostics are visible in backend activity records and UI.
 - Degraded/unavailable external diagnostics path is safe, explicit, and non-blocking.
 - Native PipelineHealer diagnosis/remediation remains fully functional when no `gh aw` workflows exist on a monitored repo.
