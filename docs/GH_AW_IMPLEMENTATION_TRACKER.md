@@ -45,6 +45,47 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
 
 ## Layer 2 Execution Plan (Kickoff)
 
+## Layer 2 Preflight Decisions (Before PR A)
+
+These decisions should be finalized before implementing Layer 2 runtime wiring.
+
+### D1: Invocation backend for `gh aw`
+
+Options:
+
+- `subprocess` (`gh aw run ...`) first (Recommended for hackathon speed)
+- GitHub Actions API first (workflow dispatch / direct trigger path)
+
+Decision impact:
+
+- This choice defines the initial adapter contract and test strategy in PR A.
+
+### D2: Runtime settings durability model
+
+Current behavior:
+
+- Admin settings updates (including `ph_allowed_repos`) are in-memory runtime mutations only.
+- Changes are not durable across backend restart/redeploy.
+
+Options:
+
+- Keep in-memory for now and document operational constraints (single-replica consistency + explicit save semantics).
+- Add durable shared persistence for settings before/with PR A.
+
+Decision impact:
+
+- Layer 2 config (`gh_aw_tools`) should follow the same durability model to avoid mixed runtime behavior.
+
+### D3: Known preflight risks (from current behavior)
+
+- Risk A: Add-to-allowlist can appear successful in UI but not become effective in practice unless settings are saved and consumed in the same runtime path.
+- Risk B: Allowlist does not persist across backend restart/redeploy by design (in-memory only).
+
+Recommendation:
+
+- Track these as explicit gating risks for Layer 2 rollout and demo reliability.
+- Do not mark Layer 2 "demo-ready" until these runtime-settings semantics are accepted (or fixed).
+
 ### PR A: Config + Interface (Recommended first)
 
 Scope:
