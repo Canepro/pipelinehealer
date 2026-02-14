@@ -7,7 +7,7 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
 ## Scope
 
 - **Layer 1 (Repo hygiene):** valid `gh aw` setup in this repository.
-- **Layer 2 (Product feature):** PipelineHealer invokes `gh aw` workflows as tools for monitored repos.
+- **Layer 2 (Product feature):** PipelineHealer remains native-first and ingests `gh aw`/`ci-doctor` findings as optional external diagnostics when available.
 
 ## Status Summary
 
@@ -33,9 +33,13 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
 
 ## Layer 2 Checklist (PipelineHealer Product Integration)
 
+- [ ] Resolve settings/allowlist reliability baseline before Layer 2 wiring:
+  - [ ] Fix "add repo appears to work but not effective" behavior path.
+  - [ ] Fix/clarify persistence semantics for allowed-repo settings in UI/ops docs.
+  - [ ] Add regression tests for `ph_allowed_repos` update + webhook enforcement.
 - [ ] Add `gh_aw_tools` configuration model (enabled workflows, mode, repo scope).
-- [ ] Implement backend tool adapter to trigger selected `gh aw` workflows.
-- [ ] Ingest `gh aw` outputs (issues/comments/discussions) into diagnosis/remediation signals.
+- [ ] Implement backend adapter for capability discovery + optional `gh aw` signal ingestion.
+- [ ] Ingest `gh aw` outputs (issues/comments/discussions) into diagnosis/remediation signals without blocking native diagnosis/remediation.
 - [ ] Surface `gh aw` run status and findings in dashboard activity views.
 - [ ] Add demo flow narrative:
   - failure detected
@@ -43,102 +47,184 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
   - findings consumed
   - fix recommendation produced
 
-## Layer 2 Execution Plan (Kickoff)
+## Layer 2 Program Plan (Professional Draft)
 
-## Layer 2 Preflight Decisions (Before PR A)
+### Objectives
 
-These decisions should be finalized before implementing Layer 2 runtime wiring.
+1. Integrate GitHub Agentic Workflows as first-class diagnostics signals for PipelineHealer.
+2. Preserve PipelineHealer as the remediation control plane (policy, PR/issue actions, auditability).
+3. Deliver demo reliability without introducing runtime fragility or hidden operational debt.
 
-### D1: Invocation backend for `gh aw`
+### Non-Goals (Initial Layer 2 Scope)
 
-Options:
+- Replacing existing diagnosis/remediation logic end-to-end.
+- Introducing auto-merge/autonomous write behavior from `gh aw` workflows.
+- Multi-provider CI support in the same milestone.
 
-- `subprocess` (`gh aw run ...`) first (Recommended for hackathon speed)
-- GitHub Actions API first (workflow dispatch / direct trigger path)
+### Decision Log (Preflight)
 
-Decision impact:
+#### D1: Invocation model for `gh aw`
 
-- This choice defines the initial adapter contract and test strategy in PR A.
+Decision: **API-first** (strong recommendation; aligns with existing backend architecture).
 
-### D2: Runtime settings durability model
+Rationale:
+
+- Backend already uses async API tooling (`httpx`) and retry policies via `GitHubTools`.
+- Avoids CLI/subprocess operational dependency in Azure/containers.
+- Reduces security and portability concerns from shell execution.
+
+Implementation note:
+
+- `ci-doctor` currently triggers on `workflow_run` failures.
+- `gh aw` CLI/extension is an authoring-time dependency (init/add/compile), not a runtime dependency for monitored repos.
+- For Layer 2, treat `ci-doctor` as passive high-signal ingestion first, then add explicit dispatch only where workflow semantics support it.
+
+#### D2: Runtime settings durability model
+
+Status: **Pending decision before PR B**
 
 Current behavior:
 
 - Admin settings updates (including `ph_allowed_repos`) are in-memory runtime mutations only.
 - Changes are not durable across backend restart/redeploy.
 
-Options:
+Decision options:
 
-- Keep in-memory for now and document operational constraints (single-replica consistency + explicit save semantics).
-- Add durable shared persistence for settings before/with PR A.
+- Temporary: keep in-memory and document constraints.
+- Preferred: add durable shared persistence for mutable settings.
 
-Decision impact:
+#### D3: Preflight gating risks
 
-- Layer 2 config (`gh_aw_tools`) should follow the same durability model to avoid mixed runtime behavior.
+- Risk A: allowlist additions may appear successful in UI but not be effective in some runtime paths.
+- Risk B: allowlist/runtime settings are not durable across restart/redeploy.
 
-### D3: Known preflight risks (from current behavior)
+Gate:
 
-- Risk A: Add-to-allowlist can appear successful in UI but not become effective in practice unless settings are saved and consumed in the same runtime path.
-- Risk B: Allowlist does not persist across backend restart/redeploy by design (in-memory only).
+- Do not mark Layer 2 "demo-ready" until D2 is accepted and D3 behavior is explicitly handled (fix or documented constraint).
 
-Recommendation:
+### Delivery Phases and PR Plan
 
-- Track these as explicit gating risks for Layer 2 rollout and demo reliability.
-- Do not mark Layer 2 "demo-ready" until these runtime-settings semantics are accepted (or fixed).
-
-### PR A: Config + Interface (Recommended first)
+#### PR 0: Settings Reliability and UX Baseline (Required before PR A)
 
 Scope:
 
-- Add `gh_aw_tools` runtime config shape in backend settings.
-- Define a backend adapter interface for `gh aw` operations (trigger, status, findings).
-- Add no-risk plumbing in orchestrator to accept external diagnostics input without behavior changes.
+- Finalize D2 settings durability decision.
+- Fix current allowlist UX/reliability gaps before Layer 2 is enabled.
+- Clarify "Save Settings required" behavior in UI copy/runbooks.
+- Add explicit operator note on runtime persistence semantics.
+- Add backend/frontend regression coverage for settings update and effective webhook scoping.
+
+Exit criteria:
+
+- Agreed operational semantics for mutable settings.
+- No ambiguity in docs/operator UX for allowlist behavior.
+- Repro for known bugs is closed with automated test coverage.
+
+#### PR A: Config + Contracts (Recommended first implementation PR)
+
+Scope:
+
+- Add `gh_aw_tools` runtime config shape in backend settings/model layer.
+- Define adapter contracts for trigger/status/findings retrieval.
+- Add orchestration extension points for external diagnostics input (feature-flagged off).
 
 Acceptance:
 
-- Config loads from env/settings without breaking existing startup.
-- New adapter paths are feature-flagged off by default.
+- Startup remains backward compatible.
+- Feature flag defaults off with no behavior regression.
 - Existing tests pass unchanged.
 
-### PR B: Invocation + Ingestion
+#### PR B: API-first Signal Integration (MVP = passive ingestion first)
 
 Scope:
 
-- Implement workflow invocation for selected repos/workflows.
-- Ingest `gh aw` outputs (issue/comment/discussion references + summary) into diagnosis context.
-- Add structured metadata fields to activity records for external-tool evidence.
+- Add capability discovery for monitored repos:
+  - detect whether target repo has expected `gh aw` workflow outputs/signals available.
+  - record capability status per repo for operator visibility.
+- Implement **passive ingestion MVP** for `ci-doctor`:
+  - ingest `ci-doctor` issue/comment/discussion evidence when present.
+  - do not block remediation pipeline waiting indefinitely for external findings.
+- Add controlled timing strategy for `ci-doctor` lag:
+  - bounded polling/backoff window for evidence lookup.
+  - fallback to native diagnosis path when evidence is not yet available.
+- Keep dispatch path out of MVP unless workflow semantics explicitly support `workflow_dispatch`.
+- Keep PipelineHealer native diagnosis/remediation as the primary path regardless of external workflow availability.
+- Add structured evidence fields to activity records.
 
 Acceptance:
 
-- For a target failure, PipelineHealer can attach `gh aw` findings to diagnosis output.
-- Failures in `gh aw` invocation degrade gracefully (no orchestration crash).
+- PipelineHealer attaches external findings without breaking primary diagnosis path.
+- `ci-doctor` timing is deterministic (bounded wait + explicit fallback reason).
+- Missing external workflow capability on target repo is handled explicitly (no hard failure, no blocked healing).
 - API responses remain backward compatible.
 
-### PR C: Dashboard + Operator Visibility
+Future enhancement (post-MVP):
+
+- Add API-first dispatch path for workflows that support explicit trigger semantics.
+
+#### PR C: Operator and Dashboard Surface
 
 Scope:
 
-- Show `gh aw` status/findings in activity details (last run, workflow id, summary, links).
-- Add minimal policy visibility in settings for enabled workflows and mode.
-- Add demo-ready evidence path in docs (`DEMO_SCRIPT`, `LOCAL_DEMO_RUNBOOK`).
+- Show `gh aw` status/findings in activity detail view (run id, workflow id, summary, links).
+- Add settings visibility for enabled workflows/mode.
+- Add concise operator troubleshooting for `gh aw` failures.
 
 Acceptance:
 
-- Operators can see whether `gh aw` was invoked and what it contributed.
-- UI remains responsive and type-safe with/without `gh aw` metadata.
+- Operators can reliably answer: "Was `gh aw` used? What did it find? What action followed?"
+- UI type safety and empty-state handling verified.
 
-### PR D: Demo Hardening (Optional but recommended)
+#### PR D: Hardening and Demo Reliability (Recommended)
 
 Scope:
 
-- Add deterministic fallback behavior for missing tokens/permissions.
-- Add integration tests for one successful and one degraded `gh aw` path.
-- Finalize 2-minute demo script wording for "PipelineHealer + gh-aw" loop.
+- Add deterministic fallbacks for missing token/permissions/workflow unavailability.
+- Add integration tests for success path + degraded path.
+- Finalize demo narrative for "PipelineHealer + gh-aw" loop.
 
 Acceptance:
 
-- Demo flow is reliable under safe-mode defaults.
-- Logs and UI clearly show tool outcome and fallback reason when unavailable.
+- Reliable demo under safe-mode defaults.
+- Clear logs/reason codes when `gh aw` is unavailable.
+
+### Quality and Validation Standards
+
+#### Backend quality gates
+
+- `pytest -q`
+- `mypy src`
+- No regressions to existing webhook/remediation flows.
+
+#### Frontend quality gates
+
+- `bun run lint`
+- `bun run build`
+- Validate activity detail rendering with/without `gh aw` metadata.
+- Validate settings UX for allowlist add/remove/save/reload paths.
+
+#### Integration validation
+
+- Trigger controlled failure in demo repo.
+- Confirm `gh aw` signal captured and linked to activity.
+- Confirm remediation decision remains policy-gated (`HEAL_MODE`, allowlist, PR toggle).
+- Confirm allowlist changes become effective for webhook processing under documented runtime model.
+
+#### UX acceptance checks (required)
+
+- Adding an allowed repo has clear state transitions: draft -> saved -> effective.
+- After save, the visible allowlist source of truth matches backend response.
+- On restart/redeploy, UI clearly communicates whether settings are persisted or runtime-only.
+- Error states are actionable (invalid format, unauthorized, backend unavailable, not persisted).
+
+### Definition of Done (Layer 2 MVP)
+
+- Known allowlist UI/behavior bugs are resolved or explicitly accepted with documented constraints.
+- API-first `gh aw` integration is live behind controlled config.
+- External diagnostics are visible in backend activity records and UI.
+- Degraded/unavailable external diagnostics path is safe, explicit, and non-blocking.
+- Native PipelineHealer diagnosis/remediation remains fully functional when no `gh aw` workflows exist on a monitored repo.
+- Docs/runbooks clearly describe operator flow, limits, and troubleshooting.
 
 ## Evidence Log
 

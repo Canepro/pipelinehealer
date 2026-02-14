@@ -27,7 +27,12 @@ Required flow:
 PipelineHealer should use a two-layer strategy:
 
 1. **Layer 1 (Repo hygiene)**: enforce quality in this repository with baseline CI and valid `gh aw` workflows.
-2. **Layer 2 (Product capability)**: let PipelineHealer invoke `gh aw` workflows as tools for monitored repos, then ingest findings into diagnosis/remediation.
+2. **Layer 2 (Product capability)**: keep PipelineHealer native-first, and ingest `gh aw`/`ci-doctor` findings as optional external diagnostics for monitored repos.
+
+Runtime clarification:
+
+- `gh aw` CLI/extension is required to author/update/compile workflows, not to run PipelineHealer.
+- Monitored repos may or may not have `ci-doctor` installed; missing capability must not block healing.
 
 ## Current Status (As of February 14, 2026)
 
@@ -49,16 +54,17 @@ PipelineHealer should use a two-layer strategy:
 
 ## Next PR Sequence
 
-1. **PR A (Recommended)**: add Layer 2 backend scaffolding (`gh_aw_tools` config + tool adapter interface).
-2. **PR B**: implement `gh aw` invocation + result ingestion into diagnosis/remediation context.
+1. **PR A (Recommended)**: add Layer 2 backend scaffolding (`gh_aw_tools` config + adapter interface).
+2. **PR B**: implement passive `ci-doctor` signal ingestion + capability/timing handling (native fallback always-on).
 3. **PR C**: add dashboard/operator visibility for `gh aw` tool status and findings.
 
 ## Layer 2 Integration Blueprint (Product Feature)
 
-1. Add a `gh_aw_tools` config surface (enabled workflows, advisory/active mode, allowlisted repos).
-2. Add a `gh-aw` tool adapter in orchestration that can trigger selected workflows and collect structured outcomes.
-3. Map workflow outputs to existing diagnosis/remediation confidence/risk fields.
-4. Show last `gh aw` run and findings in activity views for operator traceability.
+1. Add a `gh_aw_tools` config surface (enabled signals, mode, allowlisted repos).
+2. Add a `gh-aw` adapter for capability discovery and passive findings ingestion.
+3. Keep PipelineHealer native diagnosis/remediation as primary path; external findings only enrich confidence/risk assessment.
+4. Show external findings and fallback reasons in activity views for operator traceability.
+5. Add dispatch only as a later enhancement where workflow semantics explicitly support `workflow_dispatch`.
 
 ## Practical Leverage Patterns
 
@@ -69,4 +75,4 @@ PipelineHealer should use a two-layer strategy:
 
 ## Bottom Line
 
-Layer 1 is complete on `main` using the real `gh aw` toolchain. The next focus is Layer 2: integrating `gh aw` as a first-class remediation signal/tool inside PipelineHealer.
+Layer 1 is complete on `main` using the real `gh aw` toolchain. The next focus is Layer 2: integrating `gh aw` findings as optional, high-signal diagnostics while PipelineHealer remains fully functional without them.
