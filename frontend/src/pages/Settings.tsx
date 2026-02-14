@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
-import { Copy, Info, LockKeyhole, Save, Shield, SlidersHorizontal, Wrench } from 'lucide-react'
+import { Copy, Info, LockKeyhole, RotateCcw, Save, Shield, SlidersHorizontal, Wrench } from 'lucide-react'
 import { toast } from 'sonner'
-import { api, type AdminSettingsAuditEntry } from '../api/client'
+import { api, type AdminSettingsAuditEntry, type AppSettings } from '../api/client'
 import { EMPTY_STATES } from '../constants/emptyStates'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -24,12 +24,81 @@ function BoolBadge({ value }: { value: boolean }) {
   return <Badge variant={value ? 'success' : 'destructive'}>{value ? 'Enabled' : 'Disabled'}</Badge>
 }
 
+const REPO_FULL_NAME_REGEX = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
+
+type SettingsFormState = {
+  heal_mode: 'safe' | 'demo' | 'debug'
+  auto_create_pr: boolean
+  auto_create_tracking_issue_for_prs: boolean
+  max_remediation_attempts: number
+  verify_webhook_signature_in_development: boolean
+  pipeline_step_timeout_seconds: number
+  github_api_max_retries: number
+  github_api_retry_base_seconds: number
+  github_api_retry_max_seconds: number
+  log_prompt_max_chars: number
+  log_prompt_head_chars: number
+  log_prompt_tail_chars: number
+  ph_allowed_repos: string[]
+}
+
+const normalizeRepoInput = (value: string): string | null => {
+  const text = value.trim()
+  if (!text) {
+    return null
+  }
+
+  let candidate = text
+  try {
+    const parsed = new URL(text)
+    const host = parsed.hostname.toLowerCase()
+    if (host !== 'github.com' && host !== 'www.github.com') {
+      return null
+    }
+    const parts = parsed.pathname
+      .replace(/^\/+|\/+$/g, '')
+      .replace(/\.git$/i, '')
+      .split('/')
+      .filter(Boolean)
+    if (parts.length !== 2) {
+      return null
+    }
+    candidate = `${parts[0]}/${parts[1]}`
+  } catch {
+    if (text.startsWith('git@github.com:')) {
+      candidate = text.slice('git@github.com:'.length).replace(/\.git$/i, '')
+    }
+  }
+
+  candidate = candidate.replace(/^\/+|\/+$/g, '').replace(/\.git$/i, '').toLowerCase()
+  if (!REPO_FULL_NAME_REGEX.test(candidate)) {
+    return null
+  }
+  return candidate
+}
+
+const toSettingsForm = (data: AppSettings): SettingsFormState => ({
+  heal_mode: data.heal_mode === 'demo' ? 'demo' : data.heal_mode === 'debug' ? 'debug' : 'safe',
+  auto_create_pr: data.auto_create_pr,
+  auto_create_tracking_issue_for_prs: data.auto_create_tracking_issue_for_prs,
+  max_remediation_attempts: data.max_remediation_attempts,
+  verify_webhook_signature_in_development: data.verify_webhook_signature_in_development,
+  pipeline_step_timeout_seconds: data.pipeline_step_timeout_seconds,
+  github_api_max_retries: data.github_api_max_retries,
+  github_api_retry_base_seconds: data.github_api_retry_base_seconds,
+  github_api_retry_max_seconds: data.github_api_retry_max_seconds,
+  log_prompt_max_chars: data.log_prompt_max_chars,
+  log_prompt_head_chars: data.log_prompt_head_chars,
+  log_prompt_tail_chars: data.log_prompt_tail_chars,
+  ph_allowed_repos: data.ph_allowed_repos ?? [],
+})
+
 export default function SettingsPage() {
   const queryClient = useQueryClient()
   const [adminKeyInput, setAdminKeyInput] = useState('')
   const [adminKey, setAdminKey] = useState('')
-  const [form, setForm] = useState({
-    heal_mode: 'safe' as 'safe' | 'demo' | 'debug',
+  const [form, setForm] = useState<SettingsFormState>({
+    heal_mode: 'safe',
     auto_create_pr: true,
     auto_create_tracking_issue_for_prs: true,
     max_remediation_attempts: 3,
@@ -41,8 +110,9 @@ export default function SettingsPage() {
     log_prompt_max_chars: 18000,
     log_prompt_head_chars: 9000,
     log_prompt_tail_chars: 9000,
-    ph_allowed_repos: [] as string[],
+    ph_allowed_repos: [],
   })
+  const [lastSavedForm, setLastSavedForm] = useState<SettingsFormState | null>(null)
   const [newRepoInput, setNewRepoInput] = useState('')
 
   const { data, isLoading, isError, error } = useQuery({
@@ -69,22 +139,33 @@ export default function SettingsPage() {
     if (!data) {
       return
     }
-    setForm({
-      heal_mode: data.heal_mode === 'demo' ? 'demo' : data.heal_mode === 'debug' ? 'debug' : 'safe',
-      auto_create_pr: data.auto_create_pr,
-      auto_create_tracking_issue_for_prs: data.auto_create_tracking_issue_for_prs,
-      max_remediation_attempts: data.max_remediation_attempts,
-      verify_webhook_signature_in_development: data.verify_webhook_signature_in_development,
-      pipeline_step_timeout_seconds: data.pipeline_step_timeout_seconds,
-      github_api_max_retries: data.github_api_max_retries,
-      github_api_retry_base_seconds: data.github_api_retry_base_seconds,
-      github_api_retry_max_seconds: data.github_api_retry_max_seconds,
-      log_prompt_max_chars: data.log_prompt_max_chars,
-      log_prompt_head_chars: data.log_prompt_head_chars,
-      log_prompt_tail_chars: data.log_prompt_tail_chars,
-      ph_allowed_repos: data.ph_allowed_repos ?? [],
-    })
+    const next = toSettingsForm(data)
+    setForm(next)
+    setLastSavedForm(next)
   }, [data])
+
+  const hasUnsavedChanges =
+    lastSavedForm !== null && JSON.stringify(form) !== JSON.stringify(lastSavedForm)
+
+  const addAllowedRepo = () => {
+    const normalized = normalizeRepoInput(newRepoInput)
+    if (!normalized) {
+      toast.error('Invalid repository format', {
+        description:
+          "Use 'owner/repo' or 'https://github.com/owner/repo'.",
+      })
+      return
+    }
+    if (form.ph_allowed_repos.includes(normalized)) {
+      toast.error('Repository already in allowlist')
+      return
+    }
+    setForm((prev) => ({
+      ...prev,
+      ph_allowed_repos: [...prev.ph_allowed_repos, normalized],
+    }))
+    setNewRepoInput('')
+  }
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -103,7 +184,11 @@ export default function SettingsPage() {
         log_prompt_tail_chars: form.log_prompt_tail_chars,
         ph_allowed_repos: form.ph_allowed_repos,
       }),
-    onSuccess: async () => {
+    onSuccess: async (updated) => {
+      const next = toSettingsForm(updated)
+      setForm(next)
+      setLastSavedForm(next)
+      queryClient.setQueryData(['app-settings', adminKey], updated)
       await queryClient.invalidateQueries({ queryKey: ['app-settings', adminKey] })
       toast.success('Settings saved', {
         description: 'Runtime settings were updated successfully.',
@@ -202,8 +287,8 @@ export default function SettingsPage() {
           Settings
         </h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Admin-only runtime configuration. Changes apply immediately and remain
-          active until backend restart.
+          Admin-only runtime configuration. Edit draft values, then save to make them effective.
+          Saved values apply immediately and remain active until backend restart.
         </p>
       </div>
 
@@ -702,7 +787,15 @@ export default function SettingsPage() {
 
             {/* Allowed Repositories */}
             <div className="mt-6">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Allowed repositories</p>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Allowed repositories</p>
+                <Badge variant={hasUnsavedChanges ? 'destructive' : 'success'}>
+                  {hasUnsavedChanges ? 'Draft changes pending save' : 'Draft is in sync'}
+                </Badge>
+              </div>
+              <p className="text-xs text-gray-400 mb-2">
+                Effective now: {data.ph_allowed_repos.length > 0 ? data.ph_allowed_repos.join(', ') : 'all repositories'}
+              </p>
               <div className="flex flex-wrap gap-2 mb-2">
                 {form.ph_allowed_repos.length === 0 && (
                   <span className="text-xs text-gray-400 italic">All repos allowed (no restriction)</span>
@@ -733,14 +826,7 @@ export default function SettingsPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault()
-                      const val = newRepoInput.trim()
-                      if (val && val.includes('/') && !form.ph_allowed_repos.includes(val)) {
-                        setForm((prev) => ({
-                          ...prev,
-                          ph_allowed_repos: [...prev.ph_allowed_repos, val],
-                        }))
-                        setNewRepoInput('')
-                      }
+                      addAllowedRepo()
                     }
                   }}
                   className="max-w-xs"
@@ -749,21 +835,15 @@ export default function SettingsPage() {
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={() => {
-                    const val = newRepoInput.trim()
-                    if (val && val.includes('/') && !form.ph_allowed_repos.includes(val)) {
-                      setForm((prev) => ({
-                        ...prev,
-                        ph_allowed_repos: [...prev.ph_allowed_repos, val],
-                      }))
-                      setNewRepoInput('')
-                    }
-                  }}
+                  onClick={addAllowedRepo}
                 >
                   Add
                 </Button>
               </div>
-              <p className="text-xs text-gray-400 mt-1">Format: owner/repo. Leave empty to allow all repos.</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Format: owner/repo, https://github.com/owner/repo, or git@github.com:owner/repo.git.
+                Click Save Settings to apply draft changes.
+              </p>
             </div>
 
             {form.log_prompt_head_chars + form.log_prompt_tail_chars >
@@ -787,11 +867,29 @@ export default function SettingsPage() {
               </p>
             )}
 
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={saveMutation.isPending || !hasUnsavedChanges || !data}
+                onClick={() => {
+                  if (!data) {
+                    return
+                  }
+                  const reset = toSettingsForm(data)
+                  setForm(reset)
+                  setLastSavedForm(reset)
+                  setNewRepoInput('')
+                }}
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Discard Draft
+              </Button>
               <Button
                 className="flex items-center"
                 disabled={
                   saveMutation.isPending ||
+                  !hasUnsavedChanges ||
                   form.log_prompt_head_chars + form.log_prompt_tail_chars >
                     form.log_prompt_max_chars
                 }

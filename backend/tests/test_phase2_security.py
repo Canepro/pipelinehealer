@@ -285,3 +285,96 @@ async def test_admin_can_patch_runtime_settings(monkeypatch) -> None:
     assert latest["changes"]["heal_mode"]["new"] == "demo"
     assert latest["request_id"] == "req-abc-123"
     assert str(latest["actor"]).startswith("admin_key:sha256:")
+
+
+@pytest.mark.asyncio
+async def test_admin_patch_normalizes_and_deduplicates_allowed_repos(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    get_settings.cache_clear()
+
+    dashboard.set_storage(InMemoryStorage())
+    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+
+    response = await _patch_settings(
+        {
+            "ph_allowed_repos": [
+                "https://github.com/Canepro/PipelineHealer",
+                "canepro/pipelinehealer",
+                "git@github.com:Canepro/PipelineHealer.git",
+            ]
+        },
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ph_allowed_repos"] == ["canepro/pipelinehealer"]
+
+
+@pytest.mark.asyncio
+async def test_admin_patch_rejects_invalid_allowed_repo_format(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    get_settings.cache_clear()
+
+    dashboard.set_storage(InMemoryStorage())
+    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+
+    response = await _patch_settings(
+        {"ph_allowed_repos": ["not-a-repo-name"]},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+
+    assert response.status_code == 422
+    assert "expected 'owner/repo'" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_allowlist_patch_is_effective_for_webhook_scope(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT", "false")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    get_settings.cache_clear()
+
+    dashboard.set_storage(InMemoryStorage())
+    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+
+    patch_response = await _patch_settings(
+        {"ph_allowed_repos": ["Canepro/allowed-repo"]},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert patch_response.status_code == 200
+    assert patch_response.json()["ph_allowed_repos"] == ["canepro/allowed-repo"]
+
+    payload = {
+        "action": "completed",
+        "workflow_run": {
+            "id": 123456,
+            "name": "CI",
+            "workflow_id": 987654,
+            "head_branch": "main",
+            "head_sha": "abc123def",
+            "status": "completed",
+            "conclusion": "failure",
+            "html_url": "https://github.com/Canepro/not-allowed/actions/runs/123456",
+            "created_at": "2026-02-13T00:00:00Z",
+            "updated_at": "2026-02-13T00:01:00Z",
+            "run_attempt": 1,
+            "run_number": 10,
+        },
+        "repository": {
+            "id": 123,
+            "name": "not-allowed",
+            "full_name": "Canepro/not-allowed",
+            "owner": {"login": "Canepro", "id": 1},
+            "default_branch": "main",
+            "html_url": "https://github.com/Canepro/not-allowed",
+        },
+        "sender": {"login": "github-actions[bot]"},
+    }
+
+    response = await _post_workflow_run(payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ignored"
+    assert "outside PH_ALLOWED_REPOS" in data["reason"]

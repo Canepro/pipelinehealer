@@ -2,8 +2,10 @@
 
 import hashlib
 import logging
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
@@ -23,11 +25,68 @@ from .security import require_admin_key, require_api_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["dashboard"], dependencies=[Depends(require_api_key)])
+_REPO_FULL_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 
 def _utcnow() -> datetime:
     """Return a timezone-aware UTC datetime."""
     return datetime.now(UTC)
+
+
+def _normalize_repo_full_name(raw_value: Any) -> str:
+    """Normalize supported repo inputs to canonical owner/repo form."""
+    value = str(raw_value).strip()
+    if not value:
+        return ""
+
+    parsed = urlparse(value)
+
+    # Handle https://github.com/owner/repo(.git) form.
+    if parsed.scheme in {"http", "https"} and parsed.netloc:
+        host = parsed.netloc.lower()
+        if host not in {"github.com", "www.github.com"}:
+            raise ValueError(
+                f"Invalid repo '{value}'; only github.com repository URLs are supported"
+            )
+        path = parsed.path.strip("/")
+        if path.endswith(".git"):
+            path = path[:-4]
+        parts = [part for part in path.split("/") if part]
+        if len(parts) != 2:
+            raise ValueError(
+                f"Invalid repo URL '{value}'; expected 'https://github.com/owner/repo'"
+            )
+        value = f"{parts[0]}/{parts[1]}"
+
+    # Handle git@github.com:owner/repo(.git) form.
+    if value.startswith("git@github.com:"):
+        path = value[len("git@github.com:") :].strip("/")
+        if path.endswith(".git"):
+            path = path[:-4]
+        value = path
+
+    value = value.strip().strip("/")
+    if value.endswith(".git"):
+        value = value[:-4]
+
+    if not _REPO_FULL_NAME_RE.fullmatch(value):
+        raise ValueError(f"Invalid repo format '{value}'; expected 'owner/repo'")
+
+    # GitHub owner/repo matching is case-insensitive; store canonical lowercase.
+    return value.lower()
+
+
+def _normalize_allowed_repo_list(raw_repos: list[Any]) -> list[str]:
+    """Normalize repo allowlist and preserve insertion order while deduplicating."""
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for repo in raw_repos:
+        repo_name = _normalize_repo_full_name(repo)
+        if not repo_name or repo_name in seen:
+            continue
+        seen.add(repo_name)
+        normalized.append(repo_name)
+    return normalized
 
 
 def _get_storage_backend_name() -> str:
@@ -40,6 +99,15 @@ def _get_storage_backend_name() -> str:
     if storage_class == "ActivityStorage":
         return "cosmos_db"
     return storage_class.lower()
+
+
+def _safe_settings_allowlist(raw_repos: list[str]) -> list[str]:
+    """Best-effort normalization for settings view without crashing on bad env values."""
+    try:
+        return _normalize_allowed_repo_list(raw_repos)
+    except ValueError:
+        logger.warning("Invalid PH_ALLOWED_REPOS entry detected; exposing raw values in settings view")
+        return [str(repo).strip() for repo in raw_repos if str(repo).strip()]
 
 
 def _resolve_github_auth_mode() -> tuple[bool, bool, str]:
@@ -86,7 +154,7 @@ def _build_settings_view() -> AppSettingsView:
         github_pat_configured=has_pat,
         github_app_configured=has_app,
         github_auth_mode=github_auth_mode,
-        ph_allowed_repos=settings.ph_allowed_repos,
+        ph_allowed_repos=_safe_settings_allowlist(settings.ph_allowed_repos),
         cors_allowed_origins=settings.cors_allowed_origins,
         cors_allow_origin_regex=settings.cors_allow_origin_regex,
         azure_openai_endpoint=settings.azure_openai_endpoint,
@@ -189,18 +257,10 @@ async def update_app_settings(
         repos = changes["ph_allowed_repos"]
         if not isinstance(repos, list):
             raise HTTPException(status_code=422, detail="ph_allowed_repos must be a list")
-        cleaned: list[str] = []
-        for repo in repos:
-            r = str(repo).strip()
-            if not r:
-                continue
-            if "/" not in r:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Invalid repo format '{r}'; expected 'owner/repo'",
-                )
-            cleaned.append(r)
-        changes["ph_allowed_repos"] = cleaned
+        try:
+            changes["ph_allowed_repos"] = _normalize_allowed_repo_list(repos)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     max_chars = int(changes.get("log_prompt_max_chars", settings.log_prompt_max_chars))
     head_chars = int(changes.get("log_prompt_head_chars", settings.log_prompt_head_chars))
