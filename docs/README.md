@@ -10,6 +10,10 @@ Use this index to find the right doc quickly.
   - Full local and Azure E2E operator runbook.
 - `HACKATHON_LOG.md`
   - Current phase status, submission checklist, and milestone history.
+- `GH_AW_WORKFLOWS_QUALITY_HYGIENE_REVIEW.md`
+  - Review and adoption plan for GitHub Agentic Workflows quality/hygiene tooling.
+- `GH_AW_IMPLEMENTATION_TRACKER.md`
+  - Layer 1/Layer 2 implementation tracker for `gh aw` setup and PipelineHealer integration.
 - `PREDEPLOY_PLACEHOLDER_AUDIT.md`
   - Pre-deploy stop-ship checklist.
 - `FUTURE_PLAN.md`
