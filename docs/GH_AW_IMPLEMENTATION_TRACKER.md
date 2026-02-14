@@ -28,7 +28,7 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
   - [x] `breaking-change-checker`
 - [x] Configure all 3 workflows to advisory mode (no auto-remediation or auto-merge behavior).
 - [x] Run `gh aw compile` and verify generated lock outputs.
-- [ ] Open separate PR for `gh aw` workflow setup (do not mix with docs-only PRs).
+- [x] Open separate PR for `gh aw` workflow setup (do not mix with docs-only PRs).
 
 ## Layer 2 Checklist (PipelineHealer Product Integration)
 
@@ -56,6 +56,7 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
   - `.github/workflows/schema-consistency-checker.md`
   - `.github/workflows/breaking-change-checker.md`
 - Kept `engine: copilot` for CI Doctor and removed unsupported `web-search` tool; compile now reports zero warnings.
+- Opened dedicated Layer 1 PR: `https://github.com/Canepro/pipelinehealer/pull/3`.
 
 ## Execution Commands (Layer 1)
 
