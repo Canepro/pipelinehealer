@@ -133,14 +133,14 @@ def create_cloud_agent(
 
         from agent_framework.azure import AzureOpenAIChatClient
 
-        chat_client: Any = AzureOpenAIChatClient(
+        foundry_chat_client: Any = AzureOpenAIChatClient(
             endpoint=endpoint,
             deployment_name=deployment_name,
             api_version=effective_chat_version or None,
             api_key=api_key or None,
             credential=credential,
         )
-        return _as_agent_compat(chat_client, name=name, instructions=instructions)
+        return _as_agent_compat(foundry_chat_client, name=name, instructions=instructions)
 
     # For classic Azure OpenAI resources (openai.azure.com), use the Responses API.
     from agent_framework.azure import AzureOpenAIChatClient, AzureOpenAIResponsesClient
@@ -160,14 +160,14 @@ def create_cloud_agent(
     # Compatibility fallback: certain resources/deployments may reject Responses API versions
     # while still supporting chat completions. Version from AZURE_OPENAI_CHAT_API_VERSION.
     fallback_chat_version = chat_api_version or api_version
-    chat_client: Any = AzureOpenAIChatClient(
+    fallback_chat_client: Any = AzureOpenAIChatClient(
         endpoint=endpoint,
         deployment_name=deployment_name,
         api_version=fallback_chat_version,
         api_key=api_key or None,
         credential=credential,
     )
-    fallback_agent = _as_agent_compat(chat_client, name=name, instructions=instructions)
+    fallback_agent = _as_agent_compat(fallback_chat_client, name=name, instructions=instructions)
 
     return FallbackAgent(primary_agent, fallback_agent)
 

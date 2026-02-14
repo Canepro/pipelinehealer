@@ -17,6 +17,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Settings admin UX: explicit-load audit panel with copyable request IDs and old/new diff rendering
 - Recording script: single-source runbook in `docs/DEMO_SCRIPT.md`
 - Repo policy docs: `CONTRIBUTING.md` and `SECURITY.md` added
+- GitHub Agentic Workflows tracking: plan in `docs/GH_AW_WORKFLOWS_QUALITY_HYGIENE_REVIEW.md` with execution checklist in `docs/GH_AW_IMPLEMENTATION_TRACKER.md`
 
 ## Phase Overview
 
@@ -175,6 +176,9 @@ This is the long-form project tracker for hackathon execution status, submission
 - Added `ph_allowed_repos` to admin settings update model with `owner/repo` format validation on both backend and frontend.
 - Added allowed repositories management UI in Settings page Admin Controls: add/remove repo entries with inline validation, persisted via `PATCH /api/settings` and recorded in admin audit trail.
 - Updated all project docs to reflect bug fixes and new capabilities.
+- Added GitHub Agentic Workflows implementation tracking docs:
+  - strategy/review: `docs/GH_AW_WORKFLOWS_QUALITY_HYGIENE_REVIEW.md`
+  - execution tracker: `docs/GH_AW_IMPLEMENTATION_TRACKER.md`
 
 ## Project Tracking Plan (Now -> Mar 15)
 
@@ -226,4 +230,5 @@ This plan is the source of truth for controlled polish work without drift.
 - Demo recording (single file): `docs/DEMO_SCRIPT.md`
 - Full operator runbook: `docs/LOCAL_DEMO_RUNBOOK.md`
 - UI maturity tracker: `docs/UI_PLAN.md`
+- GitHub Agentic Workflows tracker: `docs/GH_AW_IMPLEMENTATION_TRACKER.md`
 - Agent/repo operating rules: `AGENTS.md`
