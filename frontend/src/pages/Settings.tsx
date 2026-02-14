@@ -41,7 +41,9 @@ export default function SettingsPage() {
     log_prompt_max_chars: 18000,
     log_prompt_head_chars: 9000,
     log_prompt_tail_chars: 9000,
+    ph_allowed_repos: [] as string[],
   })
+  const [newRepoInput, setNewRepoInput] = useState('')
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['app-settings', adminKey],
@@ -80,6 +82,7 @@ export default function SettingsPage() {
       log_prompt_max_chars: data.log_prompt_max_chars,
       log_prompt_head_chars: data.log_prompt_head_chars,
       log_prompt_tail_chars: data.log_prompt_tail_chars,
+      ph_allowed_repos: data.ph_allowed_repos ?? [],
     })
   }, [data])
 
@@ -98,6 +101,7 @@ export default function SettingsPage() {
         log_prompt_max_chars: form.log_prompt_max_chars,
         log_prompt_head_chars: form.log_prompt_head_chars,
         log_prompt_tail_chars: form.log_prompt_tail_chars,
+        ph_allowed_repos: form.ph_allowed_repos,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['app-settings', adminKey] })
@@ -694,6 +698,72 @@ export default function SettingsPage() {
                   Verify webhook signature in development
                 </span>
               </label>
+            </div>
+
+            {/* Allowed Repositories */}
+            <div className="mt-6">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Allowed repositories</p>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {form.ph_allowed_repos.length === 0 && (
+                  <span className="text-xs text-gray-400 italic">All repos allowed (no restriction)</span>
+                )}
+                {form.ph_allowed_repos.map((repo) => (
+                  <Badge key={repo} variant="secondary" className="flex items-center gap-1">
+                    {repo}
+                    <button
+                      type="button"
+                      className="ml-1 text-gray-400 hover:text-red-500"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          ph_allowed_repos: prev.ph_allowed_repos.filter((r) => r !== repo),
+                        }))
+                      }
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="owner/repo"
+                  value={newRepoInput}
+                  onChange={(e) => setNewRepoInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const val = newRepoInput.trim()
+                      if (val && val.includes('/') && !form.ph_allowed_repos.includes(val)) {
+                        setForm((prev) => ({
+                          ...prev,
+                          ph_allowed_repos: [...prev.ph_allowed_repos, val],
+                        }))
+                        setNewRepoInput('')
+                      }
+                    }
+                  }}
+                  className="max-w-xs"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    const val = newRepoInput.trim()
+                    if (val && val.includes('/') && !form.ph_allowed_repos.includes(val)) {
+                      setForm((prev) => ({
+                        ...prev,
+                        ph_allowed_repos: [...prev.ph_allowed_repos, val],
+                      }))
+                      setNewRepoInput('')
+                    }
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Format: owner/repo. Leave empty to allow all repos.</p>
             </div>
 
             {form.log_prompt_head_chars + form.log_prompt_tail_chars >

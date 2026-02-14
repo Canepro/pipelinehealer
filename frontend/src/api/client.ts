@@ -110,6 +110,7 @@ export interface AdminSettingsUpdate {
   log_prompt_max_chars?: number
   log_prompt_head_chars?: number
   log_prompt_tail_chars?: number
+  ph_allowed_repos?: string[]
 }
 
 type ApiRequestOptions = RequestInit & {

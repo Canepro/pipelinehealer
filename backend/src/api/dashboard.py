@@ -185,6 +185,23 @@ async def update_app_settings(
             )
         changes["heal_mode"] = heal_mode
 
+    if "ph_allowed_repos" in changes:
+        repos = changes["ph_allowed_repos"]
+        if not isinstance(repos, list):
+            raise HTTPException(status_code=422, detail="ph_allowed_repos must be a list")
+        cleaned: list[str] = []
+        for repo in repos:
+            r = str(repo).strip()
+            if not r:
+                continue
+            if "/" not in r:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid repo format '{r}'; expected 'owner/repo'",
+                )
+            cleaned.append(r)
+        changes["ph_allowed_repos"] = cleaned
+
     max_chars = int(changes.get("log_prompt_max_chars", settings.log_prompt_max_chars))
     head_chars = int(changes.get("log_prompt_head_chars", settings.log_prompt_head_chars))
     tail_chars = int(changes.get("log_prompt_tail_chars", settings.log_prompt_tail_chars))

@@ -35,13 +35,23 @@ class NoopAgent:
         return ""
 
 class FallbackAgent:
-    """Agent wrapper that retries with a fallback agent for known compatibility errors."""
+    """Agent wrapper that retries with a fallback agent for known compatibility errors.
+
+    After the primary agent fails with an API-version error once, all subsequent
+    calls go directly to the fallback to avoid repeated 400/round-trip noise in logs.
+    """
 
     def __init__(self, primary: Any, fallback: Any):
         self._primary = primary
         self._fallback = fallback
+        self._primary_failed = False
 
     async def run(self, prompt: str) -> Any:
+        if self._primary_failed:
+            result = await self._fallback.run(prompt)
+            logger.debug("[debug-mode] Using cached fallback agent (Chat)")
+            return result
+
         try:
             result = await self._primary.run(prompt)
             logger.debug("[debug-mode] Primary agent (Responses) succeeded")
@@ -54,9 +64,10 @@ class FallbackAgent:
 
             logger.warning(
                 "Primary Azure OpenAI client failed with API-version compatibility error; "
-                "retrying with fallback client. error=%s",
+                "switching to fallback client for this agent and all future calls. error=%s",
                 exc,
             )
+            self._primary_failed = True
             result = await self._fallback.run(prompt)
             logger.debug("[debug-mode] Fallback agent (Chat) succeeded")
             return result

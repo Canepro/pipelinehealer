@@ -399,6 +399,48 @@ Be specific about:
 
         return "\n---\n".join(summary_parts)
 
+    @staticmethod
+    def _extract_json_candidates(text: str) -> list[str]:
+        """Extract candidate JSON object strings from *text* using brace-balancing.
+
+        The greedy regex ``r"\\{[\\s\\S]*\\}"`` fails when the LLM wraps JSON in
+        markdown fences or appends commentary containing extra braces.  Instead we
+        walk through the text tracking brace depth and yield every balanced
+        ``{ ... }`` substring, longest-first. ``json.loads`` is attempted on each
+        candidate so only syntactically valid JSON survives.
+        """
+        candidates: list[str] = []
+        i = 0
+        while i < len(text):
+            if text[i] == "{":
+                depth = 0
+                in_string = False
+                escape = False
+                for j in range(i, len(text)):
+                    ch = text[j]
+                    if escape:
+                        escape = False
+                        continue
+                    if ch == "\\":
+                        escape = True
+                        continue
+                    if ch == '"' and not escape:
+                        in_string = not in_string
+                        continue
+                    if in_string:
+                        continue
+                    if ch == "{":
+                        depth += 1
+                    elif ch == "}":
+                        depth -= 1
+                        if depth == 0:
+                            candidates.append(text[i : j + 1])
+                            break
+            i += 1
+        # Prefer longer candidates (the outermost balanced object is usually correct).
+        candidates.sort(key=len, reverse=True)
+        return candidates
+
     def _parse_diagnosis_response(
         self,
         response_text: str,
@@ -413,35 +455,45 @@ Be specific about:
         Returns:
             Parsed diagnosis
         """
-        # Try to extract JSON from the response
-        json_match = re.search(r"\{[\s\S]*\}", response_text)
+        failure_type_map = {
+            "dependency": FailureType.DEPENDENCY,
+            "test": FailureType.TEST,
+            "lint": FailureType.LINT,
+            "build_config": FailureType.BUILD_CONFIG,
+            "timeout": FailureType.TIMEOUT,
+        }
 
-        if json_match:
+        # Strip markdown code fences that some LLMs wrap around JSON.
+        cleaned = re.sub(r"```(?:json)?\s*", "", response_text)
+        cleaned = re.sub(r"```\s*$", "", cleaned, flags=re.MULTILINE)
+
+        for candidate in self._extract_json_candidates(cleaned):
             try:
-                data = json.loads(json_match.group())
+                data = json.loads(candidate)
+            except (json.JSONDecodeError, ValueError):
+                continue
 
-                # Map failure type string to enum
-                failure_type_str = data.get("failure_type", "unknown").lower()
-                failure_type_map = {
-                    "dependency": FailureType.DEPENDENCY,
-                    "test": FailureType.TEST,
-                    "lint": FailureType.LINT,
-                    "build_config": FailureType.BUILD_CONFIG,
-                    "timeout": FailureType.TIMEOUT,
-                }
-                failure_type = failure_type_map.get(failure_type_str, FailureType.UNKNOWN)
+            # Must look like a diagnosis object (at minimum a failure_type key).
+            if not isinstance(data, dict) or "failure_type" not in data:
+                continue
 
-                return Diagnosis(
-                    failure_type=failure_type,
-                    confidence=float(data.get("confidence", 0.5)),
-                    root_cause=data.get("root_cause", "Unknown"),
-                    affected_files=data.get("affected_files", []),
-                    is_auto_fixable=bool(data.get("is_auto_fixable", False)),
-                    suggested_fix=data.get("suggested_fix", ""),
-                    error_details=data.get("error_details", {}),
-                )
-            except (json.JSONDecodeError, KeyError, ValueError) as e:
-                logger.warning(f"Failed to parse agent response JSON: {e}")
+            failure_type_str = str(data.get("failure_type", "unknown")).lower()
+            failure_type = failure_type_map.get(failure_type_str, FailureType.UNKNOWN)
+
+            return Diagnosis(
+                failure_type=failure_type,
+                confidence=float(data.get("confidence", 0.5)),
+                root_cause=data.get("root_cause", "Unknown"),
+                affected_files=data.get("affected_files", []),
+                is_auto_fixable=bool(data.get("is_auto_fixable", False)),
+                suggested_fix=data.get("suggested_fix", ""),
+                error_details=data.get("error_details", {}),
+            )
+
+        logger.warning(
+            "Failed to extract valid diagnosis JSON from agent response (len=%d)",
+            len(response_text),
+        )
 
         # Return fallback or create unknown diagnosis
         if fallback:

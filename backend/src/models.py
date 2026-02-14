@@ -241,6 +241,7 @@ class AdminSettingsUpdateRequest(BaseModel):
     log_prompt_max_chars: int | None = Field(default=None, ge=1000, le=200000)
     log_prompt_head_chars: int | None = Field(default=None, ge=100, le=200000)
     log_prompt_tail_chars: int | None = Field(default=None, ge=100, le=200000)
+    ph_allowed_repos: list[str] | None = None
 
 
 class AdminSettingsAuditEntry(BaseModel):
