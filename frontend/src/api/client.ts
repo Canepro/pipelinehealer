@@ -84,6 +84,7 @@ export interface AppSettings {
   azure_openai_endpoint: string
   azure_openai_deployment_name: string
   azure_openai_api_version: string
+  azure_openai_chat_api_version: string
 }
 
 export interface AdminSettingsAuditEntry {

@@ -124,6 +124,7 @@ export default function Activities() {
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, status: e.target.value }))
               }
+              aria-label="Filter by status"
               className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-azure-500 dark:bg-gray-700 dark:text-gray-100 lg:w-52"
             >
               {statusOptions.map((option) => (
@@ -137,6 +138,7 @@ export default function Activities() {
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, failure_type: e.target.value }))
               }
+              aria-label="Filter by failure type"
               className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-azure-500 dark:bg-gray-700 dark:text-gray-100 lg:w-52"
             >
               {failureTypeOptions.map((option) => (

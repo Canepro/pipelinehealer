@@ -29,7 +29,7 @@ def test_as_agent_compat_falls_back_to_chat_agent(monkeypatch) -> None:
             self.instructions = instructions
             self.name = name
 
-    monkeypatch.setattr("agent_framework.ChatAgent", _FakeChatAgent)
+    monkeypatch.setattr("agent_framework.ChatAgent", _FakeChatAgent, raising=False)
 
     client = _ClientWithoutAsAgent()
     result = _as_agent_compat(client, name="demo", instructions="test")
