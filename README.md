@@ -119,7 +119,7 @@ PipelineHealer intentionally mixes deterministic logic with LLM calls.
 AI (Azure OpenAI via Microsoft Agent Framework):
 
 - Log summarization: condense raw job logs into a short, structured summary.
-- Diagnosis fallback: when pattern rules do not confidently match, the model produces a structured `Diagnosis` JSON.
+- Diagnosis fallback: when pattern rules do not confidently match, the model produces a structured `Diagnosis` JSON. A brace-balanced JSON extractor handles markdown fences, nested objects, and LLM commentary robustly.
 - Remediation narrative: write high-quality PR/issue bodies and root-cause descriptions (the actual file edits are still deterministic).
 
 Pure logic:
@@ -128,6 +128,7 @@ Pure logic:
 - Log extraction (fetch jobs + logs), error/warning line heuristics.
 - Pattern-based diagnosis for common cases (dependency/lint/test/timeout/build-config patterns).
 - Remediation execution (create branch, commit file content, create PR/issue, rerun failed jobs).
+- API client fallback caching: class-level flag so the first Responses API 400 switches all agents to the Chat fallback with zero repeated round-trips.
 
 ## Healing Modes
 
@@ -198,12 +199,12 @@ flowchart LR
 ## Features
 
 - **Multi-Agent Architecture**: Specialized agents for log analysis, diagnosis, and remediation
-- **Intelligent Diagnosis**: Pattern-based and AI-powered root cause analysis
+- **Intelligent Diagnosis**: Pattern-based and AI-powered root cause analysis with robust JSON extraction
 - **Automated Remediation**: Creates PRs for auto-fixable issues, detailed issues for others
 - **Professional Dashboard UI**: Shadcn-style component system with polished dashboard/activity states
 - **Admin Settings Surface**: Admin-key-protected runtime settings page (`/settings`) with safe in-memory overrides
 - **Effective Runtime Policy Banner**: Read-only trust surface for current mode, PR toggle, webhook signature state, and allowlist scope
-- **Repo Scope Visibility**: Settings page shows `PH_ALLOWED_REPOS` summary and explicit repository list
+- **Repo Scope Visibility**: Settings page shows `PH_ALLOWED_REPOS` summary and explicit repository list with add/remove controls
 - **Admin Audit Visibility**: Explicit-load audit panel with request IDs, actor fingerprints, and old/new setting diffs
 - **Mobile Navigation Reliability**: Route-safe, notch-safe sheet navigation for portrait mobile workflows
 - **Enterprise Ready**: Azure-native with full observability and security

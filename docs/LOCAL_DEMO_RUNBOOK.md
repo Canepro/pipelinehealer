@@ -247,7 +247,7 @@ Expected output ends with:
 
 - `model connectivity OK.`
 
-If you see "API version not supported", the fallback Chat Completions client will retry automatically with `AZURE_OPENAI_CHAT_API_VERSION`. If both fail, check your Azure deployment **Target URI** for the correct version and update your `.env` accordingly.
+If you see "API version not supported", the fallback Chat Completions client will retry automatically with `AZURE_OPENAI_CHAT_API_VERSION`. The class-level fallback cache ensures only the first agent call hits the 400; all subsequent agents go directly to Chat. If both clients fail, check your Azure deployment **Target URI** for the correct version and update your `.env` accordingly.
 
 ## 3) Run Backend (FastAPI, host-native only)
 
@@ -407,6 +407,7 @@ Frontend Settings page:
 - Open `/settings` in the UI (for example `http://127.0.0.1:3000/settings` in dev), paste `ADMIN_API_KEY`, and use **Load Settings**.
 - Verify the **Effective Runtime Policy** banner reflects current runtime guardrails (`HEAL_MODE`, PR toggle, allowlist scope, signature state).
 - Verify repo scope is explicit in **GitHub Integration** via `PH_ALLOWED_REPOS` summary/list.
+- Use the **Allowed repositories** section in Admin Controls to add or remove `owner/repo` entries. Changes are persisted via `PATCH /api/settings` and recorded in the audit trail.
 - Audit panel behavior is explicit by design: use **Load Audit** to fetch `GET /api/settings/audit` only when needed.
 
 ## Troubleshooting

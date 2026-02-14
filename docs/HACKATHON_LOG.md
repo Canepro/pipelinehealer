@@ -169,6 +169,12 @@ This is the long-form project tracker for hackathon execution status, submission
   - `README.md` — added API doc to documentation map
   - `docs/README.md` — added API.md to docs index
 - Verified clean Azure deployment: both backend and frontend images built, pushed, and serving latest commit.
+- Tested real-repo canary flow on `Canepro/portfolio_website_New` with a novel failure type (network/DNS resolution error during `next build && next export`) not matching any hardcoded diagnosis patterns. LLM fallback diagnosed correctly as `build_config` at 95-98% confidence with accurate root cause, suggested fixes, and affected files.
+- Fixed JSON parsing failure in diagnosis agent: replaced greedy regex (`r"\{[\s\S]*\}"`) with a brace-balanced JSON extractor that handles markdown code fences, nested objects, and LLM commentary surrounding JSON payloads.
+- Fixed noisy repeated API-version 400 errors: added class-level `_primary_failed` flag to `FallbackAgent` so the first Responses API 400 switches ALL agent instances to the Chat fallback with zero subsequent wasted round-trips (reduced from N errors per run to exactly 1).
+- Added `ph_allowed_repos` to admin settings update model with `owner/repo` format validation on both backend and frontend.
+- Added allowed repositories management UI in Settings page Admin Controls: add/remove repo entries with inline validation, persisted via `PATCH /api/settings` and recorded in admin audit trail.
+- Updated all project docs to reflect bug fixes and new capabilities.
 
 ## Project Tracking Plan (Now -> Mar 15)
 

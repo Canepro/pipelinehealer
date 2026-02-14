@@ -119,6 +119,7 @@ Expected result pattern:
 - Issues: test + build_config + timeout
 - Admin audit proof should show latest entries containing `request_id`, actor fingerprint, and old/new change values.
 - Settings page should show runtime scope clearly (`Allowlist (N)` or `Unrestricted`) in the Effective Runtime Policy banner.
+- Allowed repositories section in Admin Controls supports add/remove of `owner/repo` entries and persists via `PATCH /api/settings`.
 
 ## 5) 2-Minute Recording Script (Final)
 
