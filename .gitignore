@@ -73,3 +73,7 @@ azurite/
 credentials.json
 secrets.json
 .playwright-cli/
+
+# Generated / build artifacts
+output/
+infra/main.json
