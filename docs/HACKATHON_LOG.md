@@ -17,7 +17,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Settings admin UX: explicit-load audit panel with copyable request IDs and old/new diff rendering
 - Recording script: single-source runbook in `docs/DEMO_SCRIPT.md`
 - Repo policy docs: `CONTRIBUTING.md` and `SECURITY.md` added
-- GitHub Agentic Workflows tracking: plan in `docs/GH_AW_WORKFLOWS_QUALITY_HYGIENE_REVIEW.md` with execution checklist in `docs/GH_AW_IMPLEMENTATION_TRACKER.md`
+- GitHub Agentic Workflows Layer 1 (repo hygiene) merged to `main`; Layer 2 planning tracked in `docs/GH_AW_IMPLEMENTATION_TRACKER.md`
 
 ## Phase Overview
 
@@ -179,6 +179,13 @@ This is the long-form project tracker for hackathon execution status, submission
 - Added GitHub Agentic Workflows implementation tracking docs:
   - strategy/review: `docs/GH_AW_WORKFLOWS_QUALITY_HYGIENE_REVIEW.md`
   - execution tracker: `docs/GH_AW_IMPLEMENTATION_TRACKER.md`
+- Completed and merged GitHub Agentic Workflows Layer 1 implementation (PR #3):
+  - initialized repo with `gh aw init --no-mcp`
+  - added baseline `.github/workflows/ci.yml`
+  - added compiled workflows (`ci-doctor`, `schema-consistency-checker`, `breaking-change-checker`)
+  - removed unsupported `web-search` from CI Doctor while keeping `engine: copilot`
+- Closed superseded docs-only PR #2 after Layer 1 landed in PR #3.
+- Fixed repo CI backend install step for Actions (`uv pip install --system -e ".[dev]"`) and resolved backend mypy `no-redef` issue in `backend/src/agents/base.py` to keep checks green.
 
 ## Project Tracking Plan (Now -> Mar 15)
 

@@ -40,6 +40,8 @@ Use `bash scripts/ph.sh status` to print current backend/frontend Azure FQDNs be
 - `docs/DEMO_SCRIPT.md`: single-file recording checklist and 2-minute script
 - `docs/LOCAL_DEMO_RUNBOOK.md`: detailed local + Azure E2E operations
 - `docs/HACKATHON_LOG.md`: phase status, submission checklist, and milestones
+- `docs/GH_AW_WORKFLOWS_QUALITY_HYGIENE_REVIEW.md`: GitHub Agentic Workflows Layer 1 outcome and Layer 2 plan
+- `docs/GH_AW_IMPLEMENTATION_TRACKER.md`: Layer 1 completion evidence and Layer 2 implementation checklist
 - `docs/UI_PLAN.md`: UI maturity plan, design principles, and weekly tracking
 - `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md`: pre-deploy safety audit
 - `docs/FUTURE_PLAN.md`: post-demo and post-hackathon roadmap
@@ -296,7 +298,7 @@ PipelineHealer is built for controlled remediation, not unconstrained autonomous
    # Edit .env with your configuration
    
    # Install dependencies with UV
-   uv pip install -e ".[dev]"
+   uv pip install --system -e ".[dev]"
    
    # Run the backend
    uvicorn src.main:app --reload

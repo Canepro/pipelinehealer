@@ -13,7 +13,7 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
 
 | Workstream | Status | Notes |
 |---|---|---|
-| Layer 1: baseline repo hygiene | In progress | `gh aw init/add/compile` completed; next step is PR creation and review |
+| Layer 1: baseline repo hygiene | Completed | merged in PR #3 with passing CI checks |
 | Layer 2: PipelineHealer orchestration integration | Planned | Design direction agreed; implementation not started |
 
 ## Layer 1 Checklist (Repo Hygiene)
@@ -29,6 +29,7 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
 - [x] Configure all 3 workflows to advisory mode (no auto-remediation or auto-merge behavior).
 - [x] Run `gh aw compile` and verify generated lock outputs.
 - [x] Open separate PR for `gh aw` workflow setup (do not mix with docs-only PRs).
+- [x] Merge Layer 1 PR to `main` after CI is green.
 
 ## Layer 2 Checklist (PipelineHealer Product Integration)
 
@@ -57,6 +58,9 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
   - `.github/workflows/breaking-change-checker.md`
 - Kept `engine: copilot` for CI Doctor and removed unsupported `web-search` tool; compile now reports zero warnings.
 - Opened dedicated Layer 1 PR: `https://github.com/Canepro/pipelinehealer/pull/3`.
+- Closed superseded docs-only PR: `https://github.com/Canepro/pipelinehealer/pull/2`.
+- Merged Layer 1 PR #3 to `main` after passing CI checks.
+- Updated baseline CI install step to `uv pip install --system -e ".[dev]"` for GitHub Actions compatibility.
 
 ## Execution Commands (Layer 1)
 

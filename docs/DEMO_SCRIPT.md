@@ -12,6 +12,7 @@ Related docs:
 - `docs/LOCAL_DEMO_RUNBOOK.md` for deeper setup/troubleshooting
 - `docs/HACKATHON_LOG.md` for submission checklist and milestone status
 - `docs/API.md` for full API endpoint reference and best practices
+- `docs/GH_AW_IMPLEMENTATION_TRACKER.md` for GitHub Agentic Workflows Layer 1/Layer 2 status
 
 ## Scope
 

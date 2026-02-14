@@ -29,18 +29,29 @@ PipelineHealer should use a two-layer strategy:
 1. **Layer 1 (Repo hygiene)**: enforce quality in this repository with baseline CI and valid `gh aw` workflows.
 2. **Layer 2 (Product capability)**: let PipelineHealer invoke `gh aw` workflows as tools for monitored repos, then ingest findings into diagnosis/remediation.
 
+## Current Status (As of February 14, 2026)
+
+- Layer 1 is merged to `main` in PR #3: `https://github.com/Canepro/pipelinehealer/pull/3`
+- Superseded docs-only PR #2 is closed: `https://github.com/Canepro/pipelinehealer/pull/2`
+- Baseline CI exists at `.github/workflows/ci.yml`
+- `gh aw` workflows are installed and compiled:
+  - `ci-doctor`
+  - `schema-consistency-checker`
+  - `breaking-change-checker`
+- CI Doctor uses `engine: copilot` with no `web-search` tool (compile-clean setup)
+
 ## Current State
 
 - Local quality commands are well-defined (`pytest`, `mypy`, `bun run lint`, `bun run build`).
 - Runtime safety controls are strong (allowlists, heal modes, auth boundaries).
-- Baseline GitHub Actions CI should exist as `.github/workflows/ci.yml`.
-- `gh aw` workflow specs are not yet correctly generated/compiled in this repo.
+- Baseline GitHub Actions CI exists at `.github/workflows/ci.yml`.
+- `gh aw` workflow specs are generated and compiled in this repo.
 
-## Recommended PR Sequence
+## Next PR Sequence
 
-1. **PR 1 (Recommended)**: add baseline `.github/workflows/ci.yml` only.
-2. **PR 2**: add real `gh aw` workflows via `init` + `add-wizard` + `compile` in advisory mode.
-3. **PR 3**: wire Layer 2 integration into PipelineHealer (tool invocation + output ingestion + dashboard visibility).
+1. **PR A (Recommended)**: add Layer 2 backend scaffolding (`gh_aw_tools` config + tool adapter interface).
+2. **PR B**: implement `gh aw` invocation + result ingestion into diagnosis/remediation context.
+3. **PR C**: add dashboard/operator visibility for `gh aw` tool status and findings.
 
 ## Layer 2 Integration Blueprint (Product Feature)
 
@@ -58,4 +69,4 @@ PipelineHealer should use a two-layer strategy:
 
 ## Bottom Line
 
-The strategy is correct, but execution must use the real `gh aw` toolchain. Keep baseline CI and agentic workflows in separate PRs, then build PipelineHealer's Layer 2 orchestration on top.
+Layer 1 is complete on `main` using the real `gh aw` toolchain. The next focus is Layer 2: integrating `gh aw` as a first-class remediation signal/tool inside PipelineHealer.

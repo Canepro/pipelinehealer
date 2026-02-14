@@ -16,6 +16,7 @@ Local validation workflow:
 
 If you are recording the hackathon video, use `docs/DEMO_SCRIPT.md` first.
 This file is the detailed operator runbook for setup/troubleshooting.
+For GitHub Agentic Workflows adoption status, use `docs/GH_AW_IMPLEMENTATION_TRACKER.md`.
 
 ## Prereqs
 
