@@ -43,6 +43,62 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
   - findings consumed
   - fix recommendation produced
 
+## Layer 2 Execution Plan (Kickoff)
+
+### PR A: Config + Interface (Recommended first)
+
+Scope:
+
+- Add `gh_aw_tools` runtime config shape in backend settings.
+- Define a backend adapter interface for `gh aw` operations (trigger, status, findings).
+- Add no-risk plumbing in orchestrator to accept external diagnostics input without behavior changes.
+
+Acceptance:
+
+- Config loads from env/settings without breaking existing startup.
+- New adapter paths are feature-flagged off by default.
+- Existing tests pass unchanged.
+
+### PR B: Invocation + Ingestion
+
+Scope:
+
+- Implement workflow invocation for selected repos/workflows.
+- Ingest `gh aw` outputs (issue/comment/discussion references + summary) into diagnosis context.
+- Add structured metadata fields to activity records for external-tool evidence.
+
+Acceptance:
+
+- For a target failure, PipelineHealer can attach `gh aw` findings to diagnosis output.
+- Failures in `gh aw` invocation degrade gracefully (no orchestration crash).
+- API responses remain backward compatible.
+
+### PR C: Dashboard + Operator Visibility
+
+Scope:
+
+- Show `gh aw` status/findings in activity details (last run, workflow id, summary, links).
+- Add minimal policy visibility in settings for enabled workflows and mode.
+- Add demo-ready evidence path in docs (`DEMO_SCRIPT`, `LOCAL_DEMO_RUNBOOK`).
+
+Acceptance:
+
+- Operators can see whether `gh aw` was invoked and what it contributed.
+- UI remains responsive and type-safe with/without `gh aw` metadata.
+
+### PR D: Demo Hardening (Optional but recommended)
+
+Scope:
+
+- Add deterministic fallback behavior for missing tokens/permissions.
+- Add integration tests for one successful and one degraded `gh aw` path.
+- Finalize 2-minute demo script wording for "PipelineHealer + gh-aw" loop.
+
+Acceptance:
+
+- Demo flow is reliable under safe-mode defaults.
+- Logs and UI clearly show tool outcome and fallback reason when unavailable.
+
 ## Evidence Log
 
 ### February 14, 2026
