@@ -9,8 +9,13 @@ The following are already implemented in the current project state:
 - API and admin auth (`X-API-Key` for `/api/*`; `/api/settings*` uses `X-API-Key` + `X-Admin-Key` outside development)
 - GitHub API retry/backoff and orchestrator step timeouts
 - Timed-out workflow log handling and prompt truncation safeguards
-- Safe/demo healing mode split
+- Safe/demo/debug healing mode split (debug adds verbose pipeline logging without behavior change)
 - Script-first operator workflow (`bash scripts/ph.sh ...`)
+- One-command log inspection (`logs`, `logs:raw`, `logs:grep`)
+- Docker base image failure pattern matching in diagnosis agent
+- Cosmos SDK log noise suppression for clean Azure Container Apps logs
+- API reference documentation (`docs/API.md`)
+- Chart dark-theme legibility (axis ticks, pie labels)
 
 ## Next Priorities
 
@@ -34,9 +39,9 @@ The following are already implemented in the current project state:
 
 ## 4) Settings and Policy Controls
 
-- Add optional persistence for runtime setting overrides (currently in-memory).
-- Add repo/org allowlist controls for remediation scope.
-- Add configurable governance limits (max remediations per repo/time window).
+- Add optional persistence for runtime setting overrides (currently in-memory; resets on restart).
+- ~~Add repo/org allowlist controls for remediation scope.~~ (Done: `PH_ALLOWED_REPOS`)
+- ~~Add configurable governance limits (max remediations per repo/time window).~~ (Done: `max_remediation_attempts`)
 - Add lightweight admin session auth for settings operations (post-submission):
   - Replace direct admin-key-only UX with short-lived, password-backed admin sessions.
   - Keep `X-Admin-Key` as emergency fallback via feature flag.
@@ -49,17 +54,18 @@ The following are already implemented in the current project state:
 
 ## 6) Observability and Reporting
 
-- Add dashboard views for remediation trend lines and outcome ratios over time.
+- ~~Add dashboard views for remediation trend lines and outcome ratios over time.~~ (Done: bar chart + pie chart + stats cards)
 - Add exportable run summary for demos and incident review.
-- Add structured audit trail fields for policy decisions (why PR vs issue).
+- ~~Add structured audit trail fields for policy decisions (why PR vs issue).~~ (Done: reason codes + explainability snapshot in UI)
 - Move admin settings audit trail from in-memory runtime storage to durable storage (Cosmos DB or Log Analytics).
+- Add log retention and search improvements beyond `logs:grep`.
 
 ## 7) Demo Experience Hardening
 
 - Add a `demo:prep` command to combine `warm`, `settings:check`, and baseline validation.
 - Add a `demo:cleanup` command to merge/close demo artifacts and return to low-cost mode.
-- Add optional “recording-safe” mode that suppresses noisy logs during video capture.
-- Expand demo-repo workflow fixtures with additional deterministic trigger types (`prettier`, `permissions`) once the fixture workflow and backend routing are re-aligned.
+- ~~Add optional "recording-safe" mode that suppresses noisy logs during video capture.~~ (Done: Cosmos SDK noise suppression + `logs` command with built-in noise filtering)
+- Expand demo-repo workflow fixtures with additional deterministic trigger types (`prettier`, `permissions`, `docker`) once the fixture workflow and backend routing are re-aligned.
 
 ## Guiding Principles
 

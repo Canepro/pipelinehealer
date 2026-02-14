@@ -111,7 +111,7 @@ Mark this audit complete when all stop-ship checks pass:
 - [ ] API auth enforced for `/api/*` in non-dev
 - [ ] Storage and remediation behavior verified in target environment
 
-## 9) Latest Dev Sign-Off Snapshot (Feb 12, 2026)
+## 9) Latest Dev Sign-Off Snapshot (Feb 14, 2026)
 
 Applied environment:
 
@@ -120,6 +120,8 @@ Applied environment:
 - Frontend app: `ca-canepro-ph-frontend`
 - Azure OpenAI deployment: `gpt-5-mini`
 - Backend mode: `ENVIRONMENT=production`
+- Heal mode: `safe`
+- Log noise: Azure Cosmos/Identity/Core SDK loggers suppressed to WARNING
 
 Verified:
 
@@ -129,3 +131,5 @@ Verified:
 - [x] Webhook signature verification enforced (`VERIFY_WEBHOOK_SIGNATURE=true`)
 - [x] API auth enforced for `/api/*` in non-dev (`401` without key, `200` with key)
 - [x] Storage and remediation behavior verified in deployed environment
+- [x] Logs clean: `bash scripts/ph.sh logs` shows pipeline entries without Cosmos SDK noise
+- [x] API doc exists (`docs/API.md`) and matches runtime endpoint contracts

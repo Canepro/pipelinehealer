@@ -147,7 +147,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 ### Feb 14, 2026
 
-- Suppressed Azure Cosmos SDK verbose HTTP logging (`azure.cosmos`, `azure.core.pipeline`) to preserve pipeline logs in Azure Container Apps log retention window.
+- Suppressed Azure Cosmos SDK verbose HTTP logging (`azure.cosmos`, `azure.core.pipeline`, `azure.identity`) to preserve pipeline logs in Azure Container Apps log retention window.
 - Added `debug` heal mode to Settings UI (safe/demo/debug toggle) and synced frontend types (`AdminSettingsUpdate`, form state) to accept all three modes.
 - Added Docker base image failure patterns to diagnosis agent pattern matcher:
   - `failed to resolve source metadata for` (Docker image not found)
@@ -158,7 +158,17 @@ This is the long-form project tracker for hackathon execution status, submission
   - `logs:raw` — unfiltered backend container logs
   - `logs:grep --pattern <regex>` — grep backend logs for a pattern
 - Fixed dashboard chart font visibility: changed axis tick fill from `#9ca3af` to `#e2e8f0` for dark-theme legibility; added pie chart inline labels.
-- Updated all docs per update policy (AGENTS.md, README.md, DEMO_SCRIPT.md, LOCAL_DEMO_RUNBOOK.md, HACKATHON_LOG.md).
+- Added `.gitignore` entries for `output/` (Playwright screenshots) and `infra/main.json` (generated ARM template).
+- Created comprehensive API reference documentation (`docs/API.md`) covering all endpoints, authentication, data models, and best practices.
+- Updated all project docs to align with current codebase state:
+  - `FUTURE_PLAN.md` — marked completed items, added new baseline entries
+  - `LOCAL_DEMO_RUNBOOK.md` — added logs commands, updated troubleshooting
+  - `PREDEPLOY_PLACEHOLDER_AUDIT.md` — updated sign-off snapshot date
+  - `UI_PLAN.md` — noted chart legibility fix in Week 2 checkpoint
+  - `DEMO_SCRIPT.md` — added logs verification commands
+  - `README.md` — added API doc to documentation map
+  - `docs/README.md` — added API.md to docs index
+- Verified clean Azure deployment: both backend and frontend images built, pushed, and serving latest commit.
 
 ## Project Tracking Plan (Now -> Mar 15)
 

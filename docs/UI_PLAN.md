@@ -144,6 +144,7 @@ These are enforceable defaults for all primary product screens.
   - key summary numbers moved into chart card headers
   - consistent chart tooltip copy and compact tooltip styling for mobile
   - empty states standardized with CTA (`Open demo repo`)
+  - (Feb 14) axis tick fill changed from `#9ca3af` to `#e2e8f0` for dark-theme contrast; pie chart inline labels added; YAxis width normalized
 - Explainability drilldown polish:
   - dashboard snapshot actions now support traceable drilldown (`View activity`, `Open Issue/PR`, `Copy ID`)
   - safety reason codes include short human-readable microcopy
@@ -212,6 +213,7 @@ These are enforceable defaults for all primary product screens.
 - [ ] Freeze non-critical UI changes.
 - [ ] Refresh README/UI proof references.
 - [ ] Final capture run with `docs/DEMO_SCRIPT.md`.
+- [ ] Verify API doc (`docs/API.md`) matches runtime contracts.
 
 ## Acceptance Checklist (Per Page)
 

@@ -2,6 +2,8 @@
 
 Use this index to find the right doc quickly.
 
+- `API.md`
+  - Full API reference: endpoints, authentication, data models, and best practices.
 - `DEMO_SCRIPT.md`
   - Single-file recording checklist and 2-minute narration script.
 - `LOCAL_DEMO_RUNBOOK.md`

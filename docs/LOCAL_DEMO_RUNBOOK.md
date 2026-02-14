@@ -181,6 +181,16 @@ bash scripts/ph.sh audit:proof --limit 5
 
 Entries include `request_id`, actor fingerprint, changed keys, and old/new values. This trail is in-memory for demo use and resets on backend restart/revision.
 
+Log inspection (Azure Container Apps backend logs):
+
+```bash
+bash scripts/ph.sh logs              # filtered (Cosmos SDK noise removed)
+bash scripts/ph.sh logs:raw --tail 50 # unfiltered, tail N lines
+bash scripts/ph.sh logs:grep --pattern "debug-mode"  # grep for pattern
+```
+
+For full API endpoint reference, see `docs/API.md`.
+
 Script help:
 
 ```bash
@@ -455,6 +465,18 @@ Frontend Settings page:
       - local mode: `https://smee.io/<channel>`
       - Azure mode: `https://<backend-fqdn>/webhook/github`
     - Ensure webhook secret matches `GITHUB_WEBHOOK_SECRET` in the active backend runtime.
+
+- Azure Container Apps logs are empty or noisy
+  - Cause: Cosmos SDK HTTP loggers were not suppressed, flooding the log stream.
+  - Status: Fixed in `backend/src/main.py` — `azure.cosmos`, `azure.identity`, and `azure.core` loggers are set to WARNING.
+  - Verify:
+    ```bash
+    bash scripts/ph.sh logs
+    ```
+  - If still noisy, check that the latest backend image is deployed:
+    ```bash
+    bash scripts/ph.sh deploy
+    ```
 
 - GitHub webhook deliveries return `401` in repo hook history
   - Cause: signature verification is enabled but the webhook secret on GitHub does not match backend runtime.
