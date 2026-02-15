@@ -40,6 +40,7 @@ The following are already implemented in the current project state:
 - Handle `ci-doctor` timing and repo capability gaps in MVP:
   - bounded wait/poll before fallback to native diagnosis
   - explicit "workflow not installed/capability unavailable" handling with non-blocking native fallback
+  - async backfill pass for `poll_window_exhausted` activities so late-arriving ci-doctor findings can enrich existing records
 - Add regression tests for:
   - settings update path (`PATCH /api/settings`)
   - webhook allowlist enforcement (`PH_ALLOWED_REPOS`)

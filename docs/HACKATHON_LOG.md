@@ -1,6 +1,6 @@
 # PipelineHealer Hackathon Log
 
-**Last updated:** February 14, 2026
+**Last updated:** February 15, 2026
 
 This is the long-form project tracker for hackathon execution status, submission readiness, and milestone history.
 
@@ -185,6 +185,18 @@ This is the long-form project tracker for hackathon execution status, submission
   - removed unsupported `web-search` from CI Doctor while keeping `engine: copilot`
 - Closed superseded docs-only PR #2 after Layer 1 landed in PR #3.
 - Fixed repo CI backend install step for Actions (`uv pip install --system -e ".[dev]"`) and resolved backend mypy `no-redef` issue in `backend/src/agents/base.py` to keep checks green.
+
+### Feb 15, 2026
+
+- Completed Layer 2 delivery through PR F on `main`:
+  - runtime config + contracts (`gh_aw_tools_enabled`, ingestion mode, structured `external_diagnostics`)
+  - universal diagnosis upgrades (historical issue signal, changed-file correlation, richer deterministic patterns)
+  - passive `ci-doctor` capability detection + bounded polling ingestion
+  - settings/operator UX hardening, durable settings persistence, and model deployment switching
+  - activity-level external diagnostics UI (badges, links, empty states)
+- Updated passive ingestion timing behavior to a 10-minute bounded polling window plus one final immediate fetch before timeout classification.
+- Verified durable settings persistence path with `POST /api/settings/persist` and audit traceability via `GET /api/settings/audit`.
+- Added PR G scope: async external diagnostics backfill for activities ending with `poll_window_exhausted` (eventual consistency, diagnostics-only).
 
 ## Project Tracking Plan (Now -> Mar 15)
 

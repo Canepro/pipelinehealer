@@ -295,11 +295,12 @@ Acceptance:
   - Replaced no-op adapter path with passive capability discovery against repository workflow artifacts.
   - Added bounded ci-doctor polling/backoff with explicit unavailable/error reason codes.
   - Added run/sha-correlated ci-doctor issue ingestion into `external_diagnostics`.
+  - Extended passive polling window to 10 minutes with a final immediate fetch to reduce boundary misses.
   - Added adapter/orchestrator coverage tests for capability, ingestion filtering, and polling behavior.
 - Added settings UX persistence guardrails:
   - runtime-only warning banner ("lost on redeploy")
-  - "Persist and Redeploy" action (command copy)
-  - new helper command `bash scripts/ph.sh settings:persist ...` to persist `PH_ALLOWED_REPOS` and env-only redeploy.
+  - "Persist Settings" action for durable persistence without manual shell edits
+  - helper command `bash scripts/ph.sh settings:persist ...` to persist all mutable runtime settings and optionally trigger env-only redeploy.
 - Implemented **PR D** on `main`:
   - Added full settings controls for healing policy and `gh_aw` runtime settings in admin UI.
   - Added browser-only persistence flow (`Persist Settings`) to write mutable settings without manual shell edits.
@@ -312,6 +313,9 @@ Acceptance:
   - Added activity detail external diagnostics card with status badges, confidence deltas, and findings links.
   - Added activities list/table external diagnostic badges plus findings actions.
   - Added empty-state messaging when external diagnostics are absent.
+- Scoped **PR G** (next):
+  - Add async backfill for activities that complete with `external_diagnostics.reason_code == poll_window_exhausted`.
+  - Keep eventual-consistency behavior non-blocking and policy-safe (no remediation replay, diagnostics enrichment only).
 - Closed superseded docs-only PR: `https://github.com/Canepro/pipelinehealer/pull/2`.
 - Merged Layer 1 PR #3 to `main` after passing CI checks.
 - Updated baseline CI install step to `uv pip install --system -e ".[dev]"` for GitHub Actions compatibility.
