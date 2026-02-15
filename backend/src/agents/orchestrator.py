@@ -27,7 +27,7 @@ from .remediation import RemediationAgent
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
-# Bounded backoff (total 300s) for passive external diagnostics collection.
+# Bounded backoff (total 600s / 10 minutes) for passive external diagnostics collection.
 # This only runs when gh_aw_tools are enabled, ingestion mode is passive,
 # and ci-doctor capability is detected for the target repository.
 _EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS: tuple[float, ...] = (
@@ -36,7 +36,10 @@ _EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS: tuple[float, ...] = (
     45.0,
     60.0,
     75.0,
-    75.0,
+    90.0,
+    90.0,
+    90.0,
+    105.0,
 )
 
 
@@ -172,6 +175,32 @@ class OrchestratorAgent:
                 ]
             if findings:
                 return findings
+
+        # One final immediate read reduces edge misses where ci-doctor publishes right
+        # after the last scheduled polling attempt.
+        try:
+            final_findings = await self._gh_aw_adapter.collect_external_diagnostics(
+                owner=owner,
+                repo=repo,
+                run_id=event.workflow_run.id,
+                head_sha=event.workflow_run.head_sha,
+            )
+        except Exception as exc:
+            return [
+                ExternalDiagnostic(
+                    source="ci-doctor",
+                    status=ExternalDiagnosticStatus.ERROR,
+                    summary="Failed to collect ci-doctor findings",
+                    matched_run_id=event.workflow_run.id,
+                    metadata={
+                        "reason_code": "collection_failed",
+                        "error_type": type(exc).__name__,
+                        "attempt": len(_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS) + 1,
+                    },
+                )
+            ]
+        if final_findings:
+            return final_findings
 
         return [
             ExternalDiagnostic(
