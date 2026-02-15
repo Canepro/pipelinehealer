@@ -99,8 +99,160 @@ const DETAIL_SECTIONS: Array<{ key: string; label: string }> = [
   { key: 'ai_self_improvement', label: 'AI Self-Improvement' },
 ]
 
-function ExternalFindingsPanel({ details }: { details: Record<string, unknown> }) {
-  const [expanded, setExpanded] = useState(false)
+/** Maximum visible lines before truncation with "Show more". */
+const SECTION_LINE_LIMIT = 6
+
+/**
+ * Lightweight inline markdown renderer.
+ *
+ * Handles:
+ * - `**bold**`
+ * - `` `code` ``
+ * - `[text](url)` links
+ *
+ * Returns an array of React nodes suitable for inline rendering.
+ */
+function renderInlineMarkdown(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = []
+  // Regex alternation: bold | code | link
+  const re = /\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+  let key = 0
+
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index))
+    }
+    if (match[1] != null) {
+      parts.push(
+        <strong key={key++} className="font-semibold">
+          {match[1]}
+        </strong>,
+      )
+    } else if (match[2] != null) {
+      parts.push(
+        <code
+          key={key++}
+          className="bg-gray-200 dark:bg-gray-700 px-1 py-0.5 rounded text-xs font-mono"
+        >
+          {match[2]}
+        </code>,
+      )
+    } else if (match[3] != null && match[4] != null) {
+      parts.push(
+        <a
+          key={key++}
+          href={match[4]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-azure-600 hover:text-azure-700 dark:text-azure-400 underline"
+        >
+          {match[3]}
+        </a>,
+      )
+    }
+    lastIndex = match.index + match[0].length
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex))
+  }
+  return parts
+}
+
+/**
+ * Render a section body string as structured content.
+ *
+ * Detects bullet lists (- item, * item) vs plain paragraphs and renders
+ * them with appropriate styling instead of raw whitespace-pre-wrap.
+ */
+function MarkdownBody({ text }: { text: string }) {
+  const lines = text.split('\n')
+  const groups: Array<{ type: 'paragraph' | 'bullet'; lines: string[] }> = []
+
+  for (const raw of lines) {
+    const trimmed = raw.trim()
+    if (!trimmed) {
+      // Blank line — start a fresh group on next non-empty line.
+      continue
+    }
+    const isBullet = /^[-*]\s|^- \[[ x]\]\s/i.test(trimmed)
+    const last = groups[groups.length - 1]
+    if (last && last.type === (isBullet ? 'bullet' : 'paragraph')) {
+      last.lines.push(trimmed)
+    } else {
+      groups.push({ type: isBullet ? 'bullet' : 'paragraph', lines: [trimmed] })
+    }
+  }
+
+  return (
+    <>
+      {groups.map((group, gi) =>
+        group.type === 'bullet' ? (
+          <ul key={gi} className="list-disc list-inside space-y-1 ml-1">
+            {group.lines.map((line, li) => {
+              // Strip leading - / * / - [x]
+              const content = line.replace(/^[-*]\s+(\[[ x]\]\s+)?/i, '')
+              const checked = /^- \[x\]/i.test(line)
+              return (
+                <li key={li} className="text-sm text-gray-900 dark:text-white leading-relaxed">
+                  {checked && (
+                    <span className="text-emerald-600 dark:text-emerald-400 mr-1">&#10003;</span>
+                  )}
+                  {renderInlineMarkdown(content)}
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p key={gi} className="text-sm text-gray-900 dark:text-white leading-relaxed">
+            {group.lines.map((line, li) => (
+              <span key={li}>
+                {li > 0 && ' '}
+                {renderInlineMarkdown(line)}
+              </span>
+            ))}
+          </p>
+        ),
+      )}
+    </>
+  )
+}
+
+/**
+ * Renders a section with optional "Show more / Show less" truncation.
+ */
+function CollapsibleSection({ label, text }: { label: string; text: string }) {
+  const lines = text.split('\n').filter((l) => l.trim())
+  const needsTruncation = lines.length > SECTION_LINE_LIMIT
+  const [showAll, setShowAll] = useState(false)
+
+  const displayText = needsTruncation && !showAll
+    ? lines.slice(0, SECTION_LINE_LIMIT).join('\n')
+    : text
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+        {label}
+      </p>
+      <div className="space-y-2">
+        <MarkdownBody text={displayText} />
+      </div>
+      {needsTruncation && (
+        <button
+          onClick={() => setShowAll(!showAll)}
+          className="mt-1 text-xs font-medium text-azure-600 hover:text-azure-700 dark:text-azure-400 dark:hover:text-azure-300"
+        >
+          {showAll ? 'Show less' : `Show more (${lines.length - SECTION_LINE_LIMIT} more lines)`}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function ExternalFindingsPanel({ details, defaultOpen = false }: { details: Record<string, unknown>; defaultOpen?: boolean }) {
+  const [expanded, setExpanded] = useState(defaultOpen)
 
   const hasSections = DETAIL_SECTIONS.some(
     (s) => typeof details[s.key] === 'string' && (details[s.key] as string).trim(),
@@ -160,16 +312,7 @@ function ExternalFindingsPanel({ details }: { details: Record<string, unknown> }
           {DETAIL_SECTIONS.map(({ key, label }) => {
             const value = details[key]
             if (typeof value !== 'string' || !value.trim()) return null
-            return (
-              <div key={key}>
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                  {label}
-                </p>
-                <div className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap leading-relaxed">
-                  {value}
-                </div>
-              </div>
-            )
+            return <CollapsibleSection key={key} label={label} text={value} />
           })}
         </div>
       )}
@@ -389,7 +532,7 @@ export default function ActivityDetail() {
                     )}
                     {typeof (diagnostic.metadata as Record<string, unknown>)?.details === 'object' &&
                       (diagnostic.metadata as Record<string, unknown>).details !== null && (
-                        <ExternalFindingsPanel details={(diagnostic.metadata as Record<string, unknown>).details as Record<string, unknown>} />
+                        <ExternalFindingsPanel details={(diagnostic.metadata as Record<string, unknown>).details as Record<string, unknown>} defaultOpen={diagnostic.status === 'available'} />
                       )}
                   </div>
                   {!diagnostic.url && typeof (diagnostic.metadata as Record<string, unknown>)?.details !== 'object' && (
