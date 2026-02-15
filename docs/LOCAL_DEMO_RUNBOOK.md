@@ -1,5 +1,7 @@
 # Local Demo Runbook (PipelineHealer)
 
+<!-- LAST_VERIFIED: a293a38 -->
+
 This runbook documents the detailed operator workflow for both Azure and local execution.
 
 Positioning for this project:

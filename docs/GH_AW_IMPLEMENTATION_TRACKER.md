@@ -2,7 +2,27 @@
 
 **Last updated:** February 15, 2026
 
-This tracker is the execution source of truth for GitHub Agentic Workflows adoption in PipelineHealer.
+This tracker is the single source of truth for GitHub Agentic Workflows adoption in PipelineHealer, covering both the original research review and execution status.
+
+## Research Summary
+
+Primary source: [`Meet the Workflows: Fault Investigation`](https://github.github.com/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/) (Jan 13, 2026)
+
+**Critical rule**: Workflow specs must be created from `gh aw` templates and compiled. Do not hand-write freeform markdown files under `.github/workflows/`.
+
+**Two-layer strategy**:
+
+1. **Layer 1 (Repo hygiene)**: enforce quality in this repository with baseline CI and valid `gh aw` workflows.
+2. **Layer 2 (Product capability)**: keep PipelineHealer native-first; ingest `gh aw`/`ci-doctor` findings as optional external diagnostics for monitored repos.
+
+**Runtime clarification**: `gh aw` CLI is an authoring-time dependency (init/add/compile), not a runtime dependency. Monitored repos may or may not have `ci-doctor` installed; missing capability must not block healing.
+
+**Practical leverage patterns**:
+
+- Use CI Doctor outputs as high-signal triage input before remediation planning.
+- Use Breaking Change Checker alerts as explicit human sign-off gates.
+- Use Schema Consistency Checker to keep `docs/API.md` and runtime behavior aligned.
+- Convert repeated findings into deterministic remediation templates and new fixtures.
 
 ## Scope
 
@@ -248,7 +268,7 @@ Acceptance:
 - Confirmed baseline repo CI at `.github/workflows/ci.yml`.
 - Removed invalid hand-written workflow markdown files from `.github/workflows/`.
 - Installed `gh aw` extension (`github/gh-aw v0.43.23`).
-- Updated strategy doc: `docs/GH_AW_WORKFLOWS_QUALITY_HYGIENE_REVIEW.md`.
+- Updated strategy section in `docs/GH_AW_IMPLEMENTATION_TRACKER.md`.
 - Ran `gh aw init --no-mcp`.
 - Added and compiled:
   - `.github/workflows/ci-doctor.md`

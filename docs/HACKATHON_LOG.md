@@ -177,8 +177,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Added allowed repositories management UI in Settings page Admin Controls: add/remove repo entries with inline validation, persisted via `PATCH /api/settings` and recorded in admin audit trail.
 - Updated all project docs to reflect bug fixes and new capabilities.
 - Added GitHub Agentic Workflows implementation tracking docs:
-  - strategy/review: `docs/GH_AW_WORKFLOWS_QUALITY_HYGIENE_REVIEW.md`
-  - execution tracker: `docs/GH_AW_IMPLEMENTATION_TRACKER.md`
+  - strategy + execution tracker: `docs/GH_AW_IMPLEMENTATION_TRACKER.md`
 - Completed and merged GitHub Agentic Workflows Layer 1 implementation (PR #3):
   - initialized repo with `gh aw init --no-mcp`
   - added baseline `.github/workflows/ci.yml`

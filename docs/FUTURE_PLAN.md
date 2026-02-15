@@ -102,8 +102,7 @@ Acceptance target:
 ## Documentation Improvement Plan (Professional Standard)
 
 - Keep architecture and execution docs synchronized with code in each Layer 2 PR:
-  - `docs/GH_AW_IMPLEMENTATION_TRACKER.md` (status and checklists)
-  - `docs/GH_AW_WORKFLOWS_QUALITY_HYGIENE_REVIEW.md` (strategy and decisions)
+  - `docs/GH_AW_IMPLEMENTATION_TRACKER.md` (status, checklists, strategy, and decisions)
   - `docs/API.md` (new endpoints/fields/contracts)
   - `docs/DEMO_SCRIPT.md` + `docs/LOCAL_DEMO_RUNBOOK.md` (operator flow and troubleshooting)
 - Add a release-quality "What changed / Why / Rollback" section to major doc updates.

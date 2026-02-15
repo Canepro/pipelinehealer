@@ -97,9 +97,22 @@ Before major pushes:
 
 ## Update Policy
 
-When behavior changes, update docs in this order:
+When behavior changes, update docs using this checklist:
 
-1. `README.md` (user-facing behavior)
-2. `docs/DEMO_SCRIPT.md` (recording/demo steps)
-3. `docs/LOCAL_DEMO_RUNBOOK.md` (operator detail)
-4. `docs/HACKATHON_LOG.md` (status, checklist, execution history)
+**Feature PR** (new endpoint, UI control, agent behavior):
+1. `docs/API.md` — endpoint/model/field changes
+2. `README.md` — features list, env vars, commands
+3. `docs/DEMO_SCRIPT.md` — if demo flow is affected
+4. `docs/LOCAL_DEMO_RUNBOOK.md` — operator steps
+
+**Config/infra change** (env vars, deploy, security):
+1. `README.md` — env vars table, security notes
+2. `docs/LOCAL_DEMO_RUNBOOK.md` — deploy/verify steps
+3. `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md` — if new placeholders introduced
+
+**Bug fix**:
+1. Only update docs if the fix changes documented behavior.
+
+**After any commit**, verify the `<!-- LAST_VERIFIED: ... -->` comment near the top of each changed doc still matches HEAD. Update it if you edited the file.
+
+Internal/transient docs (`docs/HACKATHON_LOG.md`, `docs/FUTURE_PLAN.md`, `docs/GH_AW_IMPLEMENTATION_TRACKER.md`) are updated at author discretion — they are not user-facing.

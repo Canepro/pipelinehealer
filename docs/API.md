@@ -1,5 +1,7 @@
 # PipelineHealer API Reference
 
+<!-- LAST_VERIFIED: a293a38 -->
+
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
 Base URL (Azure): `https://ca-canepro-ph-backend.kinddune-53ac219d.eastus2.azurecontainerapps.io`

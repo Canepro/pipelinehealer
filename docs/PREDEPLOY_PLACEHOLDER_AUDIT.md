@@ -1,5 +1,7 @@
 # Pre-Deploy Placeholder Audit
 
+<!-- LAST_VERIFIED: a293a38 -->
+
 Use this checklist before `azd up`, before major public demos, and before final submission recording.
 
 If any stop-ship check fails, do not deploy.

@@ -1,30 +1,30 @@
 # Docs Index
 
+<!-- LAST_VERIFIED: a293a38 -->
+
 Use this index to find the right doc quickly.
 
-- `API.md`
-  - Full API reference: endpoints, authentication, data models, and best practices.
-- `DEMO_SCRIPT.md`
-  - Single-file recording checklist and 2-minute narration script.
-- `LOCAL_DEMO_RUNBOOK.md`
-  - Full local and Azure E2E operator runbook.
-- `HACKATHON_LOG.md`
-  - Current phase status, submission checklist, and milestone history.
-- `GH_AW_WORKFLOWS_QUALITY_HYGIENE_REVIEW.md`
-  - Layer 1 outcome summary and Layer 2-next adoption plan for GitHub Agentic Workflows.
-- `GH_AW_IMPLEMENTATION_TRACKER.md`
-  - Execution tracker for Layer 1 completion and Layer 2 implementation backlog.
-- `PREDEPLOY_PLACEHOLDER_AUDIT.md`
-  - Pre-deploy stop-ship checklist.
-- `FUTURE_PLAN.md`
-  - Post-demo roadmap and next-priority backlog.
-- `UI_PLAN.md`
-  - UI maturity plan, principles, and weekly tracking through submission.
-- `screens/`
-  - Versioned UI proof screenshots used by Week 2 and Week 3 evidence checkpoints.
-- `../AGENTS.md`
-  - Concise repo operating rules for agents and maintainers.
-- `../CONTRIBUTING.md`
-  - Contributor workflow, quality gates, and docs update policy.
-- `../SECURITY.md`
-  - Vulnerability reporting and secret hygiene policy.
+### Tier 1 — User-Facing (update every feature PR)
+
+- `../README.md` — public-facing project overview, features, env vars, setup
+- `API.md` — full API reference: endpoints, authentication, data models, best practices
+- `../CONTRIBUTING.md` — contributor workflow, quality gates, and docs update policy
+- `../SECURITY.md` — vulnerability reporting and secret hygiene policy
+
+### Tier 2 — Operator (update on infra/config changes)
+
+- `DEMO_SCRIPT.md` — single-file recording checklist and 2-minute narration script
+- `LOCAL_DEMO_RUNBOOK.md` — full local and Azure E2E operator runbook
+- `PREDEPLOY_PLACEHOLDER_AUDIT.md` — pre-deploy stop-ship checklist
+
+### Tier 3 — Internal/Transient (author discretion; archive post-submission)
+
+- `HACKATHON_LOG.md` — current phase status, submission checklist, and milestone history
+- `FUTURE_PLAN.md` — post-demo roadmap and next-priority backlog
+- `UI_PLAN.md` — UI maturity plan, principles, and weekly tracking through submission
+- `GH_AW_IMPLEMENTATION_TRACKER.md` — gh-aw research summary, Layer 1/2 checklists, decision log, and evidence
+- `screens/` — versioned UI proof screenshots used by Week 2 and Week 3 evidence checkpoints
+
+### Repo-Level
+
+- `../AGENTS.md` — concise repo operating rules for agents and maintainers (includes doc update checklist)
