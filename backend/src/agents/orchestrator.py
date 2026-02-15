@@ -148,6 +148,7 @@ class OrchestratorAgent:
             ]
 
         # Poll with bounded backoff to allow ci-doctor time to publish issue findings.
+        last_collection_error_type: str | None = None
         for attempt, delay in enumerate((0.0, *_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS)):
             if delay > 0:
                 await asyncio.sleep(delay)
@@ -160,19 +161,16 @@ class OrchestratorAgent:
                     run_number=event.workflow_run.run_number,
                 )
             except Exception as exc:
-                return [
-                    ExternalDiagnostic(
-                        source="ci-doctor",
-                        status=ExternalDiagnosticStatus.ERROR,
-                        summary="Failed to collect ci-doctor findings",
-                        matched_run_id=event.workflow_run.id,
-                        metadata={
-                            "reason_code": "collection_failed",
-                            "error_type": type(exc).__name__,
-                            "attempt": attempt,
-                        },
-                    )
-                ]
+                last_collection_error_type = type(exc).__name__
+                logger.warning(
+                    "Transient ci-doctor collection failure for %s/%s run %s on attempt %s: %s",
+                    owner,
+                    repo,
+                    event.workflow_run.id,
+                    attempt,
+                    last_collection_error_type,
+                )
+                continue
             if findings:
                 return findings
 
@@ -187,21 +185,24 @@ class OrchestratorAgent:
                 run_number=event.workflow_run.run_number,
             )
         except Exception as exc:
+            last_collection_error_type = type(exc).__name__
+            final_findings = []
+        if final_findings:
+            return final_findings
+        if last_collection_error_type is not None:
             return [
                 ExternalDiagnostic(
                     source="ci-doctor",
                     status=ExternalDiagnosticStatus.ERROR,
-                    summary="Failed to collect ci-doctor findings",
+                    summary="Failed to collect ci-doctor findings after retries",
                     matched_run_id=event.workflow_run.id,
                     metadata={
                         "reason_code": "collection_failed",
-                        "error_type": type(exc).__name__,
-                        "attempt": len(_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS) + 1,
+                        "error_type": last_collection_error_type,
+                        "attempts": len((0.0, *_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS)) + 1,
                     },
                 )
             ]
-        if final_findings:
-            return final_findings
 
         return [
             ExternalDiagnostic(

@@ -129,6 +129,36 @@ class _NeverAvailableAdapter:
         return []
 
 
+class _TransientErrorThenAvailableAdapter:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def discover_capability(self, owner: str, repo: str) -> GHAWCapability:
+        _ = owner, repo
+        return GHAWCapability(repo_full_name="Canepro/repo", is_available=True)
+
+    async def collect_external_diagnostics(
+        self,
+        owner: str,
+        repo: str,
+        run_id: int,
+        head_sha: str,
+        run_number: int | None = None,
+    ) -> list[ExternalDiagnostic]:
+        _ = owner, repo, run_id, head_sha, run_number
+        self.calls += 1
+        if self.calls == 1:
+            raise RuntimeError("transient")
+        return [
+            ExternalDiagnostic(
+                source="ci-doctor",
+                status=ExternalDiagnosticStatus.AVAILABLE,
+                summary="found after transient error",
+                matched_run_id=run_id,
+            )
+        ]
+
+
 @pytest.fixture(autouse=True)
 def _clear_settings_cache() -> None:
     get_settings.cache_clear()
@@ -196,3 +226,25 @@ async def test_collect_external_diagnostics_final_fetch_before_timeout(monkeypat
     assert diagnostics[0].metadata.get("reason_code") == "poll_window_exhausted"
     # Initial attempt + each scheduled delay attempt + final immediate fetch.
     assert adapter.calls == len((0.0, *_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS)) + 1
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_retries_after_transient_error(monkeypatch) -> None:
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "true")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "passive")
+    get_settings.cache_clear()
+
+    orchestrator = OrchestratorAgent(github_tools=_DummyGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
+    adapter = _TransientErrorThenAvailableAdapter()
+    orchestrator._gh_aw_adapter = adapter  # type: ignore[assignment]
+
+    async def no_sleep(delay: float) -> None:
+        _ = delay
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event())
+    assert len(diagnostics) == 1
+    assert diagnostics[0].status == ExternalDiagnosticStatus.AVAILABLE
+    assert adapter.calls == 2
