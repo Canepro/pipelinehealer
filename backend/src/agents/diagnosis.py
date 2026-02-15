@@ -8,7 +8,7 @@ from typing import Any
 from azure.identity import DefaultAzureCredential
 
 from ..config import get_settings
-from ..models import Diagnosis, FailureType, LogAnalysis
+from ..models import Diagnosis, ExternalDiagnostic, FailureType, LogAnalysis
 from .base import create_cloud_agent, get_agent_prompt
 
 logger = logging.getLogger(__name__)
@@ -50,12 +50,14 @@ class DiagnosisAgent:
         self,
         log_analyses: list[LogAnalysis],
         workflow_info: dict[str, Any] | None = None,
+        external_diagnostics: list[ExternalDiagnostic] | None = None,
     ) -> Diagnosis:
         """Diagnose the root cause of a failure based on log analyses.
 
         Args:
             log_analyses: List of log analysis results
             workflow_info: Additional workflow information
+            external_diagnostics: Optional supplemental diagnostics findings
 
         Returns:
             Diagnosis result
@@ -82,6 +84,12 @@ class DiagnosisAgent:
                 pattern_diagnosis.root_cause[:200] if pattern_diagnosis.root_cause else "N/A",
             )
             return pattern_diagnosis
+
+        if external_diagnostics:
+            logger.debug(
+                "[debug-mode] Received %d external diagnostics signal(s) for diagnosis context",
+                len(external_diagnostics),
+            )
 
         # Use the agent for more complex analysis
         agent = await self._get_agent()

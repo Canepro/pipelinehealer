@@ -88,6 +88,22 @@ class Settings(BaseSettings):
         default="github-app-private-key",
         description="Name of the secret in Key Vault containing GitHub App private key",
     )
+    gh_aw_tools_enabled: bool = Field(
+        default=False,
+        description="Enable optional GitHub Agentic Workflows diagnostics integration hooks",
+    )
+    gh_aw_ingestion_mode: str = Field(
+        default="disabled",
+        description="External diagnostics ingestion mode: disabled or passive",
+    )
+    gh_aw_known_workflows: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: [
+            "ci-doctor",
+            "schema-consistency-checker",
+            "breaking-change-checker",
+        ],
+        description="Known external diagnostics workflow identifiers",
+    )
 
     # Application Configuration
     environment: str = Field(
@@ -224,6 +240,31 @@ class Settings(BaseSettings):
         if isinstance(value, list):
             return [str(repo).strip() for repo in value if str(repo).strip()]
         return value
+
+    @field_validator("gh_aw_known_workflows", mode="before")
+    @classmethod
+    def parse_gh_aw_known_workflows(cls, value: Any) -> Any:
+        """Allow known gh-aw workflows from JSON arrays or comma-separated env values."""
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return []
+            if text.startswith("["):
+                parsed = json.loads(text)
+                return [str(item).strip() for item in parsed if str(item).strip()]
+            return [workflow.strip() for workflow in text.split(",") if workflow.strip()]
+        if isinstance(value, list):
+            return [str(workflow).strip() for workflow in value if str(workflow).strip()]
+        return value
+
+    @field_validator("gh_aw_ingestion_mode")
+    @classmethod
+    def validate_gh_aw_ingestion_mode(cls, value: str) -> str:
+        """Validate external diagnostics ingestion mode."""
+        normalized = value.strip().lower()
+        if normalized not in {"disabled", "passive"}:
+            raise ValueError("GH_AW_INGESTION_MODE must be one of: disabled, passive")
+        return normalized
 
     @field_validator("azure_openai_endpoint")
     @classmethod

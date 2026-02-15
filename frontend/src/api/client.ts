@@ -78,6 +78,9 @@ export interface AppSettings {
   github_pat_configured: boolean
   github_app_configured: boolean
   github_auth_mode: string
+  gh_aw_tools_enabled: boolean
+  gh_aw_ingestion_mode: string
+  gh_aw_known_workflows: string[]
   ph_allowed_repos: string[]
   cors_allowed_origins: string[]
   cors_allow_origin_regex: string
@@ -110,6 +113,9 @@ export interface AdminSettingsUpdate {
   log_prompt_max_chars?: number
   log_prompt_head_chars?: number
   log_prompt_tail_chars?: number
+  gh_aw_tools_enabled?: boolean
+  gh_aw_ingestion_mode?: 'disabled' | 'passive'
+  gh_aw_known_workflows?: string[]
   ph_allowed_repos?: string[]
 }
 

@@ -11,10 +11,12 @@ from azure.identity import DefaultAzureCredential
 from ..config import get_settings
 from ..models import (
     ActivityRecord,
+    ExternalDiagnostic,
     RemediationStatus,
     WorkflowRunEvent,
 )
 from ..storage import ActivityStorage
+from ..tools.gh_aw_adapter import GHAWAdapter, create_gh_aw_adapter
 from ..tools.github_tools import GitHubTools
 from .base import create_cloud_agent, get_agent_prompt
 from .diagnosis import DiagnosisAgent
@@ -49,6 +51,7 @@ class OrchestratorAgent:
         self._storage = storage
         self._credential = azure_credential or DefaultAzureCredential()
         self._settings = get_settings()
+        self._gh_aw_adapter: GHAWAdapter = create_gh_aw_adapter(github_tools=github_tools)
 
         # Initialize sub-agents
         self._log_analyzer = LogAnalyzerAgent(github_tools, azure_credential)
@@ -72,7 +75,37 @@ class OrchestratorAgent:
     def refresh_runtime_settings(self) -> None:
         """Refresh mutable runtime settings for orchestrator and child agents."""
         self._settings = get_settings()
+        self._gh_aw_adapter = create_gh_aw_adapter(github_tools=self._github_tools)
         self._remediation_agent.refresh_runtime_settings()
+
+    async def _collect_external_diagnostics(
+        self,
+        owner: str,
+        repo: str,
+        event: WorkflowRunEvent,
+    ) -> list[ExternalDiagnostic]:
+        """Collect optional external diagnostics signals when feature-flagged on."""
+        if not self._settings.gh_aw_tools_enabled:
+            return []
+        if self._settings.gh_aw_ingestion_mode != "passive":
+            return []
+
+        capability = await self._gh_aw_adapter.discover_capability(owner, repo)
+        if not capability.is_available:
+            logger.info(
+                "External diagnostics unavailable for %s/%s: %s",
+                owner,
+                repo,
+                capability.reason or "unknown",
+            )
+            return []
+
+        return await self._gh_aw_adapter.collect_external_diagnostics(
+            owner=owner,
+            repo=repo,
+            run_id=event.workflow_run.id,
+            head_sha=event.workflow_run.head_sha,
+        )
 
     async def _run_with_timeout(self, *, step_name: str, coro: Awaitable[T]) -> T:
         """Run a pipeline step with optional timeout protection."""
@@ -175,11 +208,18 @@ class OrchestratorAgent:
                 "branch": event.workflow_run.head_branch,
                 "conclusion": event.workflow_run.conclusion,
             }
+            external_diagnostics = await self._collect_external_diagnostics(owner, repo, event)
+            if external_diagnostics:
+                activity.external_diagnostics = external_diagnostics
 
             t1 = time.monotonic()
             diagnosis = await self._run_with_timeout(
                 step_name="Diagnose",
-                coro=self._diagnosis_agent.diagnose(log_analyses, workflow_info),
+                coro=self._diagnosis_agent.diagnose(
+                    log_analyses,
+                    workflow_info,
+                    external_diagnostics=external_diagnostics,
+                ),
             )
             activity.failure_type = diagnosis.failure_type
             activity.diagnosis = diagnosis

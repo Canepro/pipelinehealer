@@ -378,3 +378,64 @@ async def test_allowlist_patch_is_effective_for_webhook_scope(monkeypatch) -> No
     data = response.json()
     assert data["status"] == "ignored"
     assert "outside PH_ALLOWED_REPOS" in data["reason"]
+
+
+@pytest.mark.asyncio
+async def test_settings_endpoint_includes_gh_aw_fields(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "true")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "passive")
+    monkeypatch.setenv("GH_AW_KNOWN_WORKFLOWS", "ci-doctor, schema-consistency-checker")
+    get_settings.cache_clear()
+
+    response = await _get_settings(headers={"X-Admin-Key": "admin-secret"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["gh_aw_tools_enabled"] is True
+    assert data["gh_aw_ingestion_mode"] == "passive"
+    assert data["gh_aw_known_workflows"] == [
+        "ci-doctor",
+        "schema-consistency-checker",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_admin_can_patch_gh_aw_runtime_settings(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    get_settings.cache_clear()
+
+    dashboard.set_storage(InMemoryStorage())
+    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+
+    response = await _patch_settings(
+        {
+            "gh_aw_tools_enabled": True,
+            "gh_aw_ingestion_mode": "passive",
+            "gh_aw_known_workflows": ["ci-doctor", "ci-doctor", "schema-consistency-checker"],
+        },
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["gh_aw_tools_enabled"] is True
+    assert data["gh_aw_ingestion_mode"] == "passive"
+    assert data["gh_aw_known_workflows"] == ["ci-doctor", "schema-consistency-checker"]
+
+
+@pytest.mark.asyncio
+async def test_admin_patch_rejects_invalid_gh_aw_ingestion_mode(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    get_settings.cache_clear()
+
+    dashboard.set_storage(InMemoryStorage())
+    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+
+    response = await _patch_settings(
+        {"gh_aw_ingestion_mode": "active"},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 422
+    assert "gh_aw_ingestion_mode" in response.json()["detail"]

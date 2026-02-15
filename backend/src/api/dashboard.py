@@ -110,6 +110,19 @@ def _safe_settings_allowlist(raw_repos: list[str]) -> list[str]:
         return [str(repo).strip() for repo in raw_repos if str(repo).strip()]
 
 
+def _normalize_workflow_names(raw_workflows: list[Any]) -> list[str]:
+    """Normalize workflow identifiers and preserve insertion order."""
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for workflow in raw_workflows:
+        value = str(workflow).strip().lower()
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        normalized.append(value)
+    return normalized
+
+
 def _resolve_github_auth_mode() -> tuple[bool, bool, str]:
     """Return GitHub auth capabilities and active mode description."""
     settings = get_settings()
@@ -154,6 +167,9 @@ def _build_settings_view() -> AppSettingsView:
         github_pat_configured=has_pat,
         github_app_configured=has_app,
         github_auth_mode=github_auth_mode,
+        gh_aw_tools_enabled=settings.gh_aw_tools_enabled,
+        gh_aw_ingestion_mode=settings.gh_aw_ingestion_mode,
+        gh_aw_known_workflows=_normalize_workflow_names(settings.gh_aw_known_workflows),
         ph_allowed_repos=_safe_settings_allowlist(settings.ph_allowed_repos),
         cors_allowed_origins=settings.cors_allowed_origins,
         cors_allow_origin_regex=settings.cors_allow_origin_regex,
@@ -261,6 +277,21 @@ async def update_app_settings(
             changes["ph_allowed_repos"] = _normalize_allowed_repo_list(repos)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    if "gh_aw_ingestion_mode" in changes:
+        mode = str(changes["gh_aw_ingestion_mode"]).strip().lower()
+        if mode not in {"disabled", "passive"}:
+            raise HTTPException(
+                status_code=422,
+                detail="gh_aw_ingestion_mode must be one of: disabled, passive",
+            )
+        changes["gh_aw_ingestion_mode"] = mode
+
+    if "gh_aw_known_workflows" in changes:
+        workflows = changes["gh_aw_known_workflows"]
+        if not isinstance(workflows, list):
+            raise HTTPException(status_code=422, detail="gh_aw_known_workflows must be a list")
+        changes["gh_aw_known_workflows"] = _normalize_workflow_names(workflows)
 
     max_chars = int(changes.get("log_prompt_max_chars", settings.log_prompt_max_chars))
     head_chars = int(changes.get("log_prompt_head_chars", settings.log_prompt_head_chars))

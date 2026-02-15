@@ -45,6 +45,15 @@ class RemediationAction(StrEnum):
     SKIP = "skip"
 
 
+class ExternalDiagnosticStatus(StrEnum):
+    """Status of an external diagnostics signal."""
+
+    DISABLED = "disabled"
+    UNAVAILABLE = "unavailable"
+    AVAILABLE = "available"
+    ERROR = "error"
+
+
 # =============================================================================
 # GitHub Webhook Models
 # =============================================================================
@@ -152,6 +161,19 @@ class RemediationResult(BaseModel):
     details: dict[str, Any] = Field(default_factory=dict)
 
 
+class ExternalDiagnostic(BaseModel):
+    """Structured external diagnostic evidence linked to an activity."""
+
+    source: str
+    status: ExternalDiagnosticStatus
+    summary: str = ""
+    url: str | None = None
+    matched_run_id: int | None = None
+    confidence_delta: float = Field(default=0.0, ge=-1.0, le=1.0)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    collected_at: datetime = Field(default_factory=utcnow)
+
+
 # =============================================================================
 # Activity Tracking Models
 # =============================================================================
@@ -169,6 +191,7 @@ class ActivityRecord(BaseModel):
     failure_type: FailureType | None = None
     diagnosis: Diagnosis | None = None
     remediation_result: RemediationResult | None = None
+    external_diagnostics: list[ExternalDiagnostic] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
     duration_seconds: float | None = None
@@ -217,6 +240,9 @@ class AppSettingsView(BaseModel):
     github_pat_configured: bool
     github_app_configured: bool
     github_auth_mode: str
+    gh_aw_tools_enabled: bool
+    gh_aw_ingestion_mode: str
+    gh_aw_known_workflows: list[str]
     ph_allowed_repos: list[str]
     cors_allowed_origins: list[str]
     cors_allow_origin_regex: str
@@ -241,6 +267,9 @@ class AdminSettingsUpdateRequest(BaseModel):
     log_prompt_max_chars: int | None = Field(default=None, ge=1000, le=200000)
     log_prompt_head_chars: int | None = Field(default=None, ge=100, le=200000)
     log_prompt_tail_chars: int | None = Field(default=None, ge=100, le=200000)
+    gh_aw_tools_enabled: bool | None = None
+    gh_aw_ingestion_mode: str | None = None
+    gh_aw_known_workflows: list[str] | None = None
     ph_allowed_repos: list[str] | None = None
 
 
