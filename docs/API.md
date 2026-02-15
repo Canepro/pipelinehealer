@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: a293a38 -->
+<!-- LAST_VERIFIED: 77c76ae -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -432,9 +432,12 @@ Durably persists current mutable runtime settings so they survive backend restar
 {
   "env_file": "",
   "persisted_keys": [
-    "heal_mode", "auto_create_pr", "max_remediation_attempts",
-    "gh_aw_tools_enabled", "gh_aw_ingestion_mode",
-    "azure_openai_deployment_name"
+    "HEAL_MODE",
+    "AUTO_CREATE_PR",
+    "MAX_REMEDIATION_ATTEMPTS",
+    "GH_AW_TOOLS_ENABLED",
+    "GH_AW_INGESTION_MODE",
+    "AZURE_OPENAI_DEPLOYMENT_NAME"
   ],
   "redeploy_attempted": false,
   "redeploy_started": false,

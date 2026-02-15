@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: a293a38 -->
+<!-- LAST_VERIFIED: 77c76ae -->
 
 This runbook documents the detailed operator workflow for both Azure and local execution.
 
@@ -308,6 +308,7 @@ Notes:
   - `test` flaky failures: PipelineHealer retries failed jobs once.
   - `timeout`: PipelineHealer opens a PR bumping `timeout-minutes` in `.github/workflows/ci.yml` (if present).
   - `build_config`: PipelineHealer can open a PR only when the workflow contains a placeholder line like `REQUIRED_CONFIG: ""`.
+- If `gh_aw` passive ingestion is enabled, external diagnostics enrichment can take up to ~10 minutes (bounded polling plus ci-doctor issue publish latency).
 
 ## 7) Verify From API
 
@@ -414,6 +415,19 @@ Frontend Settings page:
 - Audit panel behavior is explicit by design: use **Load Audit** to fetch `GET /api/settings/audit` only when needed.
 
 ## Troubleshooting
+
+- WSL error from Azure commands: `UtilAcceptVsock... accept4 failed 110`
+  - Symptom: `bash scripts/ph.sh settings:check`, `logs`, or raw `az containerapp ...` intermittently fail.
+  - Workaround: query backend endpoints directly using known FQDN and keys from `backend/.env`:
+    ```bash
+    FQDN="<backend-fqdn>.azurecontainerapps.io"
+    API_KEY=$(grep -E '^API_AUTH_KEY=' backend/.env | tail -n1 | cut -d= -f2-)
+    ADMIN_KEY=$(grep -E '^ADMIN_API_KEY=' backend/.env | tail -n1 | cut -d= -f2-)
+
+    curl -fsS "https://$FQDN/api/settings" \
+      -H "X-API-Key: $API_KEY" \
+      -H "X-Admin-Key: $ADMIN_KEY" | jq '{gh_aw_tools_enabled,gh_aw_ingestion_mode}'
+    ```
 
 - Azure URL loads slowly after idle (first hit)
   - Likely cold start from scale-to-zero.

@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: a293a38 -->
+<!-- LAST_VERIFIED: 77c76ae -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -161,15 +161,22 @@ When a GitHub Actions workflow fails, PipelineHealer:
 flowchart LR
     GH[GitHub Actions workflow_run.completed] --> WH["/webhook/github"]
     WH --> WF[PipelineHealerWorkflow]
-    WF --> LA[Log Analyzer Agent]
-    LA --> DG[Diagnosis Agent]
-    DG --> RM[Remediation Agent]
-    RM --> OR[Orchestrator Agent]
-    OR --> GT[GitHubTools]
-    OR --> ST[(Cosmos DB / In-Memory Storage)]
+    WF --> OR[Orchestrator Agent]
+    OR --> LA[Log Analyzer Agent]
+    OR --> DG[Diagnosis Agent]
+    OR --> RM[Remediation Agent]
+    RM --> GT[GitHubTools]
     GT --> PR[Create PR]
     GT --> IS[Create Issue]
     GT --> RR[Re-run Failed Jobs]
+    OR --> ADP[GHAW Adapter passive mode]
+    ADP --> CD[ci-doctor issue/comment findings]
+    CD --> EXT[External diagnostics context]
+    EXT --> DG
+    OR --> ST[(Cosmos DB / In-Memory Storage)]
+    UI[Admin Settings UI] --> API["/api/settings*"]
+    API --> OR
+    API --> ST
 ```
 
 ### ASCII Diagram
@@ -181,23 +188,27 @@ flowchart LR
 │  ┌───────────┐  │     │  ┌─────────┐    ┌───────────────────┐   │
 │  │ Workflow  │──┼─────┼─▶│ Webhook │───▶│   Orchestrator    │   │
 │  │  Failed   │  │     │  │ Handler │    │      Agent        │   │
-│  └───────────┘  │     │  └─────────┘    └─────────┬─────────┘   │
-│                 │     │                           │             │
-│  ┌───────────┐  │     │                 ┌─────────▼─────────┐   │
-│  │    PR     │◀─┼─────┼─────────────────│   Log Analyzer    │   │
-│  │ Created   │  │     │                 │      Agent        │   │
-│  └───────────┘  │     │                 └─────────┬─────────┘   │
-│                 │     │                           │             │
-│  ┌───────────┐  │     │                 ┌─────────▼─────────┐   │
-│  │  Issue    │◀─┼─────┼─────────────────│    Diagnosis      │   │
-│  │ Created   │  │     │                 │      Agent        │   │
-│  └───────────┘  │     │                 └─────────┬─────────┘   │
-│                 │     │                           │             │
-└─────────────────┘     │                 ┌─────────▼─────────┐   │
-                        │                 │   Remediation     │   │
-                        │                 │      Agent        │   │
-                        │                 └───────────────────┘   │
-                        └──────────────────────────────────────────┘
+│  └───────────┘  │     │  └─────────┘    └───────┬─────┬─────┘   │
+│                 │     │                         │     │         │
+│  ┌───────────┐  │     │               ┌─────────▼─┐ ┌─▼───────┐ │
+│  │ PR/Issue/ │◀─┼─────┼───────────────│ Remediation│ │ GHAW    │ │
+│  │ Rerun Ops │  │     │               │   Agent    │ │ Adapter │ │
+│  └───────────┘  │     │               └──────┬─────┘ └──┬─────┘ │
+│                 │     │                      │           │       │
+└─────────────────┘     │               ┌──────▼─────┐ ┌──▼──────┐ │
+                        │               │ Diagnosis  │ │ ci-doctor│ │
+                        │               │   Agent    │ │ findings │ │
+                        │               └──────┬─────┘ └─────────┘ │
+                        │                      │                    │
+                        │               ┌──────▼─────┐              │
+                        │               │ Log Analyzer│              │
+                        │               │    Agent    │              │
+                        │               └─────────────┘              │
+                        │               ┌──────────────────────────┐ │
+                        │               │ Cosmos DB (activities,   │ │
+                        │               │ settings, audit)         │ │
+                        │               └──────────────────────────┘ │
+                        └────────────────────────────────────────────┘
 ```
 
 ## Features
@@ -213,6 +224,7 @@ flowchart LR
 - **Settings Persistence**: One-click "Persist Settings" saves mutable runtime config to Cosmos DB; auto-restored on startup
 - **Runtime Model Switching**: Change Azure OpenAI deployment name via settings UI with immediate agent cache invalidation
 - **GitHub Agentic Workflows Integration**: Passive ingestion of external diagnostics (ci-doctor) when available on monitored repos
+- **Bounded External Diagnostics Polling**: Passive ingestion waits up to 10 minutes and performs a final immediate fetch before timeout classification
 - **Mobile Navigation Reliability**: Route-safe, notch-safe sheet navigation for portrait mobile workflows
 - **Enterprise Ready**: Azure-native with full observability and security
 
