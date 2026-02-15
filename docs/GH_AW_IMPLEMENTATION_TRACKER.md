@@ -14,7 +14,7 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
 | Workstream | Status | Notes |
 |---|---|---|
 | Layer 1: baseline repo hygiene | Completed | merged in PR #3 with passing CI checks |
-| Layer 2: PipelineHealer orchestration integration | In Progress | PR A/PR B/PR C implemented on `main`; PR D pending |
+| Layer 2: PipelineHealer orchestration integration | In Progress | PR A through PR F implemented on `main`; demo hardening and release polish remain |
 
 ## Layer 1 Checklist (Repo Hygiene)
 
@@ -41,7 +41,7 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
 - [x] Implement universal diagnosis upgrades (history signals, PR-file correlation, richer deterministic patterns).
 - [x] Implement backend adapter for capability discovery + optional `gh aw` signal ingestion.
 - [x] Ingest `gh aw` outputs (issues/comments/discussions) into diagnosis/remediation signals without blocking native diagnosis/remediation.
-- [ ] Surface `gh aw` run status and findings in dashboard activity views.
+- [x] Surface `gh aw` run status and findings in dashboard activity views.
 - [ ] Add demo flow narrative:
   - failure detected
   - `gh aw` workflow invoked
@@ -280,6 +280,18 @@ Acceptance:
   - runtime-only warning banner ("lost on redeploy")
   - "Persist and Redeploy" action (command copy)
   - new helper command `bash scripts/ph.sh settings:persist ...` to persist `PH_ALLOWED_REPOS` and env-only redeploy.
+- Implemented **PR D** on `main`:
+  - Added full settings controls for healing policy and `gh_aw` runtime settings in admin UI.
+  - Added browser-only persistence flow (`Persist Settings`) to write mutable settings without manual shell edits.
+  - Updated scripts/docs alignment for mutable settings persistence behavior.
+- Implemented **PR E** on `main`:
+  - Added patchable `azure_openai_deployment_name` runtime setting.
+  - Added runtime agent refresh so model deployment changes take effect immediately.
+  - Added backend/frontend coverage for model switch and settings persistence path.
+- Implemented **PR F** on `main`:
+  - Added activity detail external diagnostics card with status badges, confidence deltas, and findings links.
+  - Added activities list/table external diagnostic badges plus findings actions.
+  - Added empty-state messaging when external diagnostics are absent.
 - Closed superseded docs-only PR: `https://github.com/Canepro/pipelinehealer/pull/2`.
 - Merged Layer 1 PR #3 to `main` after passing CI checks.
 - Updated baseline CI install step to `uv pip install --system -e ".[dev]"` for GitHub Actions compatibility.

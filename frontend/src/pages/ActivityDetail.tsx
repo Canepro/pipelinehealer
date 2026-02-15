@@ -13,6 +13,61 @@ import { api } from '../api/client'
 import StatusBadge from '../components/StatusBadge'
 import FailureTypeBadge from '../components/FailureTypeBadge'
 
+function formatSourceLabel(source: string): string {
+  const normalized = source.trim().replace(/[_-]+/g, ' ')
+  if (!normalized) {
+    return 'External Tool'
+  }
+  return normalized.replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function getExternalDiagnosticStatusMeta(status: string): {
+  label: string
+  className: string
+} {
+  switch (status) {
+    case 'available':
+      return {
+        label: 'Available',
+        className:
+          'inline-flex items-center rounded-md bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200',
+      }
+    case 'error':
+      return {
+        label: 'Error',
+        className:
+          'inline-flex items-center rounded-md bg-rose-100 px-2 py-1 text-xs font-medium text-rose-700 dark:bg-rose-900/40 dark:text-rose-200',
+      }
+    case 'unavailable':
+      return {
+        label: 'Unavailable',
+        className:
+          'inline-flex items-center rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-200',
+      }
+    case 'disabled':
+      return {
+        label: 'Disabled',
+        className:
+          'inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200',
+      }
+    default:
+      return {
+        label: status || 'Unknown',
+        className:
+          'inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200',
+      }
+  }
+}
+
+function formatConfidenceDelta(delta: number): string {
+  if (delta === 0) {
+    return 'No confidence change'
+  }
+  const sign = delta > 0 ? '+' : '-'
+  const pct = Math.round(Math.abs(delta) * 100)
+  return `${sign}${pct}% confidence`
+}
+
 function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
   includesProposedFix: boolean
   reasonCode: string | null
@@ -72,6 +127,7 @@ export default function ActivityDetail() {
     )
   }
   const remediationMeta = getIssueProposalMeta(activity.remediation_result?.details)
+  const externalDiagnostics = activity.external_diagnostics ?? []
 
   return (
     <div className="space-y-6">
@@ -185,6 +241,68 @@ export default function ActivityDetail() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* External Diagnostics Card */}
+      <div className="card p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          External Diagnostics
+        </h2>
+        {externalDiagnostics.length === 0 ? (
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            No external diagnostics available. PipelineHealer used built-in
+            analysis only.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {externalDiagnostics.map((diagnostic, index) => {
+              const statusMeta = getExternalDiagnosticStatusMeta(diagnostic.status)
+              return (
+                <div
+                  key={`${diagnostic.source}-${diagnostic.collected_at}-${index}`}
+                  className="rounded-lg border border-gray-200 dark:border-gray-700 p-4"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center rounded-md bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">
+                      {formatSourceLabel(diagnostic.source)}
+                    </span>
+                    <span className={statusMeta.className}>{statusMeta.label}</span>
+                    {typeof diagnostic.matched_run_id === 'number' && (
+                      <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                        Run #{diagnostic.matched_run_id}
+                      </span>
+                    )}
+                    <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                      {formatConfidenceDelta(diagnostic.confidence_delta)}
+                    </span>
+                  </div>
+
+                  {diagnostic.summary && (
+                    <p className="mt-3 text-sm text-gray-900 dark:text-white">
+                      {diagnostic.summary}
+                    </p>
+                  )}
+
+                  {diagnostic.url ? (
+                    <a
+                      href={diagnostic.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-flex items-center text-sm text-azure-600 hover:text-azure-700 dark:text-azure-400"
+                    >
+                      Open findings
+                      <ExternalLink className="h-4 w-4 ml-1" />
+                    </a>
+                  ) : (
+                    <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                      No findings link published by the external workflow.
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Diagnosis Card */}

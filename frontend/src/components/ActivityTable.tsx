@@ -25,6 +25,63 @@ interface ActivityTableProps {
   highlightedActivityId?: string | null
 }
 
+function formatSourceLabel(source: string): string {
+  const normalized = source.trim().replace(/[_-]+/g, ' ')
+  if (!normalized) {
+    return 'External'
+  }
+  return normalized.replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function getExternalDiagnosticsMeta(activity: Activity): {
+  label: string
+  variant: 'success' | 'destructive' | 'secondary' | 'outline'
+  findingsUrl: string | null
+} | null {
+  const diagnostics = activity.external_diagnostics ?? []
+  if (diagnostics.length === 0) {
+    return null
+  }
+
+  const representative =
+    diagnostics.find((item) => item.status === 'available') ??
+    diagnostics.find((item) => item.status === 'error') ??
+    diagnostics[0]
+
+  const source = formatSourceLabel(representative.source)
+  const findingsUrl = diagnostics.find((item) => item.url)?.url ?? null
+
+  if (representative.status === 'available') {
+    return {
+      label: `${source} Signal`,
+      variant: 'success',
+      findingsUrl,
+    }
+  }
+
+  if (representative.status === 'error') {
+    return {
+      label: `${source} Error`,
+      variant: 'destructive',
+      findingsUrl,
+    }
+  }
+
+  if (representative.status === 'unavailable') {
+    return {
+      label: `${source} Unavailable`,
+      variant: 'secondary',
+      findingsUrl,
+    }
+  }
+
+  return {
+    label: `${source} ${representative.status || 'Signal'}`,
+    variant: 'outline',
+    findingsUrl,
+  }
+}
+
 function getIssueProposalMeta(activity: Activity): {
   includesProposedFix: boolean
   reasonCode: string | null
@@ -89,6 +146,7 @@ export default function ActivityTable({
       <div className="lg:hidden divide-y divide-[var(--ph-border)]">
         {activities.map((activity) => {
           const meta = getIssueProposalMeta(activity)
+          const externalMeta = getExternalDiagnosticsMeta(activity)
           return (
             <div
               key={activity.id}
@@ -133,6 +191,11 @@ export default function ActivityTable({
                     {meta.reasonCode}
                   </Badge>
                 )}
+                {externalMeta && (
+                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant={externalMeta.variant}>
+                    {externalMeta.label}
+                  </Badge>
+                )}
               </div>
 
               <div className="flex items-center justify-between">
@@ -143,6 +206,18 @@ export default function ActivityTable({
                   <Button asChild variant="ghost" size="sm">
                     <Link to={`/activities/${activity.id}`}>View</Link>
                   </Button>
+                  {externalMeta?.findingsUrl && (
+                    <Button asChild variant="ghost" size="sm">
+                      <a
+                        href={externalMeta.findingsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Open external diagnostics findings"
+                      >
+                        Findings
+                      </a>
+                    </Button>
+                  )}
                   {activity.remediation_result?.pr_url && (
                     <Button asChild variant="ghost" size="sm">
                       <a
@@ -177,6 +252,7 @@ export default function ActivityTable({
           <TableBody>
             {activities.map((activity) => {
               const meta = getIssueProposalMeta(activity)
+              const externalMeta = getExternalDiagnosticsMeta(activity)
               return (
                 <TableRow
                   key={activity.id}
@@ -234,6 +310,13 @@ export default function ActivityTable({
                         )}
                       </div>
                     )}
+                    {externalMeta && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        <Badge className="rounded-md text-[11px]" variant={externalMeta.variant}>
+                          {externalMeta.label}
+                        </Badge>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {activity.failure_type ? (
@@ -250,6 +333,17 @@ export default function ActivityTable({
                       <Button asChild variant="ghost" size="sm">
                         <Link to={`/activities/${activity.id}`}>View</Link>
                       </Button>
+                      {externalMeta?.findingsUrl && (
+                        <Button asChild variant="ghost" size="sm">
+                          <a
+                            href={externalMeta.findingsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Findings
+                          </a>
+                        </Button>
+                      )}
                       {activity.remediation_result?.pr_url && (
                         <Button asChild variant="ghost" size="sm">
                           <a
