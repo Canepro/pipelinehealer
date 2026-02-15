@@ -50,6 +50,11 @@ class DiagnosisAgent:
 
         return self._agent
 
+    def refresh_runtime_settings(self) -> None:
+        """Refresh mutable settings and rebuild cloud client on next call."""
+        self._settings = get_settings()
+        self._agent = None
+
     async def diagnose(
         self,
         log_analyses: list[LogAnalysis],

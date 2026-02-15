@@ -82,7 +82,10 @@ class OrchestratorAgent:
         """Refresh mutable runtime settings for orchestrator and child agents."""
         self._settings = get_settings()
         self._gh_aw_adapter = create_gh_aw_adapter(github_tools=self._github_tools)
+        self._log_analyzer.refresh_runtime_settings()
+        self._diagnosis_agent.refresh_runtime_settings()
         self._remediation_agent.refresh_runtime_settings()
+        self._agent = None
 
     async def _collect_external_diagnostics(
         self,

@@ -465,6 +465,40 @@ async def test_admin_can_patch_gh_aw_runtime_settings(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_admin_can_patch_azure_openai_deployment_name(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    get_settings.cache_clear()
+
+    dashboard.set_storage(InMemoryStorage())
+    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+
+    response = await _patch_settings(
+        {"azure_openai_deployment_name": "gpt-5-mini-fast"},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    assert response.json()["azure_openai_deployment_name"] == "gpt-5-mini-fast"
+
+
+@pytest.mark.asyncio
+async def test_admin_patch_rejects_empty_azure_openai_deployment_name(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    get_settings.cache_clear()
+
+    dashboard.set_storage(InMemoryStorage())
+    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+
+    response = await _patch_settings(
+        {"azure_openai_deployment_name": "   "},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 422
+    assert "azure_openai_deployment_name" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_admin_patch_rejects_invalid_gh_aw_ingestion_mode(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
@@ -518,6 +552,7 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
             "gh_aw_ingestion_mode": "passive",
             "gh_aw_known_workflows": ["ci-doctor", "schema-consistency-checker"],
             "ph_allowed_repos": ["Canepro/PipelineHealer", "canepro/pipelinehealer-demo"],
+            "azure_openai_deployment_name": "gpt-5-mini-fast",
         },
         headers={"X-Admin-Key": "admin-secret"},
     )
@@ -552,6 +587,7 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
     assert "GH_AW_INGESTION_MODE=passive" in persisted_text
     assert "GH_AW_KNOWN_WORKFLOWS=ci-doctor,schema-consistency-checker" in persisted_text
     assert "PH_ALLOWED_REPOS=canepro/pipelinehealer,canepro/pipelinehealer-demo" in persisted_text
+    assert "AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-mini-fast" in persisted_text
 
 
 @pytest.mark.asyncio

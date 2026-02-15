@@ -127,6 +127,7 @@ export interface AdminSettingsUpdate {
   gh_aw_ingestion_mode?: 'disabled' | 'passive'
   gh_aw_known_workflows?: string[]
   ph_allowed_repos?: string[]
+  azure_openai_deployment_name?: string
 }
 
 export interface AdminSettingsPersistResponse {

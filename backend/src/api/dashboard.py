@@ -211,6 +211,7 @@ _MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = (
     ("gh_aw_ingestion_mode", "GH_AW_INGESTION_MODE"),
     ("gh_aw_known_workflows", "GH_AW_KNOWN_WORKFLOWS"),
     ("ph_allowed_repos", "PH_ALLOWED_REPOS"),
+    ("azure_openai_deployment_name", "AZURE_OPENAI_DEPLOYMENT_NAME"),
 )
 
 
@@ -371,6 +372,11 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         if not isinstance(value, list):
             raise ValueError("invalid ph_allowed_repos")
         return _normalize_allowed_repo_list(value)
+    if attr_name == "azure_openai_deployment_name":
+        normalized = str(value).strip()
+        if not normalized:
+            raise ValueError("invalid azure_openai_deployment_name")
+        return normalized
     return value
 
 
@@ -512,6 +518,15 @@ async def update_app_settings(
         if not isinstance(workflows, list):
             raise HTTPException(status_code=422, detail="gh_aw_known_workflows must be a list")
         changes["gh_aw_known_workflows"] = _normalize_workflow_names(workflows)
+
+    if "azure_openai_deployment_name" in changes:
+        deployment_name = str(changes["azure_openai_deployment_name"]).strip()
+        if not deployment_name:
+            raise HTTPException(
+                status_code=422,
+                detail="azure_openai_deployment_name must be a non-empty string",
+            )
+        changes["azure_openai_deployment_name"] = deployment_name
 
     max_chars = int(changes.get("log_prompt_max_chars", settings.log_prompt_max_chars))
     head_chars = int(changes.get("log_prompt_head_chars", settings.log_prompt_head_chars))

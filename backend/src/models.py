@@ -271,6 +271,7 @@ class AdminSettingsUpdateRequest(BaseModel):
     gh_aw_ingestion_mode: str | None = None
     gh_aw_known_workflows: list[str] | None = None
     ph_allowed_repos: list[str] | None = None
+    azure_openai_deployment_name: str | None = None
 
 
 class AdminSettingsAuditEntry(BaseModel):

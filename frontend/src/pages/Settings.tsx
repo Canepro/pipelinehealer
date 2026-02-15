@@ -43,6 +43,7 @@ type SettingsFormState = {
   gh_aw_ingestion_mode: 'disabled' | 'passive'
   gh_aw_known_workflows: string[]
   ph_allowed_repos: string[]
+  azure_openai_deployment_name: string
 }
 
 const normalizeRepoInput = (value: string): string | null => {
@@ -97,6 +98,7 @@ const toSettingsForm = (data: AppSettings): SettingsFormState => ({
   gh_aw_ingestion_mode: data.gh_aw_ingestion_mode === 'passive' ? 'passive' : 'disabled',
   gh_aw_known_workflows: data.gh_aw_known_workflows ?? [],
   ph_allowed_repos: data.ph_allowed_repos ?? [],
+  azure_openai_deployment_name: data.azure_openai_deployment_name ?? '',
 })
 
 export default function SettingsPage() {
@@ -120,6 +122,7 @@ export default function SettingsPage() {
     gh_aw_ingestion_mode: 'disabled',
     gh_aw_known_workflows: ['ci-doctor', 'schema-consistency-checker', 'breaking-change-checker'],
     ph_allowed_repos: [],
+    azure_openai_deployment_name: '',
   })
   const [lastSavedForm, setLastSavedForm] = useState<SettingsFormState | null>(null)
   const [newRepoInput, setNewRepoInput] = useState('')
@@ -179,8 +182,8 @@ export default function SettingsPage() {
   }
 
   const saveMutation = useMutation({
-    mutationFn: () =>
-      api.updateSettings(adminKey, {
+    mutationFn: () => {
+      const payload = {
         heal_mode: form.heal_mode,
         auto_create_pr: form.auto_create_pr,
         auto_create_tracking_issue_for_prs: form.auto_create_tracking_issue_for_prs,
@@ -197,7 +200,13 @@ export default function SettingsPage() {
         gh_aw_ingestion_mode: form.gh_aw_ingestion_mode,
         gh_aw_known_workflows: form.gh_aw_known_workflows,
         ph_allowed_repos: form.ph_allowed_repos,
-      }),
+      }
+      const deploymentName = form.azure_openai_deployment_name.trim()
+      if (deploymentName) {
+        Object.assign(payload, { azure_openai_deployment_name: deploymentName })
+      }
+      return api.updateSettings(adminKey, payload)
+    },
     onSuccess: async (updated) => {
       const next = toSettingsForm(updated)
       setForm(next)
@@ -226,7 +235,7 @@ export default function SettingsPage() {
         })
         return
       }
-      toast.success('Persist and redeploy started', {
+      toast.success(result.redeploy_attempted ? 'Settings persisted and redeploy started' : 'Settings persisted', {
         description: result.redeploy_message,
       })
     },
@@ -409,8 +418,9 @@ export default function SettingsPage() {
                     <code className="mx-1">backend/.env</code> and Azure Container App env.
                   </p>
                   <p className="mt-2 text-xs text-amber-100/80">
-                    Use Persist and Redeploy to write all mutable runtime settings to
-                    <code className="mx-1">backend/.env</code> and apply an env-only redeploy.
+                    Use Persist Settings to write all mutable runtime settings to durable storage.
+                    In Azure, redeploy is not required because persisted values are applied on startup.
+                    When local <code className="mx-1">backend/.env</code> exists, the action also updates it.
                   </p>
                 </div>
               </div>
@@ -420,7 +430,7 @@ export default function SettingsPage() {
                 onClick={() => void handlePersistAndRedeploy()}
                 disabled={hasUnsavedChanges || persistMutation.isPending}
               >
-                {persistMutation.isPending ? 'Starting Redeploy...' : 'Persist and Redeploy'}
+                {persistMutation.isPending ? 'Persisting...' : 'Persist Settings'}
               </Button>
             </div>
           </Card>
@@ -732,6 +742,21 @@ export default function SettingsPage() {
                       max_remediation_attempts: Number(e.target.value),
                     }))
                   }
+                />
+              </label>
+
+              <label className="space-y-1">
+                <span className="text-gray-500 dark:text-gray-400">AI deployment name</span>
+                <Input
+                  type="text"
+                  value={form.azure_openai_deployment_name}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      azure_openai_deployment_name: e.target.value,
+                    }))
+                  }
+                  placeholder="gpt-5-mini"
                 />
               </label>
 

@@ -627,6 +627,7 @@ cmd_settings_persist() {
   local gh_aw_tools_enabled=""
   local gh_aw_ingestion_mode=""
   local gh_aw_known_workflows=""
+  local azure_openai_deployment_name=""
   local heal_mode=""
   local auto_create_pr=""
   local auto_create_tracking_issue_for_prs=""
@@ -666,6 +667,10 @@ cmd_settings_persist() {
         gh_aw_known_workflows="$2"
         shift 2
         ;;
+      --azure-openai-deployment-name)
+        azure_openai_deployment_name="$2"
+        shift 2
+        ;;
       --skip-redeploy)
         skip_redeploy="1"
         shift
@@ -679,12 +684,12 @@ cmd_settings_persist() {
 
   if [[ "$from_settings" != "1" && "$clear_repos" != "1" && -z "${repos_csv:-}" ]]; then
     echo "Usage: bash scripts/ph.sh settings:persist --from-settings [--skip-redeploy]" >&2
-    echo "   or: bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2 [--gh-aw-tools-enabled true|false] [--gh-aw-ingestion-mode disabled|passive] [--gh-aw-known-workflows csv] [--skip-redeploy]" >&2
-    echo "   or: bash scripts/ph.sh settings:persist --clear-repos [--gh-aw-tools-enabled true|false] [--gh-aw-ingestion-mode disabled|passive] [--gh-aw-known-workflows csv] [--skip-redeploy]" >&2
+    echo "   or: bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2 [--gh-aw-tools-enabled true|false] [--gh-aw-ingestion-mode disabled|passive] [--gh-aw-known-workflows csv] [--azure-openai-deployment-name name] [--skip-redeploy]" >&2
+    echo "   or: bash scripts/ph.sh settings:persist --clear-repos [--gh-aw-tools-enabled true|false] [--gh-aw-ingestion-mode disabled|passive] [--gh-aw-known-workflows csv] [--azure-openai-deployment-name name] [--skip-redeploy]" >&2
     exit 2
   fi
 
-  if [[ "$from_settings" == "1" && ( "$clear_repos" == "1" || -n "${repos_csv:-}" || -n "${gh_aw_tools_enabled:-}" || -n "${gh_aw_ingestion_mode:-}" || -n "${gh_aw_known_workflows:-}" ) ]]; then
+  if [[ "$from_settings" == "1" && ( "$clear_repos" == "1" || -n "${repos_csv:-}" || -n "${gh_aw_tools_enabled:-}" || -n "${gh_aw_ingestion_mode:-}" || -n "${gh_aw_known_workflows:-}" || -n "${azure_openai_deployment_name:-}" ) ]]; then
     echo "Use --from-settings by itself (optionally with --skip-redeploy)." >&2
     exit 2
   fi
@@ -717,6 +722,7 @@ cmd_settings_persist() {
     log_prompt_max_chars="$(echo "$settings_json" | jq -r '.log_prompt_max_chars')"
     log_prompt_head_chars="$(echo "$settings_json" | jq -r '.log_prompt_head_chars')"
     log_prompt_tail_chars="$(echo "$settings_json" | jq -r '.log_prompt_tail_chars')"
+    azure_openai_deployment_name="$(echo "$settings_json" | jq -r '.azure_openai_deployment_name')"
   elif [[ "$clear_repos" != "1" ]]; then
     normalized_csv="$(echo "$repos_csv" | tr -d '[:space:]')"
   fi
@@ -791,6 +797,9 @@ cmd_settings_persist() {
   if [[ -n "${normalized_workflows:-}" ]]; then
     upsert_env_key "GH_AW_KNOWN_WORKFLOWS" "$normalized_workflows"
   fi
+  if [[ -n "${azure_openai_deployment_name:-}" ]]; then
+    upsert_env_key "AZURE_OPENAI_DEPLOYMENT_NAME" "$azure_openai_deployment_name"
+  fi
 
   if [[ "$skip_redeploy" != "1" ]]; then
     bash "$SCRIPT_DIR/deploy/redeploy_azure_containerapps.sh" --env-only
@@ -814,6 +823,7 @@ cmd_settings_persist() {
     echo "  GH_AW_TOOLS_ENABLED=${gh_aw_tools_enabled:-<unchanged>}"
     echo "  GH_AW_INGESTION_MODE=${gh_aw_ingestion_mode:-<unchanged>}"
     echo "  GH_AW_KNOWN_WORKFLOWS=${normalized_workflows:-<unchanged>}"
+    echo "  AZURE_OPENAI_DEPLOYMENT_NAME=${azure_openai_deployment_name:-<unchanged>}"
   elif [[ "$clear_repos" == "1" ]]; then
     echo "Persisted PH_ALLOWED_REPOS=<empty> to backend/.env"
   else
