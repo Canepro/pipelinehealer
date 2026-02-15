@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 77c76ae -->
+<!-- LAST_VERIFIED: be50c31 -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -163,8 +163,8 @@ flowchart LR
     WH --> WF[PipelineHealerWorkflow]
     WF --> OR[Orchestrator Agent]
     OR --> LA[Log Analyzer Agent]
-    OR --> DG[Diagnosis Agent]
-    OR --> RM[Remediation Agent]
+    LA --> DG[Diagnosis Agent]
+    DG --> RM[Remediation Agent]
     RM --> GT[GitHubTools]
     GT --> PR[Create PR]
     GT --> IS[Create Issue]
@@ -188,26 +188,38 @@ flowchart LR
 │  ┌───────────┐  │     │  ┌─────────┐    ┌───────────────────┐   │
 │  │ Workflow  │──┼─────┼─▶│ Webhook │───▶│   Orchestrator    │   │
 │  │  Failed   │  │     │  │ Handler │    │      Agent        │   │
-│  └───────────┘  │     │  └─────────┘    └───────┬─────┬─────┘   │
-│                 │     │                         │     │         │
-│  ┌───────────┐  │     │               ┌─────────▼─┐ ┌─▼───────┐ │
-│  │ PR/Issue/ │◀─┼─────┼───────────────│ Remediation│ │ GHAW    │ │
-│  │ Rerun Ops │  │     │               │   Agent    │ │ Adapter │ │
-│  └───────────┘  │     │               └──────┬─────┘ └──┬─────┘ │
-│                 │     │                      │           │       │
-└─────────────────┘     │               ┌──────▼─────┐ ┌──▼──────┐ │
-                        │               │ Diagnosis  │ │ ci-doctor│ │
-                        │               │   Agent    │ │ findings │ │
-                        │               └──────┬─────┘ └─────────┘ │
-                        │                      │                    │
-                        │               ┌──────▼─────┐              │
-                        │               │ Log Analyzer│              │
-                        │               │    Agent    │              │
-                        │               └─────────────┘              │
-                        │               ┌──────────────────────────┐ │
-                        │               │ Cosmos DB (activities,   │ │
-                        │               │ settings, audit)         │ │
-                        │               └──────────────────────────┘ │
+│  └───────────┘  │     │  └─────────┘    └───────┬───────────┐    │
+│                 │     │                         │           │    │
+│  ┌───────────┐  │     │               ┌─────────▼──────┐    │    │
+│  │ PR/Issue/ │◀─┼─────┼───────────────│   GitHubTools  │◀───┘    │
+│  │ Rerun Ops │  │     │               └─────────┬──────┘         │
+│  └───────────┘  │     │                         ▲                │
+│                 │     │               ┌─────────┴──────┐         │
+└─────────────────┘     │               │  Remediation   │         │
+                        │               │     Agent      │         │
+                        │               └─────────▲──────┘         │
+                        │                         │                │
+                        │               ┌─────────┴──────┐         │
+                        │               │   Diagnosis    │◀────┐   │
+                        │               │     Agent      │     │   │
+                        │               └─────────▲──────┘     │   │
+                        │                         │            │   │
+                        │               ┌─────────┴──────┐     │   │
+                        │               │  Log Analyzer  │     │   │
+                        │               │     Agent      │     │   │
+                        │               └────────────────┘     │   │
+                        │               ┌───────────────┐      │   │
+                        │               │ GHAW Adapter  │──────┘   │
+                        │               │ + ci-doctor   │          │
+                        │               │ findings      │          │
+                        │               └────────────────┘          │
+                        │               ┌──────────────────────────┐│
+                        │               │ Cosmos DB (activities,   ││
+                        │               │ settings, audit)         ││
+                        │               └──────────────────────────┘│
+                        │               ┌──────────────────────────┐│
+                        │               │ /api/settings* (admin)   ││
+                        │               └──────────────────────────┘│
                         └────────────────────────────────────────────┘
 ```
 
