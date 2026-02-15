@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 77c76ae -->
+<!-- LAST_VERIFIED: a2adcec -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -51,8 +51,7 @@ Unauthenticated health check.
 
 ```json
 {
-  "status": "healthy",
-  "service": "pipelinehealer-webhook"
+  "status": "healthy"
 }
 ```
 
@@ -624,15 +623,19 @@ Keep `head_chars + tail_chars <= max_chars`.
 
 - `pipeline_step_timeout_seconds`: controls per-step (analyze/diagnose/remediate) timeout. Default 120s is generous; reduce for faster failure feedback.
 - `github_api_max_retries`: controls retries for GitHub API transient errors (429, 5xx). Default 3 with exponential backoff.
-- `max_remediation_attempts`: caps how many times PipelineHealer will attempt remediation for a given repository before stopping. Default 3.
+- `max_remediation_attempts`: caps how many times PipelineHealer will attempt remediation for a given workflow within a repository before stopping. Default 3.
 
-### 8. Storage Considerations
+### 8. LLM Transient Error Handling
+
+Azure OpenAI calls (log summarization, diagnosis fallback) automatically retry on transient errors (HTTP 429, 5xx, connection errors, timeouts) with exponential backoff and jitter. This is separate from `github_api_max_retries` which covers GitHub REST API calls. LLM retries are internal to the agent pipeline and not configurable via settings — they use sensible defaults (3 retries, 1s base delay, 30s max delay).
+
+### 9. Storage Considerations
 
 - **Azure Cosmos DB** (`cosmos_db`): used in production. Activities persist across restarts.
 - **In-Memory** (`in_memory`): used in development (`ENVIRONMENT=development`). Activities reset on restart.
 - Admin settings audit trail is persisted to Cosmos DB when available, with in-memory fallback (capped at 200 entries in memory).
 
-### 9. Error Handling Patterns
+### 10. Error Handling Patterns
 
 API errors follow standard HTTP conventions:
 
@@ -653,7 +656,7 @@ All error responses include a `detail` field:
 }
 ```
 
-### 10. CORS Configuration
+### 11. CORS Configuration
 
 - `CORS_ALLOWED_ORIGINS`: exact-match origins (CSV or JSON array).
 - `CORS_ALLOW_ORIGIN_REGEX`: regex pattern for dynamic Azure Container Apps domains.

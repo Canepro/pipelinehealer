@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 6c73b66 -->
+<!-- LAST_VERIFIED: a2adcec -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -133,6 +133,7 @@ Pure logic:
 - Pattern-based diagnosis for common cases (dependency/lint/test/timeout/build-config patterns).
 - Remediation execution (create branch, commit file content, create PR/issue, rerun failed jobs).
 - API client fallback caching: class-level flag so the first Responses API 400 switches all agents to the Chat fallback with zero repeated round-trips.
+- LLM transient-error retry: automatic exponential backoff with jitter for 429/5xx errors from Azure OpenAI, preventing transient rate-limit or gateway failures from aborting the pipeline.
 
 ## Healing Modes
 
@@ -682,15 +683,17 @@ This usually means the target fix branch already exists (for example `fix/update
 pipelinehealer/
 ├── backend/                 # Python backend
 │   ├── src/
-│   │   ├── agents/         # AI agents
-│   │   ├── api/            # FastAPI routes
+│   │   ├── agents/         # AI agents (base, diagnosis, log_analyzer, orchestrator, remediation)
+│   │   ├── api/            # FastAPI routes (dashboard, webhook, deps)
 │   │   ├── tools/          # GitHub tools, fix generators
 │   │   ├── workflows/      # Agent workflow orchestration
+│   │   ├── config.py       # Env-driven settings (singleton)
+│   │   ├── storage.py      # Cosmos DB + in-memory storage
 │   │   └── main.py         # Application entry point
 │   └── pyproject.toml      # Python dependencies
 ├── frontend/               # React frontend
 │   ├── src/
-│   │   ├── components/     # UI components
+│   │   ├── components/     # UI components (incl. settings/ sub-components)
 │   │   ├── pages/          # Page components
 │   │   └── api/            # API client
 │   └── package.json        # Node dependencies

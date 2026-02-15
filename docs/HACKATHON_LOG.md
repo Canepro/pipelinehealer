@@ -197,6 +197,20 @@ This is the long-form project tracker for hackathon execution status, submission
 - Updated passive ingestion timing behavior to a 10-minute bounded polling window plus one final immediate fetch before timeout classification.
 - Verified durable settings persistence path with `POST /api/settings/persist` and audit traceability via `GET /api/settings/audit`.
 - Added PR G scope: async external diagnostics backfill for activities ending with `poll_window_exhausted` (eventual consistency, diagnostics-only).
+- Completed code quality refactor batch (commit `2cb86cb` + `a2adcec`):
+  - Consolidated `_utcnow` helpers: single source in `models.py`, removed duplicates from `storage.py` and `dashboard.py`.
+  - Eliminated `InMemoryStorage` method duplication: `get_repositories`, `get_timeline`, `get_stats`, `get_failure_breakdown` now inherit from base class via polymorphic `_iter_activities()`.
+  - Tightened timeout diagnosis regex to prevent false positives from config lines (e.g. `timeout=30`); added `deadline exceeded` pattern.
+  - Scoped `max_remediation_attempts` dedup check per-workflow instead of per-repository; increased fetch limit from 10 to 100 for robustness.
+  - Removed unused `TracingMiddleware` from `observability.py`.
+  - Aligned `docker-compose.yml` API version default with `config.py` (`2025-04-01-preview`).
+  - Added LLM transient-error retry with exponential backoff and jitter in `agents/base.py` for 429/5xx errors.
+  - Replaced `@lru_cache` settings pattern with explicit module-level singleton and `reset_settings()`.
+  - Migrated module-level globals in `dashboard.py` and `webhook.py` to FastAPI `Depends()` on `request.app.state`; created `api/deps.py` for shared dependency functions.
+  - Decomposed 1200-line `Settings.tsx` into orchestrator page + 4 focused sub-components under `components/settings/`.
+  - Added 21 unit tests for LLM retry logic (`test_llm_retry.py`); total backend test count: 109 passing.
+  - Updated all tests to use `app.state` for dependency injection instead of `set_*` module functions.
+- Aligned all project docs with post-refactor codebase state (LAST_VERIFIED tags, max_remediation scope, health endpoint, LLM retry docs, project structure tree, troubleshooting messages).
 
 ## Project Tracking Plan (Now -> Mar 15)
 

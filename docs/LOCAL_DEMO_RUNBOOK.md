@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 6c73b66 -->
+<!-- LAST_VERIFIED: a2adcec -->
 
 This runbook documents the detailed operator workflow for both Azure and local execution.
 
@@ -444,8 +444,8 @@ Frontend Settings page:
     podman compose --env-file backend/.env up -d backend frontend
     ```
 
-- Error: `Max remediation attempts reached for this repository`
-  - Cause: the safety guard blocks additional remediations after repeated failed attempts.
+- Error: `Max remediation attempts reached for workflow '<name>'`
+  - Cause: the safety guard blocks additional remediations after repeated failures for the same workflow (scoped per-workflow, not per-repo).
   - Fix (local demo with in-memory storage): restart backend to clear in-memory activities.
     ```bash
     podman compose --env-file backend/.env restart backend

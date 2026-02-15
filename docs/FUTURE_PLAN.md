@@ -73,7 +73,7 @@ Acceptance target:
 
 - ~~Add optional persistence for runtime setting overrides (currently in-memory; resets on restart).~~ (Done: Cosmos DB durable persistence with in-memory fallback; auto-restored on startup)
 - ~~Add repo/org allowlist controls for remediation scope.~~ (Done: `PH_ALLOWED_REPOS`)
-- ~~Add configurable governance limits (max remediations per repo/time window).~~ (Done: `max_remediation_attempts`)
+- ~~Add configurable governance limits (max remediations per workflow/time window).~~ (Done: `max_remediation_attempts`, scoped per-workflow within each repository)
 - Add lightweight admin session auth for settings operations (post-submission):
   - Replace direct admin-key-only UX with short-lived, password-backed admin sessions.
   - Keep `X-Admin-Key` as emergency fallback via feature flag.
