@@ -13,6 +13,8 @@ from .github_tools import GitHubTools
 
 logger = logging.getLogger(__name__)
 
+_MIN_STRONG_MATCH_SCORE = 90
+
 
 @dataclass(slots=True)
 class GHAWCapability:
@@ -282,6 +284,15 @@ class PassiveIssueGHAWAdapter:
                     logger.info("Issue #%s comments also did not match run %s; skipping", number, run_id)
                     continue
                 logger.info("Issue #%s matched run %s via comments (%s)", number, run_id, match_basis)
+            if score < _MIN_STRONG_MATCH_SCORE:
+                logger.info(
+                    "Issue #%s matched run %s only weakly (%s, score=%s); skipping",
+                    number,
+                    run_id,
+                    match_basis,
+                    score,
+                )
+                continue
             issue_ts = self._parse_issue_timestamp(issue)
             candidates.append((score, issue_ts, match_basis, issue))
 
