@@ -1,6 +1,6 @@
 # GitHub Agentic Workflows Implementation Tracker
 
-**Last updated:** February 14, 2026
+**Last updated:** February 15, 2026
 
 This tracker is the execution source of truth for GitHub Agentic Workflows adoption in PipelineHealer.
 
@@ -14,7 +14,7 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
 | Workstream | Status | Notes |
 |---|---|---|
 | Layer 1: baseline repo hygiene | Completed | merged in PR #3 with passing CI checks |
-| Layer 2: PipelineHealer orchestration integration | Planned | Design direction agreed; implementation not started |
+| Layer 2: PipelineHealer orchestration integration | In Progress | PR A and PR B implemented on `main`; PR C/PR D pending |
 
 ## Layer 1 Checklist (Repo Hygiene)
 
@@ -37,8 +37,8 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
   - [ ] Fix "add repo appears to work but not effective" behavior path.
   - [ ] Fix/clarify persistence semantics for allowed-repo settings in UI/ops docs.
   - [ ] Add regression tests for `ph_allowed_repos` update + webhook enforcement.
-- [ ] Add `gh_aw_tools` configuration model (enabled workflows, mode, repo scope).
-- [ ] Implement universal diagnosis upgrades (history signals, PR-file correlation, richer deterministic patterns).
+- [x] Add `gh_aw_tools` configuration model (enabled workflows, mode, repo scope).
+- [x] Implement universal diagnosis upgrades (history signals, PR-file correlation, richer deterministic patterns).
 - [ ] Implement backend adapter for capability discovery + optional `gh aw` signal ingestion.
 - [ ] Ingest `gh aw` outputs (issues/comments/discussions) into diagnosis/remediation signals without blocking native diagnosis/remediation.
 - [ ] Surface `gh aw` run status and findings in dashboard activity views.
@@ -256,6 +256,21 @@ Acceptance:
   - `.github/workflows/breaking-change-checker.md`
 - Kept `engine: copilot` for CI Doctor and removed unsupported `web-search` tool; compile now reports zero warnings.
 - Opened dedicated Layer 1 PR: `https://github.com/Canepro/pipelinehealer/pull/3`.
+
+### February 15, 2026
+
+- Implemented **PR A** on `main`:
+  - Added `gh_aw_tools` runtime config surface and validation.
+  - Added structured `external_diagnostics` schema.
+  - Added no-op `gh-aw` adapter contracts + feature-flagged orchestration hooks.
+- Implemented **PR B** on `main`:
+  - Added GitHubTools helpers for issue history search, PR-file retrieval, and recent commit context.
+  - Added workflow context enrichment in orchestrator (changed files + recent commits).
+  - Added deterministic diagnosis improvements:
+    - changed-file correlation
+    - historical issue signal boosting
+    - richer failure patterns (flaky/rate-limit/runner resource context)
+  - Added regression tests for diagnosis and GitHubTools helpers.
 - Closed superseded docs-only PR: `https://github.com/Canepro/pipelinehealer/pull/2`.
 - Merged Layer 1 PR #3 to `main` after passing CI checks.
 - Updated baseline CI install step to `uv pip install --system -e ".[dev]"` for GitHub Actions compatibility.

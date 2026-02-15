@@ -194,6 +194,35 @@ class GitHubTools:
         data = cast(dict[str, Any], response.json())
         return cast(list[dict[str, Any]], data.get("jobs", []))
 
+    async def get_recent_commits(
+        self,
+        owner: str,
+        repo: str,
+        since: str | None = None,
+        per_page: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Get recent commits for repository context correlation.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            since: ISO-8601 timestamp string for lower bound filtering
+            per_page: Maximum commits to fetch
+
+        Returns:
+            List of commit objects
+        """
+        params: dict[str, Any] = {"per_page": max(1, min(per_page, 100))}
+        if since:
+            params["since"] = since
+
+        response = await self._request(
+            "GET",
+            f"/repos/{owner}/{repo}/commits",
+            params=params,
+        )
+        return cast(list[dict[str, Any]], response.json())
+
     async def get_job_logs(
         self,
         owner: str,
@@ -450,6 +479,31 @@ class GitHubTools:
         )
         return cast(dict[str, Any], response.json())
 
+    async def get_pull_request_files(
+        self,
+        owner: str,
+        repo: str,
+        pr_number: int,
+        per_page: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Get files changed by a pull request.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            pr_number: Pull request number
+            per_page: Maximum files to fetch
+
+        Returns:
+            List of file objects from the PR files API
+        """
+        response = await self._request(
+            "GET",
+            f"/repos/{owner}/{repo}/pulls/{pr_number}/files",
+            params={"per_page": max(1, min(per_page, 100))},
+        )
+        return cast(list[dict[str, Any]], response.json())
+
     # =========================================================================
     # Issue Tools
     # =========================================================================
@@ -517,6 +571,53 @@ class GitHubTools:
         )
         return cast(dict[str, Any], response.json())
 
+    async def search_issues(
+        self,
+        owner: str,
+        repo: str,
+        query: str,
+        state: str = "all",
+        per_page: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Search issues in a repository for historical failure correlation.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            query: Additional search terms
+            state: Issue state filter (open, closed, all)
+            per_page: Maximum issues to fetch
+
+        Returns:
+            List of issue objects from the search API
+        """
+        normalized_state = state.strip().lower()
+        if normalized_state not in {"open", "closed", "all"}:
+            normalized_state = "all"
+
+        clauses = [
+            f"repo:{owner}/{repo}",
+            "is:issue",
+            f"state:{normalized_state}",
+        ]
+        if query.strip():
+            clauses.append(query.strip())
+
+        response = await self._request(
+            "GET",
+            "/search/issues",
+            params={
+                "q": " ".join(clauses),
+                "sort": "updated",
+                "order": "desc",
+                "per_page": max(1, min(per_page, 100)),
+            },
+        )
+        payload = cast(dict[str, Any], response.json())
+        items = cast(list[dict[str, Any]], payload.get("items", []))
+        # Guard against PR objects appearing in issue search results.
+        return [item for item in items if "pull_request" not in item]
+
     # =========================================================================
     # Workflow Re-run Tools
     # =========================================================================
@@ -579,6 +680,7 @@ def create_github_tool_functions(github_tools: GitHubTools) -> dict[str, Any]:
     return {
         "get_workflow_run": github_tools.get_workflow_run,
         "get_workflow_jobs": github_tools.get_workflow_jobs,
+        "get_recent_commits": github_tools.get_recent_commits,
         "get_job_logs": github_tools.get_job_logs,
         "get_failed_jobs_logs": github_tools.get_failed_jobs_logs,
         "get_file_contents": github_tools.get_file_contents,
@@ -586,8 +688,10 @@ def create_github_tool_functions(github_tools: GitHubTools) -> dict[str, Any]:
         "create_branch": github_tools.create_branch,
         "create_or_update_file": github_tools.create_or_update_file,
         "create_pull_request": github_tools.create_pull_request,
+        "get_pull_request_files": github_tools.get_pull_request_files,
         "create_issue": github_tools.create_issue,
         "add_issue_comment": github_tools.add_issue_comment,
+        "search_issues": github_tools.search_issues,
         "rerun_workflow": github_tools.rerun_workflow,
         "rerun_failed_jobs": github_tools.rerun_failed_jobs,
     }

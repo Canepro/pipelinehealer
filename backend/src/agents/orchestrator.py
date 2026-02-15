@@ -4,6 +4,7 @@ import asyncio
 import logging
 import time
 from collections.abc import Awaitable
+from datetime import timedelta
 from typing import Any, TypeVar
 
 from azure.identity import DefaultAzureCredential
@@ -55,7 +56,10 @@ class OrchestratorAgent:
 
         # Initialize sub-agents
         self._log_analyzer = LogAnalyzerAgent(github_tools, azure_credential)
-        self._diagnosis_agent = DiagnosisAgent(azure_credential)
+        self._diagnosis_agent = DiagnosisAgent(
+            github_tools=github_tools,
+            azure_credential=azure_credential,
+        )
         self._remediation_agent = RemediationAgent(github_tools, azure_credential=azure_credential)
 
         self._agent: Any | None = None
@@ -106,6 +110,88 @@ class OrchestratorAgent:
             run_id=event.workflow_run.id,
             head_sha=event.workflow_run.head_sha,
         )
+
+    async def _build_workflow_context(
+        self,
+        event: WorkflowRunEvent,
+    ) -> dict[str, Any]:
+        """Build repository/run context used by diagnosis for deterministic correlation."""
+        owner = event.repository.owner.get("login", "")
+        repo = event.repository.name
+        run_id = event.workflow_run.id
+
+        context: dict[str, Any] = {
+            "owner": owner,
+            "repo": repo,
+            "run_id": run_id,
+            "name": event.workflow_run.name,
+            "branch": event.workflow_run.head_branch,
+            "head_sha": event.workflow_run.head_sha,
+            "conclusion": event.workflow_run.conclusion,
+        }
+
+        changed_files: list[str] = []
+        pull_request_numbers: list[int] = []
+
+        try:
+            run_details = await self._github_tools.get_workflow_run(owner, repo, run_id)
+            pull_requests = run_details.get("pull_requests", [])
+            if isinstance(pull_requests, list):
+                for pr_ref in pull_requests:
+                    if not isinstance(pr_ref, dict):
+                        continue
+                    number = pr_ref.get("number")
+                    if isinstance(number, int):
+                        pull_request_numbers.append(number)
+
+            for pr_number in pull_request_numbers[:3]:
+                files = await self._github_tools.get_pull_request_files(owner, repo, pr_number)
+                for item in files:
+                    filename = item.get("filename")
+                    if isinstance(filename, str) and filename.strip():
+                        changed_files.append(filename.strip())
+        except Exception as exc:
+            logger.debug(
+                "Unable to enrich workflow context with PR file details for %s/%s run %s: %s",
+                owner,
+                repo,
+                run_id,
+                exc,
+            )
+
+        if pull_request_numbers:
+            context["pull_request_numbers"] = pull_request_numbers
+        if changed_files:
+            deduped = sorted(set(changed_files))
+            context["changed_files"] = deduped
+
+        # Keep a small recent commit window to help correlate breakage timing.
+        try:
+            since = (event.workflow_run.created_at - timedelta(days=2)).isoformat()
+            commits = await self._github_tools.get_recent_commits(
+                owner,
+                repo,
+                since=since,
+                per_page=10,
+            )
+            context["recent_commits"] = [
+                {
+                    "sha": item.get("sha"),
+                    "message": ((item.get("commit") or {}).get("message", "")[:200]),
+                }
+                for item in commits
+                if isinstance(item, dict)
+            ]
+        except Exception as exc:
+            logger.debug(
+                "Unable to load recent commit context for %s/%s run %s: %s",
+                owner,
+                repo,
+                run_id,
+                exc,
+            )
+
+        return context
 
     async def _run_with_timeout(self, *, step_name: str, coro: Awaitable[T]) -> T:
         """Run a pipeline step with optional timeout protection."""
@@ -202,12 +288,7 @@ class OrchestratorAgent:
             activity.status = RemediationStatus.DIAGNOSING
             await self._storage.update_activity(activity)
 
-            workflow_info = {
-                "run_id": run_id,
-                "name": event.workflow_run.name,
-                "branch": event.workflow_run.head_branch,
-                "conclusion": event.workflow_run.conclusion,
-            }
+            workflow_info = await self._build_workflow_context(event)
             external_diagnostics = await self._collect_external_diagnostics(owner, repo, event)
             if external_diagnostics:
                 activity.external_diagnostics = external_diagnostics

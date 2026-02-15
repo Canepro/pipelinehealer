@@ -123,6 +123,37 @@ class TestPatternBasedDiagnosis:
         assert diagnosis is not None
         assert diagnosis.failure_type == FailureType.TIMEOUT
 
+    def test_detect_flaky_test_signature(self) -> None:
+        """Test detection of flaky rerun/pass signatures."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="test",
+            raw_logs="test_user_login failed, then passed on retry",
+            error_lines=["Test suite passed on retry after initial failure"],
+            summary="flaky behavior",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.TEST
+        assert diagnosis.error_details.get("is_flaky") is True
+
+    def test_detect_rate_limit_as_build_config_issue(self) -> None:
+        """Test detection of API/rate-limit infrastructure failures."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="build",
+            raw_logs="HTTP 403 API rate limit exceeded",
+            error_lines=["HTTP 403 API rate limit exceeded"],
+            summary="rate limit failure",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.BUILD_CONFIG
+
     def test_detect_workflow_permission_error(self) -> None:
         """Test detection of GitHub token permission errors."""
         log_analysis = LogAnalysis(
@@ -153,3 +184,24 @@ class TestPatternBasedDiagnosis:
         diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
 
         assert diagnosis is None
+
+    def test_changed_file_correlation_boosts_pattern_confidence(self) -> None:
+        """Test deterministic confidence boost when error references changed file."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="lint",
+            raw_logs="eslint error in src/utils/validator.ts",
+            error_lines=["eslint error in src/utils/validator.ts"],
+            summary="lint failed",
+        )
+        pattern = self.agent._pattern_based_diagnosis([log_analysis])
+        assert pattern is not None
+
+        correlated = self.agent._apply_changed_file_correlation(
+            pattern,
+            [log_analysis],
+            {"changed_files": ["src/utils/validator.ts"]},
+        )
+        assert correlated is not None
+        assert correlated.confidence > 0.9
+        assert "src/utils/validator.ts" in correlated.affected_files

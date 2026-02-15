@@ -9,6 +9,7 @@ from azure.identity import DefaultAzureCredential
 
 from ..config import get_settings
 from ..models import Diagnosis, ExternalDiagnostic, FailureType, LogAnalysis
+from ..tools.github_tools import GitHubTools
 from .base import create_cloud_agent, get_agent_prompt
 
 logger = logging.getLogger(__name__)
@@ -23,13 +24,16 @@ class DiagnosisAgent:
 
     def __init__(
         self,
+        github_tools: GitHubTools | None = None,
         azure_credential: DefaultAzureCredential | None = None,
     ):
         """Initialize the Diagnosis Agent.
 
         Args:
+            github_tools: GitHub tools for optional repo-history correlation
             azure_credential: Azure credential for OpenAI
         """
+        self._github_tools = github_tools
         self._credential = azure_credential or DefaultAzureCredential()
         self._settings = get_settings()
         self._agent: Any | None = None
@@ -74,6 +78,18 @@ class DiagnosisAgent:
 
         # First, try pattern-based detection for common cases
         pattern_diagnosis = self._pattern_based_diagnosis(log_analyses)
+        pattern_diagnosis = self._apply_changed_file_correlation(
+            pattern_diagnosis,
+            log_analyses,
+            workflow_info,
+        )
+
+        similar_issues = await self._search_similar_issues(log_analyses, workflow_info)
+        if similar_issues and pattern_diagnosis:
+            pattern_diagnosis = self._apply_historical_issue_signal(
+                pattern_diagnosis,
+                similar_issues[0],
+            )
 
         if pattern_diagnosis and pattern_diagnosis.confidence >= 0.8:
             logger.info(f"Pattern-based diagnosis: {pattern_diagnosis.failure_type}")
@@ -96,10 +112,16 @@ class DiagnosisAgent:
 
         # Prepare the analysis summary for the agent
         analysis_summary = self._prepare_analysis_summary(log_analyses)
+        context_summary = self._prepare_context_summary(
+            workflow_info=workflow_info,
+            similar_issues=similar_issues,
+        )
 
         prompt = f"""Analyze the following CI/CD failure and provide a diagnosis.
 
 {analysis_summary}
+
+{context_summary}
 
 Provide your diagnosis in the following JSON format:
 {{
@@ -255,6 +277,25 @@ Be specific about:
                 )
 
         # Check for test failures
+        flaky_patterns = [
+            (r"(?:flaky|intermittent)\s+test", "Flaky test behavior detected"),
+            (r"(?:passed|succeeded)\s+on\s+retry", "Test passed on retry (flaky behavior)"),
+            (r"rerun.*(?:passed|succeeded)", "Rerun succeeded after prior test failure"),
+        ]
+        for pattern, description in flaky_patterns:
+            if re.search(pattern, error_text, re.IGNORECASE):
+                return Diagnosis(
+                    failure_type=FailureType.TEST,
+                    confidence=0.78,
+                    root_cause=description,
+                    is_auto_fixable=False,
+                    suggested_fix="Stabilize flaky test and remove timing/order dependence",
+                    error_details={
+                        "is_flaky": True,
+                        "test_framework": self._detect_test_framework(error_text),
+                    },
+                )
+
         test_patterns = [
             (r"FAIL\s+.*\.test\.", "Test suite failed"),
             (r"AssertionError", "Assertion failed in test"),
@@ -285,6 +326,7 @@ Be specific about:
             (r"timeout", "Operation timed out"),
             (r"exceeded.*time.*limit", "Time limit exceeded"),
             (r"killed.*signal.*9", "Process killed (likely OOM or timeout)"),
+            (r"no space left on device", "Runner disk space exhausted"),
         ]
 
         for pattern, description in timeout_patterns:
@@ -332,6 +374,11 @@ Be specific about:
             (r"secret.*not.*found", "Secret not configured"),
             (r"permission.*denied", "Permission denied"),
             (r"file.*not.*found", "Required file not found"),
+            (r"(?:api|rate)\s*limit(?:ed)?", "External API rate limit reached"),
+            (r"http\s*403.*rate", "External API rate limit reached"),
+            (r"runner.*environment", "CI runner environment issue"),
+            (r"disk\s+space", "Runner disk space exhausted"),
+            (r"resource temporarily unavailable", "Transient infrastructure resource issue"),
         ]
 
         for pattern, description in config_patterns:
@@ -406,6 +453,214 @@ Be specific about:
             summary_parts.append(part)
 
         return "\n---\n".join(summary_parts)
+
+    def _prepare_context_summary(
+        self,
+        workflow_info: dict[str, Any] | None,
+        similar_issues: list[dict[str, Any]],
+    ) -> str:
+        """Prepare supplemental deterministic context for LLM fallback."""
+        if not workflow_info and not similar_issues:
+            return "Additional Repository Context: none"
+
+        lines: list[str] = ["Additional Repository Context:"]
+        if workflow_info:
+            changed_files = workflow_info.get("changed_files")
+            if isinstance(changed_files, list) and changed_files:
+                lines.append("Changed files in related PR(s):")
+                for filename in changed_files[:20]:
+                    lines.append(f"- {filename}")
+
+            recent_commits = workflow_info.get("recent_commits")
+            if isinstance(recent_commits, list) and recent_commits:
+                lines.append("Recent commits around failure:")
+                for commit in recent_commits[:5]:
+                    if not isinstance(commit, dict):
+                        continue
+                    sha = str(commit.get("sha", ""))[:8]
+                    message = str(commit.get("message", "")).strip()
+                    if sha or message:
+                        lines.append(f"- {sha} {message}".strip())
+
+        if similar_issues:
+            lines.append("Potentially similar historical issues:")
+            for issue in similar_issues[:3]:
+                number = issue.get("number")
+                title = str(issue.get("title", "")).strip()
+                url = str(issue.get("html_url", "")).strip()
+                lines.append(f"- #{number}: {title} {url}".strip())
+
+        return "\n".join(lines)
+
+    async def _search_similar_issues(
+        self,
+        log_analyses: list[LogAnalysis],
+        workflow_info: dict[str, Any] | None,
+    ) -> list[dict[str, Any]]:
+        """Search repo issues for similar recent failures."""
+        if self._github_tools is None or not workflow_info:
+            return []
+
+        owner = str(workflow_info.get("owner", "")).strip()
+        repo = str(workflow_info.get("repo", "")).strip()
+        if not owner or not repo:
+            return []
+
+        keywords = self._extract_error_keywords(log_analyses)
+        if not keywords:
+            return []
+
+        query = "in:title,body " + " ".join(keywords[:4])
+
+        try:
+            issues = await self._github_tools.search_issues(
+                owner=owner,
+                repo=repo,
+                query=query,
+                state="all",
+                per_page=6,
+            )
+            return [issue for issue in issues if isinstance(issue, dict)]
+        except Exception as exc:
+            logger.debug("Issue-history search unavailable for %s/%s: %s", owner, repo, exc)
+            return []
+
+    @staticmethod
+    def _extract_error_keywords(log_analyses: list[LogAnalysis]) -> list[str]:
+        """Extract concise search keywords from error lines."""
+        stopwords = {
+            "error",
+            "failed",
+            "failure",
+            "exception",
+            "with",
+            "from",
+            "that",
+            "this",
+            "into",
+            "while",
+            "during",
+            "build",
+            "test",
+            "tests",
+            "lint",
+            "job",
+            "step",
+            "module",
+            "package",
+            "cannot",
+            "could",
+            "find",
+            "not",
+            "none",
+            "null",
+        }
+
+        tokens: list[str] = []
+        for analysis in log_analyses:
+            for line in analysis.error_lines[:20]:
+                for token in re.findall(r"[A-Za-z][A-Za-z0-9_.-]{2,}", line):
+                    normalized = token.lower()
+                    if normalized in stopwords:
+                        continue
+                    if normalized not in tokens:
+                        tokens.append(normalized)
+                    if len(tokens) >= 10:
+                        return tokens
+        return tokens
+
+    def _apply_historical_issue_signal(
+        self,
+        diagnosis: Diagnosis,
+        issue: dict[str, Any],
+    ) -> Diagnosis:
+        """Boost confidence when historical issue evidence aligns with diagnosis."""
+        issue_text = (
+            str(issue.get("title", "")).lower()
+            + "\n"
+            + str(issue.get("body", "")).lower()
+        )
+
+        keywords_by_failure_type: dict[FailureType, tuple[str, ...]] = {
+            FailureType.DEPENDENCY: ("dependency", "module", "package", "install", "resolve"),
+            FailureType.TEST: ("test", "assert", "flake", "flaky", "pytest", "jest"),
+            FailureType.LINT: ("lint", "eslint", "prettier", "ruff", "flake8"),
+            FailureType.BUILD_CONFIG: ("workflow", "permission", "secret", "config", "runner"),
+            FailureType.TIMEOUT: ("timeout", "timed out", "slow", "hanging"),
+            FailureType.UNKNOWN: (),
+        }
+
+        matches = sum(
+            1 for keyword in keywords_by_failure_type.get(diagnosis.failure_type, ()) if keyword in issue_text
+        )
+        if matches == 0:
+            return diagnosis
+
+        issue_number = issue.get("number")
+        issue_url = issue.get("html_url")
+        diagnosis.confidence = min(0.95, diagnosis.confidence + 0.05 + (0.02 * min(matches, 3)))
+        diagnosis.root_cause = (
+            f"{diagnosis.root_cause} (similar historical issue #{issue_number})"
+            if issue_number
+            else diagnosis.root_cause
+        )
+        diagnosis.error_details["similar_issue_number"] = issue_number
+        diagnosis.error_details["similar_issue_url"] = issue_url
+        return diagnosis
+
+    def _apply_changed_file_correlation(
+        self,
+        diagnosis: Diagnosis | None,
+        log_analyses: list[LogAnalysis],
+        workflow_info: dict[str, Any] | None,
+    ) -> Diagnosis | None:
+        """Correlate changed files with log references to improve confidence."""
+        if diagnosis is None or not workflow_info:
+            return diagnosis
+
+        changed_files_raw = workflow_info.get("changed_files")
+        if not isinstance(changed_files_raw, list) or not changed_files_raw:
+            return diagnosis
+
+        changed_files = [str(path).strip() for path in changed_files_raw if str(path).strip()]
+        if not changed_files:
+            return diagnosis
+
+        error_text = "\n".join(line for analysis in log_analyses for line in analysis.error_lines)
+        referenced_files = set(self._extract_file_references(error_text))
+        changed_basenames = {path.split("/")[-1]: path for path in changed_files}
+
+        overlaps: list[str] = []
+        for ref in referenced_files:
+            if ref in changed_files:
+                overlaps.append(ref)
+                continue
+            basename = ref.split("/")[-1]
+            if basename in changed_basenames:
+                overlaps.append(changed_basenames[basename])
+
+        if overlaps:
+            unique_overlaps = sorted(set(overlaps))
+            diagnosis.affected_files = sorted(set([*diagnosis.affected_files, *unique_overlaps]))[:20]
+            diagnosis.error_details["changed_file_overlap"] = unique_overlaps
+            diagnosis.confidence = min(0.95, diagnosis.confidence + 0.06)
+            return diagnosis
+
+        # Keep context hints for operator visibility even when no direct overlap is found.
+        diagnosis.error_details["changed_files_considered"] = changed_files[:20]
+        return diagnosis
+
+    @staticmethod
+    def _extract_file_references(text: str) -> list[str]:
+        """Extract likely file-path tokens from error text."""
+        path_pattern = re.compile(
+            r"([A-Za-z0-9_./-]+\.(?:py|pyi|js|jsx|ts|tsx|json|ya?ml|toml|ini|cfg|md|sh|go|rs|java|kt|cs))"
+        )
+        refs: list[str] = []
+        for match in path_pattern.findall(text):
+            if match not in refs:
+                refs.append(match)
+        return refs
 
     @staticmethod
     def _extract_json_candidates(text: str) -> list[str]:

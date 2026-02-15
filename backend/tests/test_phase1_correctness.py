@@ -121,7 +121,8 @@ async def test_orchestrator_uses_existing_activity_id() -> None:
             )
         ]
 
-    async def fake_diagnose(log_analyses, workflow_info=None):
+    async def fake_diagnose(log_analyses, workflow_info=None, external_diagnostics=None):
+        _ = external_diagnostics
         return Diagnosis(
             failure_type=FailureType.TEST,
             confidence=0.9,
