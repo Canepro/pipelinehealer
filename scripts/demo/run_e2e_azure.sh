@@ -211,13 +211,20 @@ if [[ "${#DISPATCHED_RUN_IDS[@]}" -gt 0 ]]; then
       activities_json="$(curl -sS "$BACKEND_URL/api/activities?limit=100")"
     fi
 
-    if ACTIVITIES_JSON="$activities_json" python3 - "${DISPATCHED_RUN_IDS[@]}" <<'PY'
+    activities_payload_file="$(mktemp)"
+    printf '%s' "$activities_json" > "$activities_payload_file"
+    if python3 - "$activities_payload_file" "${DISPATCHED_RUN_IDS[@]}" <<'PY'
 import json
-import os
 import sys
 
-target_ids = {int(x) for x in sys.argv[1:] if x}
-payload = json.loads(os.environ.get("ACTIVITIES_JSON", "[]"))
+if len(sys.argv) < 2:
+    print("Missing payload file path")
+    sys.exit(1)
+
+payload_path = sys.argv[1]
+target_ids = {int(x) for x in sys.argv[2:] if x}
+with open(payload_path, encoding="utf-8") as fh:
+    payload = json.load(fh)
 status_by_run = {}
 for item in payload:
     rid = item.get("workflow_run_id")
@@ -242,8 +249,10 @@ print("All dispatched runs reached terminal activity states.")
 sys.exit(0)
 PY
     then
+      rm -f "$activities_payload_file"
       break
     fi
+    rm -f "$activities_payload_file"
 
     sleep "$interval"
     elapsed=$((elapsed + interval))
