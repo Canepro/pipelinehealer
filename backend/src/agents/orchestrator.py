@@ -13,6 +13,7 @@ from ..config import get_settings
 from ..models import (
     ActivityRecord,
     ExternalDiagnostic,
+    ExternalDiagnosticStatus,
     RemediationStatus,
     WorkflowRunEvent,
 )
@@ -26,6 +27,7 @@ from .remediation import RemediationAgent
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
+_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS: tuple[float, ...] = (10.0, 20.0, 30.0)
 
 
 class OrchestratorAgent:
@@ -94,7 +96,21 @@ class OrchestratorAgent:
         if self._settings.gh_aw_ingestion_mode != "passive":
             return []
 
-        capability = await self._gh_aw_adapter.discover_capability(owner, repo)
+        try:
+            capability = await self._gh_aw_adapter.discover_capability(owner, repo)
+        except Exception as exc:
+            return [
+                ExternalDiagnostic(
+                    source="ci-doctor",
+                    status=ExternalDiagnosticStatus.ERROR,
+                    summary="Failed to evaluate external diagnostics capability",
+                    matched_run_id=event.workflow_run.id,
+                    metadata={
+                        "reason_code": "capability_discovery_failed",
+                        "error_type": type(exc).__name__,
+                    },
+                )
+            ]
         if not capability.is_available:
             logger.info(
                 "External diagnostics unavailable for %s/%s: %s",
@@ -102,14 +118,60 @@ class OrchestratorAgent:
                 repo,
                 capability.reason or "unknown",
             )
-            return []
+            return [
+                ExternalDiagnostic(
+                    source="ci-doctor",
+                    status=ExternalDiagnosticStatus.UNAVAILABLE,
+                    summary="External ci-doctor workflow not available for this repository",
+                    matched_run_id=event.workflow_run.id,
+                    metadata={
+                        "reason_code": "capability_unavailable",
+                        "capability_reason": capability.reason,
+                        "available_workflows": capability.available_workflows,
+                    },
+                )
+            ]
 
-        return await self._gh_aw_adapter.collect_external_diagnostics(
-            owner=owner,
-            repo=repo,
-            run_id=event.workflow_run.id,
-            head_sha=event.workflow_run.head_sha,
-        )
+        # Poll with bounded backoff to allow ci-doctor time to publish issue findings.
+        for attempt, delay in enumerate((0.0, *_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS)):
+            if delay > 0:
+                await asyncio.sleep(delay)
+            try:
+                findings = await self._gh_aw_adapter.collect_external_diagnostics(
+                    owner=owner,
+                    repo=repo,
+                    run_id=event.workflow_run.id,
+                    head_sha=event.workflow_run.head_sha,
+                )
+            except Exception as exc:
+                return [
+                    ExternalDiagnostic(
+                        source="ci-doctor",
+                        status=ExternalDiagnosticStatus.ERROR,
+                        summary="Failed to collect ci-doctor findings",
+                        matched_run_id=event.workflow_run.id,
+                        metadata={
+                            "reason_code": "collection_failed",
+                            "error_type": type(exc).__name__,
+                            "attempt": attempt,
+                        },
+                    )
+                ]
+            if findings:
+                return findings
+
+        return [
+            ExternalDiagnostic(
+                source="ci-doctor",
+                status=ExternalDiagnosticStatus.UNAVAILABLE,
+                summary="No ci-doctor findings published within bounded polling window",
+                matched_run_id=event.workflow_run.id,
+                metadata={
+                    "reason_code": "poll_window_exhausted",
+                    "poll_delays_seconds": list(_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS),
+                },
+            )
+        ]
 
     async def _build_workflow_context(
         self,

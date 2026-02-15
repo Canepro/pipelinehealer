@@ -45,6 +45,7 @@ Commands:
   logs:grep         Grep backend logs for a pattern: --pattern <regex>
   settings:check    Call backend /api/settings using ADMIN_API_KEY from backend/.env
   settings:audit    Call backend /api/settings/audit using API+ADMIN keys from backend/.env
+  settings:persist  Persist allowlist to backend/.env and redeploy env-only
   audit:proof       Create two traceable admin audit entries and print latest audit records
   help              Show this help
 
@@ -57,6 +58,7 @@ Examples:
   bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
   bash scripts/ph.sh demo:e2e --skip-webhook-sync
   bash scripts/ph.sh demo:proof --repo owner/repo
+  bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2
   bash scripts/ph.sh audit:proof --limit 5
   bash scripts/ph.sh logs
   bash scripts/ph.sh logs:grep --pattern "debug-mode"
@@ -611,6 +613,66 @@ cmd_logs_grep() {
     | grep -iE "$pattern"
 }
 
+cmd_settings_persist() {
+  local repos_csv=""
+  local clear_repos="0"
+  local skip_redeploy="0"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --repos)
+        repos_csv="$2"
+        shift 2
+        ;;
+      --clear-repos)
+        clear_repos="1"
+        shift
+        ;;
+      --skip-redeploy)
+        skip_redeploy="1"
+        shift
+        ;;
+      *)
+        echo "Unknown argument for settings:persist: $1" >&2
+        exit 2
+        ;;
+    esac
+  done
+
+  if [[ "$clear_repos" != "1" && -z "${repos_csv:-}" ]]; then
+    echo "Usage: bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2 [--skip-redeploy]" >&2
+    echo "   or: bash scripts/ph.sh settings:persist --clear-repos [--skip-redeploy]" >&2
+    exit 2
+  fi
+
+  if [[ "$clear_repos" == "1" && -n "${repos_csv:-}" ]]; then
+    echo "Use either --repos or --clear-repos, not both." >&2
+    exit 2
+  fi
+
+  local normalized_csv=""
+  if [[ "$clear_repos" != "1" ]]; then
+    normalized_csv="$(echo "$repos_csv" | tr -d '[:space:]')"
+  fi
+
+  upsert_env_key "PH_ALLOWED_REPOS" "$normalized_csv"
+
+  if [[ "$skip_redeploy" != "1" ]]; then
+    bash "$SCRIPT_DIR/deploy/redeploy_azure_containerapps.sh" --env-only
+  fi
+
+  if [[ "$clear_repos" == "1" ]]; then
+    echo "Persisted PH_ALLOWED_REPOS=<empty> to backend/.env"
+  else
+    echo "Persisted PH_ALLOWED_REPOS=$normalized_csv to backend/.env"
+  fi
+  if [[ "$skip_redeploy" == "1" ]]; then
+    echo "Skipped env-only redeploy (--skip-redeploy)."
+  else
+    echo "Applied env-only redeploy."
+  fi
+}
+
 if [[ $# -lt 1 ]]; then
   usage
   exit 0
@@ -677,6 +739,9 @@ case "$COMMAND" in
     ;;
   settings:audit)
     settings_audit "$@"
+    ;;
+  settings:persist)
+    cmd_settings_persist "$@"
     ;;
   audit:proof)
     audit_proof "$@"

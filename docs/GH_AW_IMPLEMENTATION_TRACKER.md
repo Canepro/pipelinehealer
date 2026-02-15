@@ -14,7 +14,7 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
 | Workstream | Status | Notes |
 |---|---|---|
 | Layer 1: baseline repo hygiene | Completed | merged in PR #3 with passing CI checks |
-| Layer 2: PipelineHealer orchestration integration | In Progress | PR A and PR B implemented on `main`; PR C/PR D pending |
+| Layer 2: PipelineHealer orchestration integration | In Progress | PR A/PR B/PR C implemented on `main`; PR D pending |
 
 ## Layer 1 Checklist (Repo Hygiene)
 
@@ -33,14 +33,14 @@ This tracker is the execution source of truth for GitHub Agentic Workflows adopt
 
 ## Layer 2 Checklist (PipelineHealer Product Integration)
 
-- [ ] Resolve settings/allowlist reliability baseline before Layer 2 wiring:
-  - [ ] Fix "add repo appears to work but not effective" behavior path.
-  - [ ] Fix/clarify persistence semantics for allowed-repo settings in UI/ops docs.
-  - [ ] Add regression tests for `ph_allowed_repos` update + webhook enforcement.
+- [x] Resolve settings/allowlist reliability baseline before Layer 2 wiring:
+  - [x] Fix "add repo appears to work but not effective" behavior path.
+  - [x] Fix/clarify persistence semantics for allowed-repo settings in UI/ops docs.
+  - [x] Add regression tests for `ph_allowed_repos` update + webhook enforcement.
 - [x] Add `gh_aw_tools` configuration model (enabled workflows, mode, repo scope).
 - [x] Implement universal diagnosis upgrades (history signals, PR-file correlation, richer deterministic patterns).
-- [ ] Implement backend adapter for capability discovery + optional `gh aw` signal ingestion.
-- [ ] Ingest `gh aw` outputs (issues/comments/discussions) into diagnosis/remediation signals without blocking native diagnosis/remediation.
+- [x] Implement backend adapter for capability discovery + optional `gh aw` signal ingestion.
+- [x] Ingest `gh aw` outputs (issues/comments/discussions) into diagnosis/remediation signals without blocking native diagnosis/remediation.
 - [ ] Surface `gh aw` run status and findings in dashboard activity views.
 - [ ] Add demo flow narrative:
   - failure detected
@@ -271,6 +271,15 @@ Acceptance:
     - historical issue signal boosting
     - richer failure patterns (flaky/rate-limit/runner resource context)
   - Added regression tests for diagnosis and GitHubTools helpers.
+- Implemented **PR C** on `main`:
+  - Replaced no-op adapter path with passive capability discovery against repository workflow artifacts.
+  - Added bounded ci-doctor polling/backoff with explicit unavailable/error reason codes.
+  - Added run/sha-correlated ci-doctor issue ingestion into `external_diagnostics`.
+  - Added adapter/orchestrator coverage tests for capability, ingestion filtering, and polling behavior.
+- Added settings UX persistence guardrails:
+  - runtime-only warning banner ("lost on redeploy")
+  - "Persist and Redeploy" action (command copy)
+  - new helper command `bash scripts/ph.sh settings:persist ...` to persist `PH_ALLOWED_REPOS` and env-only redeploy.
 - Closed superseded docs-only PR: `https://github.com/Canepro/pipelinehealer/pull/2`.
 - Merged Layer 1 PR #3 to `main` after passing CI checks.
 - Updated baseline CI install step to `uv pip install --system -e ".[dev]"` for GitHub Actions compatibility.

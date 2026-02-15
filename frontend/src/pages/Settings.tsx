@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
-import { Copy, Info, LockKeyhole, RotateCcw, Save, Shield, SlidersHorizontal, Wrench } from 'lucide-react'
+import { AlertTriangle, Copy, Info, LockKeyhole, RotateCcw, Save, Shield, SlidersHorizontal, Wrench } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, type AdminSettingsAuditEntry, type AppSettings } from '../api/client'
 import { EMPTY_STATES } from '../constants/emptyStates'
@@ -280,6 +280,32 @@ export default function SettingsPage() {
     }
   }
 
+  const handlePersistAndRedeploy = async () => {
+    if (!data) {
+      return
+    }
+    if (hasUnsavedChanges) {
+      toast.error('Save settings first', {
+        description: 'Persist and redeploy uses effective saved values only.',
+      })
+      return
+    }
+
+    const command =
+      data.ph_allowed_repos.length > 0
+        ? `bash scripts/ph.sh settings:persist --repos ${data.ph_allowed_repos.join(',')}`
+        : 'bash scripts/ph.sh settings:persist --clear-repos'
+
+    try {
+      await navigator.clipboard.writeText(command)
+      toast.success('Persist command copied', {
+        description: 'Run it from the repo root terminal to persist and env-redeploy.',
+      })
+    } catch {
+      toast.error('Unable to copy persist command')
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -347,6 +373,35 @@ export default function SettingsPage() {
 
       {data && (
         <>
+          <Card className="p-4 md:p-6 border border-amber-500/30 bg-amber-500/10">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5" />
+                <div>
+                  <h2 className="text-base font-semibold text-amber-200">
+                    Runtime only (lost on redeploy)
+                  </h2>
+                  <p className="mt-1 text-sm text-amber-100/90">
+                    Settings saved here update the running backend process. Redeploy or revision replacement restores values from
+                    <code className="mx-1">backend/.env</code> and Azure Container App env.
+                  </p>
+                  <p className="mt-2 text-xs text-amber-100/80">
+                    Use Persist and Redeploy to write the effective allowlist to
+                    <code className="mx-1">PH_ALLOWED_REPOS</code> and apply an env-only redeploy.
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void handlePersistAndRedeploy()}
+                disabled={hasUnsavedChanges}
+              >
+                Persist and Redeploy
+              </Button>
+            </div>
+          </Card>
+
           <Card className="p-4 md:p-6">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>

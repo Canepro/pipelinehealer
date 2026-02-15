@@ -194,6 +194,30 @@ class GitHubTools:
         data = cast(dict[str, Any], response.json())
         return cast(list[dict[str, Any]], data.get("jobs", []))
 
+    async def list_repo_workflows(
+        self,
+        owner: str,
+        repo: str,
+        per_page: int = 100,
+    ) -> list[dict[str, Any]]:
+        """List workflows configured for a repository.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            per_page: Maximum workflows to fetch
+
+        Returns:
+            List of workflow descriptor objects
+        """
+        response = await self._request(
+            "GET",
+            f"/repos/{owner}/{repo}/actions/workflows",
+            params={"per_page": max(1, min(per_page, 100))},
+        )
+        payload = cast(dict[str, Any], response.json())
+        return cast(list[dict[str, Any]], payload.get("workflows", []))
+
     async def get_recent_commits(
         self,
         owner: str,
@@ -680,6 +704,7 @@ def create_github_tool_functions(github_tools: GitHubTools) -> dict[str, Any]:
     return {
         "get_workflow_run": github_tools.get_workflow_run,
         "get_workflow_jobs": github_tools.get_workflow_jobs,
+        "list_repo_workflows": github_tools.list_repo_workflows,
         "get_recent_commits": github_tools.get_recent_commits,
         "get_job_logs": github_tools.get_job_logs,
         "get_failed_jobs_logs": github_tools.get_failed_jobs_logs,

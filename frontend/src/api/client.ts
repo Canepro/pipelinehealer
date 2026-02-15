@@ -50,6 +50,16 @@ export interface Activity {
   updated_at: string
   duration_seconds?: number
   error?: string
+  external_diagnostics?: Array<{
+    source: string
+    status: string
+    summary: string
+    url?: string
+    matched_run_id?: number
+    confidence_delta: number
+    metadata: Record<string, unknown>
+    collected_at: string
+  }>
 }
 
 export interface TimelineData {
