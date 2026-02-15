@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow, format } from 'date-fns'
 import {
   ArrowLeft,
+  ChevronDown,
+  ChevronRight,
   ExternalLink,
   GitBranch,
   RefreshCw,
@@ -83,6 +86,95 @@ function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
       ? details.not_auto_reason_detail
       : null
   return { includesProposedFix: includes, reasonCode: reason, reasonDetail }
+}
+
+const DETAIL_SECTIONS: Array<{ key: string; label: string }> = [
+  { key: 'summary', label: 'Summary' },
+  { key: 'root_cause', label: 'Root Cause' },
+  { key: 'failed_jobs', label: 'Failed Jobs' },
+  { key: 'investigation_findings', label: 'Investigation Findings' },
+  { key: 'recommended_actions', label: 'Recommended Actions' },
+  { key: 'prevention_strategies', label: 'Prevention Strategies' },
+  { key: 'historical_context', label: 'Historical Context' },
+  { key: 'ai_self_improvement', label: 'AI Self-Improvement' },
+]
+
+function ExternalFindingsPanel({ details }: { details: Record<string, unknown> }) {
+  const [expanded, setExpanded] = useState(false)
+
+  const hasSections = DETAIL_SECTIONS.some(
+    (s) => typeof details[s.key] === 'string' && (details[s.key] as string).trim(),
+  )
+  if (!hasSections) return null
+
+  const doctorRunUrl = typeof details.doctor_run_url === 'string' ? details.doctor_run_url : null
+  const doctorEngine = typeof details.doctor_engine === 'string' ? details.doctor_engine : null
+  const doctorModel = typeof details.doctor_model === 'string' ? details.doctor_model : null
+  const trigger = typeof details.trigger === 'string' ? details.trigger : null
+
+  return (
+    <div className="mt-3 w-full">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-azure-600 dark:hover:text-azure-400 transition-colors"
+      >
+        {expanded ? (
+          <ChevronDown className="h-4 w-4" />
+        ) : (
+          <ChevronRight className="h-4 w-4" />
+        )}
+        External Findings Details
+      </button>
+      {expanded && (
+        <div className="mt-3 space-y-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+          {(doctorEngine || doctorModel || trigger) && (
+            <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-gray-200 dark:border-gray-700">
+              {doctorEngine && (
+                <span className="inline-flex items-center rounded-md bg-violet-100 px-2 py-1 text-xs font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-200">
+                  Engine: {doctorEngine}
+                </span>
+              )}
+              {doctorModel && (
+                <span className="inline-flex items-center rounded-md bg-violet-100 px-2 py-1 text-xs font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-200">
+                  Model: {doctorModel}
+                </span>
+              )}
+              {trigger && (
+                <span className="inline-flex items-center rounded-md bg-gray-200 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                  Trigger: {trigger}
+                </span>
+              )}
+              {doctorRunUrl && (
+                <a
+                  href={doctorRunUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-xs text-azure-600 hover:text-azure-700 dark:text-azure-400"
+                >
+                  Doctor workflow run
+                  <ExternalLink className="h-3 w-3 ml-1" />
+                </a>
+              )}
+            </div>
+          )}
+          {DETAIL_SECTIONS.map(({ key, label }) => {
+            const value = details[key]
+            if (typeof value !== 'string' || !value.trim()) return null
+            return (
+              <div key={key}>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                  {label}
+                </p>
+                <div className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap leading-relaxed">
+                  {value}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function ActivityDetail() {
@@ -283,17 +375,24 @@ export default function ActivityDetail() {
                     </p>
                   )}
 
-                  {diagnostic.url ? (
-                    <a
-                      href={diagnostic.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-3 inline-flex items-center text-sm text-azure-600 hover:text-azure-700 dark:text-azure-400"
-                    >
-                      Open findings
-                      <ExternalLink className="h-4 w-4 ml-1" />
-                    </a>
-                  ) : (
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    {diagnostic.url && (
+                      <a
+                        href={diagnostic.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-sm text-azure-600 hover:text-azure-700 dark:text-azure-400"
+                      >
+                        Open findings
+                        <ExternalLink className="h-4 w-4 ml-1" />
+                      </a>
+                    )}
+                    {typeof (diagnostic.metadata as Record<string, unknown>)?.details === 'object' &&
+                      (diagnostic.metadata as Record<string, unknown>).details !== null && (
+                        <ExternalFindingsPanel details={(diagnostic.metadata as Record<string, unknown>).details as Record<string, unknown>} />
+                      )}
+                  </div>
+                  {!diagnostic.url && typeof (diagnostic.metadata as Record<string, unknown>)?.details !== 'object' && (
                     <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
                       No findings link published by the external workflow.
                     </p>
@@ -394,8 +493,11 @@ export default function ActivityDetail() {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Action Taken
                 </p>
-                <p className="mt-1 text-gray-900 dark:text-white capitalize">
-                  {activity.remediation_result.action_taken.replace('_', ' ')}
+                <p className="mt-1 text-gray-900 dark:text-white">
+                  {activity.remediation_result.action_taken
+                    .replace(/_/g, ' ')
+                    .replace(/\b\w/g, (c) => c.toUpperCase())
+                    .replace(/\bPr\b/, 'PR')}
                 </p>
               </div>
               <div>
