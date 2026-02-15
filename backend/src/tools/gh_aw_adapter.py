@@ -166,6 +166,10 @@ class PassiveIssueGHAWAdapter:
                 state="all",
                 per_page=20,
             )
+            logger.info(
+                "ci-doctor query %r returned %d issues for run %s",
+                query, len(found), run_id,
+            )
             for issue in found:
                 number = issue.get("number")
                 if not isinstance(number, int):
@@ -177,10 +181,14 @@ class PassiveIssueGHAWAdapter:
 
         diagnostics: list[ExternalDiagnostic] = []
         for issue in issues:
+            number = issue.get("number")
             if not self._issue_matches_run(issue, run_id, head_sha, run_number):
-                number = issue.get("number")
                 if not isinstance(number, int):
                     continue
+                logger.info(
+                    "Issue #%s title/body did not match run %s; checking comments",
+                    number, run_id,
+                )
                 if not await self._issue_comments_match_run(
                     owner=owner,
                     repo=repo,
@@ -189,7 +197,9 @@ class PassiveIssueGHAWAdapter:
                     head_sha=head_sha,
                     run_number=run_number,
                 ):
+                    logger.info("Issue #%s comments also did not match run %s; skipping", number, run_id)
                     continue
+                logger.info("Issue #%s matched run %s via comments", number, run_id)
             number = issue.get("number")
             if not isinstance(number, int):
                 continue
@@ -225,11 +235,17 @@ class PassiveIssueGHAWAdapter:
     ) -> bool:
         list_comments = getattr(self._github_tools, "list_issue_comments", None)
         if list_comments is None:
+            logger.debug("list_issue_comments not available on github_tools")
             return False
         try:
             comments = await list_comments(owner, repo, issue_number, 10)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to fetch comments for issue #%s: %s", issue_number, exc)
             return False
+        logger.info(
+            "Fetched %d comments for issue #%s to match run %s",
+            len(comments), issue_number, run_id,
+        )
         for comment in comments:
             probe_issue = {"title": "", "body": str(comment.get("body", ""))}
             if self._issue_matches_run(probe_issue, run_id, head_sha, run_number):

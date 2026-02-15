@@ -606,7 +606,7 @@ class GitHubTools:
         response = await self._request(
             "GET",
             f"/repos/{owner}/{repo}/issues/{issue_number}/comments",
-            params={"per_page": max(1, min(per_page, 100)), "sort": "updated", "direction": "desc"},
+            params={"per_page": max(1, min(per_page, 100)), "sort": "created", "direction": "desc"},
         )
         return cast(list[dict[str, Any]], response.json())
 
