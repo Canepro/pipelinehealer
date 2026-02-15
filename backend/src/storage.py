@@ -307,6 +307,56 @@ class ActivityStorage:
 
         return items
 
+    async def get_backfill_candidates(
+        self,
+        *,
+        limit: int = 20,
+        max_age_hours: float = 24.0,
+    ) -> list[ActivityRecord]:
+        """Return completed activities whose external diagnostics need backfill.
+
+        An activity qualifies when it is ``completed`` (or ``failed``) and has at
+        least one ``ExternalDiagnostic`` entry with ``reason_code`` equal to
+        ``poll_window_exhausted`` — meaning the ci-doctor findings were not
+        available during the original pipeline run.
+
+        Args:
+            limit: Max candidates to return.
+            max_age_hours: Only consider activities created within this many hours.
+
+        Returns:
+            List of qualifying activity records, newest first.
+        """
+        await self.initialize()
+
+        since_iso = _as_utc(
+            utcnow() - __import__("datetime").timedelta(hours=max_age_hours)
+        ).isoformat()
+
+        safe_limit = max(1, min(limit, 100))
+        query = f"""
+            SELECT TOP {safe_limit} * FROM c
+            WHERE c.status IN ('completed', 'failed')
+              AND c.created_at >= @since
+              AND ARRAY_LENGTH(c.external_diagnostics) > 0
+            ORDER BY c.created_at DESC
+        """
+        parameters: list[dict[str, object]] = [{"name": "@since", "value": since_iso}]
+
+        candidates: list[ActivityRecord] = []
+        async for item in self._activities_container_required().query_items(
+            query=query,
+            parameters=parameters,
+        ):
+            activity = ActivityRecord(**item)
+            # Filter in Python: at least one diagnostic with poll_window_exhausted
+            if any(
+                d.metadata.get("reason_code") == "poll_window_exhausted"
+                for d in activity.external_diagnostics
+            ):
+                candidates.append(activity)
+        return candidates
+
     async def get_stats(self) -> DashboardStats:
         """Get dashboard statistics.
 
@@ -593,6 +643,33 @@ class InMemoryStorage(ActivityStorage):
             if len(page) < page_size:
                 break
             offset += len(page)
+
+    async def get_backfill_candidates(
+        self,
+        *,
+        limit: int = 20,
+        max_age_hours: float = 24.0,
+    ) -> list[ActivityRecord]:
+        """Return in-memory activities needing external diagnostics backfill."""
+        from datetime import timedelta
+
+        cutoff = _as_utc(utcnow() - timedelta(hours=max_age_hours))
+        candidates: list[ActivityRecord] = []
+        for activity in self._activities.values():
+            if activity.status not in (RemediationStatus.COMPLETED, RemediationStatus.FAILED):
+                continue
+            if activity.created_at and _as_utc(activity.created_at) < cutoff:
+                continue
+            if any(
+                d.metadata.get("reason_code") == "poll_window_exhausted"
+                for d in activity.external_diagnostics
+            ):
+                candidates.append(activity)
+        candidates.sort(
+            key=lambda a: _as_utc(a.created_at).timestamp() if a.created_at else 0,
+            reverse=True,
+        )
+        return candidates[:limit]
 
     async def upsert_runtime_settings(self, settings_payload: dict[str, Any]) -> None:
         """Persist runtime settings in-memory (test/local fallback)."""

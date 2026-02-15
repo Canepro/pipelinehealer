@@ -774,3 +774,25 @@ async def retry_activity(
     except Exception as e:
         logger.exception(f"Failed to retry activity {activity_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/backfill-diagnostics")
+async def backfill_diagnostics(
+    max_age_hours: float = Query(default=24.0, ge=1.0, le=168.0),
+    workflow: PipelineHealerWorkflow = Depends(get_workflow),
+) -> dict[str, Any]:
+    """Manually trigger a backfill sweep for external diagnostics.
+
+    Finds completed activities whose ci-doctor poll window was exhausted
+    and attempts to attach findings that have been published since.
+    """
+    try:
+        count = await workflow.run_backfill_sweep(max_age_hours=max_age_hours)
+        return {
+            "status": "completed",
+            "backfilled": count,
+            "max_age_hours": max_age_hours,
+        }
+    except Exception as e:
+        logger.exception(f"Backfill sweep failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e

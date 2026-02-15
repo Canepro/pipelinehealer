@@ -224,6 +224,15 @@ This is the long-form project tracker for hackathon execution status, submission
   - Decomposed `settings:persist` into focused helpers with direct flags (`--heal-mode`, `--auto-create-pr`, etc.) and enum validation.
   - Added shellcheck CI job for all shell scripts.
 - Created `docs/CLI.md` as canonical CLI reference for `scripts/ph.sh`: all commands, flags, error handling, env overrides, quality gate. Updated docs index, README documentation map, and AGENTS.md to point to it.
+- Updated demo repo (`Canepro/pipelinehealer-demo`): removed stale `agentics-maintenance.yml`, added `.gitignore`, pushed `.github/agents/` for Copilot routing, rewrote README with all 7 failure types and single-run/subset CLI examples.
+- Implemented **async external diagnostics backfill** for activities ending with `poll_window_exhausted`:
+  - `storage.get_backfill_candidates()` queries completed/failed activities with exhausted external diagnostics within a configurable time window.
+  - `orchestrator.backfill_activity_diagnostics()` re-queries ci-doctor for a single activity and replaces stale entries with real findings.
+  - `workflow.run_backfill_sweep()` orchestrates the full sweep.
+  - Background periodic task (`_backfill_sweep_loop`) runs every 10 minutes in the app lifespan.
+  - `POST /api/backfill-diagnostics` endpoint for manual/on-demand triggering.
+  - 8 new unit tests covering all paths (success, no findings, errors, disabled, invalid repo, storage candidates, sweep integration).
+  - Documented in `docs/API.md`.
 
 ## Project Tracking Plan (Now -> Mar 15)
 

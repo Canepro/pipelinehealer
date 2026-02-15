@@ -213,6 +213,40 @@ class PipelineHealerWorkflow:
         """Get the GitHub tools instance."""
         return self._github_tools
 
+    async def run_backfill_sweep(self, *, max_age_hours: float = 24.0) -> int:
+        """Sweep completed activities and backfill missing external diagnostics.
+
+        Finds activities whose ci-doctor poll window was exhausted during the
+        original pipeline run and tries to attach findings that may have been
+        published since then.
+
+        Args:
+            max_age_hours: Only consider activities created within this window.
+
+        Returns:
+            Number of activities that were successfully backfilled.
+        """
+        candidates = await self._storage.get_backfill_candidates(
+            limit=20,
+            max_age_hours=max_age_hours,
+        )
+        if not candidates:
+            return 0
+
+        logger.info("Backfill sweep: found %d candidate(s)", len(candidates))
+        backfilled = 0
+        for activity in candidates:
+            try:
+                if await self._orchestrator.backfill_activity_diagnostics(activity):
+                    backfilled += 1
+            except Exception:
+                logger.debug(
+                    "Backfill sweep: error processing activity %s", activity.id, exc_info=True,
+                )
+        if backfilled:
+            logger.info("Backfill sweep: enriched %d / %d activities", backfilled, len(candidates))
+        return backfilled
+
     def refresh_runtime_settings(self) -> None:
         """Refresh mutable settings across workflow components."""
         self._settings = get_settings()

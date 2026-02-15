@@ -1,8 +1,9 @@
 """Main FastAPI application for PipelineHealer."""
 
+import asyncio
 import logging
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from uuid import uuid4
 
 import structlog
@@ -36,6 +37,28 @@ structlog.configure(
 logger = structlog.get_logger(__name__)
 
 
+_BACKFILL_INTERVAL_SECONDS = 600  # 10 minutes
+
+
+async def _backfill_sweep_loop(workflow: PipelineHealerWorkflow) -> None:
+    """Periodic background loop that backfills ci-doctor diagnostics.
+
+    Runs every ``_BACKFILL_INTERVAL_SECONDS`` and enriches completed activities
+    whose original poll window was exhausted.
+    """
+    sweep_logger = logging.getLogger(__name__)
+    # Wait an initial interval before the first sweep so the app can warm up.
+    await asyncio.sleep(_BACKFILL_INTERVAL_SECONDS)
+    while True:
+        try:
+            count = await workflow.run_backfill_sweep(max_age_hours=24.0)
+            if count:
+                sweep_logger.info("Backfill sweep enriched %d activity(ies)", count)
+        except Exception:
+            sweep_logger.debug("Backfill sweep iteration failed", exc_info=True)
+        await asyncio.sleep(_BACKFILL_INTERVAL_SECONDS)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan manager."""
@@ -67,12 +90,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.storage = workflow.storage
     await dashboard.apply_persisted_runtime_settings(workflow.storage, workflow)
 
+    # Start background backfill sweep for ci-doctor diagnostics.
+    backfill_task = asyncio.create_task(
+        _backfill_sweep_loop(workflow),
+        name="backfill-diagnostics-sweep",
+    )
+
     logger.info("PipelineHealer initialized successfully")
 
     yield
 
     # Cleanup
     logger.info("Shutting down PipelineHealer")
+    backfill_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await backfill_task
     await workflow.close()
 
 

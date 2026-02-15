@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: a2adcec -->
+<!-- LAST_VERIFIED: 69fd850 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -244,6 +244,30 @@ Retries a failed or skipped activity by re-running failed GitHub Actions jobs.
 ```
 
 **Response** `400 Bad Request`: Activity status is not retryable.
+
+#### `POST /api/backfill-diagnostics`
+
+Triggers an on-demand sweep that backfills external diagnostics (ci-doctor findings) for completed activities whose original poll window was exhausted.
+
+**Auth**: `X-API-Key`
+
+**Query Parameters**:
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `max_age_hours` | float | 24.0 | Only consider activities created within this many hours (1–168). |
+
+**Response** `200 OK`:
+
+```json
+{
+  "status": "completed",
+  "backfilled": 2,
+  "max_age_hours": 24.0
+}
+```
+
+**Notes**: A background sweep also runs automatically every 10 minutes, so manual triggering is only needed for immediate results (e.g. after confirming ci-doctor has finished).
 
 ---
 

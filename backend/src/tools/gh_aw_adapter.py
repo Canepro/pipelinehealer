@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from collections.abc import Mapping
 from typing import Protocol
@@ -191,6 +192,74 @@ class PassiveIssueGHAWAdapter:
         )
         return score > 0
 
+    # Section header pattern: "## Title" at start of line.
+    _SECTION_RE = re.compile(r"^##\s+(.+)", re.MULTILINE)
+
+    # Footer HTML comment from gh-aw containing engine/model/run info.
+    _FOOTER_RE = re.compile(
+        r"<!--\s*gh-aw-agentic-workflow:\s*(?P<workflow>[^,]+),\s*"
+        r"engine:\s*(?P<engine>[^,]+),\s*"
+        r"model:\s*(?P<model>[^,]+),\s*"
+        r"run:\s*(?P<run_url>\S+)\s*-->",
+    )
+
+    @classmethod
+    def _extract_issue_details(cls, body: str) -> dict[str, object]:
+        """Parse a ci-doctor issue body into structured detail fields.
+
+        Extracts well-known markdown sections (Summary, Root Cause Analysis,
+        Recommended Actions, etc.) and the gh-aw footer metadata.  Sections
+        are trimmed to 2000 chars to stay within reasonable storage limits.
+        """
+        if not body:
+            return {}
+
+        # Split body into {heading: content} pairs.
+        sections: dict[str, str] = {}
+        parts = cls._SECTION_RE.split(body)
+        # parts alternates: [preamble, heading1, content1, heading2, content2, ...]
+        for i in range(1, len(parts) - 1, 2):
+            heading = parts[i].strip()
+            content = parts[i + 1].strip()
+            sections[heading] = content
+
+        details: dict[str, object] = {}
+
+        # Map well-known sections to structured keys.
+        _SECTION_MAP = {
+            "Summary": "summary",
+            "Root Cause Analysis": "root_cause",
+            "Failed Jobs and Errors": "failed_jobs",
+            "Investigation Findings": "investigation_findings",
+            "Recommended Actions": "recommended_actions",
+            "Prevention Strategies": "prevention_strategies",
+            "AI Team Self-Improvement": "ai_self_improvement",
+            "Historical Context": "historical_context",
+        }
+        for heading, key in _SECTION_MAP.items():
+            text = sections.get(heading, "").strip()
+            if text:
+                details[key] = text[:2000]
+
+        # Extract structured fields from Failure Details section.
+        failure_details = sections.get("Failure Details", "")
+        if failure_details:
+            for line in failure_details.splitlines():
+                line_lower = line.strip().lower()
+                if line_lower.startswith("- **trigger**"):
+                    trigger = line.split(":", 1)[-1].strip().strip("`")
+                    if trigger:
+                        details["trigger"] = trigger
+
+        # Parse gh-aw footer for doctor workflow metadata.
+        footer_match = cls._FOOTER_RE.search(body)
+        if footer_match:
+            details["doctor_engine"] = footer_match.group("engine").strip()
+            details["doctor_model"] = footer_match.group("model").strip()
+            details["doctor_run_url"] = footer_match.group("run_url").strip()
+
+        return details
+
     async def collect_external_diagnostics(
         self,
         owner: str,
@@ -320,6 +389,19 @@ class PassiveIssueGHAWAdapter:
             title = str(issue.get("title", "")).strip()
             issue_url = str(issue.get("html_url", "")).strip() or None
             state = str(issue.get("state", "")).strip().lower()
+            body = str(issue.get("body", ""))
+
+            metadata: dict[str, object] = {
+                "issue_number": number,
+                "issue_state": state,
+                "match_basis": best_basis,
+            }
+
+            # Extract structured content from the ci-doctor issue body.
+            details = self._extract_issue_details(body)
+            if details:
+                metadata["details"] = details
+
             diagnostics.append(
                 ExternalDiagnostic(
                     source="ci-doctor",
@@ -328,11 +410,7 @@ class PassiveIssueGHAWAdapter:
                     url=issue_url,
                     matched_run_id=run_id,
                     confidence_delta=0.08,
-                    metadata={
-                        "issue_number": number,
-                        "issue_state": state,
-                        "match_basis": best_basis,
-                    },
+                    metadata=metadata,
                 )
             )
 

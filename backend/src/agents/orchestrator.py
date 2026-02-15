@@ -574,3 +574,85 @@ class OrchestratorAgent:
             return False, f"Max remediation attempts reached for workflow '{workflow_name}'"
 
         return True, "New failure to process"
+
+    # ------------------------------------------------------------------
+    # External-diagnostics backfill
+    # ------------------------------------------------------------------
+
+    async def backfill_activity_diagnostics(
+        self,
+        activity: ActivityRecord,
+    ) -> bool:
+        """Attempt to backfill external diagnostics for a single activity.
+
+        Called after the pipeline has completed when the original poll window
+        was exhausted.  If ci-doctor findings are now available, the activity's
+        ``external_diagnostics`` list is replaced with the real findings and
+        persisted.
+
+        Returns:
+            ``True`` if new findings were attached, ``False`` otherwise.
+        """
+        if "/" not in activity.repository_name:
+            return False
+        owner, repo = activity.repository_name.split("/", 1)
+
+        if not self._settings.gh_aw_tools_enabled:
+            return False
+        if self._settings.gh_aw_ingestion_mode != "passive":
+            return False
+
+        # Determine head_sha and run_number from stored diagnosis context.
+        head_sha = ""
+        run_number: int | None = None
+        for diag in activity.external_diagnostics:
+            if diag.matched_run_id == activity.workflow_run_id:
+                # The original poll_window_exhausted entry won't have these,
+                # but a partially-collected one might.
+                break
+
+        # We need head_sha for the adapter; fall back to a lightweight GitHub API call.
+        if not head_sha:
+            try:
+                run_details = await self._github_tools.get_workflow_run(
+                    owner, repo, activity.workflow_run_id,
+                )
+                head_sha = run_details.get("head_sha", "")
+                run_number = run_details.get("run_number")
+            except Exception:
+                logger.debug(
+                    "Backfill: unable to fetch run details for %s/%s run %s",
+                    owner, repo, activity.workflow_run_id,
+                )
+                return False
+
+        try:
+            findings = await self._gh_aw_adapter.collect_external_diagnostics(
+                owner=owner,
+                repo=repo,
+                run_id=activity.workflow_run_id,
+                head_sha=head_sha,
+                run_number=run_number,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Backfill: ci-doctor collection failed for %s/%s run %s: %s",
+                owner, repo, activity.workflow_run_id, type(exc).__name__,
+            )
+            return False
+
+        if not findings:
+            return False
+
+        # Replace the stale poll_window_exhausted entries with real findings.
+        activity.external_diagnostics = [
+            d for d in activity.external_diagnostics
+            if d.metadata.get("reason_code") != "poll_window_exhausted"
+        ] + findings
+        await self._storage.update_activity(activity)
+
+        logger.info(
+            "Backfill: attached %d ci-doctor finding(s) to activity %s (run %s)",
+            len(findings), activity.id, activity.workflow_run_id,
+        )
+        return True
