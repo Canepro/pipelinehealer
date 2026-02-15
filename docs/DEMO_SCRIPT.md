@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 77c76ae -->
+<!-- LAST_VERIFIED: 6c73b66 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -123,7 +123,7 @@ Expected result pattern:
 - Admin audit proof should show latest entries containing `request_id`, actor fingerprint, and old/new change values.
 - Settings page should show runtime scope clearly (`Allowlist (N)` or `Unrestricted`) in the Effective Runtime Policy banner.
 - Allowed repositories section in Admin Controls supports add/remove of `owner/repo` entries and persists via `PATCH /api/settings`.
-- For `ci-doctor` external diagnostics enrichment, allow up to ~10 minutes for bounded polling plus issue publication latency.
+- For `ci-doctor` external diagnostics enrichment, allow up to ~8 minutes for bounded polling plus issue publication latency.
 - If an activity shows `reason_code=poll_window_exhausted`, wait for `CI Failure Doctor` completion and re-run proof checks.
 
 ## 5) 2-Minute Recording Script (Final)

@@ -35,6 +35,7 @@ class GHAWAdapter(Protocol):
         repo: str,
         run_id: int,
         head_sha: str,
+        run_number: int | None = None,
     ) -> list[ExternalDiagnostic]:
         """Collect structured external diagnostics for a workflow run."""
 
@@ -58,7 +59,9 @@ class NullGHAWAdapter:
         repo: str,
         run_id: int,
         head_sha: str,
+        run_number: int | None = None,
     ) -> list[ExternalDiagnostic]:
+        _ = run_number
         return []
 
 
@@ -111,14 +114,29 @@ class PassiveIssueGHAWAdapter:
         )
 
     @staticmethod
-    def _issue_matches_run(issue: dict[str, object], run_id: int, head_sha: str) -> bool:
+    def _issue_matches_run(
+        issue: dict[str, object],
+        run_id: int,
+        head_sha: str,
+        run_number: int | None = None,
+    ) -> bool:
         blob = (
             str(issue.get("title", "")).lower()
             + "\n"
             + str(issue.get("body", "")).lower()
         )
+        run_url_fragment = f"/actions/runs/{run_id}"
         sha_prefixes = [head_sha.lower()[:7], head_sha.lower()[:12], head_sha.lower()]
-        return (str(run_id) in blob) or any(prefix and prefix in blob for prefix in sha_prefixes)
+        run_number_tokens = []
+        if run_number is not None:
+            run_number_tokens = [f"run #{run_number}", f"run {run_number}", str(run_number)]
+
+        return (
+            (str(run_id) in blob)
+            or (run_url_fragment in blob)
+            or any(prefix and prefix in blob for prefix in sha_prefixes)
+            or any(token in blob for token in run_number_tokens)
+        )
 
     async def collect_external_diagnostics(
         self,
@@ -126,29 +144,40 @@ class PassiveIssueGHAWAdapter:
         repo: str,
         run_id: int,
         head_sha: str,
+        run_number: int | None = None,
     ) -> list[ExternalDiagnostic]:
-        # Strong query first: explicit run correlation.
-        query = f'label:"ci-doctor" "{run_id}" "{head_sha[:12]}"'
-        issues = await self._github_tools.search_issues(
-            owner=owner,
-            repo=repo,
-            query=query,
-            state="all",
-            per_page=10,
-        )
-        if not issues:
-            # Fallback: recent ci-doctor issues, then filter locally.
-            issues = await self._github_tools.search_issues(
+        run_number_query = f'"run #{run_number}"' if run_number is not None else ""
+        query_candidates = [
+            f'label:"ci-doctor" "{run_id}" "{head_sha[:12]}"',
+            f'"[CI Failure Doctor]" "{run_id}" "{head_sha[:12]}"',
+            f'"[CI Failure Doctor]" {run_number_query}'.strip(),
+            'label:"ci-doctor"',
+            '"[CI Failure Doctor]"',
+        ]
+        issues: list[dict[str, object]] = []
+        seen_numbers: set[int] = set()
+        for query in query_candidates:
+            if not query:
+                continue
+            found = await self._github_tools.search_issues(
                 owner=owner,
                 repo=repo,
-                query='label:"ci-doctor"',
+                query=query,
                 state="all",
                 per_page=20,
             )
+            for issue in found:
+                number = issue.get("number")
+                if not isinstance(number, int):
+                    continue
+                if number in seen_numbers:
+                    continue
+                seen_numbers.add(number)
+                issues.append(issue)
 
         diagnostics: list[ExternalDiagnostic] = []
         for issue in issues:
-            if not self._issue_matches_run(issue, run_id, head_sha):
+            if not self._issue_matches_run(issue, run_id, head_sha, run_number):
                 continue
             number = issue.get("number")
             title = str(issue.get("title", "")).strip()

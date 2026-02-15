@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: be50c31 -->
+<!-- LAST_VERIFIED: 6c73b66 -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -236,7 +236,7 @@ flowchart LR
 - **Settings Persistence**: One-click "Persist Settings" saves mutable runtime config to Cosmos DB; auto-restored on startup
 - **Runtime Model Switching**: Change Azure OpenAI deployment name via settings UI with immediate agent cache invalidation
 - **GitHub Agentic Workflows Integration**: Passive ingestion of external diagnostics (ci-doctor) when available on monitored repos
-- **Bounded External Diagnostics Polling**: Passive ingestion waits up to 10 minutes and performs a final immediate fetch before timeout classification
+- **Bounded External Diagnostics Polling**: Passive ingestion waits up to ~8 minutes and performs a final immediate fetch before timeout classification
 - **Mobile Navigation Reliability**: Route-safe, notch-safe sheet navigation for portrait mobile workflows
 - **Enterprise Ready**: Azure-native with full observability and security
 

@@ -72,8 +72,9 @@ class _UnavailableAdapter:
         repo: str,
         run_id: int,
         head_sha: str,
+        run_number: int | None = None,
     ) -> list[ExternalDiagnostic]:
-        _ = owner, repo, run_id, head_sha
+        _ = owner, repo, run_id, head_sha, run_number
         return []
 
 
@@ -91,8 +92,9 @@ class _EventuallyAvailableAdapter:
         repo: str,
         run_id: int,
         head_sha: str,
+        run_number: int | None = None,
     ) -> list[ExternalDiagnostic]:
-        _ = owner, repo, run_id, head_sha
+        _ = owner, repo, run_id, head_sha, run_number
         self.calls += 1
         if self.calls < 2:
             return []
@@ -120,8 +122,9 @@ class _NeverAvailableAdapter:
         repo: str,
         run_id: int,
         head_sha: str,
+        run_number: int | None = None,
     ) -> list[ExternalDiagnostic]:
-        _ = owner, repo, run_id, head_sha
+        _ = owner, repo, run_id, head_sha, run_number
         self.calls += 1
         return []
 

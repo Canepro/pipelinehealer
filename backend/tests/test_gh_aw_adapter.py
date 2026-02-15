@@ -10,6 +10,7 @@ class _FakeGitHubTools:
     def __init__(self) -> None:
         self.workflows = []
         self.issues = []
+        self.queries: list[str] = []
 
     async def list_repo_workflows(self, owner: str, repo: str):
         _ = owner, repo
@@ -23,7 +24,8 @@ class _FakeGitHubTools:
         state: str = "all",
         per_page: int = 10,
     ):
-        _ = owner, repo, query, state, per_page
+        _ = owner, repo, state, per_page
+        self.queries.append(query)
         return self.issues
 
 
@@ -78,8 +80,38 @@ async def test_collect_external_diagnostics_filters_by_run_and_sha() -> None:
         repo="pipelinehealer",
         run_id=4242,
         head_sha="abcdef1234567890",
+        run_number=7,
     )
     assert len(diagnostics) == 1
     assert diagnostics[0].status == ExternalDiagnosticStatus.AVAILABLE
     assert diagnostics[0].matched_run_id == 4242
     assert diagnostics[0].url == "https://github.com/Canepro/pipelinehealer/issues/101"
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_matches_run_url_and_title_prefix_without_label() -> None:
+    gh = _FakeGitHubTools()
+    gh.issues = [
+        {
+            "number": 205,
+            "title": "[CI Failure Doctor] Build workflow investigation",
+            "body": "See details at https://github.com/Canepro/pipelinehealer/actions/runs/4242",
+            "html_url": "https://github.com/Canepro/pipelinehealer/issues/205",
+            "state": "open",
+        }
+    ]
+    adapter = PassiveIssueGHAWAdapter(gh, known_workflows=["ci-doctor"])
+
+    diagnostics = await adapter.collect_external_diagnostics(
+        owner="Canepro",
+        repo="pipelinehealer",
+        run_id=4242,
+        head_sha="abcdef1234567890",
+        run_number=7,
+    )
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].status == ExternalDiagnosticStatus.AVAILABLE
+    assert diagnostics[0].matched_run_id == 4242
+    assert diagnostics[0].url == "https://github.com/Canepro/pipelinehealer/issues/205"
+    assert any('[CI Failure Doctor]' in q for q in gh.queries)

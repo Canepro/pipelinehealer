@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 77c76ae -->
+<!-- LAST_VERIFIED: 6c73b66 -->
 
 This runbook documents the detailed operator workflow for both Azure and local execution.
 
@@ -308,7 +308,7 @@ Notes:
   - `test` flaky failures: PipelineHealer retries failed jobs once.
   - `timeout`: PipelineHealer opens a PR bumping `timeout-minutes` in `.github/workflows/ci.yml` (if present).
   - `build_config`: PipelineHealer can open a PR only when the workflow contains a placeholder line like `REQUIRED_CONFIG: ""`.
-- If `gh_aw` passive ingestion is enabled, external diagnostics enrichment can take up to ~10 minutes (bounded polling plus ci-doctor issue publish latency).
+- If `gh_aw` passive ingestion is enabled, external diagnostics enrichment can take up to ~8 minutes (bounded polling plus ci-doctor issue publish latency).
 
 ## 7) Verify From API
 
