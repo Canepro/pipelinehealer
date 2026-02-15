@@ -77,3 +77,9 @@ secrets.json
 # Generated / build artifacts
 output/
 infra/main.json
+
+# Agent/tool scaffolding (local-only)
+.codex/
+
+# Local demo fixture repo
+demo-repo/
