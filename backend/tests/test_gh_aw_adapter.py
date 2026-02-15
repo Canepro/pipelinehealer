@@ -11,6 +11,7 @@ class _FakeGitHubTools:
         self.workflows = []
         self.issues = []
         self.queries: list[str] = []
+        self.issue_comments: dict[int, list[dict[str, object]]] = {}
 
     async def list_repo_workflows(self, owner: str, repo: str):
         _ = owner, repo
@@ -27,6 +28,10 @@ class _FakeGitHubTools:
         _ = owner, repo, state, per_page
         self.queries.append(query)
         return self.issues
+
+    async def list_issue_comments(self, owner: str, repo: str, issue_number: int, per_page: int = 30):
+        _ = owner, repo, per_page
+        return self.issue_comments.get(issue_number, [])
 
 
 @pytest.mark.asyncio
@@ -115,3 +120,36 @@ async def test_collect_external_diagnostics_matches_run_url_and_title_prefix_wit
     assert diagnostics[0].matched_run_id == 4242
     assert diagnostics[0].url == "https://github.com/Canepro/pipelinehealer/issues/205"
     assert any('[CI Failure Doctor]' in q for q in gh.queries)
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_matches_from_issue_comment() -> None:
+    gh = _FakeGitHubTools()
+    gh.issues = [
+        {
+            "number": 300,
+            "title": "[CI Failure Doctor] Existing investigation thread",
+            "body": "No direct run-id in issue body",
+            "html_url": "https://github.com/Canepro/pipelinehealer/issues/300",
+            "state": "open",
+        }
+    ]
+    gh.issue_comments[300] = [
+        {
+            "body": "Observed same signature for run 4242: https://github.com/Canepro/pipelinehealer/actions/runs/4242",
+        }
+    ]
+    adapter = PassiveIssueGHAWAdapter(gh, known_workflows=["ci-doctor"])
+
+    diagnostics = await adapter.collect_external_diagnostics(
+        owner="Canepro",
+        repo="pipelinehealer",
+        run_id=4242,
+        head_sha="abcdef1234567890",
+        run_number=7,
+    )
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].status == ExternalDiagnosticStatus.AVAILABLE
+    assert diagnostics[0].matched_run_id == 4242
+    assert diagnostics[0].url == "https://github.com/Canepro/pipelinehealer/issues/300"

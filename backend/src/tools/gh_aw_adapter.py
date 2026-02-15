@@ -178,8 +178,21 @@ class PassiveIssueGHAWAdapter:
         diagnostics: list[ExternalDiagnostic] = []
         for issue in issues:
             if not self._issue_matches_run(issue, run_id, head_sha, run_number):
-                continue
+                number = issue.get("number")
+                if not isinstance(number, int):
+                    continue
+                if not await self._issue_comments_match_run(
+                    owner=owner,
+                    repo=repo,
+                    issue_number=number,
+                    run_id=run_id,
+                    head_sha=head_sha,
+                    run_number=run_number,
+                ):
+                    continue
             number = issue.get("number")
+            if not isinstance(number, int):
+                continue
             title = str(issue.get("title", "")).strip()
             issue_url = str(issue.get("html_url", "")).strip() or None
             state = str(issue.get("state", "")).strip().lower()
@@ -199,6 +212,29 @@ class PassiveIssueGHAWAdapter:
             )
 
         return diagnostics
+
+    async def _issue_comments_match_run(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        issue_number: int,
+        run_id: int,
+        head_sha: str,
+        run_number: int | None,
+    ) -> bool:
+        list_comments = getattr(self._github_tools, "list_issue_comments", None)
+        if list_comments is None:
+            return False
+        try:
+            comments = await list_comments(owner, repo, issue_number, 10)
+        except Exception:
+            return False
+        for comment in comments:
+            probe_issue = {"title": "", "body": str(comment.get("body", ""))}
+            if self._issue_matches_run(probe_issue, run_id, head_sha, run_number):
+                return True
+        return False
 
 
 def create_gh_aw_adapter(*, github_tools: GitHubTools) -> GHAWAdapter:

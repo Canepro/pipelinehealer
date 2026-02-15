@@ -595,6 +595,21 @@ class GitHubTools:
         )
         return cast(dict[str, Any], response.json())
 
+    async def list_issue_comments(
+        self,
+        owner: str,
+        repo: str,
+        issue_number: int,
+        per_page: int = 30,
+    ) -> list[dict[str, Any]]:
+        """List comments for an issue."""
+        response = await self._request(
+            "GET",
+            f"/repos/{owner}/{repo}/issues/{issue_number}/comments",
+            params={"per_page": max(1, min(per_page, 100)), "sort": "updated", "direction": "desc"},
+        )
+        return cast(list[dict[str, Any]], response.json())
+
     async def search_issues(
         self,
         owner: str,
@@ -716,6 +731,7 @@ def create_github_tool_functions(github_tools: GitHubTools) -> dict[str, Any]:
         "get_pull_request_files": github_tools.get_pull_request_files,
         "create_issue": github_tools.create_issue,
         "add_issue_comment": github_tools.add_issue_comment,
+        "list_issue_comments": github_tools.list_issue_comments,
         "search_issues": github_tools.search_issues,
         "rerun_workflow": github_tools.rerun_workflow,
         "rerun_failed_jobs": github_tools.rerun_failed_jobs,
