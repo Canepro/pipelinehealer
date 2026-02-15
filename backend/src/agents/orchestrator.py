@@ -27,7 +27,17 @@ from .remediation import RemediationAgent
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
-_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS: tuple[float, ...] = (10.0, 20.0, 30.0)
+# Bounded backoff (total 300s) for passive external diagnostics collection.
+# This only runs when gh_aw_tools are enabled, ingestion mode is passive,
+# and ci-doctor capability is detected for the target repository.
+_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS: tuple[float, ...] = (
+    15.0,
+    30.0,
+    45.0,
+    60.0,
+    75.0,
+    75.0,
+)
 
 
 class OrchestratorAgent:
