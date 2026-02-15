@@ -67,6 +67,7 @@ bash scripts/ph.sh urls
 bash scripts/ph.sh status
 bash scripts/ph.sh settings:check
 bash scripts/ph.sh settings:audit --limit 5
+bash scripts/ph.sh settings:persist
 bash scripts/ph.sh audit:proof --limit 5
 bash scripts/ph.sh logs
 bash scripts/ph.sh logs:grep --pattern "debug-mode"
@@ -204,10 +205,13 @@ flowchart LR
 - **Intelligent Diagnosis**: Pattern-based and AI-powered root cause analysis with robust JSON extraction
 - **Automated Remediation**: Creates PRs for auto-fixable issues, detailed issues for others
 - **Professional Dashboard UI**: Shadcn-style component system with polished dashboard/activity states
-- **Admin Settings Surface**: Admin-key-protected runtime settings page (`/settings`) with safe in-memory overrides
+- **Admin Settings Surface**: Admin-key-protected runtime settings page (`/settings`) with durable overrides persisted to Cosmos DB
 - **Effective Runtime Policy Banner**: Read-only trust surface for current mode, PR toggle, webhook signature state, and allowlist scope
 - **Repo Scope Visibility**: Settings page shows `PH_ALLOWED_REPOS` summary and explicit repository list with add/remove controls
 - **Admin Audit Visibility**: Explicit-load audit panel with request IDs, actor fingerprints, and old/new setting diffs
+- **Settings Persistence**: One-click "Persist Settings" saves mutable runtime config to Cosmos DB; auto-restored on startup
+- **Runtime Model Switching**: Change Azure OpenAI deployment name via settings UI with immediate agent cache invalidation
+- **GitHub Agentic Workflows Integration**: Passive ingestion of external diagnostics (ci-doctor) when available on monitored repos
 - **Mobile Navigation Reliability**: Route-safe, notch-safe sheet navigation for portrait mobile workflows
 - **Enterprise Ready**: Azure-native with full observability and security
 
@@ -553,6 +557,9 @@ bash scripts/ph.sh lowcost
 | `LOG_PROMPT_HEAD_CHARS` | Head chars preserved when truncating prompt logs | Optional |
 | `LOG_PROMPT_TAIL_CHARS` | Tail chars preserved when truncating prompt logs | Optional |
 | `PH_ALLOWED_REPOS` | Optional repo allowlist (CSV or JSON array of `owner/repo`) for webhook processing scope | Optional |
+| `GH_AW_TOOLS_ENABLED` | Enable GitHub Agentic Workflows integration (`true`/`false`) | Optional |
+| `GH_AW_INGESTION_MODE` | gh-aw ingestion mode: `disabled` or `passive` | Optional |
+| `GH_AW_KNOWN_WORKFLOWS` | Known gh-aw workflow names (CSV, e.g. `ci-doctor,schema-consistency-checker`) | Optional |
 | `VITE_API_AUTH_KEY` | Frontend API key header value (`X-API-Key`) when calling protected `/api/*` routes | Optional |
 
 ### API Security
@@ -593,9 +600,9 @@ bash scripts/ph.sh audit:proof --limit 5
 
 Audit trail notes:
 
-- `/api/settings/audit` is a lightweight in-memory audit trail for hackathon demos.
+- `/api/settings/audit` entries are persisted to Cosmos DB (with in-memory fallback for local development).
 - Entries include `request_id`, actor fingerprint (`admin_key:sha256:<short>`), changed keys, and old/new values.
-- In-memory entries reset on backend restart/revision; durable persistence is a post-submission roadmap item.
+- Entries survive backend restarts and redeployments when Cosmos DB storage is available.
 
 ### GitHub Webhook Setup
 

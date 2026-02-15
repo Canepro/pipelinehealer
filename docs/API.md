@@ -208,7 +208,8 @@ Returns activity records with optional filtering and pagination.
     "created_at": "2026-02-14T00:30:00Z",
     "updated_at": "2026-02-14T00:30:42Z",
     "duration_seconds": 42.1,
-    "error": null
+    "error": null,
+    "external_diagnostics": []
   }
 ]
 ```
@@ -332,6 +333,9 @@ Returns the current runtime configuration (non-secret values only).
   "github_app_configured": false,
   "github_auth_mode": "pat",
   "ph_allowed_repos": ["Canepro/pipelinehealer-demo"],
+  "gh_aw_tools_enabled": false,
+  "gh_aw_ingestion_mode": "disabled",
+  "gh_aw_known_workflows": ["ci-doctor", "schema-consistency-checker", "breaking-change-checker"],
   "cors_allowed_origins": ["http://localhost:3000", "http://localhost:5173"],
   "cors_allow_origin_regex": "https://.*\\.azurecontainerapps\\.io",
   "azure_openai_endpoint": "https://your-resource.cognitiveservices.azure.com/",
@@ -343,7 +347,7 @@ Returns the current runtime configuration (non-secret values only).
 
 #### `PATCH /api/settings`
 
-Applies runtime overrides (in-memory, resets on backend restart).
+Applies runtime overrides (immediate effect; persist durably via `POST /api/settings/persist`).
 
 **Auth**: `X-API-Key` + `X-Admin-Key`
 
@@ -383,6 +387,11 @@ Applies runtime overrides (in-memory, resets on backend restart).
 | `log_prompt_max_chars` | int | 1,000–200,000 |
 | `log_prompt_head_chars` | int | 100–200,000 |
 | `log_prompt_tail_chars` | int | 100–200,000 |
+| `ph_allowed_repos` | list[string] | Each entry must be `owner/repo` format; URLs and SSH paths are normalized |
+| `gh_aw_tools_enabled` | bool | Enable/disable GitHub Agentic Workflows integration |
+| `gh_aw_ingestion_mode` | string | `disabled` or `passive` |
+| `gh_aw_known_workflows` | list[string] | Workflow names to detect (e.g. `ci-doctor`, `schema-consistency-checker`) |
+| `azure_openai_deployment_name` | string | Non-empty; switches AI model deployment at runtime |
 
 **Validation**: `log_prompt_head_chars + log_prompt_tail_chars` must be `<= log_prompt_max_chars`.
 
@@ -390,7 +399,51 @@ Applies runtime overrides (in-memory, resets on backend restart).
 
 **Response** `422 Unprocessable Entity`: validation failure.
 
-**Side Effects**: Creates an audit entry in the in-memory audit trail.
+**Side Effects**: Creates an audit entry (persisted to Cosmos DB when available, in-memory fallback otherwise). Triggers agent cache invalidation when `azure_openai_deployment_name` changes so the new model takes effect immediately.
+
+#### `POST /api/settings/persist`
+
+Durably persists current mutable runtime settings so they survive backend restarts and redeployments.
+
+**Auth**: `X-API-Key` + `X-Admin-Key`
+
+**Request Body** (optional):
+
+```json
+{
+  "skip_redeploy": false
+}
+```
+
+- `skip_redeploy` defaults to `false`.
+- When `true`, settings are persisted but env-only redeploy is skipped.
+
+**Behavior**:
+
+- Writes all mutable settings to durable storage (Cosmos DB).
+- Optionally writes to `backend/.env` when the file is accessible (local development).
+- On next startup, persisted settings are loaded and re-applied automatically.
+
+**Response** `200 OK`:
+
+```json
+{
+  "env_file": "",
+  "persisted_keys": [
+    "heal_mode", "auto_create_pr", "max_remediation_attempts",
+    "gh_aw_tools_enabled", "gh_aw_ingestion_mode",
+    "azure_openai_deployment_name"
+  ],
+  "redeploy_attempted": false,
+  "redeploy_started": false,
+  "redeploy_message": "Persisted settings to durable storage. Local backend/.env not available in this runtime, so env-only redeploy was skipped."
+}
+```
+
+**Notes**:
+
+- In Azure Container Apps, `env_file` is usually empty (no writable local `backend/.env` in the running container).
+- Settings are always persisted to durable storage regardless of environment.
 
 #### `GET /api/settings/audit`
 
@@ -427,7 +480,7 @@ Returns recent admin settings change records (latest first).
 
 **Notes**:
 
-- Audit trail is in-memory and resets on backend restart/revision.
+- Audit entries are persisted to Cosmos DB when available, with in-memory fallback.
 - Capped at 200 entries (oldest dropped when exceeded).
 - Actor fingerprints are salted SHA-256 hashes (12 chars), not raw keys.
 
@@ -457,6 +510,30 @@ Returns recent admin settings change records (latest first).
 | `completed` | Successfully processed |
 | `failed` | Processing failed |
 | `skipped` | Deliberately skipped |
+
+### ExternalDiagnosticStatus (enum)
+
+| Value | Description |
+|-------|-------------|
+| `available` | External diagnostic findings were successfully ingested |
+| `unavailable` | External workflow not installed on the monitored repo, or no findings available within bounded polling |
+| `disabled` | External diagnostics integration disabled by runtime settings |
+| `error` | Error during external diagnostic retrieval |
+
+### ExternalDiagnostic (object)
+
+Represents findings from an external diagnostic tool (e.g. GitHub Agentic Workflows `ci-doctor`).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source` | string | Tool name (e.g. `ci-doctor`) |
+| `status` | ExternalDiagnosticStatus | Ingestion outcome |
+| `summary` | string | Short external finding summary |
+| `confidence_delta` | float | Confidence adjustment applied to native diagnosis (`-1.0` to `1.0`) |
+| `url` | string \| null | Link to external findings (issue, discussion, etc.) |
+| `matched_run_id` | int \| null | GitHub workflow run ID the findings relate to |
+| `metadata` | object | Structured diagnostic metadata (reason codes, issue numbers, etc.) |
+| `collected_at` | string (ISO datetime) | Timestamp when the external finding was collected |
 
 ### RemediationAction (enum)
 
@@ -548,7 +625,7 @@ Keep `head_chars + tail_chars <= max_chars`.
 
 - **Azure Cosmos DB** (`cosmos_db`): used in production. Activities persist across restarts.
 - **In-Memory** (`in_memory`): used in development (`ENVIRONMENT=development`). Activities reset on restart.
-- Admin audit trail is always in-memory (capped at 200 entries). Durable audit persistence is a roadmap item.
+- Admin settings audit trail is persisted to Cosmos DB when available, with in-memory fallback (capped at 200 entries in memory).
 
 ### 9. Error Handling Patterns
 
