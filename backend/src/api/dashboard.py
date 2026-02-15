@@ -250,8 +250,8 @@ def _repo_root() -> Path:
     override = os.getenv("PIPELINEHEALER_REPO_ROOT", "").strip()
     if override:
         return Path(override).resolve()
-    # backend/src/api/dashboard.py -> repo root is 3 levels up.
-    return Path(__file__).resolve().parents[3]
+    # backend/src/api/dashboard.py -> repo root is 2 levels up (/app in container).
+    return Path(__file__).resolve().parents[2]
 
 
 def _env_file_path() -> Path:
@@ -266,19 +266,28 @@ def _env_bool(value: bool) -> str:
     return "true" if value else "false"
 
 
-def _mutable_settings_to_env_values() -> dict[str, str]:
-    """Map live mutable runtime settings into env var string values."""
+def _mutable_runtime_settings_snapshot() -> dict[str, Any]:
+    """Capture live mutable runtime settings in normalized Python types."""
     settings = get_settings()
+    values: dict[str, Any] = {}
+    for attr_name, _ in _MUTABLE_SETTINGS_ENV_KEYS:
+        raw = getattr(settings, attr_name)
+        if attr_name == "ph_allowed_repos":
+            values[attr_name] = _safe_settings_allowlist(raw)
+        elif attr_name == "gh_aw_known_workflows":
+            values[attr_name] = _normalize_workflow_names(raw)
+        else:
+            values[attr_name] = raw
+    return values
+
+
+def _runtime_settings_to_env_values(runtime_values: dict[str, Any]) -> dict[str, str]:
+    """Convert mutable runtime settings snapshot into env var string values."""
     values: dict[str, str] = {}
     for attr_name, env_key in _MUTABLE_SETTINGS_ENV_KEYS:
-        raw = getattr(settings, attr_name)
+        raw = runtime_values[attr_name]
         if attr_name in {"ph_allowed_repos", "gh_aw_known_workflows"}:
-            items = (
-                _safe_settings_allowlist(raw)
-                if attr_name == "ph_allowed_repos"
-                else _normalize_workflow_names(raw)
-            )
-            values[env_key] = ",".join(items)
+            values[env_key] = ",".join(raw)
         elif isinstance(raw, bool):
             values[env_key] = _env_bool(raw)
         else:
@@ -302,20 +311,98 @@ def _upsert_env_line(env_file: Path, key: str, value: str) -> None:
     env_file.write_text("\n".join(output) + "\n", encoding="utf-8")
 
 
-def _persist_mutable_settings_to_env_file() -> tuple[str, list[str]]:
-    """Persist mutable runtime settings to env file and return written keys."""
+def _persist_mutable_settings_to_env_file(env_values: dict[str, str]) -> str | None:
+    """Persist mutable runtime settings to env file when available."""
     env_file = _env_file_path()
     if not env_file.exists():
-        raise HTTPException(
-            status_code=500,
-            detail=f"Env file not found: {env_file}",
-        )
+        return None
 
-    env_values = _mutable_settings_to_env_values()
     for key, value in env_values.items():
         _upsert_env_line(env_file, key, value)
 
-    return str(env_file), list(env_values.keys())
+    return str(env_file)
+
+
+async def _persist_mutable_settings_to_storage(runtime_values: dict[str, Any]) -> None:
+    """Persist mutable runtime settings to configured durable storage backend."""
+    storage = get_storage()
+    await storage.upsert_runtime_settings(runtime_values)
+
+
+def _coerce_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    return bool(value)
+
+
+def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
+    if attr_name == "heal_mode":
+        normalized = str(value).strip().lower()
+        if normalized not in {"safe", "demo", "debug"}:
+            raise ValueError("invalid heal_mode")
+        return normalized
+    if attr_name in {
+        "auto_create_pr",
+        "auto_create_tracking_issue_for_prs",
+        "verify_webhook_signature_in_development",
+        "gh_aw_tools_enabled",
+    }:
+        return _coerce_bool(value)
+    if attr_name in {"max_remediation_attempts", "github_api_max_retries", "log_prompt_max_chars", "log_prompt_head_chars", "log_prompt_tail_chars"}:
+        return int(value)
+    if attr_name in {"pipeline_step_timeout_seconds", "github_api_retry_base_seconds", "github_api_retry_max_seconds"}:
+        return float(value)
+    if attr_name == "gh_aw_ingestion_mode":
+        normalized = str(value).strip().lower()
+        if normalized not in {"disabled", "passive"}:
+            raise ValueError("invalid gh_aw_ingestion_mode")
+        return normalized
+    if attr_name == "gh_aw_known_workflows":
+        if not isinstance(value, list):
+            raise ValueError("invalid gh_aw_known_workflows")
+        return _normalize_workflow_names(value)
+    if attr_name == "ph_allowed_repos":
+        if not isinstance(value, list):
+            raise ValueError("invalid ph_allowed_repos")
+        return _normalize_allowed_repo_list(value)
+    return value
+
+
+async def apply_persisted_runtime_settings() -> None:
+    """Apply persisted mutable runtime settings at startup, if available."""
+    storage = get_storage()
+    persisted = await storage.get_runtime_settings()
+    if not persisted:
+        return
+
+    settings = get_settings()
+    changed_keys: list[str] = []
+    for attr_name, _ in _MUTABLE_SETTINGS_ENV_KEYS:
+        if attr_name not in persisted:
+            continue
+        try:
+            normalized = _normalize_persisted_mutable_value(attr_name, persisted[attr_name])
+        except Exception:
+            logger.warning(
+                "Skipping invalid persisted runtime setting: %s",
+                attr_name,
+            )
+            continue
+        setattr(settings, attr_name, normalized)
+        changed_keys.append(attr_name)
+
+    if changed_keys and _workflow is not None:
+        _workflow.refresh_runtime_settings()
+        logger.info(
+            "Applied persisted runtime settings from storage",
+            extra={"changed_keys": sorted(changed_keys)},
+        )
 
 
 def _truncate_output(raw: str, limit: int = 280) -> str:
@@ -462,6 +549,13 @@ async def update_app_settings(
         user_agent=user_agent,
     )
     _admin_settings_audit.append(audit_entry)
+    try:
+        await get_storage().append_admin_settings_audit_entry(
+            audit_entry.model_dump(mode="json")
+        )
+    except Exception as exc:
+        logger.warning("Failed to persist admin settings audit entry: %s", exc)
+
     # Keep memory bounded for long-running pods.
     if len(_admin_settings_audit) > _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES:
         del _admin_settings_audit[: len(_admin_settings_audit) - _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES]
@@ -485,6 +579,14 @@ async def get_settings_audit(
     ),
 ) -> list[AdminSettingsAuditEntry]:
     """Get recent admin settings change records (latest first)."""
+    try:
+        persisted = await get_storage().list_admin_settings_audit_entries(limit=limit)
+    except Exception as exc:
+        logger.warning("Failed to load persisted admin settings audit entries: %s", exc)
+        persisted = []
+
+    if persisted:
+        return [AdminSettingsAuditEntry(**item) for item in persisted]
     return list(reversed(_admin_settings_audit))[:limit]
 
 
@@ -496,15 +598,44 @@ async def get_settings_audit(
 async def persist_app_settings(
     request: AdminSettingsPersistRequest,
 ) -> AdminSettingsPersistResponse:
-    """Persist effective mutable runtime settings to backend/.env and optionally redeploy."""
-    env_file, persisted_keys = _persist_mutable_settings_to_env_file()
+    """Persist effective mutable runtime settings to durable storage and optionally redeploy."""
+    runtime_values = _mutable_runtime_settings_snapshot()
+    env_values = _runtime_settings_to_env_values(runtime_values)
+    persisted_keys = list(env_values.keys())
+
+    try:
+        await _persist_mutable_settings_to_storage(runtime_values)
+    except Exception as exc:
+        logger.exception("Failed to persist mutable runtime settings to storage: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to persist settings to durable storage",
+        ) from exc
+
+    env_file = _persist_mutable_settings_to_env_file(env_values)
     if request.skip_redeploy:
         return AdminSettingsPersistResponse(
-            env_file=env_file,
+            env_file=env_file or "",
             persisted_keys=persisted_keys,
             redeploy_attempted=False,
             redeploy_started=False,
-            redeploy_message="Persisted settings to .env (redeploy skipped by request)",
+            redeploy_message=(
+                "Persisted settings to durable storage"
+                + (f" and {env_file}" if env_file else "")
+                + " (redeploy skipped by request)"
+            ),
+        )
+
+    if env_file is None:
+        return AdminSettingsPersistResponse(
+            env_file="",
+            persisted_keys=persisted_keys,
+            redeploy_attempted=False,
+            redeploy_started=False,
+            redeploy_message=(
+                "Persisted settings to durable storage. "
+                "Local backend/.env not available in this runtime, so env-only redeploy was skipped."
+            ),
         )
 
     redeploy_started, redeploy_message = await _start_env_only_redeploy_background()

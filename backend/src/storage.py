@@ -19,6 +19,9 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+_RUNTIME_SETTINGS_ID = "pipelinehealer_runtime_settings_v1"
+_RUNTIME_SETTINGS_PARTITION = "__pipelinehealer_settings__"
+_AUDIT_PARTITION = "__pipelinehealer_audit__"
 
 
 def _utcnow() -> datetime:
@@ -139,6 +142,80 @@ class ActivityStorage:
 
         await self._activities_container_required().upsert_item(body=item)
         logger.debug(f"Updated activity: {activity.id}")
+
+    async def upsert_runtime_settings(self, settings_payload: dict[str, Any]) -> None:
+        """Persist mutable runtime settings in durable storage."""
+        await self.initialize()
+
+        item = {
+            "id": _RUNTIME_SETTINGS_ID,
+            "type": "runtime_settings",
+            # Include common partition key candidates for compatibility with existing containers.
+            "repository_name": _RUNTIME_SETTINGS_PARTITION,
+            "repositoryId": _RUNTIME_SETTINGS_PARTITION,
+            "repository_id": _RUNTIME_SETTINGS_PARTITION,
+            "updated_at": _utcnow().isoformat(),
+            "settings": settings_payload,
+        }
+        await self._workflow_runs_container_required().upsert_item(body=item)
+
+    async def get_runtime_settings(self) -> dict[str, Any] | None:
+        """Load previously persisted mutable runtime settings from durable storage."""
+        await self.initialize()
+
+        query = "SELECT TOP 1 * FROM c WHERE c.id = @id AND c.type = @type"
+        parameters: list[dict[str, object]] = [
+            {"name": "@id", "value": _RUNTIME_SETTINGS_ID},
+            {"name": "@type", "value": "runtime_settings"},
+        ]
+        items = [
+            item
+            async for item in self._workflow_runs_container_required().query_items(
+                query=query,
+                parameters=parameters,
+            )
+        ]
+        if not items:
+            return None
+
+        settings_payload = items[0].get("settings")
+        if not isinstance(settings_payload, dict):
+            return None
+        return settings_payload
+
+    async def append_admin_settings_audit_entry(self, entry: dict[str, Any]) -> None:
+        """Persist one admin settings audit entry."""
+        await self.initialize()
+        item = {
+            "id": f"admin_settings_audit_{uuid4()}",
+            "type": "admin_settings_audit",
+            "repository_name": _AUDIT_PARTITION,
+            "repositoryId": _AUDIT_PARTITION,
+            "repository_id": _AUDIT_PARTITION,
+            **entry,
+        }
+        await self._workflow_runs_container_required().create_item(body=item)
+
+    async def list_admin_settings_audit_entries(self, limit: int = 50) -> list[dict[str, Any]]:
+        """List persisted admin settings audit entries, newest first."""
+        await self.initialize()
+
+        safe_limit = max(1, min(limit, 200))
+        query = f"""
+            SELECT TOP {safe_limit} * FROM c
+            WHERE c.type = @type
+            ORDER BY c.timestamp DESC
+        """
+        parameters: list[dict[str, object]] = [{"name": "@type", "value": "admin_settings_audit"}]
+        items = [
+            item
+            async for item in self._workflow_runs_container_required().query_items(
+                query=query,
+                parameters=parameters,
+            )
+        ]
+
+        return items
 
     async def get_activity(self, activity_id: str) -> ActivityRecord | None:
         """Get an activity record by ID.
@@ -436,6 +513,8 @@ class InMemoryStorage(ActivityStorage):
         """Initialize in-memory storage."""
         super().__init__()
         self._activities: dict[str, ActivityRecord] = {}
+        self._runtime_settings: dict[str, Any] | None = None
+        self._admin_settings_audit: list[dict[str, Any]] = []
         self._initialized = True
 
     async def initialize(self) -> None:
@@ -637,3 +716,24 @@ class InMemoryStorage(ActivityStorage):
                 breakdown[ft_key] = breakdown.get(ft_key, 0) + 1
 
         return breakdown
+
+    async def upsert_runtime_settings(self, settings_payload: dict[str, Any]) -> None:
+        """Persist runtime settings in-memory (test/local fallback)."""
+        self._runtime_settings = dict(settings_payload)
+
+    async def get_runtime_settings(self) -> dict[str, Any] | None:
+        """Return last persisted runtime settings from memory."""
+        if self._runtime_settings is None:
+            return None
+        return dict(self._runtime_settings)
+
+    async def append_admin_settings_audit_entry(self, entry: dict[str, Any]) -> None:
+        """Persist one admin settings audit entry in-memory."""
+        self._admin_settings_audit.append(dict(entry))
+
+    async def list_admin_settings_audit_entries(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Return in-memory admin settings audit entries, newest first."""
+        safe_limit = max(1, min(limit, 200))
+        return [dict(item) for item in reversed(self._admin_settings_audit)][
+            :safe_limit
+        ]

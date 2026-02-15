@@ -78,6 +78,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     webhook.set_workflow(_workflow)
     dashboard.set_storage(_workflow.storage)
     dashboard.set_workflow(_workflow)
+    await dashboard.apply_persisted_runtime_settings()
 
     logger.info("PipelineHealer initialized successfully")
 

@@ -302,6 +302,32 @@ async def test_admin_can_patch_runtime_settings(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_admin_settings_audit_persists_beyond_in_memory_buffer(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    get_settings.cache_clear()
+
+    dashboard.set_storage(InMemoryStorage())
+    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+
+    response = await _patch_settings(
+        {"heal_mode": "demo"},
+        headers={"X-Admin-Key": "admin-secret", "X-Request-Id": "req-audit-persist"},
+    )
+    assert response.status_code == 200
+
+    # Simulate process-local buffer loss; durable storage copy should still be returned.
+    dashboard.clear_admin_settings_audit()
+
+    audit = await _get_settings_audit(headers={"X-Admin-Key": "admin-secret"})
+    assert audit.status_code == 200
+    entries = audit.json()
+    assert len(entries) >= 1
+    assert entries[0]["request_id"] == "req-audit-persist"
+    assert entries[0]["changes"]["heal_mode"]["new"] == "demo"
+
+
+@pytest.mark.asyncio
 async def test_admin_patch_normalizes_and_deduplicates_allowed_repos(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
@@ -526,3 +552,77 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
     assert "GH_AW_INGESTION_MODE=passive" in persisted_text
     assert "GH_AW_KNOWN_WORKFLOWS=ci-doctor,schema-consistency-checker" in persisted_text
     assert "PH_ALLOWED_REPOS=canepro/pipelinehealer,canepro/pipelinehealer-demo" in persisted_text
+
+
+@pytest.mark.asyncio
+async def test_admin_persist_succeeds_without_env_file(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("PIPELINEHEALER_ENV_FILE_PATH", "/tmp/nonexistent-ph-env-file")
+    get_settings.cache_clear()
+
+    dashboard.set_storage(InMemoryStorage())
+    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+
+    patch_response = await _patch_settings(
+        {
+            "heal_mode": "demo",
+            "gh_aw_tools_enabled": True,
+            "gh_aw_ingestion_mode": "passive",
+        },
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert patch_response.status_code == 200
+
+    persist_response = await _post_settings_persist(
+        payload={},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert persist_response.status_code == 200
+    body = persist_response.json()
+    assert body["env_file"] == ""
+    assert body["redeploy_attempted"] is False
+    assert body["redeploy_started"] is False
+    assert "durable storage" in body["redeploy_message"]
+
+
+@pytest.mark.asyncio
+async def test_apply_persisted_runtime_settings_restores_values(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("PIPELINEHEALER_ENV_FILE_PATH", "/tmp/nonexistent-ph-env-file")
+    get_settings.cache_clear()
+
+    storage = InMemoryStorage()
+    dashboard.set_storage(storage)
+    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+
+    patch_response = await _patch_settings(
+        {
+            "heal_mode": "demo",
+            "gh_aw_tools_enabled": True,
+            "gh_aw_ingestion_mode": "passive",
+            "ph_allowed_repos": ["Canepro/PipelineHealer"],
+        },
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert patch_response.status_code == 200
+
+    persist_response = await _post_settings_persist(
+        payload={"skip_redeploy": True},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert persist_response.status_code == 200
+
+    runtime_settings = get_settings()
+    runtime_settings.heal_mode = "safe"
+    runtime_settings.gh_aw_tools_enabled = False
+    runtime_settings.gh_aw_ingestion_mode = "disabled"
+    runtime_settings.ph_allowed_repos = []
+
+    await dashboard.apply_persisted_runtime_settings()
+
+    assert runtime_settings.heal_mode == "demo"
+    assert runtime_settings.gh_aw_tools_enabled is True
+    assert runtime_settings.gh_aw_ingestion_mode == "passive"
+    assert runtime_settings.ph_allowed_repos == ["canepro/pipelinehealer"]
