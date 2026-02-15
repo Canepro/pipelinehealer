@@ -211,6 +211,18 @@ This is the long-form project tracker for hackathon execution status, submission
   - Added 21 unit tests for LLM retry logic (`test_llm_retry.py`); total backend test count: 109 passing.
   - Updated all tests to use `app.state` for dependency injection instead of `set_*` module functions.
 - Aligned all project docs with post-refactor codebase state (LAST_VERIFIED tags, max_remediation scope, health endpoint, LLM retry docs, project structure tree, troubleshooting messages).
+- Performance and observability improvements (commit `c07a184`):
+  - Replaced OFFSET/LIMIT re-query pagination in `storage.py` with Cosmos SDK continuation-token paging via direct `query_items` iteration for `_iter_activities`.
+  - Added route-level code splitting in `App.tsx` via `React.lazy` + `Suspense`: Settings (33KB), Activities (4KB), ActivityDetail (25KB), Dashboard (414KB) load as separate chunks.
+  - Added OpenTelemetry spans to orchestrator pipeline: `pipeline.process` (parent), `pipeline.step.analyze`, `pipeline.step.diagnose`, `pipeline.step.remediate` (children) with duration/outcome/diagnosis attributes. Flows to Application Insights when configured.
+  - Deleted stale `test_base_llm_retry.py` draft (superseded by 21-test `test_llm_retry.py`).
+- CLI reliability hardening (commit `8f16df6`):
+  - Added `require_arg` helper for safe `--flag value` parsing across all CLI commands.
+  - Made log grep pipelines tolerant of empty output (`|| true`).
+  - Webhook sync now matches hooks by `/webhook/github` path suffix to catch stale Azure FQDNs.
+  - Namespaced background deploy state files under `/tmp/ph-deploy-<rg>/`.
+  - Decomposed `settings:persist` into focused helpers with direct flags (`--heal-mode`, `--auto-create-pr`, etc.) and enum validation.
+  - Added shellcheck CI job for all shell scripts.
 
 ## Project Tracking Plan (Now -> Mar 15)
 

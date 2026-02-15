@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: a2adcec -->
+<!-- LAST_VERIFIED: 8f16df6 -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -239,6 +239,7 @@ flowchart LR
 - **GitHub Agentic Workflows Integration**: Passive ingestion of external diagnostics (ci-doctor) when available on monitored repos
 - **Bounded External Diagnostics Polling**: Passive ingestion waits up to ~8 minutes and performs a final immediate fetch before timeout classification
 - **Mobile Navigation Reliability**: Route-safe, notch-safe sheet navigation for portrait mobile workflows
+- **Route-Level Code Splitting**: Each page loads as a separate chunk via `React.lazy`, reducing initial bundle size
 - **Enterprise Ready**: Azure-native with full observability and security
 
 ## Deterministic Fix Matrix
@@ -301,7 +302,7 @@ PipelineHealer is built for controlled remediation, not unconstrained autonomous
 ### Infrastructure
 - **Azure Container Apps** - Hosting
 - **Azure Container Registry (ACR)** - Backend/frontend image hosting
-- **Azure Application Insights** - Observability
+- **Azure Application Insights** - Observability (OpenTelemetry spans: `pipeline.process`, `pipeline.step.analyze`, `pipeline.step.diagnose`, `pipeline.step.remediate`)
 - **GitHub Webhooks + REST API** - Workflow events and remediation actions
 
 ## Quick Start
