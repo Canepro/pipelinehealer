@@ -45,7 +45,7 @@ Commands:
   logs:grep         Grep backend logs for a pattern: --pattern <regex>
   settings:check    Call backend /api/settings using ADMIN_API_KEY from backend/.env
   settings:audit    Call backend /api/settings/audit using API+ADMIN keys from backend/.env
-  settings:persist  Persist allowlist to backend/.env and redeploy env-only
+  settings:persist  Persist selected settings to backend/.env and redeploy env-only
   audit:proof       Create two traceable admin audit entries and print latest audit records
   help              Show this help
 
@@ -58,7 +58,8 @@ Examples:
   bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
   bash scripts/ph.sh demo:e2e --skip-webhook-sync
   bash scripts/ph.sh demo:proof --repo owner/repo
-  bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2
+  bash scripts/ph.sh settings:persist --from-settings
+  bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2 --gh-aw-tools-enabled true --gh-aw-ingestion-mode passive
   bash scripts/ph.sh audit:proof --limit 5
   bash scripts/ph.sh logs
   bash scripts/ph.sh logs:grep --pattern "debug-mode"
@@ -347,6 +348,12 @@ settings_check() {
     echo "Missing env file: $REPO_ROOT/backend/.env" >&2
     exit 1
   fi
+  fetch_settings_json
+  echo
+}
+
+fetch_settings_json() {
+  need_cmd curl
   local api_key admin_key
   mapfile -t _keys < <(read_auth_keys)
   api_key="${_keys[0]}"
@@ -357,7 +364,6 @@ settings_check() {
     -H "X-API-Key: $api_key" \
     -H "X-Admin-Key: $admin_key" \
     "https://$backend_fqdn/api/settings"
-  echo
 }
 
 settings_audit() {
@@ -617,6 +623,22 @@ cmd_settings_persist() {
   local repos_csv=""
   local clear_repos="0"
   local skip_redeploy="0"
+  local from_settings="0"
+  local gh_aw_tools_enabled=""
+  local gh_aw_ingestion_mode=""
+  local gh_aw_known_workflows=""
+  local heal_mode=""
+  local auto_create_pr=""
+  local auto_create_tracking_issue_for_prs=""
+  local max_remediation_attempts=""
+  local verify_webhook_signature_in_development=""
+  local pipeline_step_timeout_seconds=""
+  local github_api_max_retries=""
+  local github_api_retry_base_seconds=""
+  local github_api_retry_max_seconds=""
+  local log_prompt_max_chars=""
+  local log_prompt_head_chars=""
+  local log_prompt_tail_chars=""
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -627,6 +649,22 @@ cmd_settings_persist() {
       --clear-repos)
         clear_repos="1"
         shift
+        ;;
+      --from-settings)
+        from_settings="1"
+        shift
+        ;;
+      --gh-aw-tools-enabled)
+        gh_aw_tools_enabled="$2"
+        shift 2
+        ;;
+      --gh-aw-ingestion-mode)
+        gh_aw_ingestion_mode="$2"
+        shift 2
+        ;;
+      --gh-aw-known-workflows)
+        gh_aw_known_workflows="$2"
+        shift 2
         ;;
       --skip-redeploy)
         skip_redeploy="1"
@@ -639,9 +677,15 @@ cmd_settings_persist() {
     esac
   done
 
-  if [[ "$clear_repos" != "1" && -z "${repos_csv:-}" ]]; then
-    echo "Usage: bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2 [--skip-redeploy]" >&2
-    echo "   or: bash scripts/ph.sh settings:persist --clear-repos [--skip-redeploy]" >&2
+  if [[ "$from_settings" != "1" && "$clear_repos" != "1" && -z "${repos_csv:-}" ]]; then
+    echo "Usage: bash scripts/ph.sh settings:persist --from-settings [--skip-redeploy]" >&2
+    echo "   or: bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2 [--gh-aw-tools-enabled true|false] [--gh-aw-ingestion-mode disabled|passive] [--gh-aw-known-workflows csv] [--skip-redeploy]" >&2
+    echo "   or: bash scripts/ph.sh settings:persist --clear-repos [--gh-aw-tools-enabled true|false] [--gh-aw-ingestion-mode disabled|passive] [--gh-aw-known-workflows csv] [--skip-redeploy]" >&2
+    exit 2
+  fi
+
+  if [[ "$from_settings" == "1" && ( "$clear_repos" == "1" || -n "${repos_csv:-}" || -n "${gh_aw_tools_enabled:-}" || -n "${gh_aw_ingestion_mode:-}" || -n "${gh_aw_known_workflows:-}" ) ]]; then
+    echo "Use --from-settings by itself (optionally with --skip-redeploy)." >&2
     exit 2
   fi
 
@@ -651,17 +695,126 @@ cmd_settings_persist() {
   fi
 
   local normalized_csv=""
-  if [[ "$clear_repos" != "1" ]]; then
+  local normalized_workflows=""
+
+  if [[ "$from_settings" == "1" ]]; then
+    need_cmd jq
+    local settings_json
+    settings_json="$(fetch_settings_json)"
+    normalized_csv="$(echo "$settings_json" | jq -r '.ph_allowed_repos | join(",")')"
+    gh_aw_tools_enabled="$(echo "$settings_json" | jq -r '.gh_aw_tools_enabled | if . then "true" else "false" end')"
+    gh_aw_ingestion_mode="$(echo "$settings_json" | jq -r '.gh_aw_ingestion_mode')"
+    normalized_workflows="$(echo "$settings_json" | jq -r '.gh_aw_known_workflows | join(",")')"
+    heal_mode="$(echo "$settings_json" | jq -r '.heal_mode')"
+    auto_create_pr="$(echo "$settings_json" | jq -r '.auto_create_pr | if . then "true" else "false" end')"
+    auto_create_tracking_issue_for_prs="$(echo "$settings_json" | jq -r '.auto_create_tracking_issue_for_prs | if . then "true" else "false" end')"
+    max_remediation_attempts="$(echo "$settings_json" | jq -r '.max_remediation_attempts')"
+    verify_webhook_signature_in_development="$(echo "$settings_json" | jq -r '.verify_webhook_signature_in_development | if . then "true" else "false" end')"
+    pipeline_step_timeout_seconds="$(echo "$settings_json" | jq -r '.pipeline_step_timeout_seconds')"
+    github_api_max_retries="$(echo "$settings_json" | jq -r '.github_api_max_retries')"
+    github_api_retry_base_seconds="$(echo "$settings_json" | jq -r '.github_api_retry_base_seconds')"
+    github_api_retry_max_seconds="$(echo "$settings_json" | jq -r '.github_api_retry_max_seconds')"
+    log_prompt_max_chars="$(echo "$settings_json" | jq -r '.log_prompt_max_chars')"
+    log_prompt_head_chars="$(echo "$settings_json" | jq -r '.log_prompt_head_chars')"
+    log_prompt_tail_chars="$(echo "$settings_json" | jq -r '.log_prompt_tail_chars')"
+  elif [[ "$clear_repos" != "1" ]]; then
     normalized_csv="$(echo "$repos_csv" | tr -d '[:space:]')"
   fi
 
+  if [[ -n "${gh_aw_tools_enabled:-}" ]]; then
+    case "${gh_aw_tools_enabled,,}" in
+      true|false) gh_aw_tools_enabled="${gh_aw_tools_enabled,,}" ;;
+      *)
+        echo "Invalid --gh-aw-tools-enabled value: $gh_aw_tools_enabled (expected true|false)" >&2
+        exit 2
+        ;;
+    esac
+  fi
+
+  if [[ -n "${gh_aw_ingestion_mode:-}" ]]; then
+    case "${gh_aw_ingestion_mode,,}" in
+      disabled|passive) gh_aw_ingestion_mode="${gh_aw_ingestion_mode,,}" ;;
+      *)
+        echo "Invalid --gh-aw-ingestion-mode value: $gh_aw_ingestion_mode (expected disabled|passive)" >&2
+        exit 2
+        ;;
+    esac
+  fi
+
+  if [[ -n "${gh_aw_known_workflows:-}" ]]; then
+    normalized_workflows="$(echo "$gh_aw_known_workflows" | tr -d '[:space:]')"
+  fi
+
   upsert_env_key "PH_ALLOWED_REPOS" "$normalized_csv"
+  if [[ -n "${heal_mode:-}" ]]; then
+    upsert_env_key "HEAL_MODE" "$heal_mode"
+  fi
+  if [[ -n "${auto_create_pr:-}" ]]; then
+    upsert_env_key "AUTO_CREATE_PR" "$auto_create_pr"
+  fi
+  if [[ -n "${auto_create_tracking_issue_for_prs:-}" ]]; then
+    upsert_env_key "AUTO_CREATE_TRACKING_ISSUE_FOR_PRS" "$auto_create_tracking_issue_for_prs"
+  fi
+  if [[ -n "${max_remediation_attempts:-}" ]]; then
+    upsert_env_key "MAX_REMEDIATION_ATTEMPTS" "$max_remediation_attempts"
+  fi
+  if [[ -n "${verify_webhook_signature_in_development:-}" ]]; then
+    upsert_env_key "VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT" "$verify_webhook_signature_in_development"
+  fi
+  if [[ -n "${pipeline_step_timeout_seconds:-}" ]]; then
+    upsert_env_key "PIPELINE_STEP_TIMEOUT_SECONDS" "$pipeline_step_timeout_seconds"
+  fi
+  if [[ -n "${github_api_max_retries:-}" ]]; then
+    upsert_env_key "GITHUB_API_MAX_RETRIES" "$github_api_max_retries"
+  fi
+  if [[ -n "${github_api_retry_base_seconds:-}" ]]; then
+    upsert_env_key "GITHUB_API_RETRY_BASE_SECONDS" "$github_api_retry_base_seconds"
+  fi
+  if [[ -n "${github_api_retry_max_seconds:-}" ]]; then
+    upsert_env_key "GITHUB_API_RETRY_MAX_SECONDS" "$github_api_retry_max_seconds"
+  fi
+  if [[ -n "${log_prompt_max_chars:-}" ]]; then
+    upsert_env_key "LOG_PROMPT_MAX_CHARS" "$log_prompt_max_chars"
+  fi
+  if [[ -n "${log_prompt_head_chars:-}" ]]; then
+    upsert_env_key "LOG_PROMPT_HEAD_CHARS" "$log_prompt_head_chars"
+  fi
+  if [[ -n "${log_prompt_tail_chars:-}" ]]; then
+    upsert_env_key "LOG_PROMPT_TAIL_CHARS" "$log_prompt_tail_chars"
+  fi
+  if [[ -n "${gh_aw_tools_enabled:-}" ]]; then
+    upsert_env_key "GH_AW_TOOLS_ENABLED" "$gh_aw_tools_enabled"
+  fi
+  if [[ -n "${gh_aw_ingestion_mode:-}" ]]; then
+    upsert_env_key "GH_AW_INGESTION_MODE" "$gh_aw_ingestion_mode"
+  fi
+  if [[ -n "${normalized_workflows:-}" ]]; then
+    upsert_env_key "GH_AW_KNOWN_WORKFLOWS" "$normalized_workflows"
+  fi
 
   if [[ "$skip_redeploy" != "1" ]]; then
     bash "$SCRIPT_DIR/deploy/redeploy_azure_containerapps.sh" --env-only
   fi
 
-  if [[ "$clear_repos" == "1" ]]; then
+  if [[ "$from_settings" == "1" ]]; then
+    echo "Persisted effective live mutable settings to backend/.env:"
+    echo "  PH_ALLOWED_REPOS=${normalized_csv:-<empty>}"
+    echo "  HEAL_MODE=${heal_mode:-<unchanged>}"
+    echo "  AUTO_CREATE_PR=${auto_create_pr:-<unchanged>}"
+    echo "  AUTO_CREATE_TRACKING_ISSUE_FOR_PRS=${auto_create_tracking_issue_for_prs:-<unchanged>}"
+    echo "  MAX_REMEDIATION_ATTEMPTS=${max_remediation_attempts:-<unchanged>}"
+    echo "  VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT=${verify_webhook_signature_in_development:-<unchanged>}"
+    echo "  PIPELINE_STEP_TIMEOUT_SECONDS=${pipeline_step_timeout_seconds:-<unchanged>}"
+    echo "  GITHUB_API_MAX_RETRIES=${github_api_max_retries:-<unchanged>}"
+    echo "  GITHUB_API_RETRY_BASE_SECONDS=${github_api_retry_base_seconds:-<unchanged>}"
+    echo "  GITHUB_API_RETRY_MAX_SECONDS=${github_api_retry_max_seconds:-<unchanged>}"
+    echo "  LOG_PROMPT_MAX_CHARS=${log_prompt_max_chars:-<unchanged>}"
+    echo "  LOG_PROMPT_HEAD_CHARS=${log_prompt_head_chars:-<unchanged>}"
+    echo "  LOG_PROMPT_TAIL_CHARS=${log_prompt_tail_chars:-<unchanged>}"
+    echo "  GH_AW_TOOLS_ENABLED=${gh_aw_tools_enabled:-<unchanged>}"
+    echo "  GH_AW_INGESTION_MODE=${gh_aw_ingestion_mode:-<unchanged>}"
+    echo "  GH_AW_KNOWN_WORKFLOWS=${normalized_workflows:-<unchanged>}"
+  elif [[ "$clear_repos" == "1" ]]; then
     echo "Persisted PH_ALLOWED_REPOS=<empty> to backend/.env"
   else
     echo "Persisted PH_ALLOWED_REPOS=$normalized_csv to backend/.env"

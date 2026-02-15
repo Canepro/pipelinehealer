@@ -2,6 +2,7 @@
 
 import hashlib
 import hmac
+from pathlib import Path
 
 import httpx
 import pytest
@@ -51,6 +52,19 @@ async def _get_settings_audit(headers: dict[str, str] | None = None) -> httpx.Re
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         return await client.get("/api/settings/audit", headers=headers or {})
+
+
+async def _post_settings_persist(
+    payload: dict[str, object] | None = None,
+    headers: dict[str, str] | None = None,
+) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.post(
+            "/api/settings/persist",
+            json=payload or {},
+            headers=headers or {},
+        )
 
 
 async def _post_ping(
@@ -439,3 +453,76 @@ async def test_admin_patch_rejects_invalid_gh_aw_ingestion_mode(monkeypatch) -> 
     )
     assert response.status_code == 422
     assert "gh_aw_ingestion_mode" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    get_settings.cache_clear()
+
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "HEAL_MODE=safe\n"
+        "AUTO_CREATE_PR=true\n"
+        "GH_AW_TOOLS_ENABLED=false\n"
+        "PH_ALLOWED_REPOS=\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PIPELINEHEALER_ENV_FILE_PATH", str(env_file))
+
+    dashboard.set_storage(InMemoryStorage())
+    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+
+    patch_response = await _patch_settings(
+        {
+            "heal_mode": "demo",
+            "auto_create_pr": False,
+            "auto_create_tracking_issue_for_prs": False,
+            "max_remediation_attempts": 9,
+            "verify_webhook_signature_in_development": True,
+            "pipeline_step_timeout_seconds": 45,
+            "github_api_max_retries": 4,
+            "github_api_retry_base_seconds": 0.7,
+            "github_api_retry_max_seconds": 9.5,
+            "log_prompt_max_chars": 14000,
+            "log_prompt_head_chars": 7000,
+            "log_prompt_tail_chars": 7000,
+            "gh_aw_tools_enabled": True,
+            "gh_aw_ingestion_mode": "passive",
+            "gh_aw_known_workflows": ["ci-doctor", "schema-consistency-checker"],
+            "ph_allowed_repos": ["Canepro/PipelineHealer", "canepro/pipelinehealer-demo"],
+        },
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert patch_response.status_code == 200
+
+    persist_response = await _post_settings_persist(
+        payload={"skip_redeploy": True},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert persist_response.status_code == 200
+    body = persist_response.json()
+    assert body["env_file"] == str(env_file)
+    assert body["redeploy_attempted"] is False
+    assert body["redeploy_started"] is False
+    assert "GH_AW_KNOWN_WORKFLOWS" in body["persisted_keys"]
+    assert "PH_ALLOWED_REPOS" in body["persisted_keys"]
+
+    persisted_text = env_file.read_text(encoding="utf-8")
+    assert "HEAL_MODE=demo" in persisted_text
+    assert "AUTO_CREATE_PR=false" in persisted_text
+    assert "AUTO_CREATE_TRACKING_ISSUE_FOR_PRS=false" in persisted_text
+    assert "MAX_REMEDIATION_ATTEMPTS=9" in persisted_text
+    assert "VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT=true" in persisted_text
+    assert "PIPELINE_STEP_TIMEOUT_SECONDS=45.0" in persisted_text
+    assert "GITHUB_API_MAX_RETRIES=4" in persisted_text
+    assert "GITHUB_API_RETRY_BASE_SECONDS=0.7" in persisted_text
+    assert "GITHUB_API_RETRY_MAX_SECONDS=9.5" in persisted_text
+    assert "LOG_PROMPT_MAX_CHARS=14000" in persisted_text
+    assert "LOG_PROMPT_HEAD_CHARS=7000" in persisted_text
+    assert "LOG_PROMPT_TAIL_CHARS=7000" in persisted_text
+    assert "GH_AW_TOOLS_ENABLED=true" in persisted_text
+    assert "GH_AW_INGESTION_MODE=passive" in persisted_text
+    assert "GH_AW_KNOWN_WORKFLOWS=ci-doctor,schema-consistency-checker" in persisted_text
+    assert "PH_ALLOWED_REPOS=canepro/pipelinehealer,canepro/pipelinehealer-demo" in persisted_text

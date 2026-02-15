@@ -39,6 +39,9 @@ type SettingsFormState = {
   log_prompt_max_chars: number
   log_prompt_head_chars: number
   log_prompt_tail_chars: number
+  gh_aw_tools_enabled: boolean
+  gh_aw_ingestion_mode: 'disabled' | 'passive'
+  gh_aw_known_workflows: string[]
   ph_allowed_repos: string[]
 }
 
@@ -90,6 +93,9 @@ const toSettingsForm = (data: AppSettings): SettingsFormState => ({
   log_prompt_max_chars: data.log_prompt_max_chars,
   log_prompt_head_chars: data.log_prompt_head_chars,
   log_prompt_tail_chars: data.log_prompt_tail_chars,
+  gh_aw_tools_enabled: data.gh_aw_tools_enabled,
+  gh_aw_ingestion_mode: data.gh_aw_ingestion_mode === 'passive' ? 'passive' : 'disabled',
+  gh_aw_known_workflows: data.gh_aw_known_workflows ?? [],
   ph_allowed_repos: data.ph_allowed_repos ?? [],
 })
 
@@ -110,10 +116,14 @@ export default function SettingsPage() {
     log_prompt_max_chars: 18000,
     log_prompt_head_chars: 9000,
     log_prompt_tail_chars: 9000,
+    gh_aw_tools_enabled: false,
+    gh_aw_ingestion_mode: 'disabled',
+    gh_aw_known_workflows: ['ci-doctor', 'schema-consistency-checker', 'breaking-change-checker'],
     ph_allowed_repos: [],
   })
   const [lastSavedForm, setLastSavedForm] = useState<SettingsFormState | null>(null)
   const [newRepoInput, setNewRepoInput] = useState('')
+  const [ghAwWorkflowsInput, setGhAwWorkflowsInput] = useState('')
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['app-settings', adminKey],
@@ -142,6 +152,7 @@ export default function SettingsPage() {
     const next = toSettingsForm(data)
     setForm(next)
     setLastSavedForm(next)
+    setGhAwWorkflowsInput(next.gh_aw_known_workflows.join(','))
   }, [data])
 
   const hasUnsavedChanges =
@@ -182,12 +193,16 @@ export default function SettingsPage() {
         log_prompt_max_chars: form.log_prompt_max_chars,
         log_prompt_head_chars: form.log_prompt_head_chars,
         log_prompt_tail_chars: form.log_prompt_tail_chars,
+        gh_aw_tools_enabled: form.gh_aw_tools_enabled,
+        gh_aw_ingestion_mode: form.gh_aw_ingestion_mode,
+        gh_aw_known_workflows: form.gh_aw_known_workflows,
         ph_allowed_repos: form.ph_allowed_repos,
       }),
     onSuccess: async (updated) => {
       const next = toSettingsForm(updated)
       setForm(next)
       setLastSavedForm(next)
+      setGhAwWorkflowsInput(next.gh_aw_known_workflows.join(','))
       queryClient.setQueryData(['app-settings', adminKey], updated)
       await queryClient.invalidateQueries({ queryKey: ['app-settings', adminKey] })
       toast.success('Settings saved', {
@@ -196,6 +211,27 @@ export default function SettingsPage() {
     },
     onError: (err) => {
       toast.error('Failed to save settings', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      })
+    },
+  })
+
+  const persistMutation = useMutation({
+    mutationFn: () => api.persistSettings(adminKey),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ['app-settings', adminKey] })
+      if (result.redeploy_attempted && !result.redeploy_started) {
+        toast.error('Settings persisted but redeploy did not start', {
+          description: result.redeploy_message,
+        })
+        return
+      }
+      toast.success('Persist and redeploy started', {
+        description: result.redeploy_message,
+      })
+    },
+    onError: (err) => {
+      toast.error('Failed to persist settings', {
         description: err instanceof Error ? err.message : 'Unknown error',
       })
     },
@@ -280,7 +316,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handlePersistAndRedeploy = async () => {
+  const handlePersistAndRedeploy = () => {
     if (!data) {
       return
     }
@@ -290,20 +326,7 @@ export default function SettingsPage() {
       })
       return
     }
-
-    const command =
-      data.ph_allowed_repos.length > 0
-        ? `bash scripts/ph.sh settings:persist --repos ${data.ph_allowed_repos.join(',')}`
-        : 'bash scripts/ph.sh settings:persist --clear-repos'
-
-    try {
-      await navigator.clipboard.writeText(command)
-      toast.success('Persist command copied', {
-        description: 'Run it from the repo root terminal to persist and env-redeploy.',
-      })
-    } catch {
-      toast.error('Unable to copy persist command')
-    }
+    persistMutation.mutate()
   }
 
   return (
@@ -386,8 +409,8 @@ export default function SettingsPage() {
                     <code className="mx-1">backend/.env</code> and Azure Container App env.
                   </p>
                   <p className="mt-2 text-xs text-amber-100/80">
-                    Use Persist and Redeploy to write the effective allowlist to
-                    <code className="mx-1">PH_ALLOWED_REPOS</code> and apply an env-only redeploy.
+                    Use Persist and Redeploy to write all mutable runtime settings to
+                    <code className="mx-1">backend/.env</code> and apply an env-only redeploy.
                   </p>
                 </div>
               </div>
@@ -395,9 +418,9 @@ export default function SettingsPage() {
                 type="button"
                 variant="secondary"
                 onClick={() => void handlePersistAndRedeploy()}
-                disabled={hasUnsavedChanges}
+                disabled={hasUnsavedChanges || persistMutation.isPending}
               >
-                Persist and Redeploy
+                {persistMutation.isPending ? 'Starting Redeploy...' : 'Persist and Redeploy'}
               </Button>
             </div>
           </Card>
@@ -622,6 +645,16 @@ export default function SettingsPage() {
                       : 'All repos (unrestricted)'}
                   </dd>
                 </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-gray-500 dark:text-gray-400">gh-aw tools</dt>
+                  <dd><BoolBadge value={data.gh_aw_tools_enabled} /></dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-gray-500 dark:text-gray-400">gh-aw ingestion</dt>
+                  <dd className="font-medium text-gray-900 dark:text-white">
+                    {data.gh_aw_ingestion_mode}
+                  </dd>
+                </div>
               </dl>
               <div className="mt-3">
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Allowed repositories</p>
@@ -639,6 +672,23 @@ export default function SettingsPage() {
                 ) : (
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     No repo allowlist set. Backend is not restricted to specific repositories.
+                  </p>
+                )}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 mb-1">Known gh-aw workflows</p>
+                {data.gh_aw_known_workflows.length > 0 ? (
+                  <div className="space-y-1">
+                    {data.gh_aw_known_workflows.map((workflow) => (
+                      <div
+                        key={workflow}
+                        className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 break-all text-xs"
+                      >
+                        {workflow}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    No known gh-aw workflows configured.
                   </p>
                 )}
               </div>
@@ -799,6 +849,44 @@ export default function SettingsPage() {
                 />
               </label>
 
+              <label className="space-y-1">
+                <span className="text-gray-500 dark:text-gray-400">gh-aw ingestion mode</span>
+                <select
+                  value={form.gh_aw_ingestion_mode}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      gh_aw_ingestion_mode: e.target.value === 'passive' ? 'passive' : 'disabled',
+                    }))
+                  }
+                  className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 focus:ring-2 focus:ring-azure-500"
+                >
+                  <option value="disabled">disabled</option>
+                  <option value="passive">passive</option>
+                </select>
+              </label>
+
+              <label className="space-y-1 lg:col-span-2">
+                <span className="text-gray-500 dark:text-gray-400">Known gh-aw workflows (CSV)</span>
+                <Input
+                  type="text"
+                  value={ghAwWorkflowsInput}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    setGhAwWorkflowsInput(raw)
+                    const normalized = raw
+                      .split(',')
+                      .map((item) => item.trim().toLowerCase())
+                      .filter(Boolean)
+                    setForm((prev) => ({
+                      ...prev,
+                      gh_aw_known_workflows: Array.from(new Set(normalized)),
+                    }))
+                  }}
+                  placeholder="ci-doctor,schema-consistency-checker,breaking-change-checker"
+                />
+              </label>
+
               <label className="flex items-center gap-2">
                 <Switch
                   checked={form.auto_create_pr}
@@ -836,6 +924,21 @@ export default function SettingsPage() {
                 />
                 <span className="text-gray-500 dark:text-gray-400">
                   Verify webhook signature in development
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2">
+                <Switch
+                  checked={form.gh_aw_tools_enabled}
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      gh_aw_tools_enabled: checked,
+                    }))
+                  }
+                />
+                <span className="text-gray-500 dark:text-gray-400">
+                  Enable gh-aw passive diagnostics
                 </span>
               </label>
             </div>
@@ -935,6 +1038,7 @@ export default function SettingsPage() {
                   setForm(reset)
                   setLastSavedForm(reset)
                   setNewRepoInput('')
+                  setGhAwWorkflowsInput(reset.gh_aw_known_workflows.join(','))
                 }}
               >
                 <RotateCcw className="h-4 w-4 mr-2" />

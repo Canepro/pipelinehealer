@@ -283,3 +283,19 @@ class AdminSettingsAuditEntry(BaseModel):
     request_id: str | None = None
     client_ip: str | None = None
     user_agent: str | None = None
+
+
+class AdminSettingsPersistRequest(BaseModel):
+    """Persist current mutable runtime settings to backend/.env and optionally redeploy."""
+
+    skip_redeploy: bool = False
+
+
+class AdminSettingsPersistResponse(BaseModel):
+    """Result payload for admin settings persistence action."""
+
+    env_file: str
+    persisted_keys: list[str]
+    redeploy_attempted: bool
+    redeploy_started: bool
+    redeploy_message: str

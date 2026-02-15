@@ -129,6 +129,14 @@ export interface AdminSettingsUpdate {
   ph_allowed_repos?: string[]
 }
 
+export interface AdminSettingsPersistResponse {
+  env_file: string
+  persisted_keys: string[]
+  redeploy_attempted: boolean
+  redeploy_started: boolean
+  redeploy_message: string
+}
+
 type ApiRequestOptions = RequestInit & {
   adminKey?: string
 }
@@ -221,6 +229,12 @@ export const api = {
       method: 'PATCH',
       adminKey,
       body: JSON.stringify(payload),
+    }),
+  persistSettings: (adminKey: string, skipRedeploy = false) =>
+    fetchJson<AdminSettingsPersistResponse>('/api/settings/persist', {
+      method: 'POST',
+      adminKey,
+      body: JSON.stringify({ skip_redeploy: skipRedeploy }),
     }),
   
   getActivities: (params?: {

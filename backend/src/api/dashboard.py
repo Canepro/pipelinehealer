@@ -1,9 +1,12 @@
 """Dashboard API endpoints for PipelineHealer."""
 
+import asyncio
 import hashlib
 import logging
+import os
 import re
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -13,6 +16,8 @@ from ..config import get_settings
 from ..models import (
     ActivityRecord,
     AdminSettingsAuditEntry,
+    AdminSettingsPersistRequest,
+    AdminSettingsPersistResponse,
     AdminSettingsUpdateRequest,
     AppSettingsView,
     DashboardStats,
@@ -186,6 +191,27 @@ _workflow: PipelineHealerWorkflow | None = None
 # Lightweight demo audit buffer (non-durable by design for hackathon runtime).
 _admin_settings_audit: list[AdminSettingsAuditEntry] = []
 _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES = 200
+_MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = (
+    ("heal_mode", "HEAL_MODE"),
+    ("auto_create_pr", "AUTO_CREATE_PR"),
+    ("auto_create_tracking_issue_for_prs", "AUTO_CREATE_TRACKING_ISSUE_FOR_PRS"),
+    ("max_remediation_attempts", "MAX_REMEDIATION_ATTEMPTS"),
+    (
+        "verify_webhook_signature_in_development",
+        "VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT",
+    ),
+    ("pipeline_step_timeout_seconds", "PIPELINE_STEP_TIMEOUT_SECONDS"),
+    ("github_api_max_retries", "GITHUB_API_MAX_RETRIES"),
+    ("github_api_retry_base_seconds", "GITHUB_API_RETRY_BASE_SECONDS"),
+    ("github_api_retry_max_seconds", "GITHUB_API_RETRY_MAX_SECONDS"),
+    ("log_prompt_max_chars", "LOG_PROMPT_MAX_CHARS"),
+    ("log_prompt_head_chars", "LOG_PROMPT_HEAD_CHARS"),
+    ("log_prompt_tail_chars", "LOG_PROMPT_TAIL_CHARS"),
+    ("gh_aw_tools_enabled", "GH_AW_TOOLS_ENABLED"),
+    ("gh_aw_ingestion_mode", "GH_AW_INGESTION_MODE"),
+    ("gh_aw_known_workflows", "GH_AW_KNOWN_WORKFLOWS"),
+    ("ph_allowed_repos", "PH_ALLOWED_REPOS"),
+)
 
 
 def set_storage(storage: ActivityStorage) -> None:
@@ -217,6 +243,113 @@ def get_workflow() -> PipelineHealerWorkflow:
     if _workflow is None:
         raise HTTPException(status_code=500, detail="Workflow not initialized")
     return _workflow
+
+
+def _repo_root() -> Path:
+    """Resolve repository root for helper command/script execution."""
+    override = os.getenv("PIPELINEHEALER_REPO_ROOT", "").strip()
+    if override:
+        return Path(override).resolve()
+    # backend/src/api/dashboard.py -> repo root is 3 levels up.
+    return Path(__file__).resolve().parents[3]
+
+
+def _env_file_path() -> Path:
+    """Resolve mutable env file path used by settings persistence."""
+    override = os.getenv("PIPELINEHEALER_ENV_FILE_PATH", "").strip()
+    if override:
+        return Path(override).resolve()
+    return _repo_root() / "backend" / ".env"
+
+
+def _env_bool(value: bool) -> str:
+    return "true" if value else "false"
+
+
+def _mutable_settings_to_env_values() -> dict[str, str]:
+    """Map live mutable runtime settings into env var string values."""
+    settings = get_settings()
+    values: dict[str, str] = {}
+    for attr_name, env_key in _MUTABLE_SETTINGS_ENV_KEYS:
+        raw = getattr(settings, attr_name)
+        if attr_name in {"ph_allowed_repos", "gh_aw_known_workflows"}:
+            items = (
+                _safe_settings_allowlist(raw)
+                if attr_name == "ph_allowed_repos"
+                else _normalize_workflow_names(raw)
+            )
+            values[env_key] = ",".join(items)
+        elif isinstance(raw, bool):
+            values[env_key] = _env_bool(raw)
+        else:
+            values[env_key] = str(raw)
+    return values
+
+
+def _upsert_env_line(env_file: Path, key: str, value: str) -> None:
+    """Replace or append KEY=value in env file while preserving ordering."""
+    lines = env_file.read_text(encoding="utf-8").splitlines()
+    output: list[str] = []
+    replaced = False
+    for line in lines:
+        if line.startswith(f"{key}="):
+            output.append(f"{key}={value}")
+            replaced = True
+        else:
+            output.append(line)
+    if not replaced:
+        output.append(f"{key}={value}")
+    env_file.write_text("\n".join(output) + "\n", encoding="utf-8")
+
+
+def _persist_mutable_settings_to_env_file() -> tuple[str, list[str]]:
+    """Persist mutable runtime settings to env file and return written keys."""
+    env_file = _env_file_path()
+    if not env_file.exists():
+        raise HTTPException(
+            status_code=500,
+            detail=f"Env file not found: {env_file}",
+        )
+
+    env_values = _mutable_settings_to_env_values()
+    for key, value in env_values.items():
+        _upsert_env_line(env_file, key, value)
+
+    return str(env_file), list(env_values.keys())
+
+
+def _truncate_output(raw: str, limit: int = 280) -> str:
+    text = raw.strip()
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3] + "..."
+
+
+async def _start_env_only_redeploy_background() -> tuple[bool, str]:
+    """Start env-only redeploy in background via scripts/ph.sh deploy:bg --env-only."""
+    repo_root = _repo_root()
+    script = repo_root / "scripts" / "ph.sh"
+    if not script.exists():
+        return False, f"Missing helper script: {script}"
+
+    try:
+        process = await asyncio.create_subprocess_exec(
+            "bash",
+            str(script),
+            "deploy:bg",
+            "--env-only",
+            cwd=str(repo_root),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        stdout, _ = await process.communicate()
+    except Exception as exc:  # pragma: no cover - defensive
+        return False, f"Failed to start env redeploy: {exc}"
+
+    output = stdout.decode("utf-8", errors="replace")
+    if process.returncode != 0:
+        return False, _truncate_output(output) or "deploy:bg returned non-zero exit code"
+    return True, _truncate_output(output) or "Started env-only redeploy in background"
 
 
 @router.get("/stats", response_model=DashboardStats)
@@ -353,6 +486,40 @@ async def get_settings_audit(
 ) -> list[AdminSettingsAuditEntry]:
     """Get recent admin settings change records (latest first)."""
     return list(reversed(_admin_settings_audit))[:limit]
+
+
+@router.post(
+    "/settings/persist",
+    response_model=AdminSettingsPersistResponse,
+    dependencies=[Depends(require_admin_key)],
+)
+async def persist_app_settings(
+    request: AdminSettingsPersistRequest,
+) -> AdminSettingsPersistResponse:
+    """Persist effective mutable runtime settings to backend/.env and optionally redeploy."""
+    env_file, persisted_keys = _persist_mutable_settings_to_env_file()
+    if request.skip_redeploy:
+        return AdminSettingsPersistResponse(
+            env_file=env_file,
+            persisted_keys=persisted_keys,
+            redeploy_attempted=False,
+            redeploy_started=False,
+            redeploy_message="Persisted settings to .env (redeploy skipped by request)",
+        )
+
+    redeploy_started, redeploy_message = await _start_env_only_redeploy_background()
+    if not redeploy_started:
+        logger.warning("Admin settings persisted but env-only redeploy did not start: %s", redeploy_message)
+    else:
+        logger.info("Admin settings persisted and env-only redeploy started")
+
+    return AdminSettingsPersistResponse(
+        env_file=env_file,
+        persisted_keys=persisted_keys,
+        redeploy_attempted=True,
+        redeploy_started=redeploy_started,
+        redeploy_message=redeploy_message,
+    )
 
 
 @router.get("/activities", response_model=list[ActivityRecord])
