@@ -4,7 +4,7 @@ import pytest
 
 from src.agents.log_analyzer import LogAnalyzerAgent
 from src.agents.orchestrator import OrchestratorAgent
-from src.config import get_settings
+from src.config import get_settings, reset_settings
 from src.storage import InMemoryStorage
 
 
@@ -21,15 +21,15 @@ class _LogsGitHubTools:
 
 @pytest.fixture(autouse=True)
 def _clear_settings_cache() -> None:
-    get_settings.cache_clear()
+    reset_settings()
     yield
-    get_settings.cache_clear()
+    reset_settings()
 
 
 @pytest.mark.asyncio
 async def test_orchestrator_refresh_rebuilds_cached_agents_with_new_deployment(monkeypatch) -> None:
     monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-mini")
-    get_settings.cache_clear()
+    reset_settings()
 
     sequence = 0
 
@@ -85,7 +85,7 @@ async def test_orchestrator_refresh_rebuilds_cached_agents_with_new_deployment(m
 @pytest.mark.asyncio
 async def test_log_analysis_uses_new_deployment_after_refresh(monkeypatch) -> None:
     monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-mini")
-    get_settings.cache_clear()
+    reset_settings()
 
     class _FakeAgent:
         def __init__(self, deployment: str) -> None:

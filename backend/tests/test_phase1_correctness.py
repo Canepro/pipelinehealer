@@ -7,7 +7,7 @@ import pytest
 
 from src.agents.orchestrator import OrchestratorAgent
 from src.agents.remediation import RemediationAgent
-from src.api import dashboard
+from src.main import app
 from src.models import (
     ActivityRecord,
     Diagnosis,
@@ -179,8 +179,8 @@ async def test_dashboard_retry_calls_rerun_failed_jobs() -> None:
         def __init__(self) -> None:
             self.github_tools = gh
 
-    dashboard.set_storage(storage)
-    dashboard.set_workflow(FakeWorkflow())  # type: ignore[arg-type]
+    app.state.storage = storage
+    app.state.workflow = FakeWorkflow()  # type: ignore[assignment]
 
     activity = ActivityRecord(
         id="a1",
@@ -192,7 +192,11 @@ async def test_dashboard_retry_calls_rerun_failed_jobs() -> None:
     )
     await storage.create_activity(activity)
 
-    resp = await dashboard.retry_activity("a1")
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/api/activities/a1/retry")
+    assert response.status_code == 200
+    resp = response.json()
     assert resp["status"] == "queued"
     assert gh.rerun_calls == [("octo", "demo", 123)]
 
@@ -228,3 +232,114 @@ async def test_remediation_low_confidence_creates_review_issue() -> None:
     assert "### Why Not Auto-Applied" in body
     assert "### How to Validate" in body
     assert f"Reason Code: {NotAutoApplyReason.LOW_CONFIDENCE.value}" in body
+
+
+# ---------------------------------------------------------------------------
+# Dedupe and should_process tests
+# ---------------------------------------------------------------------------
+
+
+def _make_event_with_run_id(
+    run_id: int,
+    workflow_name: str = "CI",
+    run_attempt: int = 1,
+) -> WorkflowRunEvent:
+    repo = GitHubRepository(
+        id=1,
+        name="demo",
+        full_name="octo/demo",
+        owner={"login": "octo"},
+        default_branch="main",
+        html_url="https://github.com/octo/demo",
+    )
+    run = GitHubWorkflowRun(
+        id=run_id,
+        name=workflow_name,
+        workflow_id=1,
+        head_branch="main",
+        head_sha="deadbeef",
+        status="completed",
+        conclusion="failure",
+        html_url=f"https://github.com/octo/demo/actions/runs/{run_id}",
+        created_at="2026-02-10T00:00:00Z",
+        updated_at="2026-02-10T00:01:00Z",
+        run_attempt=run_attempt,
+        run_number=run_id,
+    )
+    return WorkflowRunEvent(action="completed", workflow_run=run, repository=repo, sender={})
+
+
+@pytest.mark.asyncio
+async def test_should_process_deduplicates_beyond_10_activities() -> None:
+    """Dedupe should find a matching run even if >10 activities exist for the repo."""
+    storage = InMemoryStorage()
+    gh = FakeGitHubTools()
+    orchestrator = OrchestratorAgent(github_tools=gh, storage=storage)
+
+    # Seed 15 activities with different run IDs
+    for i in range(15):
+        await storage.create_activity(
+            ActivityRecord(
+                id=f"a-{i}",
+                repositoryId="1",
+                repository_name="octo/demo",
+                workflow_run_id=1000 + i,
+                workflow_name="CI",
+                status=RemediationStatus.COMPLETED,
+            )
+        )
+
+    # Now add the specific run we want to detect as duplicate
+    await storage.create_activity(
+        ActivityRecord(
+            id="a-target",
+            repositoryId="1",
+            repository_name="octo/demo",
+            workflow_run_id=999,
+            workflow_name="CI",
+            status=RemediationStatus.COMPLETED,
+        )
+    )
+
+    event = _make_event_with_run_id(999)
+    should, reason = await orchestrator.should_process(event)
+
+    assert should is False
+    assert "Already processed" in reason
+
+
+@pytest.mark.asyncio
+async def test_should_process_max_attempts_is_per_workflow() -> None:
+    """Max remediation attempts should be scoped to the specific workflow, not the whole repo."""
+    storage = InMemoryStorage()
+    gh = FakeGitHubTools()
+    orchestrator = OrchestratorAgent(github_tools=gh, storage=storage)
+    orchestrator._settings.max_remediation_attempts = 3
+
+    # Seed 3 failures for workflow "Lint" (should hit the limit)
+    for i in range(3):
+        await storage.create_activity(
+            ActivityRecord(
+                id=f"lint-{i}",
+                repositoryId="1",
+                repository_name="octo/demo",
+                workflow_run_id=2000 + i,
+                workflow_name="Lint",
+                status=RemediationStatus.FAILED,
+            )
+        )
+
+    # A new failure for the "CI" workflow should still be processed
+    event = _make_event_with_run_id(3000, workflow_name="CI")
+    should, reason = await orchestrator.should_process(event)
+
+    assert should is True
+    assert reason == "New failure to process"
+
+    # But a new failure for "Lint" should be blocked
+    event_lint = _make_event_with_run_id(3001, workflow_name="Lint")
+    should_lint, reason_lint = await orchestrator.should_process(event_lint)
+
+    assert should_lint is False
+    assert "Max remediation attempts" in reason_lint
+    assert "Lint" in reason_lint

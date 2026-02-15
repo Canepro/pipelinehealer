@@ -1,6 +1,8 @@
 """Base agent configuration and utilities for PipelineHealer."""
 
+import asyncio
 import logging
+import random
 from typing import Any
 
 from azure.identity import DefaultAzureCredential
@@ -8,6 +10,12 @@ from azure.identity import DefaultAzureCredential
 from ..config import get_settings
 
 logger = logging.getLogger(__name__)
+
+# Retry settings for transient LLM errors (429, 5xx, network).
+_LLM_MAX_RETRIES = 3
+_LLM_RETRY_BASE_SECONDS = 1.0
+_LLM_RETRY_MAX_SECONDS = 16.0
+_LLM_RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
 def validate_azure_openai_endpoint(endpoint: str) -> None:
@@ -34,12 +42,61 @@ class NoopAgent:
         _ = prompt
         return ""
 
+def _is_retryable_llm_error(exc: Exception) -> bool:
+    """Return True if *exc* looks like a transient/rate-limited LLM error worth retrying."""
+    message = str(exc).lower()
+
+    # Check for HTTP status codes embedded in exception messages.
+    for code in _LLM_RETRYABLE_STATUS_CODES:
+        if str(code) in message:
+            return True
+
+    # Common transient error signals.
+    retryable_phrases = (
+        "rate limit",
+        "too many requests",
+        "server error",
+        "temporarily unavailable",
+        "connection error",
+        "timeout",
+    )
+    return any(phrase in message for phrase in retryable_phrases)
+
+
+async def _run_with_llm_retry(agent: Any, prompt: str) -> Any:
+    """Run an agent with retry/backoff for transient LLM errors (429, 5xx, network)."""
+    for attempt in range(_LLM_MAX_RETRIES + 1):
+        try:
+            return await agent.run(prompt)
+        except Exception as exc:
+            if not _is_retryable_llm_error(exc) or attempt >= _LLM_MAX_RETRIES:
+                raise
+
+            delay = min(
+                _LLM_RETRY_BASE_SECONDS * (2 ** attempt) + random.uniform(0, 0.5),
+                _LLM_RETRY_MAX_SECONDS,
+            )
+            logger.warning(
+                "Transient LLM error on attempt %d/%d; retrying in %.1fs. error=%s",
+                attempt + 1,
+                _LLM_MAX_RETRIES + 1,
+                delay,
+                exc,
+            )
+            await asyncio.sleep(delay)
+
+    # Unreachable, but keeps type checkers happy.
+    raise RuntimeError("LLM retry loop exited unexpectedly")  # pragma: no cover
+
+
 class FallbackAgent:
     """Agent wrapper that retries with a fallback agent for known compatibility errors.
 
     After the primary agent fails with an API-version error once, all subsequent
-    calls — across ALL agent instances — go directly to the fallback to avoid
+    calls -- across ALL agent instances -- go directly to the fallback to avoid
     repeated 400/round-trip noise in logs.
+
+    All calls include retry/backoff for transient LLM errors (429, 5xx, network).
     """
 
     _primary_failed: bool = False  # class-level: shared across all instances
@@ -50,12 +107,12 @@ class FallbackAgent:
 
     async def run(self, prompt: str) -> Any:
         if self._primary_failed:
-            result = await self._fallback.run(prompt)
+            result = await _run_with_llm_retry(self._fallback, prompt)
             logger.debug("[debug-mode] Using cached fallback agent (Chat)")
             return result
 
         try:
-            result = await self._primary.run(prompt)
+            result = await _run_with_llm_retry(self._primary, prompt)
             logger.debug("[debug-mode] Primary agent (Responses) succeeded")
             return result
         except Exception as exc:
@@ -70,7 +127,7 @@ class FallbackAgent:
                 exc,
             )
             FallbackAgent._primary_failed = True
-            result = await self._fallback.run(prompt)
+            result = await _run_with_llm_retry(self._fallback, prompt)
             logger.debug("[debug-mode] Fallback agent (Chat) succeeded")
             return result
 

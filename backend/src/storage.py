@@ -16,17 +16,13 @@ from .models import (
     FailureType,
     RemediationAction,
     RemediationStatus,
+    utcnow,
 )
 
 logger = logging.getLogger(__name__)
 _RUNTIME_SETTINGS_ID = "pipelinehealer_runtime_settings_v1"
 _RUNTIME_SETTINGS_PARTITION = "__pipelinehealer_settings__"
 _AUDIT_PARTITION = "__pipelinehealer_audit__"
-
-
-def _utcnow() -> datetime:
-    """Return a timezone-aware UTC datetime."""
-    return datetime.now(UTC)
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -108,8 +104,8 @@ class ActivityStorage:
         if not activity.id:
             activity.id = str(uuid4())
 
-        activity.created_at = _utcnow()
-        activity.updated_at = _utcnow()
+        activity.created_at = utcnow()
+        activity.updated_at = utcnow()
 
         item = activity.model_dump(by_alias=True, mode="json")
         item["id"] = activity.id
@@ -127,7 +123,7 @@ class ActivityStorage:
         """
         await self.initialize()
 
-        activity.updated_at = _utcnow()
+        activity.updated_at = utcnow()
 
         # Calculate duration if completed
         if (
@@ -154,7 +150,7 @@ class ActivityStorage:
             "repository_name": _RUNTIME_SETTINGS_PARTITION,
             "repositoryId": _RUNTIME_SETTINGS_PARTITION,
             "repository_id": _RUNTIME_SETTINGS_PARTITION,
-            "updated_at": _utcnow().isoformat(),
+            "updated_at": utcnow().isoformat(),
             "settings": settings_payload,
         }
         await self._workflow_runs_container_required().upsert_item(body=item)
@@ -384,7 +380,7 @@ class ActivityStorage:
             by_failure_type=failure_counts,
             by_repository=repo_counts,
             average_resolution_time_seconds=avg_duration,
-            last_updated=_utcnow(),
+            last_updated=utcnow(),
         )
 
     async def get_repositories(self) -> list[dict[str, Any]]:
@@ -393,36 +389,26 @@ class ActivityStorage:
         Returns:
             List of repository info dictionaries
         """
-        await self.initialize()
-        query = """
-            SELECT
-                c.repository_name,
-                c.repositoryId,
-                c.status
-            FROM c
-        """
-
         repos_by_name: dict[str, dict[str, Any]] = {}
-        async for item in self._activities_container_required().query_items(
-            query=query,
-        ):
-            repo_name = item.get("repository_name")
-            if not isinstance(repo_name, str) or not repo_name:
+
+        async for activity in self._iter_activities():
+            repo_name = activity.repository_name
+            if not repo_name:
                 continue
 
             if repo_name not in repos_by_name:
                 repos_by_name[repo_name] = {
                     "repository_name": repo_name,
-                    "repositoryId": str(item.get("repositoryId", "")),
+                    "repositoryId": activity.repository_id,
                     "total_activities": 0,
                     "successful": 0,
                     "failed": 0,
                 }
 
             repos_by_name[repo_name]["total_activities"] += 1
-            if item.get("status") == RemediationStatus.COMPLETED.value:
+            if activity.status == RemediationStatus.COMPLETED:
                 repos_by_name[repo_name]["successful"] += 1
-            elif item.get("status") == RemediationStatus.FAILED.value:
+            elif activity.status == RemediationStatus.FAILED:
                 repos_by_name[repo_name]["failed"] += 1
 
         return list(repos_by_name.values())
@@ -436,32 +422,17 @@ class ActivityStorage:
         Returns:
             Timeline data for charts
         """
-        await self.initialize()
-
-        # Get activities since the specified time, grouped by day
-        query = """
-            SELECT
-                SUBSTRING(c.created_at, 0, 10) as date,
-                c.status,
-                COUNT(1) as count
-            FROM c
-            WHERE c.created_at >= @since
-            GROUP BY SUBSTRING(c.created_at, 0, 10), c.status
-        """
-        parameters: list[dict[str, object]] = [{"name": "@since", "value": _as_utc(since).isoformat()}]
-
         timeline_data: dict[str, dict[str, int]] = {}
-        async for item in self._activities_container_required().query_items(
-            query=query,
-            parameters=parameters,
-        ):
-            date = item["date"]
-            status = item["status"]
-            count = item["count"]
+
+        async for activity in self._iter_activities(since=since):
+            if not activity.created_at:
+                continue
+            date = _as_utc(activity.created_at).strftime("%Y-%m-%d")
+            status = activity.status.value if activity.status else "unknown"
 
             if date not in timeline_data:
                 timeline_data[date] = {}
-            timeline_data[date][status] = count
+            timeline_data[date][status] = timeline_data[date].get(status, 0) + 1
 
         return {
             "data": timeline_data,
@@ -530,8 +501,8 @@ class InMemoryStorage(ActivityStorage):
         if not activity.id:
             activity.id = str(uuid4())
 
-        activity.created_at = _utcnow()
-        activity.updated_at = _utcnow()
+        activity.created_at = utcnow()
+        activity.updated_at = utcnow()
 
         self._activities[activity.id] = activity
         logger.info(f"Created in-memory activity: {activity.id}")
@@ -540,7 +511,7 @@ class InMemoryStorage(ActivityStorage):
 
     async def update_activity(self, activity: ActivityRecord) -> None:
         """Update an existing activity record in memory."""
-        activity.updated_at = _utcnow()
+        activity.updated_at = utcnow()
 
         if (
             activity.status in (RemediationStatus.COMPLETED, RemediationStatus.FAILED)
@@ -588,134 +559,6 @@ class InMemoryStorage(ActivityStorage):
         )
 
         return activities[offset : offset + limit]
-
-    async def get_stats(self) -> DashboardStats:
-        """Get dashboard statistics from memory."""
-        activities = list(self._activities.values())
-
-        status_counts: dict[str, int] = {}
-        failure_counts: dict[str, int] = {}
-        repo_counts: dict[str, int] = {}
-        total_duration = 0.0
-        completed_count = 0
-        actioned_remediations = 0
-        auto_pr_remediations = 0
-        issue_remediations = 0
-        safety_blocked_remediations = 0
-
-        for activity in activities:
-            # Count by status
-            status_key = activity.status.value if activity.status else "unknown"
-            status_counts[status_key] = status_counts.get(status_key, 0) + 1
-
-            # Count by failure type
-            if activity.failure_type:
-                ft_key = activity.failure_type.value
-                failure_counts[ft_key] = failure_counts.get(ft_key, 0) + 1
-
-            # Count by repository
-            repo_counts[activity.repository_name] = repo_counts.get(activity.repository_name, 0) + 1
-
-            # Calculate average duration
-            if activity.status == RemediationStatus.COMPLETED and activity.duration_seconds:
-                total_duration += activity.duration_seconds
-                completed_count += 1
-
-            remediation = activity.remediation_result
-            if (
-                activity.status == RemediationStatus.COMPLETED
-                and remediation
-                and remediation.success
-                and remediation.action_taken in {
-                    RemediationAction.CREATE_PR,
-                    RemediationAction.CREATE_ISSUE,
-                    RemediationAction.RETRY_WORKFLOW,
-                }
-            ):
-                actioned_remediations += 1
-                if remediation.action_taken == RemediationAction.CREATE_PR:
-                    auto_pr_remediations += 1
-                elif remediation.action_taken == RemediationAction.CREATE_ISSUE:
-                    issue_remediations += 1
-
-                details = remediation.details or {}
-                if (
-                    isinstance(details.get("not_auto_reason_code"), str)
-                    or details.get("fallback_from") == "create_pr"
-                ):
-                    safety_blocked_remediations += 1
-
-        avg_duration = total_duration / completed_count if completed_count > 0 else 0.0
-
-        return DashboardStats(
-            total_runs_processed=len(activities),
-            actioned_remediations=actioned_remediations,
-            successful_remediations=actioned_remediations,
-            failed_remediations=status_counts.get(RemediationStatus.FAILED.value, 0),
-            pending_remediations=status_counts.get(RemediationStatus.PENDING.value, 0),
-            auto_pr_remediations=auto_pr_remediations,
-            issue_remediations=issue_remediations,
-            safety_blocked_remediations=safety_blocked_remediations,
-            by_failure_type=failure_counts,
-            by_repository=repo_counts,
-            average_resolution_time_seconds=avg_duration,
-            last_updated=_utcnow(),
-        )
-
-    async def get_repositories(self) -> list[dict[str, Any]]:
-        """Get list of repositories from memory."""
-        repo_data: dict[str, dict[str, Any]] = {}
-
-        for activity in self._activities.values():
-            repo_name = activity.repository_name
-            if repo_name not in repo_data:
-                repo_data[repo_name] = {
-                    "repository_name": repo_name,
-                    "repositoryId": activity.repository_id,
-                    "total_activities": 0,
-                    "successful": 0,
-                    "failed": 0,
-                }
-
-            repo_data[repo_name]["total_activities"] += 1
-            if activity.status == RemediationStatus.COMPLETED:
-                repo_data[repo_name]["successful"] += 1
-            elif activity.status == RemediationStatus.FAILED:
-                repo_data[repo_name]["failed"] += 1
-
-        return list(repo_data.values())
-
-    async def get_timeline(self, since: datetime) -> dict[str, Any]:
-        """Get activity timeline data from memory."""
-        timeline_data: dict[str, dict[str, int]] = {}
-        since_utc = _as_utc(since)
-
-        for activity in self._activities.values():
-            if activity.created_at and _as_utc(activity.created_at) >= since_utc:
-                date = activity.created_at.strftime("%Y-%m-%d")
-                status = activity.status.value if activity.status else "unknown"
-
-                if date not in timeline_data:
-                    timeline_data[date] = {}
-
-                timeline_data[date][status] = timeline_data[date].get(status, 0) + 1
-
-        return {
-            "data": timeline_data,
-            "since": _as_utc(since).isoformat(),
-        }
-
-    async def get_failure_breakdown(self, since: datetime) -> dict[str, int]:
-        """Get failure breakdown from memory."""
-        breakdown: dict[str, int] = {}
-        since_utc = _as_utc(since)
-
-        for activity in self._activities.values():
-            if activity.created_at and _as_utc(activity.created_at) >= since_utc and activity.failure_type:
-                ft_key = activity.failure_type.value
-                breakdown[ft_key] = breakdown.get(ft_key, 0) + 1
-
-        return breakdown
 
     async def upsert_runtime_settings(self, settings_payload: dict[str, Any]) -> None:
         """Persist runtime settings in-memory (test/local fallback)."""

@@ -513,10 +513,11 @@ class OrchestratorAgent:
         if event.workflow_run.conclusion not in ("failure", "timed_out"):
             return False, f"Not a failure: {event.workflow_run.conclusion}"
 
-        # Check if we've already processed this run
+        # Fetch enough recent activities to reliably detect duplicates.
+        # The previous limit of 10 could miss a matching run_id in busy repos.
         existing = await self._storage.get_activities(
             repository=event.repository.full_name,
-            limit=10,
+            limit=100,
         )
 
         for activity in existing:
@@ -526,11 +527,16 @@ class OrchestratorAgent:
                     return True, "Retry attempt"
                 return False, "Already processed"
 
-        # Check if we've hit the max attempts for this repo recently
-        # This prevents infinite loops
-        recent_failures = [a for a in existing if a.status == RemediationStatus.FAILED]
+        # Check if we've hit the max remediation attempts for this *workflow*
+        # (not the entire repo) to avoid blocking unrelated workflows.
+        workflow_name = event.workflow_run.name or ""
+        recent_workflow_failures = [
+            a
+            for a in existing
+            if a.status == RemediationStatus.FAILED and a.workflow_name == workflow_name
+        ]
 
-        if len(recent_failures) >= self._settings.max_remediation_attempts:
-            return False, "Max remediation attempts reached for this repository"
+        if len(recent_workflow_failures) >= self._settings.max_remediation_attempts:
+            return False, f"Max remediation attempts reached for workflow '{workflow_name}'"
 
         return True, "New failure to process"

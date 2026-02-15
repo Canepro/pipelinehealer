@@ -328,10 +328,11 @@ Be specific about:
 
         # Check for timeout issues
         timeout_patterns = [
-            (r"timeout", "Operation timed out"),
+            (r"timed?\s*out(?!\s*(?:to|=|:)\s*\d)", "Operation timed out"),
             (r"exceeded.*time.*limit", "Time limit exceeded"),
             (r"killed.*signal.*9", "Process killed (likely OOM or timeout)"),
             (r"no space left on device", "Runner disk space exhausted"),
+            (r"deadline\s+exceeded", "Deadline exceeded"),
         ]
 
         for pattern, description in timeout_patterns:

@@ -1,105 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { formatDistanceToNow } from 'date-fns'
-import { AlertTriangle, Copy, Info, LockKeyhole, RotateCcw, Save, Shield, SlidersHorizontal, Wrench } from 'lucide-react'
+import { Info, LockKeyhole } from 'lucide-react'
 import { toast } from 'sonner'
-import { api, type AdminSettingsAuditEntry, type AppSettings } from '../api/client'
-import { EMPTY_STATES } from '../constants/emptyStates'
-import { Badge } from '@/components/ui/badge'
+import { api } from '../api/client'
+import {
+  AdminControlsForm,
+  AuditTrailPanel,
+  RuntimePolicyBanner,
+  SettingsInfoPanels,
+  toSettingsForm,
+} from '../components/settings'
+import type { SettingsFormState } from '../components/settings'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Switch } from '@/components/ui/switch'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-
-function BoolBadge({ value }: { value: boolean }) {
-  return <Badge variant={value ? 'success' : 'destructive'}>{value ? 'Enabled' : 'Disabled'}</Badge>
-}
-
-const REPO_FULL_NAME_REGEX = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
-
-type SettingsFormState = {
-  heal_mode: 'safe' | 'demo' | 'debug'
-  auto_create_pr: boolean
-  auto_create_tracking_issue_for_prs: boolean
-  max_remediation_attempts: number
-  verify_webhook_signature_in_development: boolean
-  pipeline_step_timeout_seconds: number
-  github_api_max_retries: number
-  github_api_retry_base_seconds: number
-  github_api_retry_max_seconds: number
-  log_prompt_max_chars: number
-  log_prompt_head_chars: number
-  log_prompt_tail_chars: number
-  gh_aw_tools_enabled: boolean
-  gh_aw_ingestion_mode: 'disabled' | 'passive'
-  gh_aw_known_workflows: string[]
-  ph_allowed_repos: string[]
-  azure_openai_deployment_name: string
-}
-
-const normalizeRepoInput = (value: string): string | null => {
-  const text = value.trim()
-  if (!text) {
-    return null
-  }
-
-  let candidate = text
-  try {
-    const parsed = new URL(text)
-    const host = parsed.hostname.toLowerCase()
-    if (host !== 'github.com' && host !== 'www.github.com') {
-      return null
-    }
-    const parts = parsed.pathname
-      .replace(/^\/+|\/+$/g, '')
-      .replace(/\.git$/i, '')
-      .split('/')
-      .filter(Boolean)
-    if (parts.length !== 2) {
-      return null
-    }
-    candidate = `${parts[0]}/${parts[1]}`
-  } catch {
-    if (text.startsWith('git@github.com:')) {
-      candidate = text.slice('git@github.com:'.length).replace(/\.git$/i, '')
-    }
-  }
-
-  candidate = candidate.replace(/^\/+|\/+$/g, '').replace(/\.git$/i, '').toLowerCase()
-  if (!REPO_FULL_NAME_REGEX.test(candidate)) {
-    return null
-  }
-  return candidate
-}
-
-const toSettingsForm = (data: AppSettings): SettingsFormState => ({
-  heal_mode: data.heal_mode === 'demo' ? 'demo' : data.heal_mode === 'debug' ? 'debug' : 'safe',
-  auto_create_pr: data.auto_create_pr,
-  auto_create_tracking_issue_for_prs: data.auto_create_tracking_issue_for_prs,
-  max_remediation_attempts: data.max_remediation_attempts,
-  verify_webhook_signature_in_development: data.verify_webhook_signature_in_development,
-  pipeline_step_timeout_seconds: data.pipeline_step_timeout_seconds,
-  github_api_max_retries: data.github_api_max_retries,
-  github_api_retry_base_seconds: data.github_api_retry_base_seconds,
-  github_api_retry_max_seconds: data.github_api_retry_max_seconds,
-  log_prompt_max_chars: data.log_prompt_max_chars,
-  log_prompt_head_chars: data.log_prompt_head_chars,
-  log_prompt_tail_chars: data.log_prompt_tail_chars,
-  gh_aw_tools_enabled: data.gh_aw_tools_enabled,
-  gh_aw_ingestion_mode: data.gh_aw_ingestion_mode === 'passive' ? 'passive' : 'disabled',
-  gh_aw_known_workflows: data.gh_aw_known_workflows ?? [],
-  ph_allowed_repos: data.ph_allowed_repos ?? [],
-  azure_openai_deployment_name: data.azure_openai_deployment_name ?? '',
-})
 
 export default function SettingsPage() {
   const queryClient = useQueryClient()
@@ -149,9 +64,7 @@ export default function SettingsPage() {
   })
 
   useEffect(() => {
-    if (!data) {
-      return
-    }
+    if (!data) return
     const next = toSettingsForm(data)
     setForm(next)
     setLastSavedForm(next)
@@ -161,29 +74,9 @@ export default function SettingsPage() {
   const hasUnsavedChanges =
     lastSavedForm !== null && JSON.stringify(form) !== JSON.stringify(lastSavedForm)
 
-  const addAllowedRepo = () => {
-    const normalized = normalizeRepoInput(newRepoInput)
-    if (!normalized) {
-      toast.error('Invalid repository format', {
-        description:
-          "Use 'owner/repo' or 'https://github.com/owner/repo'.",
-      })
-      return
-    }
-    if (form.ph_allowed_repos.includes(normalized)) {
-      toast.error('Repository already in allowlist')
-      return
-    }
-    setForm((prev) => ({
-      ...prev,
-      ph_allowed_repos: [...prev.ph_allowed_repos, normalized],
-    }))
-    setNewRepoInput('')
-  }
-
   const saveMutation = useMutation({
     mutationFn: () => {
-      const payload = {
+      const payload: Record<string, unknown> = {
         heal_mode: form.heal_mode,
         auto_create_pr: form.auto_create_pr,
         auto_create_tracking_issue_for_prs: form.auto_create_tracking_issue_for_prs,
@@ -203,7 +96,7 @@ export default function SettingsPage() {
       }
       const deploymentName = form.azure_openai_deployment_name.trim()
       if (deploymentName) {
-        Object.assign(payload, { azure_openai_deployment_name: deploymentName })
+        payload.azure_openai_deployment_name = deploymentName
       }
       return api.updateSettings(adminKey, payload)
     },
@@ -246,52 +139,6 @@ export default function SettingsPage() {
     },
   })
 
-  const formatAuditValue = (value: unknown) => {
-    if (typeof value === 'string') {
-      return value
-    }
-    if (typeof value === 'number' || typeof value === 'boolean') {
-      return String(value)
-    }
-    if (value === null || value === undefined) {
-      return 'null'
-    }
-    return JSON.stringify(value)
-  }
-
-  const isAuditValueEqual = (left: unknown, right: unknown) => {
-    if (Object.is(left, right)) {
-      return true
-    }
-    if (typeof left === 'object' && left !== null && typeof right === 'object' && right !== null) {
-      try {
-        return JSON.stringify(left) === JSON.stringify(right)
-      } catch {
-        return false
-      }
-    }
-    return false
-  }
-
-  const getEffectiveAuditChanges = (entry: AdminSettingsAuditEntry) =>
-    entry.changed_keys
-      .map((key) => ({ key, diff: entry.changes[key] }))
-      .filter(({ diff }) => !isAuditValueEqual(diff?.old, diff?.new))
-
-  const formatActorLabel = (actor?: string) => {
-    if (!actor) {
-      return 'Unknown actor'
-    }
-    const fingerprintPrefix = 'admin_key:sha256:'
-    if (actor.startsWith(fingerprintPrefix)) {
-      return `Admin (${actor.slice(fingerprintPrefix.length)})`
-    }
-    return actor
-  }
-
-  const formatAuditTimestampUtc = (timestamp: string) =>
-    new Date(timestamp).toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
-
   const handleLoadAudit = async () => {
     try {
       await refetchAudit()
@@ -303,32 +150,8 @@ export default function SettingsPage() {
     }
   }
 
-  const handleCopyTrace = async (entry: AdminSettingsAuditEntry) => {
-    if (!entry.request_id) {
-      toast.error('No trace id available for this entry')
-      return
-    }
-
-    const tracePayload = [
-      `X-Request-Id: ${entry.request_id}`,
-      '',
-      `Actor: ${entry.actor || 'unknown'}`,
-      '',
-      `When: ${new Date(entry.timestamp).toISOString()}`,
-    ].join('\n')
-
-    try {
-      await navigator.clipboard.writeText(tracePayload)
-      toast.success('Trace copied')
-    } catch {
-      toast.error('Unable to copy trace')
-    }
-  }
-
   const handlePersistAndRedeploy = () => {
-    if (!data) {
-      return
-    }
+    if (!data) return
     if (hasUnsavedChanges) {
       toast.error('Save settings first', {
         description: 'Persist and redeploy uses effective saved values only.',
@@ -341,21 +164,18 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Settings
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Admin-only runtime configuration. Edit draft values, then save to make them effective.
           Saved values apply immediately and remain active until backend restart.
         </p>
       </div>
 
+      {/* Admin access card */}
       <Card className="p-4 md:p-6">
         <div className="flex items-center gap-2 mb-4">
           <LockKeyhole className="h-5 w-5 text-azure-500" />
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Admin Access
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Admin Access</h2>
         </div>
         <div className="flex flex-col md:flex-row gap-3">
           <Input
@@ -377,6 +197,7 @@ export default function SettingsPage() {
         </p>
       </Card>
 
+      {/* Loading state */}
       {adminKey && isLoading && (
         <Card className="p-4 md:p-6">
           <div className="space-y-3">
@@ -387,6 +208,7 @@ export default function SettingsPage() {
         </Card>
       )}
 
+      {/* Error state */}
       {adminKey && isError && (
         <div className="card p-4 md:p-6">
           <div className="flex items-start gap-3">
@@ -403,793 +225,42 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Main settings content */}
       {data && (
         <>
-          <Card className="p-4 md:p-6 border border-amber-500/30 bg-amber-500/10">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5" />
-                <div>
-                  <h2 className="text-base font-semibold text-amber-200">
-                    Runtime only (lost on redeploy)
-                  </h2>
-                  <p className="mt-1 text-sm text-amber-100/90">
-                    Settings saved here update the running backend process. Redeploy or revision replacement restores values from
-                    <code className="mx-1">backend/.env</code> and Azure Container App env.
-                  </p>
-                  <p className="mt-2 text-xs text-amber-100/80">
-                    Use Persist Settings to write all mutable runtime settings to durable storage.
-                    In Azure, redeploy is not required because persisted values are applied on startup.
-                    When local <code className="mx-1">backend/.env</code> exists, the action also updates it.
-                  </p>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => void handlePersistAndRedeploy()}
-                disabled={hasUnsavedChanges || persistMutation.isPending}
-              >
-                {persistMutation.isPending ? 'Persisting...' : 'Persist Settings'}
-              </Button>
-            </div>
-          </Card>
+          <RuntimePolicyBanner
+            data={data}
+            hasUnsavedChanges={hasUnsavedChanges}
+            isPersisting={persistMutation.isPending}
+            onPersist={handlePersistAndRedeploy}
+          />
 
-          <Card className="p-4 md:p-6">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Effective Runtime Policy
-                </h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Current operational guardrails applied by the backend.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="outline">Mode: {data.heal_mode}</Badge>
-                <Badge variant={data.auto_create_pr ? 'destructive' : 'success'}>
-                  PR Creation: {data.auto_create_pr ? 'ON' : 'OFF'}
-                </Badge>
-                <Badge variant={data.ph_allowed_repos.length > 0 ? 'success' : 'destructive'}>
-                  Scope: {data.ph_allowed_repos.length > 0 ? `Allowlist (${data.ph_allowed_repos.length})` : 'Unrestricted'}
-                </Badge>
-                <Badge variant={data.verify_webhook_signature ? 'success' : 'destructive'}>
-                  Signature: {data.verify_webhook_signature ? 'ON' : 'OFF'}
-                </Badge>
-              </div>
-            </div>
-          </Card>
+          <SettingsInfoPanels data={data} />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="card p-4 md:p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <SlidersHorizontal className="h-5 w-5 text-azure-500" />
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Runtime
-                </h2>
-              </div>
-              <dl className="space-y-3 text-sm">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Environment</dt>
-                  <dd className="font-medium text-gray-900 dark:text-white">
-                    {data.environment}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Storage backend</dt>
-                  <dd className="font-medium text-gray-900 dark:text-white">
-                    {data.storage_backend}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Heal mode</dt>
-                  <dd className="font-medium text-gray-900 dark:text-white">
-                    {data.heal_mode}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Max remediation attempts</dt>
-                  <dd className="font-medium text-gray-900 dark:text-white">
-                    {data.max_remediation_attempts}
-                  </dd>
-                </div>
-              </dl>
-            </div>
+          <AdminControlsForm
+            data={data}
+            form={form}
+            setForm={setForm}
+            hasUnsavedChanges={hasUnsavedChanges}
+            newRepoInput={newRepoInput}
+            setNewRepoInput={setNewRepoInput}
+            ghAwWorkflowsInput={ghAwWorkflowsInput}
+            setGhAwWorkflowsInput={setGhAwWorkflowsInput}
+            setLastSavedForm={setLastSavedForm}
+            savePending={saveMutation.isPending}
+            saveError={saveMutation.isError ? (saveMutation.error as Error) : null}
+            saveSuccess={saveMutation.isSuccess}
+            onSave={() => saveMutation.mutate()}
+          />
 
-            <div className="card p-4 md:p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Shield className="h-5 w-5 text-azure-500" />
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Security
-                </h2>
-              </div>
-              <dl className="space-y-3 text-sm">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">API auth key</dt>
-                  <dd><BoolBadge value={data.api_auth_enabled} /></dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Admin key</dt>
-                  <dd><BoolBadge value={data.admin_api_auth_enabled} /></dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Webhook verification</dt>
-                  <dd><BoolBadge value={data.verify_webhook_signature} /></dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Verify in development</dt>
-                  <dd>
-                    <BoolBadge
-                      value={data.verify_webhook_signature_in_development}
-                    />
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="card p-4 md:p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Wrench className="h-5 w-5 text-azure-500" />
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  AI Provider
-                </h2>
-              </div>
-              <dl className="space-y-3 text-sm">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Endpoint</dt>
-                  <dd className="text-right font-medium text-gray-900 dark:text-white break-all">
-                    {data.azure_openai_endpoint || 'Not set'}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Deployment</dt>
-                  <dd className="font-medium text-gray-900 dark:text-white">
-                    {data.azure_openai_deployment_name || 'Not set'}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">API version</dt>
-                  <dd className="font-medium text-gray-900 dark:text-white">
-                    {data.azure_openai_api_version || 'Not set'}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-
-            <div className="card p-4 md:p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Info className="h-5 w-5 text-azure-500" />
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  CORS
-                </h2>
-              </div>
-              <dl className="space-y-3 text-sm">
-                <div>
-                  <dt className="text-gray-500 dark:text-gray-400 mb-2">Allowed origins</dt>
-                  <dd className="space-y-1">
-                    {data.cors_allowed_origins.map((origin) => (
-                      <div
-                        key={origin}
-                        className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 break-all"
-                      >
-                        {origin}
-                      </div>
-                    ))}
-                  </dd>
-                </div>
-                <div className="pt-1">
-                  <dt className="text-gray-500 dark:text-gray-400">Origin regex</dt>
-                  <dd className="font-medium text-gray-900 dark:text-white break-all">
-                    {data.cors_allow_origin_regex}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="card p-4 md:p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <SlidersHorizontal className="h-5 w-5 text-azure-500" />
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Reliability Snapshot
-                </h2>
-              </div>
-              <dl className="space-y-3 text-sm">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Step timeout (s)</dt>
-                  <dd className="font-medium text-gray-900 dark:text-white">
-                    {data.pipeline_step_timeout_seconds}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">GitHub max retries</dt>
-                  <dd className="font-medium text-gray-900 dark:text-white">
-                    {data.github_api_max_retries}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Retry base / max (s)</dt>
-                  <dd className="font-medium text-gray-900 dark:text-white">
-                    {data.github_api_retry_base_seconds} / {data.github_api_retry_max_seconds}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Prompt max chars</dt>
-                  <dd className="font-medium text-gray-900 dark:text-white">
-                    {data.log_prompt_max_chars}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-
-            <div className="card p-4 md:p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Shield className="h-5 w-5 text-azure-500" />
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  GitHub Integration
-                </h2>
-              </div>
-              <dl className="space-y-3 text-sm">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Auth mode</dt>
-                  <dd className="font-medium text-gray-900 dark:text-white">
-                    {data.github_auth_mode}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">PAT auth</dt>
-                  <dd><BoolBadge value={data.github_pat_configured} /></dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">GitHub App auth</dt>
-                  <dd><BoolBadge value={data.github_app_configured} /></dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">Repo allowlist</dt>
-                  <dd className="font-medium text-gray-900 dark:text-white">
-                    {data.ph_allowed_repos.length > 0
-                      ? `${data.ph_allowed_repos.length} repos`
-                      : 'All repos (unrestricted)'}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">gh-aw tools</dt>
-                  <dd><BoolBadge value={data.gh_aw_tools_enabled} /></dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-gray-500 dark:text-gray-400">gh-aw ingestion</dt>
-                  <dd className="font-medium text-gray-900 dark:text-white">
-                    {data.gh_aw_ingestion_mode}
-                  </dd>
-                </div>
-              </dl>
-              <div className="mt-3">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Allowed repositories</p>
-                {data.ph_allowed_repos.length > 0 ? (
-                  <div className="space-y-1">
-                    {data.ph_allowed_repos.map((repo) => (
-                      <div
-                        key={repo}
-                        className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 break-all text-xs"
-                      >
-                        {repo}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    No repo allowlist set. Backend is not restricted to specific repositories.
-                  </p>
-                )}
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 mb-1">Known gh-aw workflows</p>
-                {data.gh_aw_known_workflows.length > 0 ? (
-                  <div className="space-y-1">
-                    {data.gh_aw_known_workflows.map((workflow) => (
-                      <div
-                        key={workflow}
-                        className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 break-all text-xs"
-                      >
-                        {workflow}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    No known gh-aw workflows configured.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="card p-4 md:p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Admin Controls
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
-              <label className="space-y-1">
-                <span className="text-gray-500 dark:text-gray-400">Heal mode</span>
-                <select
-                  value={form.heal_mode}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    setForm((prev) => ({
-                      ...prev,
-                      heal_mode: v === 'demo' ? 'demo' : v === 'debug' ? 'debug' : 'safe',
-                    }))
-                  }}
-                  className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 focus:ring-2 focus:ring-azure-500"
-                >
-                  <option value="safe">safe</option>
-                  <option value="demo">demo</option>
-                  <option value="debug">debug</option>
-                </select>
-              </label>
-
-              <label className="space-y-1">
-                <span className="text-gray-500 dark:text-gray-400">Max remediation attempts</span>
-                <Input
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={form.max_remediation_attempts}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      max_remediation_attempts: Number(e.target.value),
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="space-y-1">
-                <span className="text-gray-500 dark:text-gray-400">AI deployment name</span>
-                <Input
-                  type="text"
-                  value={form.azure_openai_deployment_name}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      azure_openai_deployment_name: e.target.value,
-                    }))
-                  }
-                  placeholder="gpt-5-mini"
-                />
-              </label>
-
-              <label className="space-y-1">
-                <span className="text-gray-500 dark:text-gray-400">Pipeline step timeout (s)</span>
-                <Input
-                  type="number"
-                  min={1}
-                  max={600}
-                  value={form.pipeline_step_timeout_seconds}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      pipeline_step_timeout_seconds: Number(e.target.value),
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="space-y-1">
-                <span className="text-gray-500 dark:text-gray-400">GitHub API max retries</span>
-                <Input
-                  type="number"
-                  min={0}
-                  max={10}
-                  value={form.github_api_max_retries}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      github_api_max_retries: Number(e.target.value),
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="space-y-1">
-                <span className="text-gray-500 dark:text-gray-400">Retry base seconds</span>
-                <Input
-                  type="number"
-                  min={0.1}
-                  max={30}
-                  step={0.1}
-                  value={form.github_api_retry_base_seconds}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      github_api_retry_base_seconds: Number(e.target.value),
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="space-y-1">
-                <span className="text-gray-500 dark:text-gray-400">Retry max seconds</span>
-                <Input
-                  type="number"
-                  min={0.1}
-                  max={120}
-                  step={0.1}
-                  value={form.github_api_retry_max_seconds}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      github_api_retry_max_seconds: Number(e.target.value),
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="space-y-1">
-                <span className="text-gray-500 dark:text-gray-400">Log prompt max chars</span>
-                <Input
-                  type="number"
-                  min={1000}
-                  max={200000}
-                  value={form.log_prompt_max_chars}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      log_prompt_max_chars: Number(e.target.value),
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="space-y-1">
-                <span className="text-gray-500 dark:text-gray-400">Log prompt head chars</span>
-                <Input
-                  type="number"
-                  min={100}
-                  max={200000}
-                  value={form.log_prompt_head_chars}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      log_prompt_head_chars: Number(e.target.value),
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="space-y-1">
-                <span className="text-gray-500 dark:text-gray-400">Log prompt tail chars</span>
-                <Input
-                  type="number"
-                  min={100}
-                  max={200000}
-                  value={form.log_prompt_tail_chars}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      log_prompt_tail_chars: Number(e.target.value),
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="space-y-1">
-                <span className="text-gray-500 dark:text-gray-400">gh-aw ingestion mode</span>
-                <select
-                  value={form.gh_aw_ingestion_mode}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      gh_aw_ingestion_mode: e.target.value === 'passive' ? 'passive' : 'disabled',
-                    }))
-                  }
-                  className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-2 focus:ring-2 focus:ring-azure-500"
-                >
-                  <option value="disabled">disabled</option>
-                  <option value="passive">passive</option>
-                </select>
-              </label>
-
-              <label className="space-y-1 lg:col-span-2">
-                <span className="text-gray-500 dark:text-gray-400">Known gh-aw workflows (CSV)</span>
-                <Input
-                  type="text"
-                  value={ghAwWorkflowsInput}
-                  onChange={(e) => {
-                    const raw = e.target.value
-                    setGhAwWorkflowsInput(raw)
-                    const normalized = raw
-                      .split(',')
-                      .map((item) => item.trim().toLowerCase())
-                      .filter(Boolean)
-                    setForm((prev) => ({
-                      ...prev,
-                      gh_aw_known_workflows: Array.from(new Set(normalized)),
-                    }))
-                  }}
-                  placeholder="ci-doctor,schema-consistency-checker,breaking-change-checker"
-                />
-              </label>
-
-              <label className="flex items-center gap-2">
-                <Switch
-                  checked={form.auto_create_pr}
-                  onCheckedChange={(checked) =>
-                    setForm((prev) => ({ ...prev, auto_create_pr: checked }))
-                  }
-                />
-                <span className="text-gray-500 dark:text-gray-400">Auto-create PRs</span>
-              </label>
-
-              <label className="flex items-center gap-2">
-                <Switch
-                  checked={form.auto_create_tracking_issue_for_prs}
-                  onCheckedChange={(checked) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      auto_create_tracking_issue_for_prs: checked,
-                    }))
-                  }
-                />
-                <span className="text-gray-500 dark:text-gray-400">
-                  Auto-create tracking issue for PRs
-                </span>
-              </label>
-
-              <label className="flex items-center gap-2">
-                <Switch
-                  checked={form.verify_webhook_signature_in_development}
-                  onCheckedChange={(checked) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      verify_webhook_signature_in_development: checked,
-                    }))
-                  }
-                />
-                <span className="text-gray-500 dark:text-gray-400">
-                  Verify webhook signature in development
-                </span>
-              </label>
-
-              <label className="flex items-center gap-2">
-                <Switch
-                  checked={form.gh_aw_tools_enabled}
-                  onCheckedChange={(checked) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      gh_aw_tools_enabled: checked,
-                    }))
-                  }
-                />
-                <span className="text-gray-500 dark:text-gray-400">
-                  Enable gh-aw passive diagnostics
-                </span>
-              </label>
-            </div>
-
-            {/* Allowed Repositories */}
-            <div className="mt-6">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Allowed repositories</p>
-                <Badge variant={hasUnsavedChanges ? 'destructive' : 'success'}>
-                  {hasUnsavedChanges ? 'Draft changes pending save' : 'Draft is in sync'}
-                </Badge>
-              </div>
-              <p className="text-xs text-gray-400 mb-2">
-                Effective now: {data.ph_allowed_repos.length > 0 ? data.ph_allowed_repos.join(', ') : 'all repositories'}
-              </p>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {form.ph_allowed_repos.length === 0 && (
-                  <span className="text-xs text-gray-400 italic">All repos allowed (no restriction)</span>
-                )}
-                {form.ph_allowed_repos.map((repo) => (
-                  <Badge key={repo} variant="secondary" className="flex items-center gap-1">
-                    {repo}
-                    <button
-                      type="button"
-                      className="ml-1 text-gray-400 hover:text-red-500"
-                      onClick={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          ph_allowed_repos: prev.ph_allowed_repos.filter((r) => r !== repo),
-                        }))
-                      }
-                    >
-                      ×
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="owner/repo"
-                  value={newRepoInput}
-                  onChange={(e) => setNewRepoInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      addAllowedRepo()
-                    }
-                  }}
-                  className="max-w-xs"
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={addAllowedRepo}
-                >
-                  Add
-                </Button>
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Format: owner/repo, https://github.com/owner/repo, or git@github.com:owner/repo.git.
-                Click Save Settings to apply draft changes.
-              </p>
-            </div>
-
-            {form.log_prompt_head_chars + form.log_prompt_tail_chars >
-              form.log_prompt_max_chars && (
-              <p className="mt-4 text-sm text-red-600 dark:text-red-400">
-                Head + tail prompt chars must be less than or equal to max prompt chars.
-              </p>
-            )}
-
-            {saveMutation.isError && (
-              <p className="mt-4 text-sm text-red-600 dark:text-red-400">
-                {saveMutation.error instanceof Error
-                  ? saveMutation.error.message
-                  : 'Failed to save settings'}
-              </p>
-            )}
-
-            {saveMutation.isSuccess && (
-              <p className="mt-4 text-sm text-green-600 dark:text-green-400">
-                Admin settings updated.
-              </p>
-            )}
-
-            <div className="mt-4 flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={saveMutation.isPending || !hasUnsavedChanges || !data}
-                onClick={() => {
-                  if (!data) {
-                    return
-                  }
-                  const reset = toSettingsForm(data)
-                  setForm(reset)
-                  setLastSavedForm(reset)
-                  setNewRepoInput('')
-                  setGhAwWorkflowsInput(reset.gh_aw_known_workflows.join(','))
-                }}
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Discard Draft
-              </Button>
-              <Button
-                className="flex items-center"
-                disabled={
-                  saveMutation.isPending ||
-                  !hasUnsavedChanges ||
-                  form.log_prompt_head_chars + form.log_prompt_tail_chars >
-                    form.log_prompt_max_chars
-                }
-                onClick={() => saveMutation.mutate()}
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {saveMutation.isPending ? 'Saving...' : 'Save Settings'}
-              </Button>
-            </div>
-          </div>
-
-          <Card className="p-4 md:p-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Admin Audit Trail
-                </h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Intentionally not auto-loaded. Audit access is gated and pulled only on explicit admin action.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={isAuditLoading || !adminKey}
-                onClick={() => void handleLoadAudit()}
-              >
-                {isAuditLoading ? 'Loading...' : 'Load Audit'}
-              </Button>
-            </div>
-
-            {isAuditError && (
-              <p className="mt-4 text-sm text-red-600 dark:text-red-400">
-                {auditError instanceof Error ? auditError.message : 'Failed to load audit entries'}
-              </p>
-            )}
-
-            {auditEntries && auditEntries.length > 0 && (
-              <div className="mt-4 rounded-md border border-[var(--ph-border)]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>What Changed</TableHead>
-                      <TableHead>Actor</TableHead>
-                      <TableHead>Trace</TableHead>
-                      <TableHead>When</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {auditEntries.map((entry) => {
-                      const effectiveChanges = getEffectiveAuditChanges(entry)
-                      return (
-                        <TableRow key={`${entry.timestamp}-${entry.request_id ?? 'none'}`}>
-                          <TableCell className="text-xs text-gray-700 dark:text-gray-200">
-                            <div className="space-y-1">
-                              {effectiveChanges.map(({ key, diff }) => {
-                                return (
-                                  <p key={key}>
-                                    <span className="font-medium">{key}</span>: {formatAuditValue(diff?.old)} {'->'}{' '}
-                                    {formatAuditValue(diff?.new)}
-                                  </p>
-                                )
-                              })}
-                              {effectiveChanges.length === 0 && (
-                                <p className="text-gray-500 dark:text-gray-400">No effective value changes recorded.</p>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell
-                            className="font-mono text-[11px] text-gray-600 dark:text-gray-300"
-                            title={entry.actor || 'unknown'}
-                          >
-                            {formatActorLabel(entry.actor)}
-                          </TableCell>
-                          <TableCell className="text-xs text-gray-600 dark:text-gray-300">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-[11px]">{entry.request_id || 'n/a'}</span>
-                              {entry.request_id && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => void handleCopyTrace(entry)}
-                                  aria-label="Copy trace"
-                                >
-                                  <Copy className="h-4 w-4" />
-                                  Copy Trace
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs text-gray-600 dark:text-gray-300">
-                            <span
-                              className="cursor-help"
-                              title={new Date(entry.timestamp).toISOString()}
-                            >
-                              {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
-                              {' · '}
-                              {formatAuditTimestampUtc(entry.timestamp)}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-
-            {auditEntries && auditEntries.length === 0 && (
-              <div className="mt-4 rounded-lg border border-[var(--ph-border)] p-4">
-                <p className="text-sm font-medium text-gray-200">{EMPTY_STATES.audit.title}</p>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{EMPTY_STATES.audit.body}</p>
-              </div>
-            )}
-          </Card>
+          <AuditTrailPanel
+            adminKey={adminKey}
+            entries={auditEntries}
+            isLoading={isAuditLoading}
+            isError={isAuditError}
+            error={isAuditError ? (auditError as Error) : null}
+            onLoad={() => void handleLoadAudit()}
+          />
         </>
       )}
     </div>

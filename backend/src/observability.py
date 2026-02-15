@@ -1,14 +1,11 @@
 """Observability configuration for PipelineHealer using Azure Monitor OpenTelemetry."""
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from .config import get_settings
 
 logger = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    from opentelemetry.trace import Tracer
 
 
 def configure_observability(app: Any) -> None:
@@ -62,58 +59,3 @@ def _configure_basic_tracing() -> None:
     trace.set_tracer_provider(provider)
 
     logger.info("Basic OpenTelemetry tracing configured")
-
-
-def get_tracer(name: str = "pipelinehealer") -> "Tracer":
-    """Get a tracer instance for creating spans.
-
-    Args:
-        name: Tracer name
-
-    Returns:
-        Tracer instance
-    """
-    from opentelemetry import trace
-
-    return trace.get_tracer(name)
-
-
-class TracingMiddleware:
-    """Custom middleware for adding trace context to agent operations."""
-
-    def __init__(self) -> None:
-        """Initialize tracing middleware."""
-        self._tracer = get_tracer("pipelinehealer.agents")
-
-    def trace_agent_operation(
-        self,
-        operation_name: str,
-        agent_name: str,
-        attributes: dict[str, Any] | None = None,
-    ) -> Any:
-        """Create a span for an agent operation.
-
-        Args:
-            operation_name: Name of the operation
-            agent_name: Name of the agent
-            attributes: Additional span attributes
-
-        Returns:
-            Span context manager
-        """
-        span_attributes = {
-            "agent.name": agent_name,
-            "operation.name": operation_name,
-        }
-
-        if attributes:
-            span_attributes.update(attributes)
-
-        return self._tracer.start_as_current_span(
-            f"{agent_name}.{operation_name}",
-            attributes=span_attributes,
-        )
-
-
-# Global tracing middleware instance
-tracing = TracingMiddleware()

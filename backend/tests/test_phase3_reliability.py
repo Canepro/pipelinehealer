@@ -9,7 +9,7 @@ import pytest
 
 from src.agents.log_analyzer import LogAnalyzerAgent
 from src.agents.orchestrator import OrchestratorAgent
-from src.config import get_settings
+from src.config import get_settings, reset_settings
 from src.models import (
     GitHubRepository,
     GitHubWorkflowRun,
@@ -50,9 +50,9 @@ class DummyGitHubTools:
 
 @pytest.fixture(autouse=True)
 def clear_settings_cache() -> Generator[None, None, None]:
-    get_settings.cache_clear()
+    reset_settings()
     yield
-    get_settings.cache_clear()
+    reset_settings()
 
 
 def _event() -> WorkflowRunEvent:
@@ -193,7 +193,7 @@ async def test_orchestrator_marks_step_timeout_as_failed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("PIPELINE_STEP_TIMEOUT_SECONDS", "0.01")
-    get_settings.cache_clear()
+    reset_settings()
 
     storage = InMemoryStorage()
     orchestrator = OrchestratorAgent(github_tools=DummyGitHubTools(), storage=storage)  # type: ignore[arg-type]
@@ -217,7 +217,7 @@ def test_prompt_truncation_preserves_tail_context(
     monkeypatch.setenv("LOG_PROMPT_MAX_CHARS", "20")
     monkeypatch.setenv("LOG_PROMPT_HEAD_CHARS", "8")
     monkeypatch.setenv("LOG_PROMPT_TAIL_CHARS", "8")
-    get_settings.cache_clear()
+    reset_settings()
 
     agent = LogAnalyzerAgent(github_tools=DummyGitHubTools())  # type: ignore[arg-type]
     raw = "0123456789ABCDEFGHIJ0123456789"

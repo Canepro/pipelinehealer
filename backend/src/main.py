@@ -35,22 +35,10 @@ structlog.configure(
 
 logger = structlog.get_logger(__name__)
 
-# Global workflow instance
-_workflow: PipelineHealerWorkflow | None = None
-
-
-def get_workflow() -> PipelineHealerWorkflow:
-    """Get the workflow instance."""
-    if _workflow is None:
-        raise RuntimeError("Workflow not initialized")
-    return _workflow
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan manager."""
-    global _workflow
-
     settings = get_settings()
 
     # Configure logging level
@@ -71,14 +59,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Create and initialize workflow
     use_in_memory = settings.environment == "development"
-    _workflow = create_workflow(use_in_memory=use_in_memory)
-    await _workflow.initialize()
+    workflow = create_workflow(use_in_memory=use_in_memory)
+    await workflow.initialize()
 
-    # Set workflow and storage for API routes
-    webhook.set_workflow(_workflow)
-    dashboard.set_storage(_workflow.storage)
-    dashboard.set_workflow(_workflow)
-    await dashboard.apply_persisted_runtime_settings()
+    # Store on app.state -- route handlers read via Depends(get_storage/get_workflow).
+    app.state.workflow = workflow
+    app.state.storage = workflow.storage
+    await dashboard.apply_persisted_runtime_settings(workflow.storage, workflow)
 
     logger.info("PipelineHealer initialized successfully")
 
@@ -86,8 +73,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Cleanup
     logger.info("Shutting down PipelineHealer")
-    if _workflow:
-        await _workflow.close()
+    await workflow.close()
 
 
 def create_app() -> FastAPI:

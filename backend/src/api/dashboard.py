@@ -5,7 +5,7 @@ import hashlib
 import logging
 import os
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -23,19 +23,16 @@ from ..models import (
     DashboardStats,
     FailureType,
     RemediationStatus,
+    utcnow,
 )
 from ..storage import ActivityStorage
 from ..workflows.pipeline_healer import PipelineHealerWorkflow
+from .deps import get_storage, get_workflow
 from .security import require_admin_key, require_api_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["dashboard"], dependencies=[Depends(require_api_key)])
 _REPO_FULL_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
-
-
-def _utcnow() -> datetime:
-    """Return a timezone-aware UTC datetime."""
-    return datetime.now(UTC)
 
 
 def _normalize_repo_full_name(raw_value: Any) -> str:
@@ -94,11 +91,11 @@ def _normalize_allowed_repo_list(raw_repos: list[Any]) -> list[str]:
     return normalized
 
 
-def _get_storage_backend_name() -> str:
+def _get_storage_backend_name(storage: ActivityStorage | None) -> str:
     """Return a user-friendly name for the currently configured storage backend."""
-    if _storage is None:
+    if storage is None:
         return "unknown"
-    storage_class = type(_storage).__name__
+    storage_class = type(storage).__name__
     if storage_class == "InMemoryStorage":
         return "in_memory"
     if storage_class == "ActivityStorage":
@@ -146,14 +143,14 @@ def _resolve_github_auth_mode() -> tuple[bool, bool, str]:
     return has_pat, has_app, mode
 
 
-def _build_settings_view() -> AppSettingsView:
+def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsView:
     """Build the API response for settings from current runtime configuration."""
     settings = get_settings()
     has_pat, has_app, github_auth_mode = _resolve_github_auth_mode()
 
     return AppSettingsView(
         environment=settings.environment,
-        storage_backend=_get_storage_backend_name(),
+        storage_backend=_get_storage_backend_name(storage),
         heal_mode=settings.heal_mode,
         auto_create_pr=settings.auto_create_pr,
         auto_create_tracking_issue_for_prs=settings.auto_create_tracking_issue_for_prs,
@@ -185,9 +182,6 @@ def _build_settings_view() -> AppSettingsView:
     )
 
 
-# Storage instance (will be properly initialized)
-_storage: ActivityStorage | None = None
-_workflow: PipelineHealerWorkflow | None = None
 # Lightweight demo audit buffer (non-durable by design for hackathon runtime).
 _admin_settings_audit: list[AdminSettingsAuditEntry] = []
 _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES = 200
@@ -215,35 +209,9 @@ _MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = (
 )
 
 
-def set_storage(storage: ActivityStorage) -> None:
-    """Set the storage instance for the dashboard."""
-    global _storage
-    _storage = storage
-
-
-def set_workflow(workflow: PipelineHealerWorkflow) -> None:
-    """Set the workflow instance for retry operations."""
-    global _workflow
-    _workflow = workflow
-
-
 def clear_admin_settings_audit() -> None:
     """Clear in-memory admin settings audit log (useful for tests)."""
     _admin_settings_audit.clear()
-
-
-def get_storage() -> ActivityStorage:
-    """Get the storage instance."""
-    if _storage is None:
-        raise HTTPException(status_code=500, detail="Storage not initialized")
-    return _storage
-
-
-def get_workflow() -> PipelineHealerWorkflow:
-    """Get the workflow instance."""
-    if _workflow is None:
-        raise HTTPException(status_code=500, detail="Workflow not initialized")
-    return _workflow
 
 
 def _repo_root() -> Path:
@@ -324,9 +292,11 @@ def _persist_mutable_settings_to_env_file(env_values: dict[str, str]) -> str | N
     return str(env_file)
 
 
-async def _persist_mutable_settings_to_storage(runtime_values: dict[str, Any]) -> None:
+async def _persist_mutable_settings_to_storage(
+    runtime_values: dict[str, Any],
+    storage: ActivityStorage,
+) -> None:
     """Persist mutable runtime settings to configured durable storage backend."""
-    storage = get_storage()
     await storage.upsert_runtime_settings(runtime_values)
 
 
@@ -380,9 +350,14 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
     return value
 
 
-async def apply_persisted_runtime_settings() -> None:
-    """Apply persisted mutable runtime settings at startup, if available."""
-    storage = get_storage()
+async def apply_persisted_runtime_settings(
+    storage: ActivityStorage,
+    workflow: PipelineHealerWorkflow | None = None,
+) -> None:
+    """Apply persisted mutable runtime settings at startup, if available.
+
+    Called during lifespan init with explicit storage/workflow references.
+    """
     persisted = await storage.get_runtime_settings()
     if not persisted:
         return
@@ -403,8 +378,8 @@ async def apply_persisted_runtime_settings() -> None:
         setattr(settings, attr_name, normalized)
         changed_keys.append(attr_name)
 
-    if changed_keys and _workflow is not None:
-        _workflow.refresh_runtime_settings()
+    if changed_keys and workflow is not None:
+        workflow.refresh_runtime_settings()
         logger.info(
             "Applied persisted runtime settings from storage",
             extra={"changed_keys": sorted(changed_keys)},
@@ -446,10 +421,8 @@ async def _start_env_only_redeploy_background() -> tuple[bool, str]:
 
 
 @router.get("/stats", response_model=DashboardStats)
-async def get_dashboard_stats() -> DashboardStats:
+async def get_dashboard_stats(storage: ActivityStorage = Depends(get_storage)) -> DashboardStats:
     """Get overall statistics for the dashboard."""
-    storage = get_storage()
-
     try:
         stats = await storage.get_stats()
         return stats
@@ -463,9 +436,9 @@ async def get_dashboard_stats() -> DashboardStats:
     response_model=AppSettingsView,
     dependencies=[Depends(require_admin_key)],
 )
-async def get_app_settings() -> AppSettingsView:
+async def get_app_settings(storage: ActivityStorage = Depends(get_storage)) -> AppSettingsView:
     """Get non-secret runtime settings for admin users."""
-    return _build_settings_view()
+    return _build_settings_view(storage)
 
 
 @router.patch(
@@ -476,6 +449,8 @@ async def get_app_settings() -> AppSettingsView:
 async def update_app_settings(
     update: AdminSettingsUpdateRequest,
     request: Request,
+    storage: ActivityStorage = Depends(get_storage),
+    workflow: PipelineHealerWorkflow = Depends(get_workflow),
     user_agent: str | None = Header(default=None, alias="User-Agent"),
     x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
 ) -> AppSettingsView:
@@ -484,7 +459,7 @@ async def update_app_settings(
     changes = update.model_dump(exclude_none=True)
 
     if not changes:
-        return _build_settings_view()
+        return _build_settings_view(storage)
 
     if "heal_mode" in changes:
         heal_mode = str(changes["heal_mode"]).strip().lower()
@@ -542,7 +517,6 @@ async def update_app_settings(
     for key, value in changes.items():
         setattr(settings, key, value)
 
-    workflow = get_workflow()
     workflow.refresh_runtime_settings()
 
     # Never store raw admin credentials. Keep a short salted fingerprint for traceability.
@@ -565,7 +539,7 @@ async def update_app_settings(
     )
     _admin_settings_audit.append(audit_entry)
     try:
-        await get_storage().append_admin_settings_audit_entry(
+        await storage.append_admin_settings_audit_entry(
             audit_entry.model_dump(mode="json")
         )
     except Exception as exc:
@@ -577,7 +551,7 @@ async def update_app_settings(
 
     logger.info("Admin runtime settings updated; changed_keys=%s", sorted(changes.keys()))
 
-    return _build_settings_view()
+    return _build_settings_view(storage)
 
 
 @router.get(
@@ -592,10 +566,11 @@ async def get_settings_audit(
         le=_MAX_ADMIN_SETTINGS_AUDIT_ENTRIES,
         description="Maximum number of admin settings audit records",
     ),
+    storage: ActivityStorage = Depends(get_storage),
 ) -> list[AdminSettingsAuditEntry]:
     """Get recent admin settings change records (latest first)."""
     try:
-        persisted = await get_storage().list_admin_settings_audit_entries(limit=limit)
+        persisted = await storage.list_admin_settings_audit_entries(limit=limit)
     except Exception as exc:
         logger.warning("Failed to load persisted admin settings audit entries: %s", exc)
         persisted = []
@@ -612,6 +587,7 @@ async def get_settings_audit(
 )
 async def persist_app_settings(
     request: AdminSettingsPersistRequest,
+    storage: ActivityStorage = Depends(get_storage),
 ) -> AdminSettingsPersistResponse:
     """Persist effective mutable runtime settings to durable storage and optionally redeploy."""
     runtime_values = _mutable_runtime_settings_snapshot()
@@ -619,7 +595,7 @@ async def persist_app_settings(
     persisted_keys = list(env_values.keys())
 
     try:
-        await _persist_mutable_settings_to_storage(runtime_values)
+        await _persist_mutable_settings_to_storage(runtime_values, storage)
     except Exception as exc:
         logger.exception("Failed to persist mutable runtime settings to storage: %s", exc)
         raise HTTPException(
@@ -676,9 +652,9 @@ async def get_activities(
     limit: int = Query(50, ge=1, le=200, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     since: datetime | None = Query(None, description="Filter activities since this time"),
+    storage: ActivityStorage = Depends(get_storage),
 ) -> list[ActivityRecord]:
     """Get activity records with optional filtering."""
-    storage = get_storage()
 
     try:
         activities = await storage.get_activities(
@@ -696,9 +672,8 @@ async def get_activities(
 
 
 @router.get("/activities/{activity_id}", response_model=ActivityRecord)
-async def get_activity(activity_id: str) -> ActivityRecord:
+async def get_activity(activity_id: str, storage: ActivityStorage = Depends(get_storage)) -> ActivityRecord:
     """Get a specific activity record by ID."""
-    storage = get_storage()
 
     try:
         activity = await storage.get_activity(activity_id)
@@ -713,9 +688,8 @@ async def get_activity(activity_id: str) -> ActivityRecord:
 
 
 @router.get("/repositories", response_model=list[dict[str, Any]])
-async def get_repositories() -> list[dict[str, Any]]:
+async def get_repositories(storage: ActivityStorage = Depends(get_storage)) -> list[dict[str, Any]]:
     """Get list of repositories with activity counts."""
-    storage = get_storage()
 
     try:
         repos = await storage.get_repositories()
@@ -728,12 +702,12 @@ async def get_repositories() -> list[dict[str, Any]]:
 @router.get("/timeline")
 async def get_timeline(
     days: int = Query(7, ge=1, le=30, description="Number of days to include"),
+    storage: ActivityStorage = Depends(get_storage),
 ) -> dict[str, Any]:
     """Get activity timeline data for charts."""
-    storage = get_storage()
 
     try:
-        since = _utcnow() - timedelta(days=days)
+        since = utcnow() - timedelta(days=days)
         timeline = await storage.get_timeline(since=since)
         return timeline
     except Exception as e:
@@ -744,12 +718,12 @@ async def get_timeline(
 @router.get("/failure-breakdown")
 async def get_failure_breakdown(
     days: int = Query(30, ge=1, le=90, description="Number of days to include"),
+    storage: ActivityStorage = Depends(get_storage),
 ) -> dict[str, int]:
     """Get breakdown of failures by type."""
-    storage = get_storage()
 
     try:
-        since = _utcnow() - timedelta(days=days)
+        since = utcnow() - timedelta(days=days)
         breakdown = await storage.get_failure_breakdown(since=since)
         return breakdown
     except Exception as e:
@@ -758,10 +732,12 @@ async def get_failure_breakdown(
 
 
 @router.post("/activities/{activity_id}/retry")
-async def retry_activity(activity_id: str) -> dict[str, Any]:
+async def retry_activity(
+    activity_id: str,
+    storage: ActivityStorage = Depends(get_storage),
+    workflow: PipelineHealerWorkflow = Depends(get_workflow),
+) -> dict[str, Any]:
     """Manually retry a failed remediation."""
-    storage = get_storage()
-    workflow = get_workflow()
 
     try:
         activity = await storage.get_activity(activity_id)
@@ -785,7 +761,7 @@ async def retry_activity(activity_id: str) -> dict[str, Any]:
 
         activity.status = RemediationStatus.PENDING
         activity.error = None
-        activity.updated_at = _utcnow()
+        activity.updated_at = utcnow()
         await storage.update_activity(activity)
 
         return {

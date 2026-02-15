@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from src.api import dashboard
-from src.config import Settings, get_settings
+from src.config import Settings, get_settings, reset_settings
 from src.main import app
 from src.storage import InMemoryStorage
 
@@ -16,10 +16,10 @@ from src.storage import InMemoryStorage
 @pytest.fixture(autouse=True)
 def clear_settings_cache() -> None:
     dashboard.clear_admin_settings_audit()
-    get_settings.cache_clear()
+    reset_settings()
     yield
     dashboard.clear_admin_settings_audit()
-    get_settings.cache_clear()
+    reset_settings()
 
 
 class _DummyWorkflow:
@@ -109,9 +109,9 @@ def _sign(payload: bytes, secret: str) -> str:
 async def test_api_routes_allow_development_without_key(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.delenv("API_AUTH_KEY", raising=False)
-    get_settings.cache_clear()
+    reset_settings()
 
-    dashboard.set_storage(InMemoryStorage())
+    app.state.storage = InMemoryStorage()
 
     response = await _get_activities()
     assert response.status_code == 200
@@ -121,9 +121,9 @@ async def test_api_routes_allow_development_without_key(monkeypatch) -> None:
 async def test_api_routes_require_key_in_non_development(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("API_AUTH_KEY", "secret-123")
-    get_settings.cache_clear()
+    reset_settings()
 
-    dashboard.set_storage(InMemoryStorage())
+    app.state.storage = InMemoryStorage()
 
     missing = await _get_activities()
     assert missing.status_code == 401
@@ -140,7 +140,7 @@ async def test_webhook_requires_signature_when_enabled_in_production(monkeypatch
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("VERIFY_WEBHOOK_SIGNATURE", "true")
     monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "top-secret")
-    get_settings.cache_clear()
+    reset_settings()
 
     missing = await _post_ping()
     assert missing.status_code == 401
@@ -158,7 +158,7 @@ async def test_webhook_can_disable_signature_check_explicitly(monkeypatch) -> No
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("VERIFY_WEBHOOK_SIGNATURE", "false")
     monkeypatch.delenv("GITHUB_WEBHOOK_SECRET", raising=False)
-    get_settings.cache_clear()
+    reset_settings()
 
     response = await _post_ping()
     assert response.status_code == 200
@@ -182,7 +182,7 @@ async def test_workflow_run_ignored_when_repo_not_in_allowlist(monkeypatch) -> N
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT", "false")
     monkeypatch.setenv("PH_ALLOWED_REPOS", "Canepro/allowed-repo")
-    get_settings.cache_clear()
+    reset_settings()
 
     payload = {
         "action": "completed",
@@ -226,7 +226,7 @@ async def test_settings_endpoint_returns_non_secret_fields(monkeypatch) -> None:
     monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-mini")
     monkeypatch.setenv("AZURE_OPENAI_API_VERSION", "2025-03-01-preview")
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "super-secret-key")
-    get_settings.cache_clear()
+    reset_settings()
 
     response = await _get_settings(headers={"X-Admin-Key": "admin-secret"})
     assert response.status_code == 200
@@ -241,9 +241,9 @@ async def test_settings_endpoint_requires_admin_key(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("API_AUTH_KEY", "api-secret")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
-    get_settings.cache_clear()
+    reset_settings()
 
-    dashboard.set_storage(InMemoryStorage())
+    app.state.storage = InMemoryStorage()
 
     missing_admin = await _get_settings(headers={"X-API-Key": "api-secret"})
     assert missing_admin.status_code == 401
@@ -264,10 +264,10 @@ async def test_admin_can_patch_runtime_settings(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
     monkeypatch.setenv("AUDIT_SALT", "audit-salt-1")
-    get_settings.cache_clear()
+    reset_settings()
 
-    dashboard.set_storage(InMemoryStorage())
-    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
 
     response = await _patch_settings(
         {
@@ -305,10 +305,10 @@ async def test_admin_can_patch_runtime_settings(monkeypatch) -> None:
 async def test_admin_settings_audit_persists_beyond_in_memory_buffer(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
-    get_settings.cache_clear()
+    reset_settings()
 
-    dashboard.set_storage(InMemoryStorage())
-    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
 
     response = await _patch_settings(
         {"heal_mode": "demo"},
@@ -331,10 +331,10 @@ async def test_admin_settings_audit_persists_beyond_in_memory_buffer(monkeypatch
 async def test_admin_patch_normalizes_and_deduplicates_allowed_repos(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
-    get_settings.cache_clear()
+    reset_settings()
 
-    dashboard.set_storage(InMemoryStorage())
-    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
 
     response = await _patch_settings(
         {
@@ -355,10 +355,10 @@ async def test_admin_patch_normalizes_and_deduplicates_allowed_repos(monkeypatch
 async def test_admin_patch_rejects_invalid_allowed_repo_format(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
-    get_settings.cache_clear()
+    reset_settings()
 
-    dashboard.set_storage(InMemoryStorage())
-    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
 
     response = await _patch_settings(
         {"ph_allowed_repos": ["not-a-repo-name"]},
@@ -374,10 +374,10 @@ async def test_allowlist_patch_is_effective_for_webhook_scope(monkeypatch) -> No
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT", "false")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
-    get_settings.cache_clear()
+    reset_settings()
 
-    dashboard.set_storage(InMemoryStorage())
-    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
 
     patch_response = await _patch_settings(
         {"ph_allowed_repos": ["Canepro/allowed-repo"]},
@@ -427,7 +427,7 @@ async def test_settings_endpoint_includes_gh_aw_fields(monkeypatch) -> None:
     monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "true")
     monkeypatch.setenv("GH_AW_INGESTION_MODE", "passive")
     monkeypatch.setenv("GH_AW_KNOWN_WORKFLOWS", "ci-doctor, schema-consistency-checker")
-    get_settings.cache_clear()
+    reset_settings()
 
     response = await _get_settings(headers={"X-Admin-Key": "admin-secret"})
     assert response.status_code == 200
@@ -444,10 +444,10 @@ async def test_settings_endpoint_includes_gh_aw_fields(monkeypatch) -> None:
 async def test_admin_can_patch_gh_aw_runtime_settings(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
-    get_settings.cache_clear()
+    reset_settings()
 
-    dashboard.set_storage(InMemoryStorage())
-    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
 
     response = await _patch_settings(
         {
@@ -468,10 +468,10 @@ async def test_admin_can_patch_gh_aw_runtime_settings(monkeypatch) -> None:
 async def test_admin_can_patch_azure_openai_deployment_name(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
-    get_settings.cache_clear()
+    reset_settings()
 
-    dashboard.set_storage(InMemoryStorage())
-    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
 
     response = await _patch_settings(
         {"azure_openai_deployment_name": "gpt-5-mini-fast"},
@@ -485,10 +485,10 @@ async def test_admin_can_patch_azure_openai_deployment_name(monkeypatch) -> None
 async def test_admin_patch_rejects_empty_azure_openai_deployment_name(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
-    get_settings.cache_clear()
+    reset_settings()
 
-    dashboard.set_storage(InMemoryStorage())
-    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
 
     response = await _patch_settings(
         {"azure_openai_deployment_name": "   "},
@@ -502,10 +502,10 @@ async def test_admin_patch_rejects_empty_azure_openai_deployment_name(monkeypatc
 async def test_admin_patch_rejects_invalid_gh_aw_ingestion_mode(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
-    get_settings.cache_clear()
+    reset_settings()
 
-    dashboard.set_storage(InMemoryStorage())
-    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
 
     response = await _patch_settings(
         {"gh_aw_ingestion_mode": "active"},
@@ -519,7 +519,7 @@ async def test_admin_patch_rejects_invalid_gh_aw_ingestion_mode(monkeypatch) -> 
 async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
-    get_settings.cache_clear()
+    reset_settings()
 
     env_file = tmp_path / ".env"
     env_file.write_text(
@@ -531,8 +531,8 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
     )
     monkeypatch.setenv("PIPELINEHEALER_ENV_FILE_PATH", str(env_file))
 
-    dashboard.set_storage(InMemoryStorage())
-    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
 
     patch_response = await _patch_settings(
         {
@@ -595,10 +595,10 @@ async def test_admin_persist_succeeds_without_env_file(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
     monkeypatch.setenv("PIPELINEHEALER_ENV_FILE_PATH", "/tmp/nonexistent-ph-env-file")
-    get_settings.cache_clear()
+    reset_settings()
 
-    dashboard.set_storage(InMemoryStorage())
-    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
 
     patch_response = await _patch_settings(
         {
@@ -627,11 +627,12 @@ async def test_apply_persisted_runtime_settings_restores_values(monkeypatch) -> 
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
     monkeypatch.setenv("PIPELINEHEALER_ENV_FILE_PATH", "/tmp/nonexistent-ph-env-file")
-    get_settings.cache_clear()
+    reset_settings()
 
     storage = InMemoryStorage()
-    dashboard.set_storage(storage)
-    dashboard.set_workflow(_DummyWorkflow())  # type: ignore[arg-type]
+    app.state.storage = storage
+    workflow = _DummyWorkflow()
+    app.state.workflow = workflow  # type: ignore[assignment]
 
     patch_response = await _patch_settings(
         {
@@ -656,7 +657,7 @@ async def test_apply_persisted_runtime_settings_restores_values(monkeypatch) -> 
     runtime_settings.gh_aw_ingestion_mode = "disabled"
     runtime_settings.ph_allowed_repos = []
 
-    await dashboard.apply_persisted_runtime_settings()
+    await dashboard.apply_persisted_runtime_settings(storage, workflow)  # type: ignore[arg-type]
 
     assert runtime_settings.heal_mode == "demo"
     assert runtime_settings.gh_aw_tools_enabled is True

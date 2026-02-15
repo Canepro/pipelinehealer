@@ -5,23 +5,15 @@ import hmac
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
 from ..config import get_settings
 from ..models import WorkflowRunEvent
-from ..workflows import PipelineHealerWorkflow
+from ..workflows.pipeline_healer import PipelineHealerWorkflow
+from .deps import get_workflow
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhook", tags=["webhook"])
-
-# Workflow instance (will be properly initialized with dependencies)
-_workflow: PipelineHealerWorkflow | None = None
-
-
-def set_workflow(workflow: PipelineHealerWorkflow) -> None:
-    """Set the workflow instance for handling events."""
-    global _workflow
-    _workflow = workflow
 
 
 def verify_github_signature(payload: bytes, signature: str, secret: str) -> bool:
@@ -59,6 +51,7 @@ def _is_allowed_repo(repo_full_name: str, allowed_repos: list[str]) -> bool:
 @router.post("/github")
 async def handle_github_webhook(
     request: Request,
+    workflow: PipelineHealerWorkflow = Depends(get_workflow),
     x_github_event: str = Header(..., alias="X-GitHub-Event"),
     x_hub_signature_256: str = Header(None, alias="X-Hub-Signature-256"),
     x_github_delivery: str = Header(..., alias="X-GitHub-Delivery"),
@@ -115,7 +108,7 @@ async def handle_github_webhook(
 
     # Handle different event types
     if x_github_event == "workflow_run":
-        return await handle_workflow_run_event(payload, x_github_delivery)
+        return await _handle_workflow_run_event(payload, x_github_delivery, workflow)
     elif x_github_event == "ping":
         return {"status": "pong", "delivery_id": x_github_delivery}
     else:
@@ -127,9 +120,10 @@ async def handle_github_webhook(
         }
 
 
-async def handle_workflow_run_event(
+async def _handle_workflow_run_event(
     payload: dict[str, Any],
     delivery_id: str,
+    workflow: PipelineHealerWorkflow,
 ) -> dict[str, Any]:
     """Handle a workflow_run event from GitHub.
 
@@ -189,17 +183,9 @@ async def handle_workflow_run_event(
         f"conclusion={conclusion}"
     )
 
-    # Trigger the healing workflow
-    if _workflow is None:
-        logger.error("Workflow not initialized")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Workflow not initialized",
-        )
-
     try:
         # Start the workflow asynchronously
-        activity_id = await _workflow.start(event)
+        activity_id = await workflow.start(event)
 
         return {
             "status": "processing",

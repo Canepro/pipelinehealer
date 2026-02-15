@@ -113,8 +113,8 @@ class TestPatternBasedDiagnosis:
         log_analysis = LogAnalysis(
             job_id=1,
             job_name="build",
-            raw_logs="Error: timeout exceeded waiting for response",
-            error_lines=["Error: timeout exceeded waiting for response"],
+            raw_logs="Error: timed out waiting for response",
+            error_lines=["Error: timed out waiting for response"],
             summary="Operation timed out",
         )
 
@@ -122,6 +122,51 @@ class TestPatternBasedDiagnosis:
 
         assert diagnosis is not None
         assert diagnosis.failure_type == FailureType.TIMEOUT
+
+    def test_detect_timeout_exceeded_time_limit(self) -> None:
+        """Test detection of 'exceeded time limit' errors."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="build",
+            raw_logs="Error: exceeded time limit of 30 minutes",
+            error_lines=["Error: exceeded time limit of 30 minutes"],
+            summary="Time limit exceeded",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.TIMEOUT
+
+    def test_detect_deadline_exceeded(self) -> None:
+        """Test detection of 'deadline exceeded' errors."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="build",
+            raw_logs="Error: deadline exceeded",
+            error_lines=["Error: deadline exceeded"],
+            summary="Deadline exceeded",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.TIMEOUT
+
+    def test_timeout_setting_not_misclassified(self) -> None:
+        """Test that benign 'timeout' config lines are not misclassified as timeout failures."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="build",
+            raw_logs="setting timeout to 30s\nconnection timeout: 5000ms",
+            error_lines=["setting timeout to 30s", "connection timeout: 5000ms"],
+            summary="build configuration",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        # Should NOT be classified as timeout — these are config lines, not failure indicators
+        assert diagnosis is None or diagnosis.failure_type != FailureType.TIMEOUT
 
     def test_detect_flaky_test_signature(self) -> None:
         """Test detection of flaky rerun/pass signatures."""

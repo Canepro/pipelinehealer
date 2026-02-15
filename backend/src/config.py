@@ -1,7 +1,6 @@
 """Configuration management for PipelineHealer."""
 
 import json
-from functools import lru_cache
 from typing import Annotated, Any
 from urllib.parse import urlparse
 
@@ -294,7 +293,26 @@ class Settings(BaseSettings):
         return endpoint
 
 
-@lru_cache
+_settings_singleton: Settings | None = None
+
+
 def get_settings() -> Settings:
-    """Get cached settings instance."""
-    return Settings()
+    """Get the application settings singleton.
+
+    Returns a single ``Settings`` instance for the lifetime of the process.
+    The object is intentionally mutable at runtime — admin endpoints use
+    ``setattr`` to apply in-flight overrides (e.g. ``HEAL_MODE``,
+    ``AUTO_CREATE_PR``).  Using an explicit module-level singleton instead
+    of ``@lru_cache`` makes this mutation contract visible and avoids
+    accidental cache invalidation losing runtime changes.
+    """
+    global _settings_singleton
+    if _settings_singleton is None:
+        _settings_singleton = Settings()
+    return _settings_singleton
+
+
+def reset_settings() -> None:
+    """Reset the settings singleton (for tests only)."""
+    global _settings_singleton
+    _settings_singleton = None

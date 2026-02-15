@@ -8,7 +8,7 @@ from src.agents.orchestrator import (
     OrchestratorAgent,
     _EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS,
 )
-from src.config import get_settings
+from src.config import get_settings, reset_settings
 from src.models import (
     ExternalDiagnostic,
     ExternalDiagnosticStatus,
@@ -161,16 +161,16 @@ class _TransientErrorThenAvailableAdapter:
 
 @pytest.fixture(autouse=True)
 def _clear_settings_cache() -> None:
-    get_settings.cache_clear()
+    reset_settings()
     yield
-    get_settings.cache_clear()
+    reset_settings()
 
 
 @pytest.mark.asyncio
 async def test_collect_external_diagnostics_reports_capability_unavailable(monkeypatch) -> None:
     monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "true")
     monkeypatch.setenv("GH_AW_INGESTION_MODE", "passive")
-    get_settings.cache_clear()
+    reset_settings()
 
     orchestrator = OrchestratorAgent(github_tools=_DummyGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
     orchestrator._gh_aw_adapter = _UnavailableAdapter()  # type: ignore[assignment]
@@ -185,7 +185,7 @@ async def test_collect_external_diagnostics_reports_capability_unavailable(monke
 async def test_collect_external_diagnostics_uses_bounded_polling(monkeypatch) -> None:
     monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "true")
     monkeypatch.setenv("GH_AW_INGESTION_MODE", "passive")
-    get_settings.cache_clear()
+    reset_settings()
 
     orchestrator = OrchestratorAgent(github_tools=_DummyGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
     adapter = _EventuallyAvailableAdapter()
@@ -207,7 +207,7 @@ async def test_collect_external_diagnostics_uses_bounded_polling(monkeypatch) ->
 async def test_collect_external_diagnostics_final_fetch_before_timeout(monkeypatch) -> None:
     monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "true")
     monkeypatch.setenv("GH_AW_INGESTION_MODE", "passive")
-    get_settings.cache_clear()
+    reset_settings()
 
     orchestrator = OrchestratorAgent(github_tools=_DummyGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
     adapter = _NeverAvailableAdapter()
@@ -232,7 +232,7 @@ async def test_collect_external_diagnostics_final_fetch_before_timeout(monkeypat
 async def test_collect_external_diagnostics_retries_after_transient_error(monkeypatch) -> None:
     monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "true")
     monkeypatch.setenv("GH_AW_INGESTION_MODE", "passive")
-    get_settings.cache_clear()
+    reset_settings()
 
     orchestrator = OrchestratorAgent(github_tools=_DummyGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
     adapter = _TransientErrorThenAvailableAdapter()
