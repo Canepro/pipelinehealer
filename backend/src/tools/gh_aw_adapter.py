@@ -115,29 +115,79 @@ class PassiveIssueGHAWAdapter:
         )
 
     @staticmethod
-    def _issue_matches_run(
-        issue: Mapping[str, object],
+    def _parse_issue_timestamp(issue: Mapping[str, object]) -> str:
+        # GitHub timestamps are ISO-8601; keep canonical string for deterministic sorting.
+        for key in ("updated_at", "created_at"):
+            value = str(issue.get(key, "")).strip()
+            if value:
+                return value
+        return ""
+
+    @staticmethod
+    def _match_score_from_blob(
+        blob: str,
+        *,
         run_id: int,
         head_sha: str,
-        run_number: int | None = None,
-    ) -> bool:
+        run_number: int | None,
+    ) -> tuple[int, str]:
+        run_id_token = str(run_id)
+        run_url_fragment = f"/actions/runs/{run_id}"
+        if run_url_fragment in blob:
+            return (120, "run_url")
+        if run_id_token in blob:
+            return (110, "run_id")
+
+        if run_number is not None:
+            for token in (f"run #{run_number}", f"run {run_number}"):
+                if token in blob:
+                    return (90, "run_number")
+            # Standalone run number is weaker than explicit "run #<n>" text.
+            if str(run_number) in blob:
+                return (70, "run_number_token")
+
+        sha_prefixes = [head_sha.lower()[:12], head_sha.lower()[:7], head_sha.lower()]
+        if any(prefix and prefix in blob for prefix in sha_prefixes):
+            return (20, "sha")
+
+        return (0, "none")
+
+    @classmethod
+    def _issue_match_score(
+        cls,
+        issue: Mapping[str, object],
+        *,
+        run_id: int,
+        head_sha: str,
+        run_number: int | None,
+    ) -> tuple[int, str]:
         blob = (
             str(issue.get("title", "")).lower()
             + "\n"
             + str(issue.get("body", "")).lower()
         )
-        run_url_fragment = f"/actions/runs/{run_id}"
-        sha_prefixes = [head_sha.lower()[:7], head_sha.lower()[:12], head_sha.lower()]
-        run_number_tokens = []
-        if run_number is not None:
-            run_number_tokens = [f"run #{run_number}", f"run {run_number}", str(run_number)]
-
-        return (
-            (str(run_id) in blob)
-            or (run_url_fragment in blob)
-            or any(prefix and prefix in blob for prefix in sha_prefixes)
-            or any(token in blob for token in run_number_tokens)
+        return cls._match_score_from_blob(
+            blob,
+            run_id=run_id,
+            head_sha=head_sha,
+            run_number=run_number,
         )
+
+    @classmethod
+    def _issue_matches_run(
+        cls,
+        issue: Mapping[str, object],
+        run_id: int,
+        head_sha: str,
+        run_number: int | None = None,
+    ) -> bool:
+        score, _ = cls._issue_match_score(
+            issue,
+            run_id=run_id,
+            head_sha=head_sha,
+            run_number=run_number,
+        )
+        return score > 0
 
     async def collect_external_diagnostics(
         self,
@@ -204,30 +254,58 @@ class PassiveIssueGHAWAdapter:
             except Exception as exc:
                 logger.warning("Fallback list_issues failed for %s/%s: %s", owner, repo, type(exc).__name__)
 
-        diagnostics: list[ExternalDiagnostic] = []
+        candidates: list[tuple[int, str, str, dict[str, object]]] = []
         for issue in issues:
             number = issue.get("number")
-            if not self._issue_matches_run(issue, run_id, head_sha, run_number):
+            score, match_basis = self._issue_match_score(
+                issue,
+                run_id=run_id,
+                head_sha=head_sha,
+                run_number=run_number,
+            )
+            if score <= 0:
                 if not isinstance(number, int):
                     continue
                 logger.info(
                     "Issue #%s title/body did not match run %s; checking comments",
                     number, run_id,
                 )
-                if not await self._issue_comments_match_run(
+                score, match_basis = await self._issue_comments_match_run(
                     owner=owner,
                     repo=repo,
                     issue_number=number,
                     run_id=run_id,
                     head_sha=head_sha,
                     run_number=run_number,
-                ):
+                )
+                if score <= 0:
                     logger.info("Issue #%s comments also did not match run %s; skipping", number, run_id)
                     continue
-                logger.info("Issue #%s matched run %s via comments", number, run_id)
-            number = issue.get("number")
+                logger.info("Issue #%s matched run %s via comments (%s)", number, run_id, match_basis)
+            issue_ts = self._parse_issue_timestamp(issue)
+            candidates.append((score, issue_ts, match_basis, issue))
+
+        if not candidates:
+            return []
+
+        # Prefer strongest correlation first, then newest issue activity.
+        candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        best_score, _, best_basis, best_issue = candidates[0]
+        logger.info(
+            "Selected ci-doctor issue #%s for run %s with score=%s basis=%s among %d candidates",
+            best_issue.get("number"),
+            run_id,
+            best_score,
+            best_basis,
+            len(candidates),
+        )
+
+        diagnostics: list[ExternalDiagnostic] = []
+        number = best_issue.get("number")
+        issue = best_issue
+        if best_score > 0:
             if not isinstance(number, int):
-                continue
+                return []
             title = str(issue.get("title", "")).strip()
             issue_url = str(issue.get("html_url", "")).strip() or None
             state = str(issue.get("state", "")).strip().lower()
@@ -242,6 +320,7 @@ class PassiveIssueGHAWAdapter:
                     metadata={
                         "issue_number": number,
                         "issue_state": state,
+                        "match_basis": best_basis,
                     },
                 )
             )
@@ -257,25 +336,31 @@ class PassiveIssueGHAWAdapter:
         run_id: int,
         head_sha: str,
         run_number: int | None,
-    ) -> bool:
+    ) -> tuple[int, str]:
         list_comments = getattr(self._github_tools, "list_issue_comments", None)
         if list_comments is None:
             logger.debug("list_issue_comments not available on github_tools")
-            return False
+            return (0, "none")
         try:
             comments = await list_comments(owner, repo, issue_number, 10)
         except Exception as exc:
             logger.warning("Failed to fetch comments for issue #%s: %s", issue_number, exc)
-            return False
+            return (0, "none")
         logger.info(
             "Fetched %d comments for issue #%s to match run %s",
             len(comments), issue_number, run_id,
         )
         for comment in comments:
-            probe_issue = {"title": "", "body": str(comment.get("body", ""))}
-            if self._issue_matches_run(probe_issue, run_id, head_sha, run_number):
-                return True
-        return False
+            blob = str(comment.get("body", "")).lower()
+            score, basis = self._match_score_from_blob(
+                blob,
+                run_id=run_id,
+                head_sha=head_sha,
+                run_number=run_number,
+            )
+            if score > 0:
+                return (score, f"comment_{basis}")
+        return (0, "none")
 
 
 def create_gh_aw_adapter(*, github_tools: GitHubTools) -> GHAWAdapter:

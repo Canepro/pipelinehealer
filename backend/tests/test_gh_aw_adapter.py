@@ -196,3 +196,43 @@ async def test_collect_external_diagnostics_uses_list_issues_fallback_when_searc
     assert len(diagnostics) == 1
     assert diagnostics[0].status == ExternalDiagnosticStatus.AVAILABLE
     assert diagnostics[0].url == "https://github.com/Canepro/pipelinehealer/issues/400"
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_prefers_latest_run_specific_issue_over_stale_sha_matches() -> None:
+    gh = _FakeGitHubTools()
+    gh.issues = [
+        {
+            "number": 75,
+            "title": "[CI Failure Doctor] CI Failure Investigation - Run #135",
+            "body": "Commit 0329e474de4d2ec312b0c8660b03c3210a4e87ac",
+            "html_url": "https://github.com/Canepro/pipelinehealer-demo/issues/75",
+            "state": "closed",
+            "updated_at": "2026-02-15T07:36:00Z",
+        }
+    ]
+    gh.listed_issues = [
+        {
+            "number": 83,
+            "title": "[CI Failure Doctor] CI Failure Investigation - Run #139",
+            "body": "Run: 22032840035\nhttps://github.com/Canepro/pipelinehealer-demo/actions/runs/22032840035",
+            "html_url": "https://github.com/Canepro/pipelinehealer-demo/issues/83",
+            "state": "open",
+            "updated_at": "2026-02-15T08:58:00Z",
+        }
+    ]
+    adapter = PassiveIssueGHAWAdapter(gh, known_workflows=["ci-doctor"])
+
+    diagnostics = await adapter.collect_external_diagnostics(
+        owner="Canepro",
+        repo="pipelinehealer-demo",
+        run_id=22032840035,
+        head_sha="0329e474de4d2ec312b0c8660b03c3210a4e87ac",
+        run_number=139,
+    )
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].status == ExternalDiagnosticStatus.AVAILABLE
+    assert diagnostics[0].url == "https://github.com/Canepro/pipelinehealer-demo/issues/83"
+    assert diagnostics[0].metadata["issue_number"] == 83
+    assert diagnostics[0].metadata["match_basis"] in {"run_url", "run_id"}
