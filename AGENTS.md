@@ -10,6 +10,7 @@ This file is intentionally concise. Detailed phase/checklist/history tracking li
 
 - `docs/README.md` — docs index
 - `docs/API.md` — full API reference (endpoints, auth, data models, best practices)
+- `docs/CLI.md` — canonical CLI reference (all commands, flags, error handling, env overrides)
 - `README.md` — public-facing project overview and setup
 - `docs/DEMO_SCRIPT.md` — single-file recording/demo runbook
 - `docs/LOCAL_DEMO_RUNBOOK.md` — detailed local/Azure E2E operations
@@ -17,28 +18,17 @@ This file is intentionally concise. Detailed phase/checklist/history tracking li
 
 ## One-Command Ops (Recommended)
 
-From repo root:
+Full CLI reference: `docs/CLI.md`
+
+Quick examples from repo root:
 
 ```bash
 bash scripts/ph.sh help
 bash scripts/ph.sh deploy
-bash scripts/ph.sh deploy:env
-bash scripts/ph.sh urls
-bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
-bash scripts/ph.sh webhook:add --repo owner/repo1
-bash scripts/ph.sh webhook:disable --repo owner/repo1
-bash scripts/ph.sh demo:e2e
-bash scripts/ph.sh demo:proof
-bash scripts/ph.sh demo:reset
-bash scripts/ph.sh warm
-bash scripts/ph.sh lowcost
 bash scripts/ph.sh status
 bash scripts/ph.sh settings:check
-bash scripts/ph.sh settings:audit --limit 5
-bash scripts/ph.sh audit:proof --limit 5
+bash scripts/ph.sh demo:e2e
 bash scripts/ph.sh logs
-bash scripts/ph.sh logs:raw --tail 200
-bash scripts/ph.sh logs:grep --pattern "debug-mode"
 ```
 
 Important:

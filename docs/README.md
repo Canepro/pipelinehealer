@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: a2adcec -->
+<!-- LAST_VERIFIED: 8b70c37 -->
 
 Use this index to find the right doc quickly.
 
@@ -13,6 +13,7 @@ Use this index to find the right doc quickly.
 
 ### Tier 2 — Operator (update on infra/config changes)
 
+- `CLI.md` — canonical `scripts/ph.sh` CLI reference: all commands, flags, error handling, env overrides
 - `DEMO_SCRIPT.md` — single-file recording checklist and 2-minute narration script
 - `LOCAL_DEMO_RUNBOOK.md` — full local and Azure E2E operator runbook
 - `PREDEPLOY_PLACEHOLDER_AUDIT.md` — pre-deploy stop-ship checklist

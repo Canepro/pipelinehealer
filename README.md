@@ -39,6 +39,7 @@ Use `bash scripts/ph.sh status` to print current backend/frontend Azure FQDNs be
 
 - `docs/README.md`: quick index of all project docs
 - `docs/API.md`: full API reference — endpoints, auth, data models, best practices
+- `docs/CLI.md`: canonical `scripts/ph.sh` CLI reference — all commands, flags, error handling, env overrides
 - `docs/DEMO_SCRIPT.md`: single-file recording checklist and 2-minute script
 - `docs/LOCAL_DEMO_RUNBOOK.md`: detailed local + Azure E2E operations
 - `docs/HACKATHON_LOG.md`: phase status, submission checklist, and milestones
@@ -57,7 +58,7 @@ From repo root:
 bash scripts/ph.sh help
 ```
 
-Use the help output as the source of truth for all available one-command operations.
+For the full CLI reference (all commands, flags, error handling, env overrides), see `docs/CLI.md`.
 
 Common operators:
 

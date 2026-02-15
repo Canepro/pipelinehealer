@@ -223,6 +223,7 @@ This is the long-form project tracker for hackathon execution status, submission
   - Namespaced background deploy state files under `/tmp/ph-deploy-<rg>/`.
   - Decomposed `settings:persist` into focused helpers with direct flags (`--heal-mode`, `--auto-create-pr`, etc.) and enum validation.
   - Added shellcheck CI job for all shell scripts.
+- Created `docs/CLI.md` as canonical CLI reference for `scripts/ph.sh`: all commands, flags, error handling, env overrides, quality gate. Updated docs index, README documentation map, and AGENTS.md to point to it.
 
 ## Project Tracking Plan (Now -> Mar 15)
 
