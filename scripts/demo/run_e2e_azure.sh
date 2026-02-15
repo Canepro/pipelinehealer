@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2102  # config[url] etc. are gh-cli syntax, not shell ranges
 set -euo pipefail
 
 usage() {

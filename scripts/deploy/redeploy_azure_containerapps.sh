@@ -5,6 +5,7 @@ set -euo pipefail
 if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
   echo "Do not source this script. Run it as:" >&2
   echo "  bash scripts/deploy/redeploy_azure_containerapps.sh" >&2
+  # shellcheck disable=SC2317
   return 1 2>/dev/null || exit 1
 fi
 
@@ -142,12 +143,10 @@ for cmd in az curl tr grep cut; do
 done
 
 if [[ "$MODE" != "env_only" ]]; then
-  for cmd in git; do
-    if ! command -v "$cmd" >/dev/null 2>&1; then
-      echo "Missing required command for full deploy: $cmd" >&2
-      exit 1
-    fi
-  done
+  if ! command -v git >/dev/null 2>&1; then
+    echo "Missing required command for full deploy: git" >&2
+    exit 1
+  fi
 fi
 
 if [[ ! -f "$ENV_FILE" ]]; then

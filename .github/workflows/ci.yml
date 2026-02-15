@@ -10,6 +10,16 @@ permissions:
   contents: read
 
 jobs:
+  shellcheck:
+    name: ShellCheck Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        run: shellcheck scripts/ph.sh scripts/deploy/*.sh scripts/demo/*.sh
+
   backend:
     name: Backend Tests and Types
     runs-on: ubuntu-latest
