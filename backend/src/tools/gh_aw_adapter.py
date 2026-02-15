@@ -179,6 +179,30 @@ class PassiveIssueGHAWAdapter:
                     continue
                 seen_numbers.add(number)
                 issues.append(issue)
+        # GitHub Search can lag indexing for freshly created/updated issues.
+        # Fallback to the repo issues listing endpoint for low-latency visibility.
+        list_issues = getattr(self._github_tools, "list_issues", None)
+        if list_issues is not None:
+            try:
+                listed = await list_issues(
+                    owner,
+                    repo,
+                    state="all",
+                    labels="ci-doctor",
+                    sort="updated",
+                    direction="desc",
+                    per_page=30,
+                )
+                for issue in listed:
+                    number = issue.get("number")
+                    if not isinstance(number, int):
+                        continue
+                    if number in seen_numbers:
+                        continue
+                    seen_numbers.add(number)
+                    issues.append(issue)
+            except Exception as exc:
+                logger.warning("Fallback list_issues failed for %s/%s: %s", owner, repo, type(exc).__name__)
 
         diagnostics: list[ExternalDiagnostic] = []
         for issue in issues:

@@ -657,6 +657,33 @@ class GitHubTools:
         # Guard against PR objects appearing in issue search results.
         return [item for item in items if "pull_request" not in item]
 
+    async def list_issues(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        state: str = "all",
+        labels: str | None = None,
+        sort: str = "updated",
+        direction: str = "desc",
+        per_page: int = 30,
+    ) -> list[dict[str, Any]]:
+        """List repository issues (non-search API; lower indexing latency)."""
+        normalized_state = state.strip().lower()
+        if normalized_state not in {"open", "closed", "all"}:
+            normalized_state = "all"
+        params: dict[str, Any] = {
+            "state": normalized_state,
+            "sort": sort,
+            "direction": direction,
+            "per_page": max(1, min(per_page, 100)),
+        }
+        if labels:
+            params["labels"] = labels
+        response = await self._request("GET", f"/repos/{owner}/{repo}/issues", params=params)
+        items = cast(list[dict[str, Any]], response.json())
+        return [item for item in items if "pull_request" not in item]
+
     # =========================================================================
     # Workflow Re-run Tools
     # =========================================================================
@@ -732,6 +759,7 @@ def create_github_tool_functions(github_tools: GitHubTools) -> dict[str, Any]:
         "create_issue": github_tools.create_issue,
         "add_issue_comment": github_tools.add_issue_comment,
         "list_issue_comments": github_tools.list_issue_comments,
+        "list_issues": github_tools.list_issues,
         "search_issues": github_tools.search_issues,
         "rerun_workflow": github_tools.rerun_workflow,
         "rerun_failed_jobs": github_tools.rerun_failed_jobs,
