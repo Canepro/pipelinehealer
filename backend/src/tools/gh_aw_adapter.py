@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from collections.abc import Mapping
 from typing import Protocol
 
 from ..config import get_settings
@@ -115,7 +116,7 @@ class PassiveIssueGHAWAdapter:
 
     @staticmethod
     def _issue_matches_run(
-        issue: dict[str, object],
+        issue: Mapping[str, object],
         run_id: int,
         head_sha: str,
         run_number: int | None = None,
