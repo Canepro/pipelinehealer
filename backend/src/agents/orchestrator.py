@@ -8,6 +8,7 @@ from datetime import timedelta
 from typing import Any, TypeVar
 
 from azure.identity import DefaultAzureCredential
+from opentelemetry import trace
 
 from ..config import get_settings
 from ..models import (
@@ -26,6 +27,7 @@ from .log_analyzer import LogAnalyzerAgent
 from .remediation import RemediationAgent
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer("pipelinehealer.orchestrator")
 T = TypeVar("T")
 # Bounded backoff (total 480s / 8 minutes) for passive external diagnostics collection.
 # This only runs when gh_aw_tools are enabled, ingestion mode is passive,
@@ -364,28 +366,41 @@ class OrchestratorAgent:
             created_id = await self._storage.create_activity(activity)
             activity.id = created_id
 
-        try:
+        with tracer.start_as_current_span(
+            "pipeline.process",
+            attributes={
+                "pipeline.repository": f"{owner}/{repo}",
+                "pipeline.run_id": run_id,
+                "pipeline.activity_id": activity.id,
+            },
+        ) as pipeline_span:
+          try:
             # Step 1: Analyze logs
             logger.info("Step 1: Analyzing logs...")
             activity.status = RemediationStatus.ANALYZING
             await self._storage.update_activity(activity)
 
-            t0 = time.monotonic()
-            log_analyses = await self._run_with_timeout(
-                step_name="Analyze",
-                coro=self._log_analyzer.analyze(owner, repo, run_id),
-            )
-            if is_debug:
-                logger.debug(
-                    "[debug-mode] Step 1 completed in %.2fs — %d job(s) analyzed",
-                    time.monotonic() - t0,
-                    len(log_analyses),
+            with tracer.start_as_current_span("pipeline.step.analyze") as span:
+                t0 = time.monotonic()
+                log_analyses = await self._run_with_timeout(
+                    step_name="Analyze",
+                    coro=self._log_analyzer.analyze(owner, repo, run_id),
                 )
+                elapsed = time.monotonic() - t0
+                span.set_attribute("step.duration_seconds", round(elapsed, 2))
+                span.set_attribute("step.jobs_analyzed", len(log_analyses))
+                if is_debug:
+                    logger.debug(
+                        "[debug-mode] Step 1 completed in %.2fs — %d job(s) analyzed",
+                        elapsed,
+                        len(log_analyses),
+                    )
 
             if not log_analyses:
                 logger.warning("No log analyses produced")
                 activity.status = RemediationStatus.FAILED
                 activity.error = "No logs available for analysis"
+                pipeline_span.set_attribute("pipeline.outcome", "no_logs")
                 await self._storage.update_activity(activity)
                 return activity
 
@@ -399,15 +414,22 @@ class OrchestratorAgent:
             if external_diagnostics:
                 activity.external_diagnostics = external_diagnostics
 
-            t1 = time.monotonic()
-            diagnosis = await self._run_with_timeout(
-                step_name="Diagnose",
-                coro=self._diagnosis_agent.diagnose(
-                    log_analyses,
-                    workflow_info,
-                    external_diagnostics=external_diagnostics,
-                ),
-            )
+            with tracer.start_as_current_span("pipeline.step.diagnose") as span:
+                t1 = time.monotonic()
+                diagnosis = await self._run_with_timeout(
+                    step_name="Diagnose",
+                    coro=self._diagnosis_agent.diagnose(
+                        log_analyses,
+                        workflow_info,
+                        external_diagnostics=external_diagnostics,
+                    ),
+                )
+                elapsed = time.monotonic() - t1
+                span.set_attribute("step.duration_seconds", round(elapsed, 2))
+                span.set_attribute("diagnosis.failure_type", diagnosis.failure_type.value)
+                span.set_attribute("diagnosis.confidence", diagnosis.confidence)
+                span.set_attribute("diagnosis.is_auto_fixable", diagnosis.is_auto_fixable)
+
             activity.failure_type = diagnosis.failure_type
             activity.diagnosis = diagnosis
 
@@ -418,7 +440,7 @@ class OrchestratorAgent:
             if is_debug:
                 logger.debug(
                     "[debug-mode] Step 2 completed in %.2fs — type=%s confidence=%.2f root_cause=%s",
-                    time.monotonic() - t1,
+                    elapsed,
                     diagnosis.failure_type.value,
                     diagnosis.confidence,
                     diagnosis.root_cause[:200] if diagnosis.root_cause else "N/A",
@@ -440,23 +462,31 @@ class OrchestratorAgent:
             # Check if auto-creation is enabled
             dry_run = not self._settings.auto_create_pr
 
-            t2 = time.monotonic()
-            result = await self._run_with_timeout(
-                step_name="Remediate",
-                coro=self._remediation_agent.remediate(
-                    diagnosis=diagnosis,
-                    repository_info=repository_info,
-                    workflow_run_id=run_id,
-                    dry_run=dry_run,
-                ),
-            )
+            with tracer.start_as_current_span("pipeline.step.remediate") as span:
+                t2 = time.monotonic()
+                result = await self._run_with_timeout(
+                    step_name="Remediate",
+                    coro=self._remediation_agent.remediate(
+                        diagnosis=diagnosis,
+                        repository_info=repository_info,
+                        workflow_run_id=run_id,
+                        dry_run=dry_run,
+                    ),
+                )
+                elapsed = time.monotonic() - t2
+                span.set_attribute("step.duration_seconds", round(elapsed, 2))
+                span.set_attribute(
+                    "remediation.action",
+                    result.action_taken.value if result.action_taken else "none",
+                )
+                span.set_attribute("remediation.success", result.success)
 
             activity.remediation_result = result
 
             if is_debug:
                 logger.debug(
                     "[debug-mode] Step 3 completed in %.2fs — action=%s success=%s",
-                    time.monotonic() - t2,
+                    elapsed,
                     result.action_taken.value if result.action_taken else "none",
                     result.success,
                 )
@@ -464,6 +494,7 @@ class OrchestratorAgent:
             # Update final status
             if result.success:
                 activity.status = RemediationStatus.COMPLETED
+                pipeline_span.set_attribute("pipeline.outcome", "completed")
                 logger.info(f"Remediation completed: {result.action_taken.value}")
                 if result.pr_url:
                     logger.info(f"PR created: {result.pr_url}")
@@ -472,18 +503,21 @@ class OrchestratorAgent:
             else:
                 activity.status = RemediationStatus.FAILED
                 activity.error = result.error_message
+                pipeline_span.set_attribute("pipeline.outcome", "failed")
                 logger.warning(f"Remediation failed: {result.error_message}")
 
             await self._storage.update_activity(activity)
             return activity
 
-        except Exception as e:
+          except Exception as e:
             logger.exception(f"Pipeline failed: {e}")
             activity.status = RemediationStatus.FAILED
             activity.error = str(e)
+            pipeline_span.set_attribute("pipeline.outcome", "exception")
+            pipeline_span.record_exception(e)
             await self._storage.update_activity(activity)
             return activity
-        finally:
+          finally:
             if is_debug:
                 src_logger.setLevel(prev_level)
                 for handler, level in prev_handler_levels:

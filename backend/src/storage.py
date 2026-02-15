@@ -462,19 +462,35 @@ class ActivityStorage:
         since: datetime | None = None,
         page_size: int = 200,
     ) -> AsyncIterator[ActivityRecord]:
-        """Yield activities via paged queries using the most compatible path."""
-        offset = 0
-        while True:
-            page = await self.get_activities(limit=page_size, offset=offset, since=since)
-            if not page:
-                break
+        """Yield activities using Cosmos SDK continuation-token paging.
 
-            for activity in page:
-                yield activity
+        Unlike the OFFSET/LIMIT fallback (used by InMemoryStorage), this
+        iterates the ``query_items`` async pager directly so the SDK handles
+        continuation tokens internally — avoiding the O(n*pages) cost of
+        repeated OFFSET queries on large collections.
+        """
+        await self.initialize()
 
-            if len(page) < page_size:
-                break
-            offset += len(page)
+        conditions = ["1=1"]
+        parameters: list[dict[str, object]] = []
+
+        if since:
+            conditions.append("c.created_at >= @since")
+            parameters.append({"name": "@since", "value": _as_utc(since).isoformat()})
+
+        where_clause = " AND ".join(conditions)
+        query = f"""
+            SELECT * FROM c
+            WHERE {where_clause}
+            ORDER BY c.created_at DESC
+        """
+
+        async for item in self._activities_container_required().query_items(
+            query=query,
+            parameters=parameters,
+            max_item_count=page_size,
+        ):
+            yield ActivityRecord(**item)
 
 
 class InMemoryStorage(ActivityStorage):
@@ -559,6 +575,24 @@ class InMemoryStorage(ActivityStorage):
         )
 
         return activities[offset : offset + limit]
+
+    async def _iter_activities(
+        self,
+        *,
+        since: datetime | None = None,
+        page_size: int = 200,
+    ) -> AsyncIterator[ActivityRecord]:
+        """Yield in-memory activities via simple offset paging."""
+        offset = 0
+        while True:
+            page = await self.get_activities(limit=page_size, offset=offset, since=since)
+            if not page:
+                break
+            for activity in page:
+                yield activity
+            if len(page) < page_size:
+                break
+            offset += len(page)
 
     async def upsert_runtime_settings(self, settings_payload: dict[str, Any]) -> None:
         """Persist runtime settings in-memory (test/local fallback)."""
