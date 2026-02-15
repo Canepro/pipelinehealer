@@ -74,6 +74,7 @@ bun run build
 - Preserve in-memory fallback (`InMemoryStorage`) for local development.
 - Keep backend lint/type/test healthy (`ruff`, `mypy`, `pytest`).
 - Keep frontend lint/build healthy (`eslint`, `tsc`/`vite build`).
+- When presenting options, always include a clearly labeled recommended option based on current best practices.
 
 ## Security and Runtime Defaults
 

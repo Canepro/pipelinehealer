@@ -10,7 +10,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Azure deployment: **Live** on Container Apps (backend + frontend)
 - Project positioning: **Azure-first** for hackathon compliance, local mode as evaluation fallback
 - Runtime security: `X-API-Key` for `/api/*`; admin settings routes (`/api/settings*`) use `X-API-Key` + `X-Admin-Key` in non-development
-- Admin governance visibility: lightweight in-memory audit trail for settings changes (`GET /api/settings/audit`) with request IDs and actor fingerprints
+- Admin governance visibility: durable audit trail for settings changes (`GET /api/settings/audit`) persisted to Cosmos DB, with request IDs and actor fingerprints
 - Demo operations: consolidated to one-command runner `bash scripts/ph.sh ...`
 - Real-repo rollout ops: `rollout:canary`, `webhook:add`, `webhook:disable` added for issue-first canary onboarding
 - Frontend design system: shadcn-style primitive layer introduced (button/card/input/badge/switch/table/skeleton/toast)

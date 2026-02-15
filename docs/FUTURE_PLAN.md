@@ -70,16 +70,16 @@ Acceptance target:
 
 ## 4) Settings and Policy Controls
 
-- Add optional persistence for runtime setting overrides (currently in-memory; resets on restart).
+- ~~Add optional persistence for runtime setting overrides (currently in-memory; resets on restart).~~ (Done: Cosmos DB durable persistence with in-memory fallback; auto-restored on startup)
 - ~~Add repo/org allowlist controls for remediation scope.~~ (Done: `PH_ALLOWED_REPOS`)
 - ~~Add configurable governance limits (max remediations per repo/time window).~~ (Done: `max_remediation_attempts`)
 - Add lightweight admin session auth for settings operations (post-submission):
   - Replace direct admin-key-only UX with short-lived, password-backed admin sessions.
   - Keep `X-Admin-Key` as emergency fallback via feature flag.
 - Add settings state UX hardening:
-  - persistent "unsaved changes" indicator
+  - ~~persistent "unsaved changes" indicator~~ (Done: draft vs saved state tracking)
   - post-save "effective policy" confirmation panel
-  - explicit runtime-vs-durable status label on mutable settings
+  - ~~explicit runtime-vs-durable status label on mutable settings~~ (Done: "Persist Settings" button with durable storage feedback)
 
 ## 5) CI Platform Extensibility
 
@@ -92,7 +92,7 @@ Acceptance target:
 - ~~Add dashboard views for remediation trend lines and outcome ratios over time.~~ (Done: bar chart + pie chart + stats cards)
 - Add exportable run summary for demos and incident review.
 - ~~Add structured audit trail fields for policy decisions (why PR vs issue).~~ (Done: reason codes + explainability snapshot in UI)
-- Move admin settings audit trail from in-memory runtime storage to durable storage (Cosmos DB or Log Analytics).
+- ~~Move admin settings audit trail from in-memory runtime storage to durable storage (Cosmos DB or Log Analytics).~~ (Done: Cosmos DB with in-memory fallback)
 - Add log retention and search improvements beyond `logs:grep`.
 - Add Layer 2 diagnostics observability:
   - external-tool invocation success/failure counters

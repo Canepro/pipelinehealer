@@ -180,7 +180,7 @@ bash scripts/ph.sh settings:audit --limit 20
 bash scripts/ph.sh audit:proof --limit 5
 ```
 
-Entries include `request_id`, actor fingerprint, changed keys, and old/new values. This trail is in-memory for demo use and resets on backend restart/revision.
+Entries include `request_id`, actor fingerprint, changed keys, and old/new values. Entries are persisted to Cosmos DB when available (in-memory fallback for local dev).
 
 Log inspection (Azure Container Apps backend logs):
 
@@ -392,7 +392,7 @@ Optional settings check (runtime config snapshot):
 curl -sS -H "X-API-Key: $API_AUTH_KEY" -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings"
 ```
 
-Optional runtime override check (applies immediately, resets on backend restart):
+Optional runtime override check (applies immediately; use `settings:persist` to persist across restarts):
 
 ```bash
 curl -sS -X PATCH \
