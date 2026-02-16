@@ -58,6 +58,7 @@ Commands:
   settings:audit    Call backend /api/settings/audit using API+ADMIN keys from backend/.env
   settings:persist  Persist selected settings to backend/.env and redeploy env-only
   audit:proof       Create two traceable admin audit entries and print latest audit records
+  backfill          Trigger on-demand backfill sweep for external diagnostics (ci-doctor)
   help              Show this help
 
 Examples:
@@ -989,6 +990,38 @@ cmd_settings_persist() {
 }
 
 # ---------------------------------------------------------------------------
+# Backfill external diagnostics
+# ---------------------------------------------------------------------------
+
+cmd_backfill() {
+  need_cmd curl
+  local max_age_hours="24"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --max-age-hours)
+        require_arg "$1" "${2-}"
+        max_age_hours="$2"
+        shift 2
+        ;;
+      --max-age-hours=*) max_age_hours="${1#*=}"; shift ;;
+      *) echo "Unknown argument for backfill: $1" >&2; exit 2 ;;
+    esac
+  done
+
+  local api_key
+  mapfile -t _keys < <(read_auth_keys)
+  api_key="${_keys[0]}"
+  local backend_fqdn
+  backend_fqdn="$(resolve_backend_fqdn)"
+
+  echo "Triggering backfill sweep (max_age_hours=$max_age_hours)..."
+  curl -fsS -X POST \
+    -H "X-API-Key: $api_key" \
+    "https://$backend_fqdn/api/backfill-diagnostics?max_age_hours=$max_age_hours"
+  echo
+}
+
+# ---------------------------------------------------------------------------
 # Command dispatch
 # ---------------------------------------------------------------------------
 
@@ -1064,6 +1097,9 @@ case "$COMMAND" in
     ;;
   audit:proof)
     audit_proof "$@"
+    ;;
+  backfill)
+    cmd_backfill "$@"
     ;;
   logs)
     cmd_logs "$@"

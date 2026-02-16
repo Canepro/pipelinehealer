@@ -267,4 +267,10 @@ export const api = {
     fetchJson<{ status: string; activity_id: string }>(`/api/activities/${id}/retry`, {
       method: 'POST',
     }),
+
+  backfillDiagnostics: (maxAgeHours = 24) =>
+    fetchJson<{ status: string; backfilled: number; max_age_hours: number }>(
+      `/api/backfill-diagnostics?max_age_hours=${maxAgeHours}`,
+      { method: 'POST' },
+    ),
 }

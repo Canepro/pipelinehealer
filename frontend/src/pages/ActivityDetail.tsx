@@ -337,6 +337,13 @@ export default function ActivityDetail() {
     },
   })
 
+  const backfillMutation = useMutation({
+    mutationFn: () => api.backfillDiagnostics(24),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity', id] })
+    },
+  })
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -480,9 +487,23 @@ export default function ActivityDetail() {
 
       {/* External Diagnostics Card */}
       <div className="card p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          External Diagnostics
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            External Diagnostics
+          </h2>
+          {(activity.status === 'completed' || activity.status === 'failed') && (
+            <button
+              onClick={() => backfillMutation.mutate()}
+              disabled={backfillMutation.isPending}
+              className="inline-flex items-center text-sm font-medium text-azure-600 hover:text-azure-700 dark:text-azure-400 disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 mr-1.5 ${backfillMutation.isPending ? 'animate-spin' : ''}`}
+              />
+              {backfillMutation.isPending ? 'Backfilling...' : 'Backfill Diagnostics'}
+            </button>
+          )}
+        </div>
         {externalDiagnostics.length === 0 ? (
           <p className="text-sm text-gray-500 dark:text-gray-400">
             No external diagnostics available. PipelineHealer used built-in
