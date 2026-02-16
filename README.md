@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: e6aec02 -->
+<!-- LAST_VERIFIED: b68203b -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -127,30 +127,30 @@ When a GitHub Actions workflow fails, PipelineHealer:
 
 ## Architecture
 
-### Mermaid Diagram
+### Graphviz Diagram
 
-```mermaid
-flowchart LR
-    GH[GitHub Actions workflow_run.completed] --> WH["/webhook/github"]
-    WH --> WF[PipelineHealerWorkflow]
-    WF --> OR[Orchestrator Agent]
-    OR --> LA[Log Analyzer Agent]
-    LA --> DG[Diagnosis Agent]
-    DG --> RM[Remediation Agent]
-    RM --> GT[GitHubTools]
-    GT --> PR[Create PR]
-    GT --> IS[Create Issue]
-    GT --> RR[Re-run Failed Jobs]
-    OR --> ADP[GHAW Adapter passive mode]
-    ADP --> CD[ci-doctor issue/comment findings]
-    CD --> EXT[External diagnostics context]
-    EXT --> DG
-    BF[Backfill Sweep every 10 min] --> ADP
-    BF --> ST
-    OR --> ST[(Cosmos DB / In-Memory Storage)]
-    UI[Admin Settings UI] --> API["/api/settings*"]
-    API --> OR
-    API --> ST
+The architecture diagram source lives in `docs/diagrams/render_pipeline_healer_architecture.py`.
+![PipelineHealer architecture diagram](docs/screens/pipeline-healer-architecture.svg)
+
+Render it locally (outputs SVG + PNG in `docs/screens/`):
+
+```bash
+python3 docs/diagrams/render_pipeline_healer_architecture.py
+```
+
+If your environment maps Python as `python`, run:
+
+```bash
+python docs/diagrams/render_pipeline_healer_architecture.py
+```
+
+The script does not require a Python package. It writes a `.dot` source file and renders SVG/PNG when Graphviz (`dot`) is installed.
+
+Install Graphviz if needed:
+
+```bash
+# Ubuntu / WSL
+sudo apt-get update && sudo apt-get install -y graphviz
 ```
 
 ### ASCII Diagram
