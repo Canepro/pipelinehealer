@@ -1,57 +1,26 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 32f7c34 -->
+<!-- LAST_VERIFIED: 345b4ea -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
 [![Azure](https://img.shields.io/badge/Azure-Deployed-blue)](https://azure.microsoft.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-PipelineHealer is an AI-powered multi-agent system that automatically detects, diagnoses, and remediates CI/CD pipeline failures in GitHub Actions workflows.
-
-PipelineHealer is an Azure-deployed, multi-agent CI remediation system built for the Microsoft AI Dev Days Hackathon, with a local mode provided for fast evaluation and reproducible demos.
-
-## Proof (Azure-First)
-
-- Platform: Azure Container Apps (backend + frontend)
-- Live app:
-  - Frontend: [PipelineHealer UI](https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io)
-  - Backend API: [Backend Base URL](https://ca-canepro-ph-backend.kinddune-53ac219d.eastus2.azurecontainerapps.io)
-  - Health endpoint: [GET /health](https://ca-canepro-ph-backend.kinddune-53ac219d.eastus2.azurecontainerapps.io/health)
-- Reproducibility:
-  - Recording runbook: `docs/DEMO_SCRIPT.md`
-  - Full operator runbook: `docs/LOCAL_DEMO_RUNBOOK.md`
-- Evidence artifacts:
-  - Deterministic PR path: [demo-repo PR #91](https://github.com/Canepro/pipelinehealer-demo/pull/91) (dependency fix)
-  - Tracking issue path: [demo-repo Issue #90](https://github.com/Canepro/pipelinehealer-demo/issues/90)
-  - ci-doctor enriched findings: [demo-repo Issue #89](https://github.com/Canepro/pipelinehealer-demo/issues/89)
-- Runtime verification commands:
-  - `bash scripts/ph.sh status`
-  - `bash scripts/ph.sh settings:check`
-  - Admin audit proof (dual-key): `PATCH /api/settings` + `GET /api/settings/audit`
-- Quality gates:
-  - Responsive verified at `1280x800`, `1440x900`, `390x844`, `768x1024`
-  - No horizontal overflow (`scrollWidth === innerWidth`)
-  - Frontend `lint` and `build` passing
-
-Use `bash scripts/ph.sh status` to print current backend/frontend Azure FQDNs before sharing links.
+PipelineHealer is an AI-powered multi-agent system that automatically detects, diagnoses, and remediates CI/CD pipeline failures in GitHub Actions workflows. When a workflow fails, PipelineHealer analyzes the logs, classifies the failure, and either opens a fix PR for high-confidence issues or creates a structured GitHub Issue for everything else.
 
 ![Dashboard — processed count, safety gating ratios, failure type breakdown, and explainability snapshot](docs/screens/dashboard.png)
 
-## Documentation Map
+## Documentation
 
-- `docs/README.md`: quick index of all project docs
-- `docs/API.md`: full API reference — endpoints, auth, data models, best practices
-- `docs/CLI.md`: canonical `scripts/ph.sh` CLI reference — all commands, flags, error handling, env overrides
-- `docs/DEMO_SCRIPT.md`: single-file recording checklist and 2-minute script
-- `docs/LOCAL_DEMO_RUNBOOK.md`: detailed local + Azure E2E operations
-- `docs/HACKATHON_LOG.md`: phase status, submission checklist, and milestones
-- `docs/GH_AW_IMPLEMENTATION_TRACKER.md`: gh-aw research, Layer 1/2 checklists, and implementation evidence
-- `docs/UI_PLAN.md`: UI maturity plan, design principles, and weekly tracking
-- `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md`: pre-deploy safety audit
-- `docs/FUTURE_PLAN.md`: post-demo and post-hackathon roadmap
-- `CONTRIBUTING.md`: contributor workflow and quality gates
-- `SECURITY.md`: vulnerability reporting and secret hygiene policy
+| Doc | What it covers |
+|-----|---------------|
+| [API Reference](docs/API.md) | Endpoints, auth, data models, best practices |
+| [CLI Reference](docs/CLI.md) | `scripts/ph.sh` commands, flags, env overrides |
+| [Local & Azure Runbook](docs/LOCAL_DEMO_RUNBOOK.md) | Detailed E2E setup and operations |
+| [Contributing](CONTRIBUTING.md) | PR guidelines, quality gates, docs policy |
+| [Security](SECURITY.md) | Vulnerability reporting, secret hygiene |
+| [Future Plan](docs/FUTURE_PLAN.md) | Post-hackathon roadmap |
 
 ## One-Command Operations
 
@@ -92,14 +61,6 @@ bash scripts/ph.sh webhook:add --repo owner/repo1
 # 3) Disable Azure webhook for one repo
 bash scripts/ph.sh webhook:disable --repo owner/repo1
 ```
-
-## Submission-Ready Project Description
-
-PipelineHealer is an AI-powered multi-agent system designed to automatically detect, diagnose, and remediate failures in GitHub Actions CI/CD pipelines. It addresses repeated pipeline interruptions by shifting teams from reactive troubleshooting to faster, structured remediation workflows.
-
-The solution is built for DevOps engineers, software developers, and engineering managers who need faster incident triage and clearer operational visibility. When a pipeline fails, PipelineHealer analyzes logs, classifies the failure, and either creates a deterministic fix Pull Request for auto-fixable issues (such as dependency or lint errors) or creates a structured GitHub Issue for failures requiring manual resolution.
-
-PipelineHealer's architecture uses coordinated agents for log analysis, failure diagnosis, remediation, and workflow orchestration. The system leverages technologies including the Microsoft Agent Framework, Azure OpenAI, FastAPI, React/TypeScript, Azure Cosmos DB, Azure Container Apps, Azure Key Vault, and Azure Application Insights. All activity is tracked and visualized in a professional dashboard for real-time transparency and admin controls.
 
 ## What Problem This Solves
 
@@ -157,6 +118,8 @@ When a GitHub Actions workflow fails, PipelineHealer:
 2. **Analyzes** the build logs using AI
 3. **Diagnoses** the root cause (dependency issues, test failures, lint errors, etc.)
 4. **Remediates** by creating a fix PR or detailed issue
+
+![Activities list — completed runs with status badges, failure types, and findings links](docs/screens/activities.png)
 
 ## Architecture
 
@@ -247,14 +210,15 @@ flowchart LR
 - **Async External Diagnostics Backfill**: Background sweep (every 10 min) enriches completed activities whose ci-doctor findings arrived after the original poll window; manual trigger via `POST /api/backfill-diagnostics`
 - **Deep Content Enrichment**: Structured extraction of ci-doctor issue bodies — summary, root cause, recommended actions, historical context, doctor engine/model metadata — stored in `external_diagnostics[].metadata.details`
 - **External Findings Panel**: Collapsible UI panel rendering enriched ci-doctor findings with markdown formatting, section truncation, and auto-expand for available diagnostics
+
+![External Findings — ci-doctor structured analysis with summary, root cause, and recommended actions](docs/screens/external-findings.png)
+
 - **Stale Activity Recovery**: Activities interrupted by container restarts (scale-to-zero, redeploy) are automatically marked failed on startup with a clear explanation instead of remaining stuck forever
 - **Capability-Aware Remediation**: Graceful handling when target repos have issues or PRs disabled — remediation returns a `SKIP` with a user-friendly reason code instead of a confusing HTTP error
 - **Smart External Diagnostics Polling**: Skips ci-doctor polling when the failed workflow is itself a known gh-aw workflow, preventing unnecessary 8-minute wait windows
 - **Mobile Navigation Reliability**: Route-safe, notch-safe sheet navigation for portrait mobile workflows
 - **Route-Level Code Splitting**: Each page loads as a separate chunk via `React.lazy`, reducing initial bundle size
 - **Enterprise Ready**: Azure-native with full observability and security
-
-![Activities list — completed runs with status badges, failure types, Doctor Signal indicators, and Findings links](docs/screens/activities.png)
 
 ## Deterministic Fix Matrix
 
@@ -310,7 +274,7 @@ PipelineHealer is built for controlled remediation, not unconstrained autonomous
 
 ### Backend (Python + UV)
 - **Microsoft Agent Framework** - Multi-agent orchestration
-- **Azure OpenAI** - Model deployment configurable (`gpt-5-mini` in current dev env)
+- **Azure OpenAI** - Configurable model deployment (for example `gpt-4o`, `gpt-4o-mini`)
 - **FastAPI** - API framework
 - **Azure Cosmos DB** - Activity storage
 
@@ -399,32 +363,33 @@ PipelineHealer uses Azure OpenAI for log summarization, failure diagnosis, and r
      - `Activities`: `/activities`
      - `Settings`: `/settings` (admin-only runtime configuration; requires `X-Admin-Key`)
 
-**Option B: Containerized (Podman / Docker)**
+**Option B: Containerized (Docker or Podman)**
 
 ```bash
-podman compose --env-file backend/.env build backend frontend
-podman compose --env-file backend/.env up -d backend frontend
-podman compose --env-file backend/.env ps
+docker compose --env-file backend/.env build backend frontend
+docker compose --env-file backend/.env up -d backend frontend
+docker compose --env-file backend/.env ps
 curl -sS http://127.0.0.1:8000/health
 ```
 
-Use `--env-file backend/.env` with compose commands to avoid empty-env warnings.
+> **Podman users:** Replace `docker compose` with `podman compose` in all commands above. Everything else is the same.
+
+Pass `--env-file backend/.env` with compose commands to avoid empty-env warnings.
 
 Optional: include the Cosmos DB emulator for persistent storage locally:
 
 ```bash
-podman compose --env-file backend/.env up -d backend frontend cosmos-emulator
+docker compose --env-file backend/.env up -d backend frontend cosmos-emulator
 ```
 
 Container URLs: Frontend `http://127.0.0.1:3000`, Backend `http://127.0.0.1:8000/health`.
 
-> Note: `BACKEND_UPSTREAM` inside the frontend container defaults to `http://backend:8000` via `docker-compose.yml`.
-- If backend API auth is enabled, set `API_AUTH_KEY` for the frontend container too; Nginx forwards it as `X-API-Key` to `/api/*`.
+> Note: The frontend container uses `BACKEND_UPSTREAM` (defaults to `http://backend:8000` via `docker-compose.yml`). If backend API auth is enabled, also set `API_AUTH_KEY` for the frontend — Nginx forwards it as `X-API-Key` to `/api/*`.
 
 ### Local Dev vs Azure Dev
 
-- `Local dev` means services run on your machine (`127.0.0.1`), usually with `podman compose`.
-- `Azure dev` means services run in Azure Container Apps with public FQDN URLs.
+- **Local dev**: services run on your machine (`127.0.0.1`) via `docker compose` or host-native processes.
+- **Azure dev**: services run in Azure Container Apps with public FQDN URLs.
 
 For hackathon submission, Azure deployment is the primary runtime path.
 Local mode is kept as a fast, reproducible evaluation path when Azure is unavailable or when you need rapid iteration.
@@ -466,8 +431,6 @@ bash scripts/ph.sh demo:e2e --wait-seconds 120
 3. External findings: expand the "External Findings Details" panel on an enriched activity to show ci-doctor's structured root cause, recommended actions, and historical context.
 4. Safety gate rationale: highlight reason-code microcopy and why policy-gated changes become review issues.
 5. Audit proof: run `bash scripts/ph.sh audit:proof --limit 5` and show traceable admin change entries.
-
-![External Findings Details — ci-doctor structured analysis with summary, root cause, recommended actions, and AI metadata](docs/screens/external-findings.png)
 
 ### Shell Safety For Copy-Paste Blocks
 
@@ -550,8 +513,9 @@ bash scripts/ph.sh deploy:status
 # See all one-command options
 bash scripts/ph.sh help
 
-# Force Docker engine (if Podman socket is unavailable)
+# Use a specific container engine (default: auto-detect)
 bash scripts/ph.sh deploy --engine docker
+bash scripts/ph.sh deploy --engine podman
 ```
 
 ### Dev Environment Status
@@ -574,7 +538,7 @@ Container Apps can automatically scale down to `0` running instances when there 
 - Good: saves money.
 - Tradeoff: first request after idle can be slow (cold start), because Azure needs to start a container again.
 
-This affects Azure-hosted URLs only, not your local `podman compose` stack.
+This affects Azure-hosted URLs only, not your local `docker compose` stack.
 
 Check current min replicas:
 
@@ -604,7 +568,7 @@ bash scripts/ph.sh lowcost
 | `AZURE_OPENAI_DEPLOYMENT_NAME` | Model deployment name (for example `gpt-5-mini` or `gpt-4o`) | Yes |
 | `AZURE_OPENAI_API_VERSION` | API version for the primary Responses client (default: `2025-04-01-preview`) | Optional |
 | `AZURE_OPENAI_CHAT_API_VERSION` | API version for the fallback Chat Completions client (default: `2024-12-01-preview`) | Optional |
-| `COSMOS_DB_ENDPOINT` | Cosmos DB endpoint | Yes |
+| `COSMOS_DB_ENDPOINT` | Cosmos DB endpoint (in-memory fallback used when empty) | Optional (prod) |
 | `GITHUB_WEBHOOK_SECRET` | Webhook signature secret | Yes (prod) |
 | `GITHUB_PERSONAL_ACCESS_TOKEN` | GitHub PAT for API access | Yes |
 | `API_AUTH_KEY` | Required `X-API-Key` value for `/api/*` in non-development envs | Yes (non-dev) |
@@ -741,37 +705,37 @@ pipelinehealer/
 └── README.md
 ```
 
-## Hackathon Categories
+## Try It Out
 
-This project targets:
+Use the included `demo-repo/` fixtures or the public demo repository [`Canepro/pipelinehealer-demo`](https://github.com/Canepro/pipelinehealer-demo).
 
-- **Agentic DevOps Grand Prize** - Automating CI/CD incident response
-- **Best Multi-Agent System** - Sophisticated agent orchestration
-- **Best Azure Integration** - Native Azure services integration
-
-## Participant
-
-- Solo participant: Vincent Mogah
-- Microsoft Learn profile: `https://learn.microsoft.com/en-us/users/canepro0084/`
-
-## Demo
-
-Use the included `demo-repo/` fixtures or the public demo repository `Canepro/pipelinehealer-demo`.
-For the fastest path, run from repo root:
+Fastest path (Azure deployment required):
 
 ```bash
 bash scripts/ph.sh demo:e2e --wait-seconds 120
 ```
 
-If you need manual control, the demo workflow supports dispatch by failure type:
+Manual path:
 
 1. Configure webhook delivery to PipelineHealer (`/webhook/github`)
 2. Trigger workflow dispatch for failure scenarios
 3. Verify PR/issue outputs and dashboard activities
 
+See `docs/LOCAL_DEMO_RUNBOOK.md` for full step-by-step instructions.
+
+## Live Instance
+
+A live Azure deployment is available for evaluation:
+
+- Frontend: [PipelineHealer UI](https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io)
+- Backend: [Health check](https://ca-canepro-ph-backend.kinddune-53ac219d.eastus2.azurecontainerapps.io/health)
+- Example artifacts: [PR #91](https://github.com/Canepro/pipelinehealer-demo/pull/91) (dependency fix), [Issue #90](https://github.com/Canepro/pipelinehealer-demo/issues/90) (tracking issue)
+
+> The live instance uses scale-to-zero. First request after idle may be slow (cold start).
+
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
@@ -779,6 +743,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 - Azure AI team
 - GitHub CLI and GitHub API ecosystem
 
----
+## Origin
 
-Built for the AI Dev Days Hackathon 2026
+Built for the [AI Dev Days Hackathon 2026](https://devdays.ai/) by [Vincent Mogah](https://learn.microsoft.com/en-us/users/canepro0084/).

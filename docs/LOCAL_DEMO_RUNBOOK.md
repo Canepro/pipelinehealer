@@ -141,7 +141,7 @@ Optional advanced settings (defaults are fine for getting started):
 - `GITHUB_API_MAX_RETRIES=3` — retry count for transient GitHub API errors
 - `LOG_PROMPT_MAX_CHARS=18000` / `LOG_PROMPT_HEAD_CHARS=9000` / `LOG_PROMPT_TAIL_CHARS=9000` — prompt log truncation
 
-## 1B) Backend Setup (Containerized, Recommended on this machine)
+## 1B) Backend Setup (Containerized)
 
 From repo root:
 
@@ -149,21 +149,22 @@ From repo root:
 cp backend/.env.example backend/.env
 # edit backend/.env with your values
 
-podman compose --env-file backend/.env build backend frontend
-podman compose --env-file backend/.env up -d backend frontend
-podman compose --env-file backend/.env ps
+docker compose --env-file backend/.env build backend frontend
+docker compose --env-file backend/.env up -d backend frontend
+docker compose --env-file backend/.env ps
 curl -sS http://127.0.0.1:8000/health
 ```
 
+> **Podman users:** Replace `docker compose` with `podman compose`. Everything else is the same.
+
 Notes:
 
-- Use `--env-file backend/.env` for all `podman compose` commands to avoid empty-env warnings.
-- `docker compose` works too if your Podman setup aliases Docker.
-- Frontend container now uses `BACKEND_UPSTREAM` (defaults to `http://backend:8000` in compose).
-- When backend API auth is enabled, set `API_AUTH_KEY` for frontend as well; Nginx injects `X-API-Key` for `/api/*`.
+- Pass `--env-file backend/.env` with all compose commands to avoid empty-env warnings.
+- The frontend container uses `BACKEND_UPSTREAM` (defaults to `http://backend:8000` in compose).
+- When backend API auth is enabled, set `API_AUTH_KEY` for the frontend too; Nginx injects `X-API-Key` for `/api/*`.
 - After changing values in `backend/.env`, re-create containers (not just restart) so new env vars are applied:
   ```bash
-  podman compose --env-file backend/.env up -d --force-recreate backend frontend
+  docker compose --env-file backend/.env up -d --force-recreate backend frontend
   ```
 
 ## 1C) Azure Dev Environment Quick Check
@@ -225,8 +226,9 @@ Script help:
 ```bash
 bash scripts/ph.sh help
 
-# Force Docker engine if Podman is unavailable
+# Use a specific container engine (default: auto-detect)
 bash scripts/ph.sh deploy --engine docker
+bash scripts/ph.sh deploy --engine podman
 ```
 
 ## 1D) Local Dev vs Azure Dev (Important)
@@ -383,7 +385,7 @@ Use this exact sequence:
 
 ```bash
 cd <your-pipelinehealer-repo-root>
-podman compose --env-file backend/.env up -d backend frontend
+docker compose --env-file backend/.env up -d backend frontend
 curl -sS http://127.0.0.1:8000/health
 ```
 
@@ -445,8 +447,8 @@ Frontend Settings page:
 
 ## Troubleshooting
 
-- WSL error from Azure commands: `UtilAcceptVsock... accept4 failed 110`
-  - Symptom: `bash scripts/ph.sh settings:check`, `logs`, or raw `az containerapp ...` intermittently fail.
+- **(WSL only)** Error from Azure commands: `UtilAcceptVsock... accept4 failed 110`
+  - Symptom: `bash scripts/ph.sh settings:check`, `logs`, or raw `az containerapp ...` intermittently fail under WSL2.
   - Workaround: query backend endpoints directly using known FQDN and keys from `backend/.env`:
     ```bash
     FQDN="<backend-fqdn>.azurecontainerapps.io"
@@ -469,15 +471,15 @@ Frontend Settings page:
     ```bash
     cd <your-pipelinehealer-repo-root>
     git pull --ff-only
-    podman compose --env-file backend/.env build --no-cache backend frontend
-    podman compose --env-file backend/.env up -d backend frontend
+    docker compose --env-file backend/.env build --no-cache backend frontend
+    docker compose --env-file backend/.env up -d backend frontend
     ```
 
 - Error: `Max remediation attempts reached for workflow '<name>'`
   - Cause: the safety guard blocks additional remediations after repeated failures for the same workflow (scoped per-workflow, not per-repo).
   - Fix (local demo with in-memory storage): restart backend to clear in-memory activities.
     ```bash
-    podman compose --env-file backend/.env restart backend
+    docker compose --env-file backend/.env restart backend
     ```
   - Or raise the limit in `backend/.env`:
     ```bash
@@ -489,7 +491,7 @@ Frontend Settings page:
   - Fix: keep `frontend/.dockerignore` (includes `node_modules/`) and rebuild from repo root:
     ```bash
     cd <your-pipelinehealer-repo-root>
-    podman compose --env-file backend/.env build --no-cache frontend
+    docker compose --env-file backend/.env build --no-cache frontend
     ```
 
 - Error from agent calls: `404 Resource not found` using Azure OpenAI
@@ -498,7 +500,7 @@ Frontend Settings page:
     ```bash
     cd <your-pipelinehealer-repo-root>
     sed -i 's|^AZURE_OPENAI_ENDPOINT=.*|AZURE_OPENAI_ENDPOINT=https://<your-resource>.cognitiveservices.azure.com/|' backend/.env
-    podman compose --env-file backend/.env up -d --force-recreate backend
+    docker compose --env-file backend/.env up -d --force-recreate backend
     ```
 
 - Azure `/api/activities` stays empty after workflow failures

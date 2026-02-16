@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: a2ea510 -->
+<!-- LAST_VERIFIED: 345b4ea -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -33,8 +33,9 @@ bash scripts/ph.sh deploy:bg
 bash scripts/ph.sh deploy:logs
 bash scripts/ph.sh deploy:status
 
-# Force Docker engine (if Podman is unavailable)
+# Use a specific container engine (default: auto-detect)
 bash scripts/ph.sh deploy --engine docker
+bash scripts/ph.sh deploy --engine podman
 ```
 
 Background deploy state files are namespaced under `/tmp/ph-deploy-<resource-group>/` to prevent collisions between concurrent runs.
