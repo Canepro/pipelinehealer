@@ -36,6 +36,8 @@ PipelineHealer is an Azure-deployed, multi-agent CI remediation system built for
 
 Use `bash scripts/ph.sh status` to print current backend/frontend Azure FQDNs before sharing links.
 
+![Dashboard — processed count, safety gating ratios, failure type breakdown, and explainability snapshot](docs/screens/dashboard.png)
+
 ## Documentation Map
 
 - `docs/README.md`: quick index of all project docs
@@ -249,6 +251,8 @@ flowchart LR
 - **Route-Level Code Splitting**: Each page loads as a separate chunk via `React.lazy`, reducing initial bundle size
 - **Enterprise Ready**: Azure-native with full observability and security
 
+![Activities list — completed runs with status badges, failure types, Doctor Signal indicators, and Findings links](docs/screens/activities.png)
+
 ## Deterministic Fix Matrix
 
 The remediation policy is intentionally conservative: deterministic, bounded edits create PRs; lower-confidence cases create issues.
@@ -432,6 +436,8 @@ bash scripts/ph.sh demo:e2e --wait-seconds 120
 3. External findings: expand the "External Findings Details" panel on an enriched activity to show ci-doctor's structured root cause, recommended actions, and historical context.
 4. Safety gate rationale: highlight reason-code microcopy and why policy-gated changes become review issues.
 5. Audit proof: run `bash scripts/ph.sh audit:proof --limit 5` and show traceable admin change entries.
+
+![External Findings Details — ci-doctor structured analysis with summary, root cause, recommended actions, and AI metadata](docs/screens/external-findings.png)
 
 ### Shell Safety For Copy-Paste Blocks
 

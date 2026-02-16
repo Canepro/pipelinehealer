@@ -150,6 +150,8 @@ TELL: I built this project solo, using AI-assisted development to reduce repetit
 
 SHOW: Dashboard home, highlighting agent modules.
 
+![Dashboard — processed count, safety gating, failure breakdown, explainability snapshot](screens/dashboard.png)
+
 TELL: PipelineHealer listens for `workflow_run.completed` failures, then runs a four-agent pipeline: Log Analyzer, Diagnosis, Remediation, and Orchestrator. Each agent has a focused role, and the orchestration keeps the flow deterministic and observable.
 
 ### 0:50-1:30
@@ -166,7 +168,13 @@ TELL: This command syncs webhooks, triggers failures, and shows PipelineHealer d
 
 ### 1:30-2:00
 
-SHOW: Final dashboard state, with PRs and issues clearly listed.
+SHOW: Activities list with completed runs, then drill into an activity with external findings.
+
+![Activities — completed runs with Doctor Signal badges and failure types](screens/activities.png)
+
+SHOW: Expand the External Findings Details panel on an enriched activity.
+
+![External Findings — ci-doctor analysis with summary, root cause, recommended actions, and AI metadata](screens/external-findings.png)
 
 TELL: PipelineHealer shifts teams from reactive troubleshooting to structured, automated remediation, improving CI/CD reliability with clear, auditable actions.
 
