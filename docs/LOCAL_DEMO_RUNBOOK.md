@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: f6bd5be -->
+<!-- LAST_VERIFIED: 41d30eb -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -79,6 +79,81 @@ HEAL_MODE=safe                              # safe is recommended for getting st
 ```
 
 > **That's it for getting started.** Everything else in `.env` has sensible defaults. You can tune optional settings later — see the full list in `backend/.env.example`.
+
+### Optional: Enable Entra login (frontend + backend)
+
+Add these values in `backend/.env` when enabling token auth:
+
+```dotenv
+AUTH_MODE=hybrid
+ENTRA_TENANT_ID=<tenant-id>
+ENTRA_CLIENT_ID=<api-app-id>
+ENTRA_ALLOWED_AUDIENCES=api://<api-app-id>,<api-app-id>
+ENTRA_ADMIN_ROLES=PipelineHealer.Admin
+
+VITE_AUTH_MODE=entra
+VITE_ENTRA_CLIENT_ID=<spa-app-id>
+VITE_ENTRA_API_SCOPE=api://<api-app-id>/PipelineHealer.Access
+# Prefer explicit authority when tenant GUID issues are suspected:
+VITE_ENTRA_AUTHORITY=https://login.microsoftonline.com/<tenant-or-primary-domain>
+```
+
+For Entra config changes:
+
+- backend-only auth changes: `bash scripts/ph.sh deploy:env`
+- frontend `VITE_*` changes: `bash scripts/ph.sh deploy` (full rebuild required)
+
+#### Beginner-friendly Entra portal checklist
+
+1. Create `PipelineHealer API` app registration:
+   - copy `Application (client) ID` (this is `ENTRA_CLIENT_ID`)
+   - copy `Directory (tenant) ID` (this is `ENTRA_TENANT_ID`)
+2. In `PipelineHealer API` -> `Expose an API`:
+   - set Application ID URI to `api://<api-app-id>`
+   - add scope `PipelineHealer.Access`
+3. In `PipelineHealer API` -> `App roles`:
+   - add role value `PipelineHealer.Admin` (Users/Groups)
+4. In `PipelineHealer API` -> `Manifest`:
+   - set `"requestedAccessTokenVersion": 2` inside `"api"`
+5. Create `PipelineHealer SPA` app registration:
+   - copy SPA `Application (client) ID` (this is `VITE_ENTRA_CLIENT_ID`)
+6. In `PipelineHealer SPA` -> `Authentication` -> SPA:
+   - add redirect URIs:
+     - `https://<frontend-fqdn>`
+     - `https://<frontend-fqdn>/app`
+     - `http://localhost:5173` (optional local)
+7. In `PipelineHealer SPA` -> `API permissions`:
+   - add delegated permission `PipelineHealer.Access` from `PipelineHealer API`
+   - click `Grant admin consent`
+8. In `Enterprise applications` -> `PipelineHealer API` -> `Users and groups`:
+   - assign your user/group to role `PipelineHealer Admin`
+
+Troubleshooting quick map:
+
+- `AADSTS50011`: add exact redirect URI shown in error details.
+- `AADSTS90002`: tenant identifier mismatch; verify tenant and use explicit authority with primary domain.
+- `401 Invalid bearer token` after login: sync backend `ENTRA_*` via `deploy:env`; if `VITE_*` changed, run full `deploy`.
+
+#### Issues encountered in this repo rollout (and fixes)
+
+- Wrong tenant GUID copy/paste (`04f...` vs `040f...`):
+  - Symptom: `AADSTS90002`
+  - Fix: use the exact `Directory (tenant) ID` from Entra and prefer explicit `VITE_ENTRA_AUTHORITY`.
+- Missing SPA redirect URI with `/app` path:
+  - Symptom: `AADSTS50011` mismatch for `https://<frontend-fqdn>/app`
+  - Fix: add both `https://<frontend-fqdn>` and `https://<frontend-fqdn>/app` in SPA redirect URIs.
+- Frontend `VITE_*` values changed but only env-sync deploy was used:
+  - Symptom: old login behavior/config remains in browser app
+  - Fix: run full `bash scripts/ph.sh deploy` (frontend rebuild required).
+- Backend still on key mode during migration:
+  - Symptom: bearer login succeeds but API acts like key-only
+  - Fix: set `AUTH_MODE=hybrid` (or `entra`) and run `bash scripts/ph.sh deploy:env`.
+- Token issuer format differences from Microsoft:
+  - Symptom: `401 Invalid bearer token` despite successful sign-in
+  - Fix: ensure backend accepts both tenant issuer formats and set API app `requestedAccessTokenVersion` to `2`.
+- Admin user not assigned to Entra admin role:
+  - Symptom: settings endpoints denied after sign-in
+  - Fix: assign `PipelineHealer Admin` in Enterprise Applications -> `PipelineHealer API` -> Users and groups.
 
 ---
 

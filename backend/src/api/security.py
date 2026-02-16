@@ -48,15 +48,22 @@ def _extract_bearer_token(authorization: str | None) -> str | None:
     return token.strip()
 
 
-def _resolve_entra_runtime_config() -> tuple[str, str, tuple[str, ...]]:
+def _resolve_entra_runtime_config() -> tuple[tuple[str, ...], str, tuple[str, ...]]:
     """Resolve issuer/jwks/audience settings for Entra token validation."""
     settings = get_settings()
     tenant_id = settings.entra_tenant_id.strip()
     client_id = settings.entra_client_id.strip()
 
     issuer = settings.entra_issuer.strip()
-    if not issuer and tenant_id:
-        issuer = f"https://login.microsoftonline.com/{tenant_id}/v2.0"
+    issuers: tuple[str, ...] = ()
+    if issuer:
+        issuers = (issuer,)
+    elif tenant_id:
+        # Accept both Entra v2 and legacy AAD v1 issuer formats unless explicitly overridden.
+        issuers = (
+            f"https://login.microsoftonline.com/{tenant_id}/v2.0",
+            f"https://sts.windows.net/{tenant_id}/",
+        )
 
     jwks_url = settings.entra_jwks_url.strip()
     if not jwks_url and tenant_id:
@@ -66,7 +73,7 @@ def _resolve_entra_runtime_config() -> tuple[str, str, tuple[str, ...]]:
     if not audiences and client_id:
         audiences = (f"api://{client_id}", client_id)
 
-    if not issuer or not jwks_url or not audiences:
+    if not issuers or not jwks_url or not audiences:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=(
@@ -76,7 +83,7 @@ def _resolve_entra_runtime_config() -> tuple[str, str, tuple[str, ...]]:
             ),
         )
 
-    return issuer, jwks_url, audiences
+    return issuers, jwks_url, audiences
 
 
 @lru_cache(maxsize=8)
@@ -94,7 +101,7 @@ def _validate_bearer_token(authorization: str | None) -> AuthPrincipal:
             detail="Invalid or missing bearer token",
         )
 
-    issuer, jwks_url, audiences = _resolve_entra_runtime_config()
+    issuers, jwks_url, audiences = _resolve_entra_runtime_config()
     jwk_client = _get_jwk_client(jwks_url)
 
     try:
@@ -104,9 +111,11 @@ def _validate_bearer_token(authorization: str | None) -> AuthPrincipal:
             signing_key.key,
             algorithms=["RS256"],
             audience=list(audiences),
-            issuer=issuer,
-            options={"require": ["exp", "iat", "iss", "aud", "sub"]},
+            options={"require": ["exp", "iat", "iss", "aud", "sub"], "verify_iss": False},
         )
+        token_issuer = str(claims.get("iss") or "").strip()
+        if token_issuer not in issuers:
+            raise InvalidTokenError("unexpected token issuer")
     except InvalidTokenError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

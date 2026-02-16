@@ -10,6 +10,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Azure deployment: **Live** on Container Apps (backend + frontend)
 - Project positioning: **Azure-first** for hackathon compliance, local mode as evaluation fallback
 - Runtime security: `X-API-Key` for `/api/*`; admin settings routes (`/api/settings*`) use `X-API-Key` + `X-Admin-Key` in non-development
+- Auth rollout: Microsoft Entra login and bearer token auth shipped with migration-safe `AUTH_MODE=hybrid` and strict `AUTH_MODE=entra` path ready
 - Admin governance visibility: durable audit trail for settings changes (`GET /api/settings/audit`) persisted to Cosmos DB, with request IDs and actor fingerprints
 - Demo operations: consolidated to one-command runner `bash scripts/ph.sh ...`
 - Real-repo rollout ops: `rollout:canary`, `webhook:add`, `webhook:disable` added for issue-first canary onboarding
@@ -50,6 +51,14 @@ This is the long-form project tracker for hackathon execution status, submission
 - Demo scale toggle:
   - pre-demo: `bash scripts/ph.sh warm`
   - post-demo: `bash scripts/ph.sh lowcost`
+
+## Internal Diagram Tooling
+
+- README now uses Mermaid only for architecture visualization.
+- Optional Graphviz export tooling remains available for internal use:
+  - source script: `docs/diagrams/render_pipeline_healer_architecture.py`
+  - example output target: `docs/screens/pipeline-healer-architecture.svg`
+  - render command: `python3 docs/diagrams/render_pipeline_healer_architecture.py`
 
 ## Key Decisions
 
@@ -218,6 +227,25 @@ This is the long-form project tracker for hackathon execution status, submission
   - Deleted stale `test_base_llm_retry.py` draft (superseded by 21-test `test_llm_retry.py`).
 - CLI reliability hardening (commit `8f16df6`):
   - Added `require_arg` helper for safe `--flag value` parsing across all CLI commands.
+
+### Feb 16, 2026
+
+- Shipped Entra authentication end-to-end:
+  - backend auth modes (`api_key`, `entra`, `hybrid`) with Entra config surface
+  - admin role/scope checks for `/api/settings*`
+  - audit actor attribution for bearer-authenticated principals
+  - frontend MSAL sign-in gate + bearer token injection for API calls
+- Completed safe migration path:
+  - verified production in `AUTH_MODE=hybrid`
+  - documented cutover path to `AUTH_MODE=entra`
+- Fixed Entra production integration pitfalls:
+  - tenant identifier mismatch (`04f...` vs `040f...`)
+  - SPA redirect URI mismatch (`/app`)
+  - token issuer compatibility (accept both Microsoft tenant issuer formats)
+- Updated docs to reflect current behavior:
+  - README architecture section switched to Mermaid-only
+  - Graphviz generation guidance moved to internal log (this file)
+  - API/CLI/runbook/demo docs aligned with Entra rollout and deploy semantics.
   - Made log grep pipelines tolerant of empty output (`|| true`).
   - Webhook sync now matches hooks by `/webhook/github` path suffix to catch stale Azure FQDNs.
   - Namespaced background deploy state files under `/tmp/ph-deploy-<rg>/`.

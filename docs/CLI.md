@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 345b4ea -->
+<!-- LAST_VERIFIED: 41d30eb -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -21,7 +21,7 @@ Important: execute with `bash scripts/...`, never `source` or `. scripts/...`.
 | Command | Description |
 |---------|-------------|
 | `deploy` | Full Azure redeploy (build, push, update, verify) |
-| `deploy:env` | Sync runtime env vars only (no image rebuild) |
+| `deploy:env` | Sync backend runtime env vars only (no image rebuild) |
 | `deploy:bg` | Run redeploy in background |
 | `deploy:logs` | Follow detached redeploy logs |
 | `deploy:status` | Show detached redeploy process status |
@@ -37,6 +37,11 @@ bash scripts/ph.sh deploy:status
 bash scripts/ph.sh deploy --engine docker
 bash scripts/ph.sh deploy --engine podman
 ```
+
+Important:
+
+- Use `deploy:env` when changing backend runtime values (for example `AUTH_MODE`, `ENTRA_*`, policy settings).
+- Use full `deploy` when changing frontend `VITE_*` values, because those are build-time inputs.
 
 Background deploy state files are namespaced under `/tmp/ph-deploy-<resource-group>/` to prevent collisions between concurrent runs.
 

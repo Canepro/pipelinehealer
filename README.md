@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: b68203b -->
+<!-- LAST_VERIFIED: 41d30eb -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -127,74 +127,50 @@ When a GitHub Actions workflow fails, PipelineHealer:
 
 ## Architecture
 
-### Graphviz Diagram
+```mermaid
+flowchart LR
+  GH["GitHub Actions<br/>workflow_run.completed"]
+  BF["Backfill Sweep<br/>every 10 min"]
 
-The architecture diagram source lives in `docs/diagrams/render_pipeline_healer_architecture.py`.
-![PipelineHealer architecture diagram](docs/screens/pipeline-healer-architecture.svg)
+  subgraph PH["PipelineHealer"]
+    WH["/webhook/github"]
+    WF["PipelineHealerWorkflow"]
+    OR["Orchestrator Agent"]
+    LA["Log Analyzer Agent"]
+    DG["Diagnosis Agent"]
+    RM["Remediation Agent"]
+    GT["GitHubTools"]
+    ADP["GHAW Adapter<br/>passive mode"]
+    CD["ci-doctor<br/>issue/comment findings"]
+    EXT["External diagnostics<br/>context"]
+    ST[("Cosmos DB / In-Memory Storage")]
+    API["/api/settings*"]
+  end
 
-Render it locally (outputs SVG + PNG in `docs/screens/`):
+  subgraph GHOPS["GitHub Operations"]
+    PR["Create PR"]
+    IS["Create Issue"]
+    RR["Re-run Failed Jobs"]
+  end
 
-```bash
-python3 docs/diagrams/render_pipeline_healer_architecture.py
-```
+  subgraph UI["Operator Surface"]
+    UISET["Admin Settings UI"]
+  end
 
-If your environment maps Python as `python`, run:
+  GH --> WH --> WF --> OR
+  OR --> LA --> DG --> RM --> GT
+  GT --> PR
+  GT --> IS
+  GT --> RR
 
-```bash
-python docs/diagrams/render_pipeline_healer_architecture.py
-```
+  OR --> ADP --> CD --> EXT --> DG
+  BF --> ADP
 
-The script does not require a Python package. It writes a `.dot` source file and renders SVG/PNG when Graphviz (`dot`) is installed.
-
-Install Graphviz if needed:
-
-```bash
-# Ubuntu / WSL
-sudo apt-get update && sudo apt-get install -y graphviz
-```
-
-### ASCII Diagram
-
-```
-┌─────────────────┐     ┌──────────────────────────────────────────┐
-│  GitHub Actions │     │              PipelineHealer               │
-│                 │     │                                          │
-│  ┌───────────┐  │     │  ┌─────────┐    ┌───────────────────┐   │
-│  │ Workflow  │──┼─────┼─▶│ Webhook │───▶│   Orchestrator    │   │
-│  │  Failed   │  │     │  │ Handler │    │      Agent        │   │
-│  └───────────┘  │     │  └─────────┘    └───────┬───────────┐    │
-│                 │     │                         │           │    │
-│  ┌───────────┐  │     │               ┌─────────▼──────┐    │    │
-│  │ PR/Issue/ │◀─┼─────┼───────────────│   GitHubTools  │◀───┘    │
-│  │ Rerun Ops │  │     │               └─────────┬──────┘         │
-│  └───────────┘  │     │                         ▲                │
-│                 │     │               ┌─────────┴──────┐         │
-└─────────────────┘     │               │  Remediation   │         │
-                        │               │     Agent      │         │
-                        │               └─────────▲──────┘         │
-                        │                         │                │
-                        │               ┌─────────┴──────┐         │
-                        │               │   Diagnosis    │◀────┐   │
-                        │               │     Agent      │     │   │
-                        │               └─────────▲──────┘     │   │
-                        │                         │            │   │
-                        │               ┌─────────┴──────┐     │   │
-                        │               │  Log Analyzer  │     │   │
-                        │               │     Agent      │     │   │
-                        │               └────────────────┘     │   │
-                        │               ┌───────────────┐      │   │
-                        │               │ GHAW Adapter  │──────┘   │
-                        │               │ + ci-doctor   │          │
-                        │               │ findings      │          │
-                        │               └────────────────┘          │
-                        │               ┌──────────────────────────┐│
-                        │               │ Cosmos DB (activities,   ││
-                        │               │ settings, audit)         ││
-                        │               └──────────────────────────┘│
-                        │               ┌──────────────────────────┐│
-                        │               │ /api/settings* (admin)   ││
-                        │               └──────────────────────────┘│
-                        └────────────────────────────────────────────┘
+  OR --> ST
+  BF --> ST
+  API --> OR
+  API --> ST
+  UISET --> API
 ```
 
 ## Features
@@ -459,6 +435,11 @@ Sync env vars only (no image rebuild):
 bash scripts/ph.sh deploy:env
 ```
 
+Notes:
+
+- `deploy:env` syncs backend runtime env (including `AUTH_MODE`, `ENTRA_*`, and mutable policy settings).
+- Frontend `VITE_*` auth values are build-time inputs. If you change `VITE_AUTH_MODE` / `VITE_ENTRA_*`, run full `bash scripts/ph.sh deploy` to rebuild frontend.
+
 Common options:
 
 ```bash
@@ -553,6 +534,8 @@ bash scripts/ph.sh lowcost
 | `VITE_ENTRA_POST_LOGOUT_REDIRECT_URI` | Optional logout redirect URI override | Optional |
 | `VITE_API_AUTH_KEY` | Frontend API key header value (`X-API-Key`) when calling protected `/api/*` routes | Optional |
 
+`VITE_*` values are compile-time frontend build inputs (Vite), not live runtime toggles.
+
 ### API Security
 
 - `AUTH_MODE=api_key` (default): legacy headers (`X-API-Key` and `X-Admin-Key`) are used.
@@ -560,6 +543,15 @@ bash scripts/ph.sh lowcost
 - `AUTH_MODE=hybrid`: either Bearer token **or** API keys are accepted (useful during rollout/migration).
 - In `development`, auth bypass remains only for `AUTH_MODE=api_key` to preserve local iteration.
 - In `production`, keep `VERIFY_WEBHOOK_SIGNATURE=true` and set `GITHUB_WEBHOOK_SECRET`.
+- Entra token validation accepts both tenant-scoped issuer formats commonly seen in Microsoft tokens:
+  - `https://login.microsoftonline.com/<tenant>/v2.0`
+  - `https://sts.windows.net/<tenant>/`
+
+### Entra Setup
+
+For full beginner-friendly, click-by-click Entra setup (app registrations, scopes/roles, redirect URIs, consent, env vars), plus troubleshooting and real issues encountered during this rollout, see:
+
+- `docs/LOCAL_DEMO_RUNBOOK.md` -> **Optional: Enable Entra login (frontend + backend)** -> **Beginner-friendly Entra portal checklist**
 
 Example:
 

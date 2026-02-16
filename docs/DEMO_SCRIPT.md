@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: a2ea510 -->
+<!-- LAST_VERIFIED: 41d30eb -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -212,6 +212,16 @@ Pass check:
 bash scripts/ph.sh deploy:env
 bash scripts/ph.sh settings:check
 ```
+
+`AADSTS50011` redirect URI mismatch during Entra sign-in:
+
+- Add the exact redirect URI used by the app (for example `https://<frontend-fqdn>/app`) in the SPA app registration.
+- Wait 1-2 minutes for propagation and retry in incognito.
+
+`401 Invalid bearer token` after successful Entra login:
+
+- Confirm backend `AUTH_MODE` and `ENTRA_*` values are synced (`bash scripts/ph.sh deploy:env`).
+- If frontend `VITE_ENTRA_*` changed, run full deploy (`bash scripts/ph.sh deploy`).
 
 Terminal closes unexpectedly:
 

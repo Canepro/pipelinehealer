@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 32f7c34 -->
+<!-- LAST_VERIFIED: 41d30eb -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -38,6 +38,17 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" "$BACKEND_URL/api/stats"
 
 - Configure backend with `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and optional `ENTRA_ALLOWED_AUDIENCES`.
 - Admin settings routes require Entra role/scope membership from `ENTRA_ADMIN_ROLES`.
+- Token issuer validation accepts both tenant-scoped Microsoft issuer formats:
+  - `https://login.microsoftonline.com/<tenant>/v2.0`
+  - `https://sts.windows.net/<tenant>/`
+- Recommended Entra app registration setting for API apps: `api.requestedAccessTokenVersion = 2`.
+
+Quick registration checklist (beginner):
+
+1. API app (`PipelineHealer API`): expose scope `PipelineHealer.Access`, add role `PipelineHealer.Admin`.
+2. SPA app (`PipelineHealer SPA`): configure SPA redirect URIs (root + `/app`), request delegated `PipelineHealer.Access`.
+3. Grant admin consent for SPA permissions.
+4. Assign users/groups to `PipelineHealer Admin` in Enterprise Applications.
 
 ### Hybrid mode (`AUTH_MODE=hybrid`)
 
