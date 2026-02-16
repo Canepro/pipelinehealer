@@ -32,7 +32,7 @@ bash scripts/ph.sh help
 
 For the full CLI reference (all commands, flags, error handling, env overrides), see `docs/CLI.md`.
 
-Common operators:
+Common commands:
 
 ```bash
 bash scripts/ph.sh deploy
@@ -97,13 +97,13 @@ PipelineHealer prioritizes governed remediation over unchecked autonomy:
 
 PipelineHealer intentionally mixes deterministic logic with LLM calls.
 
-AI (Azure OpenAI via Microsoft Agent Framework):
+**AI** (Azure OpenAI via Microsoft Agent Framework):
 
-- Log summarization: condense raw job logs into a short, structured summary.
-- Diagnosis fallback: when pattern rules do not confidently match, the model produces a structured `Diagnosis` JSON. A brace-balanced JSON extractor handles markdown fences, nested objects, and LLM commentary robustly.
-- Remediation narrative: write high-quality PR/issue bodies and root-cause descriptions (the actual file edits are still deterministic).
+- Log summarization — condense raw job logs into a short, structured summary.
+- Diagnosis fallback — when pattern rules do not confidently match, the model produces a structured `Diagnosis` JSON.
+- Remediation narrative — write high-quality PR/issue bodies and root-cause descriptions (the actual file edits are still deterministic).
 
-Pure logic:
+**Pure logic:**
 
 - Webhook ingestion, event routing, idempotency checks.
 - Log extraction (fetch jobs + logs), error/warning line heuristics.
@@ -114,13 +114,13 @@ Pure logic:
 
 ## Healing Modes
 
-`HEAL_MODE` controls how aggressive the system is:
+`HEAL_MODE` controls how aggressive the system is. Set it in `backend/.env` or toggle at runtime via `PATCH /api/settings`.
 
-- `safe` (Recommended): conservative, demo-stable behavior.
-- `demo`: more aggressive hackathon-friendly behavior (for example retry flaky test runs, open PRs that bump workflow timeouts when it can patch a known workflow file).
-- `debug`: identical behavior to `safe`, but emits verbose diagnostic logging at each pipeline step (log extraction details, pattern vs LLM diagnosis path, step timings, which OpenAI client was used). Toggle via admin `PATCH /api/settings` or env var.
-
-See `backend/.env.example`.
+| Mode | Behavior |
+|------|----------|
+| `safe` (recommended) | Conservative, production-stable. PRs for high-confidence fixes only; issues for everything else. |
+| `demo` | More aggressive. Retries flaky tests, opens PRs that bump workflow timeouts, etc. |
+| `debug` | Same behavior as `safe`, but emits verbose logging at each pipeline step (diagnosis path, step timings, which OpenAI client was used). |
 
 ## Overview
 
@@ -248,19 +248,25 @@ The remediation policy is intentionally conservative: deterministic, bounded edi
 
 Issue output may include a `Proposed Fix (For Review Only)` section. These patches are suggestions for human review and are never auto-applied.
 
-Reason code legend for non-auto-applied issue suggestions:
-- `LOW_CONFIDENCE`: confidence score is below auto-remediation threshold.
-- `AMBIGUOUS_RESOLUTION`: multiple valid remediations detected; human choice required.
-- `OUTSIDE_ALLOWED_FILES`: suggested change touches files outside the safe allowlist.
-- `REQUIRES_ENV_CONTEXT`: fix depends on repository/environment context not available at runtime.
-- `SAFETY_BOUND`: blocked by configured safety constraints or mode restrictions.
+**Reason codes** for non-auto-applied issue suggestions:
 
-Output artifact reason codes (remediation succeeded but artifact publication was constrained):
-- `OUTPUT_ISSUES_DISABLED`: target repository has issues disabled; diagnosis completed but issue could not be created.
-- `OUTPUT_PRS_DISABLED`: target repository has pull requests disabled; diagnosis completed but PR could not be created.
-- `OUTPUT_REPO_READ_ONLY`: target repository is archived or read-only; no write operations possible.
-- `OUTPUT_REPO_ARCHIVED`: target repository is archived.
-- `OUTPUT_PERMISSION_DENIED`: PAT or app lacks write permission for this repository.
+| Code | Meaning |
+|------|---------|
+| `LOW_CONFIDENCE` | Confidence score is below auto-remediation threshold |
+| `AMBIGUOUS_RESOLUTION` | Multiple valid remediations detected; human choice required |
+| `OUTSIDE_ALLOWED_FILES` | Suggested change touches files outside the safe allowlist |
+| `REQUIRES_ENV_CONTEXT` | Fix depends on repository/environment context not available at runtime |
+| `SAFETY_BOUND` | Blocked by configured safety constraints or mode restrictions |
+
+**Output artifact codes** (diagnosis succeeded, but artifact publication was constrained):
+
+| Code | Meaning |
+|------|---------|
+| `OUTPUT_ISSUES_DISABLED` | Target repo has issues disabled |
+| `OUTPUT_PRS_DISABLED` | Target repo has PRs disabled |
+| `OUTPUT_REPO_READ_ONLY` | Target repo is archived or read-only |
+| `OUTPUT_REPO_ARCHIVED` | Target repo is archived |
+| `OUTPUT_PERMISSION_DENIED` | PAT or app lacks write permission |
 
 ## Safety Model
 
@@ -398,26 +404,13 @@ Container URLs: Frontend `http://127.0.0.1:3000`, Backend `http://127.0.0.1:8000
 
 > Note: The frontend container uses `BACKEND_UPSTREAM` (defaults to `http://backend:8000` via `docker-compose.yml`). If backend API auth is enabled, also set `API_AUTH_KEY` for the frontend — Nginx forwards it as `X-API-Key` to `/api/*`.
 
-### Local Dev vs Azure Dev
+> **Local vs Azure:** Local dev runs on `127.0.0.1` via `docker compose` or host-native processes. Azure dev runs in Container Apps with public URLs. Both paths work independently — Azure issues do not block local testing.
 
-- **Local dev**: services run on your machine (`127.0.0.1`) via `docker compose` or host-native processes.
-- **Azure dev**: services run in Azure Container Apps with public FQDN URLs.
+## End-to-End Demo
 
-For hackathon submission, Azure deployment is the primary runtime path.
-Local mode is kept as a fast, reproducible evaluation path when Azure is unavailable or when you need rapid iteration.
+For the full demo flow (backend + webhook forwarding + `gh workflow run` triggers), see `docs/LOCAL_DEMO_RUNBOOK.md`.
 
-Important:
-- If local backend/frontend containers are running, your local dev is still accessible even if Azure has issues.
-- Azure issues do not block local testing.
-
-### End-to-End Demo Runbook
-
-For the exact commands to reproduce the full demo flow (backend + smee.io + `gh workflow run` triggers), see:
-
-- `docs/LOCAL_DEMO_RUNBOOK.md`
-- `docs/DEMO_SCRIPT.md` (2-minute recording script + checklist)
-
-For Azure-hosted demos, use the one-command runner (recommended):
+For Azure-hosted demos, use the one-command runner:
 
 ```bash
 bash scripts/ph.sh demo:e2e
@@ -436,43 +429,7 @@ bash scripts/ph.sh demo:reset
 bash scripts/ph.sh demo:e2e --wait-seconds 120
 ```
 
-### Demo Flow (3-4 Minutes)
-
-1. Dashboard story: show `Processed`, `Actioned`, `Safety Gated`, and `Issue-Only` in one glance.
-2. Explainability drilldown: open selected activity details from the snapshot and show reason/evidence context.
-3. External findings: expand the "External Findings Details" panel on an enriched activity to show ci-doctor's structured root cause, recommended actions, and historical context.
-4. Safety gate rationale: highlight reason-code microcopy and why policy-gated changes become review issues.
-5. Audit proof: run `bash scripts/ph.sh audit:proof --limit 5` and show traceable admin change entries.
-
-### Shell Safety For Copy-Paste Blocks
-
-You do **not** need this for every one-line command.
-
-Use it when running long multi-step scripts:
-
-```bash
-set -euo pipefail
-```
-
-- `-e`: stop if a command fails
-- `-u`: fail on unset variables
-- `pipefail`: fail a pipeline if any command in it fails
-
-This avoids partial/broken updates during webhook/deploy command blocks.
-
-### Pre-Deploy Placeholder Audit
-
-Before `azd up` or a public release, run the placeholder/dummy-data audit:
-
-- `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md`
-
-### Future Plan
-
-Roadmap and next AI expansions:
-
-- `docs/FUTURE_PLAN.md`
-
-### Deploy to Azure
+## Deploy to Azure
 
 ```bash
 # Using Azure Developer CLI
@@ -486,7 +443,7 @@ azd env set GITHUB_PERSONAL_ACCESS_TOKEN "<github-pat>"
 azd up
 ```
 
-### Redeploy After Code Changes (Azure Container Apps)
+## Redeploy After Code Changes
 
 If you already have Azure resources provisioned, use one command:
 
@@ -530,20 +487,7 @@ bash scripts/ph.sh deploy --engine docker
 bash scripts/ph.sh deploy --engine podman
 ```
 
-### Dev Environment Status
-
-The Azure `dev` environment stays reachable until you delete its resource group.
-
-- Backend health: `https://<backend-fqdn>/health`
-- Frontend UI: `https://<frontend-fqdn>`
-
-Quick status check:
-
-```bash
-bash scripts/ph.sh status
-```
-
-### What "Scale To Zero" Means (Plain English)
+## Scale To Zero (What It Means)
 
 Container Apps can automatically scale down to `0` running instances when there is no traffic.
 
@@ -577,7 +521,7 @@ bash scripts/ph.sh lowcost
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint URL | Yes |
-| `AZURE_OPENAI_DEPLOYMENT_NAME` | Model deployment name (for example `gpt-5-mini` or `gpt-4o`) | Yes |
+| `AZURE_OPENAI_DEPLOYMENT_NAME` | Model deployment name (for example `gpt-4o`, `gpt-4o-mini`, `gpt-5-mini`) | Yes |
 | `AZURE_OPENAI_API_VERSION` | API version for the primary Responses client (default: `2025-04-01-preview`) | Optional |
 | `AZURE_OPENAI_CHAT_API_VERSION` | API version for the fallback Chat Completions client (default: `2024-12-01-preview`) | Optional |
 | `COSMOS_DB_ENDPOINT` | Cosmos DB endpoint (in-memory fallback used when empty) | Optional (prod) |
