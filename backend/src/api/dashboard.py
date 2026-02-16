@@ -28,7 +28,7 @@ from ..models import (
 from ..storage import ActivityStorage
 from ..workflows.pipeline_healer import PipelineHealerWorkflow
 from .deps import get_storage, get_workflow
-from .security import require_admin_key, require_api_key
+from .security import get_request_principal, require_admin_key, require_api_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["dashboard"], dependencies=[Depends(require_api_key)])
@@ -166,6 +166,9 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         verify_webhook_signature_in_development=settings.verify_webhook_signature_in_development,
         api_auth_enabled=bool(settings.api_auth_key),
         admin_api_auth_enabled=bool(settings.admin_api_key),
+        auth_mode=settings.auth_mode,
+        entra_auth_enabled=bool(settings.entra_tenant_id and settings.entra_client_id),
+        entra_admin_roles=[role for role in settings.entra_admin_roles if role],
         github_pat_configured=has_pat,
         github_app_configured=has_app,
         github_auth_mode=github_auth_mode,
@@ -519,9 +522,12 @@ async def update_app_settings(
 
     workflow.refresh_runtime_settings()
 
-    # Never store raw admin credentials. Keep a short salted fingerprint for traceability.
+    # Never store raw admin credentials. Keep a short actor fingerprint for traceability.
     actor_fingerprint: str | None = None
-    if x_admin_key:
+    principal = get_request_principal(request)
+    if principal is not None:
+        actor_fingerprint = f"entra:{principal.subject[:24]}"
+    elif x_admin_key:
         salted = f"{settings.audit_salt}:{x_admin_key}" if settings.audit_salt else x_admin_key
         actor_fingerprint = f"admin_key:sha256:{hashlib.sha256(salted.encode('utf-8')).hexdigest()[:12]}"
 

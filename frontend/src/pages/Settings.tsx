@@ -19,6 +19,7 @@ export default function SettingsPage() {
   const queryClient = useQueryClient()
   const [adminKeyInput, setAdminKeyInput] = useState('')
   const [adminKey, setAdminKey] = useState('')
+  const [useSessionAuth, setUseSessionAuth] = useState(false)
   const [form, setForm] = useState<SettingsFormState>({
     heal_mode: 'safe',
     auto_create_pr: true,
@@ -41,11 +42,13 @@ export default function SettingsPage() {
   const [lastSavedForm, setLastSavedForm] = useState<SettingsFormState | null>(null)
   const [newRepoInput, setNewRepoInput] = useState('')
   const [, setGhAwWorkflowsInput] = useState('')
+  const hasAuthAttempt = useSessionAuth || adminKey.length > 0
+  const effectiveAdminKey = useSessionAuth ? undefined : adminKey
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['app-settings', adminKey],
-    queryFn: () => api.getSettings(adminKey),
-    enabled: adminKey.length > 0,
+    queryKey: ['app-settings', adminKey, useSessionAuth],
+    queryFn: () => api.getSettings(effectiveAdminKey),
+    enabled: hasAuthAttempt,
     retry: false,
   })
 
@@ -56,8 +59,8 @@ export default function SettingsPage() {
     isError: isAuditError,
     error: auditError,
   } = useQuery({
-    queryKey: ['settings-audit', adminKey],
-    queryFn: () => api.getSettingsAudit(adminKey, 20),
+    queryKey: ['settings-audit', adminKey, useSessionAuth],
+    queryFn: () => api.getSettingsAudit(effectiveAdminKey, 20),
     enabled: false,
     retry: false,
   })
@@ -97,15 +100,15 @@ export default function SettingsPage() {
       if (deploymentName) {
         payload.azure_openai_deployment_name = deploymentName
       }
-      return api.updateSettings(adminKey, payload)
+      return api.updateSettings(effectiveAdminKey, payload)
     },
     onSuccess: async (updated) => {
       const next = toSettingsForm(updated)
       setForm(next)
       setLastSavedForm(next)
       setGhAwWorkflowsInput(next.gh_aw_known_workflows.join(','))
-      queryClient.setQueryData(['app-settings', adminKey], updated)
-      await queryClient.invalidateQueries({ queryKey: ['app-settings', adminKey] })
+      queryClient.setQueryData(['app-settings', adminKey, useSessionAuth], updated)
+      await queryClient.invalidateQueries({ queryKey: ['app-settings', adminKey, useSessionAuth] })
       toast.success('Settings saved', {
         description: 'Runtime settings updated. Changes are active immediately.',
       })
@@ -118,9 +121,9 @@ export default function SettingsPage() {
   })
 
   const persistMutation = useMutation({
-    mutationFn: () => api.persistSettings(adminKey),
+    mutationFn: () => api.persistSettings(effectiveAdminKey),
     onSuccess: async (result) => {
-      await queryClient.invalidateQueries({ queryKey: ['app-settings', adminKey] })
+      await queryClient.invalidateQueries({ queryKey: ['app-settings', adminKey, useSessionAuth] })
       if (result.redeploy_attempted && !result.redeploy_started) {
         toast.error('Settings persisted but redeploy did not start', {
           description: result.redeploy_message,
@@ -193,6 +196,7 @@ export default function SettingsPage() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && adminKeyInput.trim()) {
                   e.preventDefault()
+                  setUseSessionAuth(false)
                   setAdminKey(adminKeyInput.trim())
                 }
               }}
@@ -200,20 +204,34 @@ export default function SettingsPage() {
               className="flex-1"
             />
             <Button
-              onClick={() => setAdminKey(adminKeyInput.trim())}
+              onClick={() => {
+                setUseSessionAuth(false)
+                setAdminKey(adminKeyInput.trim())
+              }}
               disabled={!adminKeyInput.trim() || isLoading}
             >
-              {isLoading ? 'Loading...' : 'Authenticate'}
+              {isLoading ? 'Loading...' : 'Load with Admin Key'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setUseSessionAuth(true)
+                setAdminKey('')
+              }}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Loading...' : 'Use Login Session'}
             </Button>
           </div>
           <p className="mt-2 text-xs text-[var(--ph-muted)]">
-            Authenticates via the <code className="font-mono">X-Admin-Key</code> header.
+            Use either <code className="font-mono">X-Admin-Key</code> or a signed-in Entra role
+            with admin permissions.
           </p>
         </CardContent>
       </Card>
 
       {/* Loading skeleton */}
-      {adminKey && isLoading && (
+      {hasAuthAttempt && isLoading && (
         <Card>
           <CardContent className="py-6">
             <div className="space-y-4">
@@ -227,7 +245,7 @@ export default function SettingsPage() {
       )}
 
       {/* Error state */}
-      {adminKey && isError && (
+      {hasAuthAttempt && isError && (
         <Card className="border-rose-500/30">
           <CardContent className="py-6">
             <p className="text-sm font-medium text-rose-500">Failed to load settings</p>
@@ -264,7 +282,7 @@ export default function SettingsPage() {
           />
 
           <AuditTrailPanel
-            adminKey={adminKey}
+            canLoad={hasAuthAttempt}
             entries={auditEntries}
             isLoading={isAuditLoading}
             isError={isAuditError}

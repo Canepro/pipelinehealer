@@ -2,6 +2,13 @@ const API_BASE = import.meta.env.VITE_API_URL || ''
 const API_AUTH_KEY = import.meta.env.VITE_API_AUTH_KEY || ''
 const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || '15000')
 
+type AuthTokenProvider = () => Promise<string | null>
+let authTokenProvider: AuthTokenProvider | null = null
+
+export function configureApiAuthTokenProvider(provider: AuthTokenProvider | null): void {
+  authTokenProvider = provider
+}
+
 export interface DashboardStats {
   total_runs_processed: number
   actioned_remediations: number
@@ -85,6 +92,9 @@ export interface AppSettings {
   verify_webhook_signature_in_development: boolean
   api_auth_enabled: boolean
   admin_api_auth_enabled: boolean
+  auth_mode: string
+  entra_auth_enabled: boolean
+  entra_admin_roles: string[]
   github_pat_configured: boolean
   github_app_configured: boolean
   github_auth_mode: string
@@ -169,6 +179,14 @@ function getApiErrorMessage(status: number, statusText: string, bodyText: string
 async function fetchJson<T>(path: string, options?: ApiRequestOptions): Promise<T> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
+  let bearerToken: string | null = null
+  if (authTokenProvider) {
+    try {
+      bearerToken = await authTokenProvider()
+    } catch {
+      bearerToken = null
+    }
+  }
   const upstreamSignal = options?.signal
   if (upstreamSignal) {
     if (upstreamSignal.aborted) {
@@ -184,6 +202,7 @@ async function fetchJson<T>(path: string, options?: ApiRequestOptions): Promise<
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
+        ...(bearerToken ? { Authorization: `Bearer ${bearerToken}` } : {}),
         ...(API_AUTH_KEY ? { 'X-API-Key': API_AUTH_KEY } : {}),
         ...(options?.adminKey ? { 'X-Admin-Key': options.adminKey } : {}),
         ...options?.headers,
@@ -216,22 +235,22 @@ async function fetchJson<T>(path: string, options?: ApiRequestOptions): Promise<
 
 export const api = {
   getStats: () => fetchJson<DashboardStats>('/api/stats'),
-  getSettings: (adminKey: string) =>
+  getSettings: (adminKey?: string) =>
     fetchJson<AppSettings>('/api/settings', { adminKey }),
   // Intentionally not auto-loaded.
   // Admin audit access is gated and activated via explicit UI action.
-  getSettingsAudit: (adminKey: string, limit = 50) =>
+  getSettingsAudit: (adminKey: string | undefined, limit = 50) =>
     fetchJson<AdminSettingsAuditEntry[]>(
       `/api/settings/audit?limit=${Math.max(1, Math.min(limit, 200))}`,
       { adminKey }
     ),
-  updateSettings: (adminKey: string, payload: AdminSettingsUpdate) =>
+  updateSettings: (adminKey: string | undefined, payload: AdminSettingsUpdate) =>
     fetchJson<AppSettings>('/api/settings', {
       method: 'PATCH',
       adminKey,
       body: JSON.stringify(payload),
     }),
-  persistSettings: (adminKey: string, skipRedeploy = false) =>
+  persistSettings: (adminKey: string | undefined, skipRedeploy = false) =>
     fetchJson<AdminSettingsPersistResponse>('/api/settings/persist', {
       method: 'POST',
       adminKey,

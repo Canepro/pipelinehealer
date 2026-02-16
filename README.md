@@ -521,6 +521,13 @@ bash scripts/ph.sh lowcost
 | `GITHUB_PERSONAL_ACCESS_TOKEN` | GitHub PAT for API access | Yes |
 | `API_AUTH_KEY` | Required `X-API-Key` value for `/api/*` in non-development envs | Yes (non-dev) |
 | `ADMIN_API_KEY` | Required `X-Admin-Key` value for admin settings endpoints (`GET/PATCH /api/settings`) | Yes (recommended in all envs) |
+| `AUTH_MODE` | API auth mode: `api_key`, `entra`, or `hybrid` | Optional (default: `api_key`) |
+| `ENTRA_TENANT_ID` | Entra tenant ID used for OIDC validation (when `AUTH_MODE=entra|hybrid`) | Required for Entra mode |
+| `ENTRA_CLIENT_ID` | App/client ID used for backend audience defaults | Required for Entra mode |
+| `ENTRA_ALLOWED_AUDIENCES` | Accepted JWT audiences (CSV or JSON array). Defaults to `api://<ENTRA_CLIENT_ID>,<ENTRA_CLIENT_ID>` | Optional |
+| `ENTRA_ISSUER` | Optional issuer override (otherwise derived from tenant) | Optional |
+| `ENTRA_JWKS_URL` | Optional JWKS URL override (otherwise derived from tenant) | Optional |
+| `ENTRA_ADMIN_ROLES` | Role/scope names allowed for admin settings endpoints (CSV or JSON array) | Optional (default includes `PipelineHealer.Admin`) |
 | `AUDIT_SALT` | Optional salt used to derive admin actor fingerprints for settings-audit records | Optional |
 | `VERIFY_WEBHOOK_SIGNATURE` | Enable webhook signature verification | Recommended `true` |
 | `VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT` | Enforce signature checks in development too | Optional |
@@ -537,24 +544,37 @@ bash scripts/ph.sh lowcost
 | `GH_AW_TOOLS_ENABLED` | Enable GitHub Agentic Workflows integration (`true`/`false`) | Optional |
 | `GH_AW_INGESTION_MODE` | gh-aw ingestion mode: `disabled` or `passive` | Optional |
 | `GH_AW_KNOWN_WORKFLOWS` | Known gh-aw workflow names (CSV, e.g. `ci-doctor,schema-consistency-checker`) | Optional |
+| `VITE_AUTH_MODE` | Frontend auth mode: `none` or `entra` | Optional (default: `none`) |
+| `VITE_ENTRA_TENANT_ID` | Frontend Entra tenant ID (or use `VITE_ENTRA_AUTHORITY`) | Required for Entra login |
+| `VITE_ENTRA_CLIENT_ID` | Frontend Entra SPA client ID | Required for Entra login |
+| `VITE_ENTRA_AUTHORITY` | Optional Entra authority override (`https://login.microsoftonline.com/<tenant>`) | Optional |
+| `VITE_ENTRA_API_SCOPE` | API delegated scope requested by frontend (for Bearer token) | Required for Entra login |
+| `VITE_ENTRA_REDIRECT_URI` | Optional frontend redirect URI override | Optional |
+| `VITE_ENTRA_POST_LOGOUT_REDIRECT_URI` | Optional logout redirect URI override | Optional |
 | `VITE_API_AUTH_KEY` | Frontend API key header value (`X-API-Key`) when calling protected `/api/*` routes | Optional |
 
 ### API Security
 
-- `/api/*` endpoints require `X-API-Key` when `ENVIRONMENT` is not `development`.
-- `/api/settings` and `/api/settings/audit` use `X-Admin-Key` and, in non-development, also require `X-API-Key`.
-- In `development`, API key auth is bypassed for local iteration.
+- `AUTH_MODE=api_key` (default): legacy headers (`X-API-Key` and `X-Admin-Key`) are used.
+- `AUTH_MODE=entra`: `/api/*` requires `Authorization: Bearer <token>`, and admin settings routes require an Entra admin role/scope from `ENTRA_ADMIN_ROLES`.
+- `AUTH_MODE=hybrid`: either Bearer token **or** API keys are accepted (useful during rollout/migration).
+- In `development`, auth bypass remains only for `AUTH_MODE=api_key` to preserve local iteration.
 - In `production`, keep `VERIFY_WEBHOOK_SIGNATURE=true` and set `GITHUB_WEBHOOK_SECRET`.
 
 Example:
 
 ```bash
+# API-key mode (legacy)
 curl -H "X-API-Key: $API_AUTH_KEY" "http://127.0.0.1:8000/api/activities?limit=20"
+
+# Entra mode
+curl -H "Authorization: Bearer $ACCESS_TOKEN" "http://127.0.0.1:8000/api/activities?limit=20"
 ```
 
 Admin settings examples:
 
 ```bash
+# API-key mode
 curl -H "X-API-Key: $API_AUTH_KEY" -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings"
 
 curl -X PATCH \
@@ -563,6 +583,9 @@ curl -X PATCH \
   -H "Content-Type: application/json" \
   -d '{"heal_mode":"safe","pipeline_step_timeout_seconds":120}' \
   "http://127.0.0.1:8000/api/settings"
+
+# Entra mode (requires role in ENTRA_ADMIN_ROLES)
+curl -H "Authorization: Bearer $ACCESS_TOKEN" "http://127.0.0.1:8000/api/settings"
 
 curl -H "X-API-Key: $API_AUTH_KEY" -H "X-Admin-Key: $ADMIN_API_KEY" "http://127.0.0.1:8000/api/settings/audit?limit=20"
 ```

@@ -11,9 +11,15 @@ Base URL (local): `http://127.0.0.1:8000`
 
 ## Authentication
 
-### API Key (`X-API-Key`)
+Authentication behavior is controlled by `AUTH_MODE`:
 
-All `/api/*` endpoints require the `X-API-Key` header in non-development environments.
+- `api_key` (default): legacy headers (`X-API-Key`, `X-Admin-Key`)
+- `entra`: OIDC Bearer tokens (Microsoft Entra ID)
+- `hybrid`: accepts either Bearer token or legacy key headers (migration mode)
+
+### API Key mode (`AUTH_MODE=api_key`)
+
+All `/api/*` endpoints require `X-API-Key` in non-development environments.
 
 ```bash
 curl -H "X-API-Key: $API_AUTH_KEY" "$BACKEND_URL/api/stats"
@@ -22,16 +28,34 @@ curl -H "X-API-Key: $API_AUTH_KEY" "$BACKEND_URL/api/stats"
 - Configured via `API_AUTH_KEY` env var.
 - Bypassed automatically when `ENVIRONMENT=development`.
 
-### Admin Key (`X-Admin-Key`)
+### Entra mode (`AUTH_MODE=entra`)
 
-Admin endpoints (`/api/settings`, `/api/settings/audit`) require **both** `X-API-Key` and `X-Admin-Key` in non-development environments.
+All `/api/*` endpoints require `Authorization: Bearer <token>`.
+
+```bash
+curl -H "Authorization: Bearer $ACCESS_TOKEN" "$BACKEND_URL/api/stats"
+```
+
+- Configure backend with `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and optional `ENTRA_ALLOWED_AUDIENCES`.
+- Admin settings routes require Entra role/scope membership from `ENTRA_ADMIN_ROLES`.
+
+### Hybrid mode (`AUTH_MODE=hybrid`)
+
+`/api/*` accepts either Bearer token or API key header.
+
+- If Bearer token is used for admin endpoints, role checks from `ENTRA_ADMIN_ROLES` apply.
+- If key headers are used, `X-API-Key` + `X-Admin-Key` behavior remains unchanged.
+
+### Admin Key (`X-Admin-Key`) in key/hybrid mode
+
+Admin endpoints (`/api/settings`, `/api/settings/audit`) require **both** `X-API-Key` and `X-Admin-Key` when using key-based authentication.
 
 ```bash
 curl -H "X-API-Key: $API_AUTH_KEY" -H "X-Admin-Key: $ADMIN_API_KEY" "$BACKEND_URL/api/settings"
 ```
 
 - Configured via `ADMIN_API_KEY` env var.
-- `X-Admin-Key` is always required (even in development).
+- In `AUTH_MODE=entra`, admin role authorization replaces `X-Admin-Key`.
 
 ### Webhook Signature (`X-Hub-Signature-256`)
 

@@ -6,8 +6,10 @@ from pathlib import Path
 
 import httpx
 import pytest
+from fastapi import HTTPException
 
-from src.api import dashboard
+from src.api import dashboard, security
+from src.api.security import AuthPrincipal
 from src.config import Settings, get_settings, reset_settings
 from src.main import app
 from src.storage import InMemoryStorage
@@ -23,6 +25,10 @@ def clear_settings_cache() -> None:
 
 
 class _DummyWorkflow:
+    async def start(self, event) -> str:  # type: ignore[no-untyped-def]
+        _ = event
+        return "activity-test-123"
+
     def refresh_runtime_settings(self) -> None:
         return None
 
@@ -71,6 +77,8 @@ async def _post_ping(
     headers: dict[str, str] | None = None,
     raw_payload: bytes | None = None,
 ) -> httpx.Response:
+    if not hasattr(app.state, "workflow"):
+        app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
     transport = httpx.ASGITransport(app=app)
     merged_headers = {
         "X-GitHub-Event": "ping",
@@ -88,6 +96,8 @@ async def _post_workflow_run(
     payload: dict[str, object],
     headers: dict[str, str] | None = None,
 ) -> httpx.Response:
+    if not hasattr(app.state, "workflow"):
+        app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
     transport = httpx.ASGITransport(app=app)
     merged_headers = {
         "X-GitHub-Event": "workflow_run",
@@ -133,6 +143,108 @@ async def test_api_routes_require_key_in_non_development(monkeypatch) -> None:
 
     valid = await _get_activities(headers={"X-API-Key": "secret-123"})
     assert valid.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_api_routes_require_bearer_token_in_entra_mode(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("AUTH_MODE", "entra")
+    monkeypatch.setenv("ENTRA_TENANT_ID", "tenant-123")
+    monkeypatch.setenv("ENTRA_CLIENT_ID", "client-123")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+
+    def _fake_validate(authorization: str | None) -> AuthPrincipal:
+        if authorization != "Bearer valid-token":
+            raise HTTPException(status_code=401, detail="Invalid bearer token")
+        return AuthPrincipal(
+            subject="user-123",
+            roles=frozenset(),
+            scopes=frozenset({"PipelineHealer.Access"}),
+            claims={"sub": "user-123"},
+        )
+
+    monkeypatch.setattr(security, "_validate_bearer_token", _fake_validate)
+
+    missing = await _get_activities()
+    assert missing.status_code == 401
+
+    invalid = await _get_activities(headers={"Authorization": "Bearer wrong-token"})
+    assert invalid.status_code == 401
+
+    valid = await _get_activities(headers={"Authorization": "Bearer valid-token"})
+    assert valid.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_api_routes_accept_key_or_bearer_in_hybrid_mode(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("AUTH_MODE", "hybrid")
+    monkeypatch.setenv("API_AUTH_KEY", "hybrid-api-key")
+    monkeypatch.setenv("ENTRA_TENANT_ID", "tenant-123")
+    monkeypatch.setenv("ENTRA_CLIENT_ID", "client-123")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+
+    def _fake_validate(authorization: str | None) -> AuthPrincipal:
+        if authorization != "Bearer hybrid-token":
+            raise HTTPException(status_code=401, detail="Invalid bearer token")
+        return AuthPrincipal(
+            subject="user-456",
+            roles=frozenset(),
+            scopes=frozenset({"PipelineHealer.Access"}),
+            claims={"sub": "user-456"},
+        )
+
+    monkeypatch.setattr(security, "_validate_bearer_token", _fake_validate)
+
+    missing = await _get_activities()
+    assert missing.status_code == 401
+
+    with_key = await _get_activities(headers={"X-API-Key": "hybrid-api-key"})
+    assert with_key.status_code == 200
+
+    with_bearer = await _get_activities(headers={"Authorization": "Bearer hybrid-token"})
+    assert with_bearer.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_settings_admin_route_accepts_entra_admin_role(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("AUTH_MODE", "entra")
+    monkeypatch.setenv("ENTRA_TENANT_ID", "tenant-123")
+    monkeypatch.setenv("ENTRA_CLIENT_ID", "client-123")
+    monkeypatch.setenv("ENTRA_ADMIN_ROLES", "PipelineHealer.Admin")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+
+    def _fake_validate(authorization: str | None) -> AuthPrincipal:
+        if authorization == "Bearer admin-token":
+            return AuthPrincipal(
+                subject="admin-user",
+                roles=frozenset({"PipelineHealer.Admin"}),
+                scopes=frozenset(),
+                claims={"sub": "admin-user"},
+            )
+        if authorization == "Bearer user-token":
+            return AuthPrincipal(
+                subject="regular-user",
+                roles=frozenset({"PipelineHealer.Reader"}),
+                scopes=frozenset(),
+                claims={"sub": "regular-user"},
+            )
+        raise HTTPException(status_code=401, detail="Invalid bearer token")
+
+    monkeypatch.setattr(security, "_validate_bearer_token", _fake_validate)
+
+    forbidden = await _get_settings(headers={"Authorization": "Bearer user-token"})
+    assert forbidden.status_code == 403
+
+    allowed = await _get_settings(headers={"Authorization": "Bearer admin-token"})
+    assert allowed.status_code == 200
 
 
 @pytest.mark.asyncio

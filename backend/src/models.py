@@ -237,6 +237,9 @@ class AppSettingsView(BaseModel):
     verify_webhook_signature_in_development: bool
     api_auth_enabled: bool
     admin_api_auth_enabled: bool
+    auth_mode: str
+    entra_auth_enabled: bool
+    entra_admin_roles: list[str]
     github_pat_configured: bool
     github_app_configured: bool
     github_auth_mode: str

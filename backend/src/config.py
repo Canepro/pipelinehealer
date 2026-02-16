@@ -131,6 +131,51 @@ class Settings(BaseSettings):
         default="",
         description="Admin API key required for admin settings operations (sent via X-Admin-Key)",
     )
+    auth_mode: str = Field(
+        default="api_key",
+        description=(
+            "Authentication mode for /api routes: "
+            "'api_key' (legacy headers), 'entra' (OIDC bearer token), or "
+            "'hybrid' (accept either)."
+        ),
+    )
+    entra_tenant_id: str = Field(
+        default="",
+        description="Microsoft Entra tenant ID for OIDC token validation.",
+    )
+    entra_client_id: str = Field(
+        default="",
+        description="Application (client) ID used for backend token audience defaults.",
+    )
+    entra_issuer: str = Field(
+        default="",
+        description=(
+            "Optional OIDC issuer override. "
+            "Default: https://login.microsoftonline.com/<tenant-id>/v2.0"
+        ),
+    )
+    entra_jwks_url: str = Field(
+        default="",
+        description=(
+            "Optional JWKS URL override. "
+            "Default: https://login.microsoftonline.com/<tenant-id>/discovery/v2.0/keys"
+        ),
+    )
+    entra_allowed_audiences: Annotated[list[str], NoDecode] = Field(
+        default_factory=list,
+        description=(
+            "Accepted JWT audience values for Entra bearer tokens. "
+            "Defaults to ['api://<entra_client_id>', '<entra_client_id>'] when empty."
+        ),
+    )
+    entra_admin_roles: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: [
+            "PipelineHealer.Admin",
+        ],
+        description=(
+            "Accepted Entra app-role (or scope) values for admin-only settings endpoints."
+        ),
+    )
     audit_salt: str = Field(
         default="",
         description="Optional salt used when generating admin actor fingerprints for audit entries",
@@ -257,6 +302,47 @@ class Settings(BaseSettings):
         if isinstance(value, list):
             return [str(workflow).strip() for workflow in value if str(workflow).strip()]
         return value
+
+    @field_validator("entra_allowed_audiences", mode="before")
+    @classmethod
+    def parse_entra_allowed_audiences(cls, value: Any) -> Any:
+        """Allow Entra audiences from JSON arrays or comma-separated env values."""
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return []
+            if text.startswith("["):
+                parsed = json.loads(text)
+                return [str(item).strip() for item in parsed if str(item).strip()]
+            return [audience.strip() for audience in text.split(",") if audience.strip()]
+        if isinstance(value, list):
+            return [str(audience).strip() for audience in value if str(audience).strip()]
+        return value
+
+    @field_validator("entra_admin_roles", mode="before")
+    @classmethod
+    def parse_entra_admin_roles(cls, value: Any) -> Any:
+        """Allow Entra role list from JSON arrays or comma-separated env values."""
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return []
+            if text.startswith("["):
+                parsed = json.loads(text)
+                return [str(item).strip() for item in parsed if str(item).strip()]
+            return [role.strip() for role in text.split(",") if role.strip()]
+        if isinstance(value, list):
+            return [str(role).strip() for role in value if str(role).strip()]
+        return value
+
+    @field_validator("auth_mode")
+    @classmethod
+    def validate_auth_mode(cls, value: str) -> str:
+        """Validate API auth mode."""
+        normalized = value.strip().lower()
+        if normalized not in {"api_key", "entra", "hybrid"}:
+            raise ValueError("AUTH_MODE must be one of: api_key, entra, hybrid")
+        return normalized
 
     @field_validator("gh_aw_ingestion_mode")
     @classmethod

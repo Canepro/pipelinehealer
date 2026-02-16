@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/table'
 
 interface Props {
-  adminKey: string
+  canLoad: boolean
   entries: AdminSettingsAuditEntry[] | undefined
   isLoading: boolean
   isError: boolean
@@ -29,7 +29,14 @@ interface Props {
   onLoad: () => void
 }
 
-export default function AuditTrailPanel({ adminKey, entries, isLoading, isError, error, onLoad }: Props) {
+export default function AuditTrailPanel({
+  canLoad,
+  entries,
+  isLoading,
+  isError,
+  error,
+  onLoad,
+}: Props) {
   const handleCopyTrace = async (entry: AdminSettingsAuditEntry) => {
     if (!entry.request_id) {
       toast.error('No trace id available for this entry')
@@ -66,7 +73,7 @@ export default function AuditTrailPanel({ adminKey, entries, isLoading, isError,
         <Button
           type="button"
           variant="secondary"
-          disabled={isLoading || !adminKey}
+          disabled={isLoading || !canLoad}
           onClick={onLoad}
         >
           {isLoading ? 'Loading...' : 'Load Audit'}

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { SonnerToaster } from '@/components/ui/sonner'
+import { AppAuthProvider } from './auth/AuthProvider'
 import './index.css'
 
 const queryClient = new QueryClient({
@@ -19,8 +20,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <App />
-        <SonnerToaster />
+        <AppAuthProvider>
+          <App />
+          <SonnerToaster />
+        </AppAuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>,

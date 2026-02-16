@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
+import RequireAuth from './auth/RequireAuth'
 
 const Landing = lazy(() => import('./pages/Landing'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -21,7 +22,14 @@ function App() {
     <Suspense fallback={<PageFallback />}>
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/app" element={<Layout />}>
+        <Route
+          path="/app"
+          element={
+            <RequireAuth>
+              <Layout />
+            </RequireAuth>
+          }
+        >
           <Route index element={<Dashboard />} />
           <Route path="activities" element={<Activities />} />
           <Route path="activities/:id" element={<ActivityDetail />} />
