@@ -194,7 +194,7 @@ export default function AdminControlsForm({
 
               <div className="space-y-1.5">
                 <Label className="text-[var(--ph-muted)]">Endpoint</Label>
-                <p className="text-sm font-medium text-[var(--ph-text)] break-all py-2">
+                <p className="text-sm font-medium text-[var(--ph-text)] break-words py-2 font-mono leading-relaxed">
                   {data.azure_openai_endpoint || (
                     <span className="text-[var(--ph-muted)] italic">Not configured</span>
                   )}
