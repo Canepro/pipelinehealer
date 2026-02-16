@@ -204,7 +204,7 @@ export default function ActivityTable({
                 </span>
                 <div className="flex items-center space-x-2">
                   <Button asChild variant="ghost" size="sm">
-                    <Link to={`/activities/${activity.id}`}>View</Link>
+                    <Link to={`/app/activities/${activity.id}`}>View</Link>
                   </Button>
                   {externalMeta?.findingsUrl && (
                     <Button asChild variant="ghost" size="sm">
@@ -331,7 +331,7 @@ export default function ActivityTable({
                   <TableCell className="pr-6 whitespace-nowrap text-sm">
                     <div className="flex items-center space-x-2">
                       <Button asChild variant="ghost" size="sm">
-                        <Link to={`/activities/${activity.id}`}>View</Link>
+                        <Link to={`/app/activities/${activity.id}`}>View</Link>
                       </Button>
                       {externalMeta?.findingsUrl && (
                         <Button asChild variant="ghost" size="sm">

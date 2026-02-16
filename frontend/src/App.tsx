@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 
+const Landing = lazy(() => import('./pages/Landing'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Activities = lazy(() => import('./pages/Activities'))
 const ActivityDetail = lazy(() => import('./pages/ActivityDetail'))
@@ -17,16 +18,17 @@ function PageFallback() {
 
 function App() {
   return (
-    <Layout>
-      <Suspense fallback={<PageFallback />}>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/activities" element={<Activities />} />
-          <Route path="/activities/:id" element={<ActivityDetail />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Routes>
-      </Suspense>
-    </Layout>
+    <Suspense fallback={<PageFallback />}>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/app" element={<Layout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="activities" element={<Activities />} />
+          <Route path="activities/:id" element={<ActivityDetail />} />
+          <Route path="settings" element={<SettingsPage />} />
+        </Route>
+      </Routes>
+    </Suspense>
   )
 }
 

@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { Activity, LayoutDashboard, Menu, Settings, Zap } from 'lucide-react'
 import clsx from 'clsx'
 import { useEffect, useState } from 'react'
@@ -14,17 +14,13 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 
-interface LayoutProps {
-  children: React.ReactNode
-}
-
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Activities', href: '/activities', icon: Activity },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Dashboard', href: '/app', icon: LayoutDashboard },
+  { name: 'Activities', href: '/app/activities', icon: Activity },
+  { name: 'Settings', href: '/app/settings', icon: Settings },
 ]
 
-export default function Layout({ children }: LayoutProps) {
+export default function Layout() {
   const location = useLocation()
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
 
@@ -34,7 +30,9 @@ export default function Layout({ children }: LayoutProps) {
 
   const currentPageTitle =
     navigation.find((item) =>
-      item.href === '/' ? location.pathname === '/' : location.pathname.startsWith(item.href)
+      item.href === '/app'
+        ? location.pathname === '/app' || location.pathname === '/app/'
+        : location.pathname.startsWith(item.href)
     )?.name || 'PipelineHealer'
 
   return (
@@ -53,8 +51,8 @@ export default function Layout({ children }: LayoutProps) {
             <nav className="flex-1 px-3 space-y-1.5">
               {navigation.map((item) => {
                 const isActive =
-                  item.href === '/'
-                    ? location.pathname === '/'
+                  item.href === '/app'
+                    ? location.pathname === '/app' || location.pathname === '/app/'
                     : location.pathname.startsWith(item.href)
                 return (
                   <Link
@@ -122,8 +120,8 @@ export default function Layout({ children }: LayoutProps) {
             <nav className="space-y-1.5">
               {navigation.map((item) => {
                 const isActive =
-                  item.href === '/'
-                    ? location.pathname === '/'
+                  item.href === '/app'
+                    ? location.pathname === '/app' || location.pathname === '/app/'
                     : location.pathname.startsWith(item.href)
 
                 return (
@@ -157,7 +155,9 @@ export default function Layout({ children }: LayoutProps) {
       <div className="min-w-0 flex flex-col flex-1">
         <main className="flex-1 md:pt-0 pt-[calc(3.5rem+env(safe-area-inset-top))]">
           <div className="py-8">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">{children}</div>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+              <Outlet />
+            </div>
           </div>
         </main>
       </div>

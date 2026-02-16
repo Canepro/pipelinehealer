@@ -432,7 +432,7 @@ export default function Dashboard() {
                 </label>
                 <div className="flex flex-wrap items-end gap-2">
                   <Button asChild variant="secondary" size="sm">
-                    <a href={`/activities?focus=${selectedActivity?.id || ''}`}>View activity</a>
+                    <a href={`/app/activities?focus=${selectedActivity?.id || ''}`}>View activity</a>
                   </Button>
                   {selectedArtifactUrl && (
                     <Button asChild variant="ghost" size="sm">
@@ -526,7 +526,7 @@ export default function Dashboard() {
             Recent Activities
           </h2>
           <Button asChild size="sm" variant="ghost">
-            <a href="/activities">View all</a>
+            <a href="/app/activities">View all</a>
           </Button>
         </div>
         <ActivityTable
