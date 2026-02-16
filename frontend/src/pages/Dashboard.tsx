@@ -311,6 +311,8 @@ export default function Dashboard() {
                       fontSize: '12px',
                       padding: '8px 10px',
                     }}
+                    labelStyle={{ color: '#e2e8f0', fontWeight: 500 }}
+                    itemStyle={{ color: '#e2e8f0' }}
                     wrapperStyle={{ maxWidth: 'min(90vw, 320px)' }}
                   />
                 </PieChart>
@@ -374,6 +376,8 @@ export default function Dashboard() {
                       fontSize: '12px',
                       padding: '8px 10px',
                     }}
+                    labelStyle={{ color: '#e2e8f0', fontWeight: 500 }}
+                    itemStyle={{ color: '#e2e8f0' }}
                     formatter={(value: number) => [`${value} run${value === 1 ? '' : 's'}`, 'Runs']}
                     wrapperStyle={{ maxWidth: 'min(90vw, 320px)' }}
                   />

@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: dda4b68 -->
+<!-- LAST_VERIFIED: 32f7c34 -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -247,6 +247,9 @@ flowchart LR
 - **Async External Diagnostics Backfill**: Background sweep (every 10 min) enriches completed activities whose ci-doctor findings arrived after the original poll window; manual trigger via `POST /api/backfill-diagnostics`
 - **Deep Content Enrichment**: Structured extraction of ci-doctor issue bodies — summary, root cause, recommended actions, historical context, doctor engine/model metadata — stored in `external_diagnostics[].metadata.details`
 - **External Findings Panel**: Collapsible UI panel rendering enriched ci-doctor findings with markdown formatting, section truncation, and auto-expand for available diagnostics
+- **Stale Activity Recovery**: Activities interrupted by container restarts (scale-to-zero, redeploy) are automatically marked failed on startup with a clear explanation instead of remaining stuck forever
+- **Capability-Aware Remediation**: Graceful handling when target repos have issues or PRs disabled — remediation returns a `SKIP` with a user-friendly reason code instead of a confusing HTTP error
+- **Smart External Diagnostics Polling**: Skips ci-doctor polling when the failed workflow is itself a known gh-aw workflow, preventing unnecessary 8-minute wait windows
 - **Mobile Navigation Reliability**: Route-safe, notch-safe sheet navigation for portrait mobile workflows
 - **Route-Level Code Splitting**: Each page loads as a separate chunk via `React.lazy`, reducing initial bundle size
 - **Enterprise Ready**: Azure-native with full observability and security
@@ -275,6 +278,13 @@ Reason code legend for non-auto-applied issue suggestions:
 - `OUTSIDE_ALLOWED_FILES`: suggested change touches files outside the safe allowlist.
 - `REQUIRES_ENV_CONTEXT`: fix depends on repository/environment context not available at runtime.
 - `SAFETY_BOUND`: blocked by configured safety constraints or mode restrictions.
+
+Output artifact reason codes (remediation succeeded but artifact publication was constrained):
+- `OUTPUT_ISSUES_DISABLED`: target repository has issues disabled; diagnosis completed but issue could not be created.
+- `OUTPUT_PRS_DISABLED`: target repository has pull requests disabled; diagnosis completed but PR could not be created.
+- `OUTPUT_REPO_READ_ONLY`: target repository is archived or read-only; no write operations possible.
+- `OUTPUT_REPO_ARCHIVED`: target repository is archived.
+- `OUTPUT_PERMISSION_DENIED`: PAT or app lacks write permission for this repository.
 
 ## Safety Model
 
@@ -321,11 +331,24 @@ PipelineHealer is built for controlled remediation, not unconstrained autonomous
 ### Prerequisites
 
 - Python 3.11+
-- Bun (for frontend)
-- Azure subscription (for deployment)
-- GitHub App or Personal Access Token
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip
+- [Bun](https://bun.sh/) (for the frontend)
+- An Azure OpenAI resource **with a deployed model** (see setup below)
+- A [GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `repo` and `workflow` scopes
 
-### Local Development
+### Step 1 — Set Up Azure OpenAI (Required)
+
+PipelineHealer uses Azure OpenAI for log summarization, failure diagnosis, and remediation narratives. Without it, the pipeline cannot process failures.
+
+1. **Create an Azure OpenAI resource** — In the [Azure Portal](https://portal.azure.com), search for *Azure OpenAI* and create a new resource (any region; `East US 2` and `Sweden Central` usually have the widest model availability).
+2. **Deploy a model** — Open your resource, go to **Model deployments** → **Manage Deployments** (this opens Azure AI Foundry). Click **Deploy model** → **Deploy base model** and deploy a chat model (for example `gpt-4o` or `gpt-4o-mini`). Note the **deployment name** you choose.
+3. **Copy your credentials** — Back in the Azure Portal resource page:
+   - **Endpoint**: found under *Keys and Endpoint* (for example `https://your-resource.openai.azure.com/`).
+   - **API Key**: Key 1 or Key 2 from the same page.
+
+> **Tip:** If your resource uses the older `cognitiveservices.azure.com` domain, that works too — PipelineHealer auto-detects the endpoint style.
+
+### Step 2 — Configure Environment
 
 1. **Clone the repository**
    ```bash
@@ -333,40 +356,52 @@ PipelineHealer is built for controlled remediation, not unconstrained autonomous
    cd pipelinehealer
    ```
 
-2. **Set up the backend**
+2. **Create your `.env` file**
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+
+3. **Fill in the required values** — Open `backend/.env` in your editor and set at minimum:
+   ```dotenv
+   # Azure OpenAI (from Step 1)
+   AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+   AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o          # must match your deployment name
+   AZURE_OPENAI_API_KEY=your-key-here            # Key 1 or Key 2
+
+   # GitHub
+   GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxxxxxxxxx # PAT with repo + workflow scopes
+   ```
+
+   Everything else has sensible defaults for local development. See the full [Environment Variables](#environment-variables) table below for optional tuning.
+
+### Step 3 — Run Locally
+
+**Option A: Host-native (simplest)**
+
+1. **Backend**
    ```bash
    cd backend
-   cp .env.example .env
-   # Edit .env with your configuration
-   
-   # Install dependencies with UV
    uv pip install --system -e ".[dev]"
-   
-   # Run the backend
    uvicorn src.main:app --reload
    ```
 
-3. **Set up the frontend**
+2. **Frontend**
    ```bash
    cd frontend
    bun install
    bun run dev
    ```
 
-4. **Access the dashboard**
-   Open the URL printed by Vite (usually http://127.0.0.1:5173)
-   - `Dashboard`: `/`
-   - `Activities`: `/activities`
-   - `Settings`: `/settings` (admin-only runtime configuration; requires `X-Admin-Key`)
+3. **Verify**
+   - Backend health: http://127.0.0.1:8000/health
+   - Dashboard: open the URL printed by Vite (usually http://127.0.0.1:5173)
+     - `Dashboard`: `/`
+     - `Activities`: `/activities`
+     - `Settings`: `/settings` (admin-only runtime configuration; requires `X-Admin-Key`)
 
-### Local Development (Containerized Stack with Podman/Docker)
-
-Recommended local stack (backend + frontend):
+**Option B: Containerized (Podman / Docker)**
 
 ```bash
-cp backend/.env.example backend/.env
-# edit backend/.env
-
 podman compose --env-file backend/.env build backend frontend
 podman compose --env-file backend/.env up -d backend frontend
 podman compose --env-file backend/.env ps
@@ -375,20 +410,15 @@ curl -sS http://127.0.0.1:8000/health
 
 Use `--env-file backend/.env` with compose commands to avoid empty-env warnings.
 
-Optional full container stack (backend + frontend + cosmos emulator):
+Optional: include the Cosmos DB emulator for persistent storage locally:
 
 ```bash
 podman compose --env-file backend/.env up -d backend frontend cosmos-emulator
-podman compose --env-file backend/.env ps
 ```
 
-Then open:
+Container URLs: Frontend `http://127.0.0.1:3000`, Backend `http://127.0.0.1:8000/health`.
 
-- Frontend: `http://127.0.0.1:3000`
-- Backend health: `http://127.0.0.1:8000/health`
-
-Note:
-- Frontend now requires `BACKEND_UPSTREAM` inside the container and defaults to `http://backend:8000` via `docker-compose.yml`.
+> Note: `BACKEND_UPSTREAM` inside the frontend container defaults to `http://backend:8000` via `docker-compose.yml`.
 - If backend API auth is enabled, set `API_AUTH_KEY` for the frontend container too; Nginx forwards it as `X-API-Key` to `/api/*`.
 
 ### Local Dev vs Azure Dev

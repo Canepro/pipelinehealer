@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: dda4b68 -->
+<!-- LAST_VERIFIED: 32f7c34 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -257,7 +257,7 @@ Returns a single activity record by ID.
 
 #### `POST /api/activities/{activity_id}/retry`
 
-Retries a failed or skipped activity by re-running failed GitHub Actions jobs.
+Triggers a GitHub re-run of failed jobs for the given activity. The original activity record is **not** modified — it retains its `failed` status and error details as a historical record. When the re-run completes, a new `workflow_run.completed` webhook creates a fresh activity record for the retry attempt.
 
 **Auth**: `X-API-Key`
 
@@ -623,7 +623,16 @@ All fields are optional; only sections present in the issue body are included. I
 | `create_issue` | Created a structured issue |
 | `retry_workflow` | Re-ran failed GitHub Actions jobs |
 | `notify` | Notification only |
-| `skip` | No action taken |
+| `skip` | No action taken (see `reason_code` in `details` for why) |
+
+When `action_taken` is `skip`, the `remediation_result.details` object may include:
+
+| Field | Description |
+|-------|-------------|
+| `reason_code` | Machine-readable code (for example `OUTPUT_ISSUES_DISABLED`, `OUTPUT_REPO_READ_ONLY`) |
+| `reason_detail` | Human-readable explanation of why the artifact could not be created |
+
+This occurs when diagnosis succeeded but the target repository constraints prevented artifact publication (issues disabled, repo archived, insufficient permissions). The activity still completes as `completed` — not `failed` — because the diagnosis and remediation logic ran successfully.
 
 ---
 

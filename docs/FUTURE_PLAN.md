@@ -15,7 +15,11 @@ The following are already implemented in the current project state:
 - Docker base image failure pattern matching in diagnosis agent
 - Cosmos SDK log noise suppression for clean Azure Container Apps logs
 - API reference documentation (`docs/API.md`)
-- Chart dark-theme legibility (axis ticks, pie labels)
+- Chart dark-theme legibility (axis ticks, pie labels, tooltip text)
+- Stale activity recovery on startup (transient-state sweep marks interrupted activities as failed)
+- Capability-aware remediation (graceful `SKIP` when target repo has issues/PRs disabled or is read-only)
+- Smart external diagnostics polling (skips ci-doctor polling for failures in known gh-aw workflows)
+- Retry endpoint no longer resets original activity state (triggers GitHub re-run only; new webhook creates fresh record)
 
 ## Next Priorities
 

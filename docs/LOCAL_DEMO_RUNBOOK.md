@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: a2ea510 -->
+<!-- LAST_VERIFIED: 32f7c34 -->
 
 This runbook documents the detailed operator workflow for both Azure and local execution.
 
@@ -23,9 +23,11 @@ For GitHub Agentic Workflows adoption status, use `docs/GH_AW_IMPLEMENTATION_TRA
 ## Prereqs
 
 - Python 3.11+ (repo uses 3.12 fine)
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip
 - Bun installed (`bun --version`)
 - GitHub CLI installed and authenticated (`gh auth status`)
 - A demo GitHub repo with a workflow dispatch input `failure_type` (see `demo-repo/`)
+- **Azure OpenAI resource with a deployed model** — see below
 
 ## Shell Safety (Recommended For Multi-Step Blocks)
 
@@ -77,6 +79,35 @@ bash scripts/ph.sh webhook:add --repo owner/repo1
 bash scripts/ph.sh webhook:disable --repo owner/repo1
 ```
 
+## 0) Azure OpenAI Setup (Required)
+
+PipelineHealer relies on Azure OpenAI for log analysis, diagnosis, and remediation narratives. The backend will not process failures without it.
+
+**If you already have an Azure OpenAI resource and deployment**, skip to step 3.
+
+1. **Create an Azure OpenAI resource**
+   - Go to the [Azure Portal](https://portal.azure.com) → search *Azure OpenAI* → **Create**.
+   - Pick any region with model availability (`East US 2` and `Sweden Central` are good defaults).
+   - Pricing tier: `Standard S0` is fine for development.
+
+2. **Deploy a model**
+   - Open your new resource → **Model deployments** → **Manage Deployments** (opens Azure AI Foundry).
+   - Click **Deploy model** → **Deploy base model** → select a chat model (for example `gpt-4o` or `gpt-4o-mini`).
+   - Give it a deployment name you'll remember (for example `gpt-4o`). You'll use this as `AZURE_OPENAI_DEPLOYMENT_NAME`.
+
+3. **Gather your credentials**
+   - **Endpoint**: In the Azure Portal resource page → *Keys and Endpoint* → copy the Endpoint URL (for example `https://your-resource.openai.azure.com/`).
+   - **API Key**: On the same page, copy Key 1 or Key 2.
+
+4. **Set them in your `.env`** (see step 1 below):
+   ```dotenv
+   AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+   AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+   AZURE_OPENAI_API_KEY=your-key-here
+   ```
+
+> **Note:** If your endpoint uses the `cognitiveservices.azure.com` domain, that works too. PipelineHealer auto-detects the endpoint style and adjusts the API client accordingly.
+
 ## 1) Backend Setup (Host-Native)
 
 From the repo root (`pipelinehealer/`):
@@ -92,25 +123,23 @@ pip install -e ".[dev]"
 cp .env.example .env
 ```
 
-Edit `backend/.env`:
+Edit `backend/.env` — set at minimum:
 
-- `AZURE_OPENAI_ENDPOINT`
-- `AZURE_OPENAI_DEPLOYMENT_NAME` (use the name from your Azure deployment)
-- `AZURE_OPENAI_API_VERSION` (primary Responses client version; default `2025-04-01-preview` — check your deployment Target URI)
-- `AZURE_OPENAI_CHAT_API_VERSION` (fallback Chat Completions version; default `2024-12-01-preview`)
-- `AZURE_OPENAI_API_KEY` (recommended for local)
-- `GITHUB_PERSONAL_ACCESS_TOKEN` (recommended for local)
-- `ADMIN_API_KEY` (required for `/api/settings` admin read/write)
-- `API_AUTH_KEY` (required for `/api/*` in non-development; `/api/settings*` uses API key + admin key)
+- `AZURE_OPENAI_ENDPOINT` — your Azure OpenAI endpoint from step 0
+- `AZURE_OPENAI_DEPLOYMENT_NAME` — the deployment name from step 0
+- `AZURE_OPENAI_API_KEY` — recommended for local dev (avoids requiring `az login`)
+- `GITHUB_PERSONAL_ACCESS_TOKEN` — PAT with `repo` + `workflow` scopes
+- `ADMIN_API_KEY` — required for `/api/settings` admin read/write
+- `API_AUTH_KEY` — required for `/api/*` in non-development; `/api/settings*` uses API key + admin key
 - `HEAL_MODE=safe` (recommended) or `HEAL_MODE=demo` or `HEAL_MODE=debug` (verbose diagnostic logging)
-- Optional reliability knobs:
-  - `PIPELINE_STEP_TIMEOUT_SECONDS=120`
-  - `GITHUB_API_MAX_RETRIES=3`
-  - `GITHUB_API_RETRY_BASE_SECONDS=0.5`
-  - `GITHUB_API_RETRY_MAX_SECONDS=8.0`
-  - `LOG_PROMPT_MAX_CHARS=18000`
-  - `LOG_PROMPT_HEAD_CHARS=9000`
-  - `LOG_PROMPT_TAIL_CHARS=9000`
+
+Optional advanced settings (defaults are fine for getting started):
+
+- `AZURE_OPENAI_API_VERSION` — primary Responses client version (default `2025-04-01-preview`)
+- `AZURE_OPENAI_CHAT_API_VERSION` — fallback Chat Completions version (default `2024-12-01-preview`)
+- `PIPELINE_STEP_TIMEOUT_SECONDS=120` — per-step timeout
+- `GITHUB_API_MAX_RETRIES=3` — retry count for transient GitHub API errors
+- `LOG_PROMPT_MAX_CHARS=18000` / `LOG_PROMPT_HEAD_CHARS=9000` / `LOG_PROMPT_TAIL_CHARS=9000` — prompt log truncation
 
 ## 1B) Backend Setup (Containerized, Recommended on this machine)
 
@@ -519,3 +548,13 @@ Frontend Settings page:
 - Azure backend can read webhooks but cannot call GitHub API
   - Symptom: webhook creates activity, then failures appear when fetching jobs/logs or creating refs/PRs.
   - Fix: ensure `GITHUB_PERSONAL_ACCESS_TOKEN` (or GitHub App credentials) is set in backend Container App env.
+
+- Activities stuck in `pending` / `analyzing` / `diagnosing` / `remediating`
+  - Cause: container was restarted (scale-to-zero, redeploy) while activities were in-flight. These transient states cannot survive a process restart.
+  - Status: Fixed automatically. On startup, the backend sweeps all activities in transient states and marks them as `FAILED` with an "Interrupted: activity was in '<state>' state when the backend restarted" error message.
+  - Verify: check the Activity Detail page — the status should show `failed` with a clear interruption message, not stuck indefinitely.
+
+- Remediation shows `410 Gone` or `403 Forbidden` when creating issues/PRs
+  - Cause: the target repository has issues disabled, PRs disabled, or the repo is archived/read-only.
+  - Status: Fixed. The remediation agent now detects these constraints and returns a successful `SKIP` with a reason code (for example `OUTPUT_ISSUES_DISABLED`). The activity completes as `completed` (not `failed`), and the UI shows a clear reason badge.
+  - Verify: check the Activity Detail page → "Result Metadata" section for the `reasonCode` and `reasonDetail` fields.
