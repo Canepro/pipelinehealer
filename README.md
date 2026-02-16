@@ -292,7 +292,7 @@ PipelineHealer is built for controlled remediation, not unconstrained autonomous
 
 ### Backend (Python + UV)
 - **Microsoft Agent Framework** - Multi-agent orchestration
-- **Azure OpenAI** - Configurable model deployment (for example `gpt-4o`, `gpt-4o-mini`)
+- **Azure OpenAI** - Configurable model deployment (for example `gpt-4o`, `gpt-4o-mini`, `gpt-5-mini`)
 - **FastAPI** - API framework
 - **Azure Cosmos DB** - Activity storage
 
