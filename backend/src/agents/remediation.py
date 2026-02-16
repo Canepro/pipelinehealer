@@ -68,6 +68,97 @@ class RemediationAgent:
         self._fix_generators.set_heal_mode(self._settings.heal_mode)
         self._agent = None
 
+    @staticmethod
+    def _extract_github_error_message(response: httpx.Response) -> str:
+        """Return a concise GitHub API error message from a failed response."""
+        try:
+            payload = response.json()
+        except Exception:
+            payload = None
+        if isinstance(payload, dict):
+            message = payload.get("message")
+            if isinstance(message, str) and message.strip():
+                return message.strip()
+        text = response.text.strip()
+        return text or "GitHub API request failed"
+
+    def _classify_output_artifact_exception(self, exc: Exception) -> dict[str, Any] | None:
+        """Classify expected artifact-publication failures as non-fatal outcomes."""
+        if not isinstance(exc, httpx.HTTPStatusError):
+            return None
+        response = exc.response
+        request = exc.request
+        if response is None:
+            return None
+
+        status_code = response.status_code
+        endpoint = str(request.url.path if request is not None else "").lower()
+        message = self._extract_github_error_message(response)
+        message_l = message.lower()
+
+        if status_code == 410 and endpoint.endswith("/issues"):
+            return {
+                "reason_code": "OUTPUT_ISSUES_DISABLED",
+                "reason_detail": (
+                    "Repository has GitHub Issues disabled; PipelineHealer completed diagnosis "
+                    "but could not publish an issue artifact."
+                ),
+                "github_http_status": status_code,
+                "github_endpoint": endpoint,
+                "github_message": message,
+            }
+
+        if (
+            endpoint.endswith("/pulls")
+            and status_code in {410, 422}
+            and "pull request" in message_l
+            and "disabled" in message_l
+        ):
+            return {
+                "reason_code": "OUTPUT_PULL_REQUESTS_DISABLED",
+                "reason_detail": (
+                    "Repository pull requests are disabled; PipelineHealer completed diagnosis "
+                    "but could not publish a pull request artifact."
+                ),
+                "github_http_status": status_code,
+                "github_endpoint": endpoint,
+                "github_message": message,
+            }
+
+        if status_code == 403 and ("archived" in message_l or "read-only" in message_l):
+            return {
+                "reason_code": "OUTPUT_REPOSITORY_READ_ONLY",
+                "reason_detail": (
+                    "Repository is archived/read-only; PipelineHealer completed diagnosis "
+                    "but cannot publish PR/issue artifacts."
+                ),
+                "github_http_status": status_code,
+                "github_endpoint": endpoint,
+                "github_message": message,
+            }
+
+        return None
+
+    def _build_output_unavailable_result(
+        self,
+        *,
+        attempted_action: RemediationAction,
+        classification: dict[str, Any],
+        extra_details: dict[str, Any] | None = None,
+    ) -> RemediationResult:
+        """Return a successful SKIP result for output-channel constraints."""
+        details: dict[str, Any] = {
+            "attempted_action": attempted_action.value,
+            **classification,
+        }
+        if extra_details:
+            details.update(extra_details)
+        return RemediationResult(
+            success=True,
+            action_taken=RemediationAction.SKIP,
+            details=details,
+        )
+
     async def remediate(
         self,
         diagnosis: Diagnosis,
@@ -341,6 +432,19 @@ class RemediationAgent:
             )
 
         except Exception as e:
+            classified = self._classify_output_artifact_exception(e)
+            if classified is not None:
+                logger.warning(
+                    "PR artifact unavailable for %s/%s (run %s): %s",
+                    owner,
+                    repo,
+                    workflow_run_id,
+                    classified["reason_code"],
+                )
+                return self._build_output_unavailable_result(
+                    attempted_action=RemediationAction.CREATE_PR,
+                    classification=classified,
+                )
             logger.exception(f"Failed to create PR: {e}")
             return RemediationResult(
                 success=False,
@@ -368,23 +472,43 @@ class RemediationAgent:
             "- This commonly happens when a workflow/file path is different than expected.\n"
             "- Consider adding a placeholder config in the workflow so PipelineHealer can patch it deterministically.\n"
         )
-        issue_result = await self._github_tools.create_issue(
-            owner=owner,
-            repo=repo,
-            title=f"[PipelineHealer] Auto-fix blocked: {plan.pr_title or plan.description}",
-            body=fallback_issue_body,
-            labels=["ci-failure", "pipelinehealer"],
-        )
-        return RemediationResult(
-            success=True,
-            action_taken=RemediationAction.CREATE_ISSUE,
-            issue_url=issue_result.get("html_url", ""),
-            details={
-                "issue_number": issue_result.get("number"),
-                "fallback_from": "create_pr",
-                "reason": reason,
-            },
-        )
+        try:
+            issue_result = await self._github_tools.create_issue(
+                owner=owner,
+                repo=repo,
+                title=f"[PipelineHealer] Auto-fix blocked: {plan.pr_title or plan.description}",
+                body=fallback_issue_body,
+                labels=["ci-failure", "pipelinehealer"],
+            )
+            return RemediationResult(
+                success=True,
+                action_taken=RemediationAction.CREATE_ISSUE,
+                issue_url=issue_result.get("html_url", ""),
+                details={
+                    "issue_number": issue_result.get("number"),
+                    "fallback_from": "create_pr",
+                    "reason": reason,
+                },
+            )
+        except Exception as e:
+            classified = self._classify_output_artifact_exception(e)
+            if classified is not None:
+                logger.warning(
+                    "Fallback issue artifact unavailable for %s/%s (run %s): %s",
+                    owner,
+                    repo,
+                    workflow_run_id,
+                    classified["reason_code"],
+                )
+                return self._build_output_unavailable_result(
+                    attempted_action=RemediationAction.CREATE_ISSUE,
+                    classification=classified,
+                    extra_details={
+                        "fallback_from": "create_pr",
+                        "fallback_reason": reason,
+                    },
+                )
+            raise
 
     async def _render_file_changes(
         self,
@@ -624,6 +748,19 @@ class RemediationAgent:
             )
 
         except Exception as e:
+            classified = self._classify_output_artifact_exception(e)
+            if classified is not None:
+                logger.warning(
+                    "Issue artifact unavailable for %s/%s (run %s): %s",
+                    owner,
+                    repo,
+                    workflow_run_id,
+                    classified["reason_code"],
+                )
+                return self._build_output_unavailable_result(
+                    attempted_action=RemediationAction.CREATE_ISSUE,
+                    classification=classified,
+                )
             logger.exception(f"Failed to create issue: {e}")
             return RemediationResult(
                 success=False,

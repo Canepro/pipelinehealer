@@ -16,6 +16,7 @@ from src.models import (
     GitHubWorkflowRun,
     LogAnalysis,
     RemediationAction,
+    RemediationPlan,
     RemediationResult,
     RemediationStatus,
     WorkflowRunEvent,
@@ -63,6 +64,38 @@ class FakeGitHubToolsWithFiles(FakeGitHubTools):
 
         raw = self._files[path].encode("utf-8")
         return {"encoding": "base64", "content": base64.b64encode(raw).decode("ascii")}
+
+
+def _http_error(status_code: int, method: str, url: str, message: str) -> httpx.HTTPStatusError:
+    request = httpx.Request(method, url)
+    response = httpx.Response(status_code, request=request, json={"message": message})
+    return httpx.HTTPStatusError(message, request=request, response=response)
+
+
+class FakeGitHubToolsIssuesDisabled(FakeGitHubTools):
+    async def create_issue(self, owner: str, repo: str, title: str, body: str, labels: list[str]):
+        _ = title, body, labels
+        raise _http_error(
+            410,
+            "POST",
+            f"https://api.github.com/repos/{owner}/{repo}/issues",
+            "Issues are disabled for this repo",
+        )
+
+
+class FakeGitHubToolsReadOnlyRepo(FakeGitHubTools):
+    async def get_file_contents(self, owner: str, repo: str, path: str, ref: str | None = None):
+        _ = owner, repo, path, ref
+        raise _http_error(404, "GET", "https://api.github.com/fake", "Not Found")
+
+    async def create_branch(self, owner: str, repo: str, branch_name: str, from_ref: str):
+        _ = branch_name, from_ref
+        raise _http_error(
+            403,
+            "POST",
+            f"https://api.github.com/repos/{owner}/{repo}/git/refs",
+            "Repository was archived so is read-only.",
+        )
 
 
 def _make_event() -> WorkflowRunEvent:
@@ -237,6 +270,52 @@ async def test_remediation_low_confidence_creates_review_issue() -> None:
     assert "### Why Not Auto-Applied" in body
     assert "### How to Validate" in body
     assert f"Reason Code: {NotAutoApplyReason.LOW_CONFIDENCE.value}" in body
+
+
+@pytest.mark.asyncio
+async def test_create_issue_when_issues_disabled_returns_skip() -> None:
+    gh = FakeGitHubToolsIssuesDisabled()
+    agent = RemediationAgent(github_tools=gh)
+    plan = RemediationPlan(
+        action=RemediationAction.CREATE_ISSUE,
+        description="Escalate for manual fix",
+        issue_title="[PipelineHealer] CI Failure Analysis",
+        issue_body="Root cause summary",
+    )
+
+    result = await agent._create_issue(plan, owner="octo", repo="demo", workflow_run_id=123)
+    assert result.success is True
+    assert result.action_taken == RemediationAction.SKIP
+    assert result.error_message is None
+    assert result.details.get("reason_code") == "OUTPUT_ISSUES_DISABLED"
+    assert result.details.get("attempted_action") == RemediationAction.CREATE_ISSUE.value
+
+
+@pytest.mark.asyncio
+async def test_create_pr_when_repo_read_only_returns_skip() -> None:
+    gh = FakeGitHubToolsReadOnlyRepo()
+    agent = RemediationAgent(github_tools=gh)
+    plan = RemediationPlan(
+        action=RemediationAction.CREATE_PR,
+        description="Apply deterministic fix",
+        branch_name="fix/read-only-test",
+        pr_title="[PipelineHealer] test",
+        pr_body="body",
+        file_changes=[{"file": "README.md", "content": "updated"}],
+    )
+
+    result = await agent._create_pull_request(
+        plan=plan,
+        owner="octo",
+        repo="demo",
+        base_branch="main",
+        workflow_run_id=123,
+    )
+    assert result.success is True
+    assert result.action_taken == RemediationAction.SKIP
+    assert result.error_message is None
+    assert result.details.get("reason_code") == "OUTPUT_REPOSITORY_READ_ONLY"
+    assert result.details.get("attempted_action") == RemediationAction.CREATE_PR.value
 
 
 # ---------------------------------------------------------------------------

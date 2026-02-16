@@ -77,13 +77,18 @@ function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
   reasonDetail: string | null
 } {
   const includes = details?.includes_proposed_fix === true
-  const reason =
+  const reason = (
     typeof details?.not_auto_reason_code === 'string'
       ? details.not_auto_reason_code
-      : null
+      : typeof details?.reason_code === 'string'
+        ? details.reason_code
+        : null
+  ) as string | null
   const reasonDetail =
     typeof details?.not_auto_reason_detail === 'string'
       ? details.not_auto_reason_detail
+      : typeof details?.reason_detail === 'string'
+        ? details.reason_detail
       : null
   return { includesProposedFix: includes, reasonCode: reason, reasonDetail }
 }
@@ -709,15 +714,19 @@ export default function ActivityDetail() {
                 </a>
               </div>
             )}
-            {remediationMeta.includesProposedFix && (
+            {(remediationMeta.includesProposedFix ||
+              remediationMeta.reasonCode ||
+              remediationMeta.reasonDetail) && (
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Issue Metadata
+                  Result Metadata
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <span className="inline-flex items-center rounded-md bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">
-                    Includes Proposed Fix
-                  </span>
+                  {remediationMeta.includesProposedFix && (
+                    <span className="inline-flex items-center rounded-md bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">
+                      Includes Proposed Fix
+                    </span>
+                  )}
                   {remediationMeta.reasonCode && (
                     <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
                       {remediationMeta.reasonCode}
