@@ -90,6 +90,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.storage = workflow.storage
     await dashboard.apply_persisted_runtime_settings(workflow.storage, workflow)
 
+    # Recover activities stuck in transient states from a previous crash/restart.
+    recovered = await workflow.recover_stale_activities()
+    if recovered:
+        logger.info("Recovered %d stale activity(ies) from previous run", recovered)
+
     # Start background backfill sweep for ci-doctor diagnostics.
     backfill_task = asyncio.create_task(
         _backfill_sweep_loop(workflow),

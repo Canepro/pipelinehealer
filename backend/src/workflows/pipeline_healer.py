@@ -213,6 +213,43 @@ class PipelineHealerWorkflow:
         """Get the GitHub tools instance."""
         return self._github_tools
 
+    async def recover_stale_activities(self) -> int:
+        """Mark in-flight activities as failed on startup.
+
+        Activities in transient states (pending, analyzing, diagnosing,
+        remediating) cannot survive a container restart.  They represent
+        runs that were interrupted when the previous process was killed
+        (e.g. scale-to-zero, redeploy).  This sweep marks them as failed
+        with an explanatory error so they don't stay stuck forever.
+
+        Returns:
+            Number of activities recovered.
+        """
+        transient_statuses = [
+            RemediationStatus.PENDING,
+            RemediationStatus.ANALYZING,
+            RemediationStatus.DIAGNOSING,
+            RemediationStatus.REMEDIATING,
+        ]
+        recovered = 0
+        for status in transient_statuses:
+            activities = await self._storage.get_activities(status=status, limit=100)
+            for activity in activities:
+                activity.status = RemediationStatus.FAILED
+                activity.error = (
+                    f"Interrupted: activity was in '{status}' state when the "
+                    f"backend restarted (likely scale-to-zero or redeploy)."
+                )
+                await self._storage.update_activity(activity)
+                recovered += 1
+                logger.warning(
+                    "Recovered stale activity %s (was %s, run %s)",
+                    activity.id,
+                    status,
+                    activity.workflow_run_id,
+                )
+        return recovered
+
     async def run_backfill_sweep(self, *, max_age_hours: float = 24.0) -> int:
         """Sweep completed activities and backfill missing external diagnostics.
 
