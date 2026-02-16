@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: a2adcec -->
+<!-- LAST_VERIFIED: dda4b68 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -124,7 +124,11 @@ Expected result pattern:
 - Settings page should show runtime scope clearly (`Allowlist (N)` or `Unrestricted`) in the Effective Runtime Policy banner.
 - Allowed repositories section in Admin Controls supports add/remove of `owner/repo` entries and persists via `PATCH /api/settings`.
 - For `ci-doctor` external diagnostics enrichment, allow up to ~8 minutes for bounded polling plus issue publication latency.
-- If an activity shows `reason_code=poll_window_exhausted`, wait for `CI Failure Doctor` completion and re-run proof checks.
+- If an activity shows `reason_code=poll_window_exhausted`, the background backfill sweep (every 10 min) will automatically enrich it when ci-doctor findings arrive. For immediate results, trigger manually:
+  ```bash
+  curl -s -X POST -H "X-API-Key: $API_AUTH_KEY" "$BACKEND_URL/api/backfill-diagnostics?max_age_hours=24"
+  ```
+- Enriched activities show an "External Findings Details" panel in Activity Detail with structured root cause, recommended actions, and doctor metadata.
 
 ## 5) 2-Minute Recording Script (Final)
 
@@ -156,7 +160,7 @@ bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout
 
 SHOW: Output with webhook sync, workflow/activity output, and dashboard updating in real time.
 
-TELL: This command syncs webhooks, triggers failures, and shows PipelineHealer detecting, analyzing, and remediating issues automatically, either by opening a fix PR or creating a structured GitHub Issue for manual follow-up. All steps are tracked in the dashboard.
+TELL: This command syncs webhooks, triggers failures, and shows PipelineHealer detecting, analyzing, and remediating issues automatically, either by opening a fix PR or creating a structured GitHub Issue for manual follow-up. When GitHub's ci-doctor also analyzes the failure, PipelineHealer ingests those findings and shows them in a structured External Findings panel. All steps are tracked in the dashboard.
 
 ### 1:30-2:00
 

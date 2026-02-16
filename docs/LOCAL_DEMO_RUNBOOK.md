@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: a2adcec -->
+<!-- LAST_VERIFIED: dda4b68 -->
 
 This runbook documents the detailed operator workflow for both Azure and local execution.
 
@@ -309,6 +309,9 @@ Notes:
   - `timeout`: PipelineHealer opens a PR bumping `timeout-minutes` in `.github/workflows/ci.yml` (if present).
   - `build_config`: PipelineHealer can open a PR only when the workflow contains a placeholder line like `REQUIRED_CONFIG: ""`.
 - If `gh_aw` passive ingestion is enabled, external diagnostics enrichment can take up to ~8 minutes (bounded polling plus ci-doctor issue publish latency).
+- If the poll window is exhausted, a background backfill sweep runs every 10 minutes and enriches activities with ci-doctor findings that arrived after the original pipeline completed.
+- For immediate backfill, use: `curl -s -X POST -H "X-API-Key: $API_AUTH_KEY" "$BACKEND_URL/api/backfill-diagnostics?max_age_hours=24"`
+- Enriched activities display a collapsible "External Findings Details" panel in the Activity Detail page, rendering structured root cause, recommended actions, and doctor metadata.
 
 ## 7) Verify From API
 

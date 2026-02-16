@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 69fd850 -->
+<!-- LAST_VERIFIED: dda4b68 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -182,35 +182,65 @@ Returns activity records with optional filtering and pagination.
 ```json
 [
   {
-    "id": "b0cdd1e5-3ba4-45b8-9e91-60d61cf2ecac",
-    "repositoryId": "12345",
+    "id": "ce099499-3dd6-4968-a3ce-3337c481e4f5",
+    "repositoryId": "1154889327",
     "repository_name": "Canepro/pipelinehealer-demo",
-    "workflow_run_id": 21976047389,
+    "workflow_run_id": 22045680912,
     "workflow_name": "CI",
     "status": "completed",
     "failure_type": "dependency",
     "diagnosis": {
       "failure_type": "dependency",
-      "confidence": 0.95,
-      "root_cause": "Missing npm dependency 'left-pad'",
-      "affected_files": ["package.json"],
-      "error_details": {},
-      "suggested_fix": "Add 'left-pad' to dependencies",
+      "confidence": 0.85,
+      "root_cause": "missing Node.js module",
+      "affected_files": [],
+      "error_details": {
+        "package_name": "left-pad",
+        "package_manager": "npm"
+      },
+      "suggested_fix": "Update or install the missing dependency",
       "is_auto_fixable": true
     },
     "remediation_result": {
       "success": true,
       "action_taken": "create_pr",
-      "pr_url": "https://github.com/Canepro/pipelinehealer-demo/pull/53",
-      "issue_url": null,
+      "pr_url": "https://github.com/Canepro/pipelinehealer-demo/pull/91",
+      "issue_url": "https://github.com/Canepro/pipelinehealer-demo/issues/90",
       "error_message": null,
-      "details": {}
+      "details": {
+        "pr_number": 91,
+        "tracking_issue_number": 90,
+        "branch_name": "fix/update-left-pad-run-22045680912"
+      }
     },
-    "created_at": "2026-02-14T00:30:00Z",
-    "updated_at": "2026-02-14T00:30:42Z",
-    "duration_seconds": 42.1,
-    "error": null,
-    "external_diagnostics": []
+    "external_diagnostics": [
+      {
+        "source": "ci-doctor",
+        "status": "available",
+        "summary": "[CI Failure Doctor] Dependency failure due to missing left-pad",
+        "url": "https://github.com/Canepro/pipelinehealer-demo/issues/89",
+        "matched_run_id": 22045680912,
+        "confidence_delta": 0.08,
+        "metadata": {
+          "issue_number": 89,
+          "issue_state": "open",
+          "match_basis": "run_url",
+          "details": {
+            "summary": "The build job halts because left-pad is not declared in package.json...",
+            "root_cause": "The dependency check simulates a missing module by requiring left-pad...",
+            "recommended_actions": "- [x] Add left-pad as a dependency in package.json.",
+            "doctor_engine": "copilot",
+            "doctor_model": "gpt-5.1-codex-mini",
+            "doctor_run_url": "https://github.com/Canepro/pipelinehealer-demo/actions/runs/22045687770"
+          }
+        },
+        "collected_at": "2026-02-16T00:14:17.991899Z"
+      }
+    ],
+    "created_at": "2026-02-16T00:08:39.168556Z",
+    "updated_at": "2026-02-16T00:14:19.911037Z",
+    "duration_seconds": 340.7,
+    "error": null
   }
 ]
 ```
@@ -561,7 +591,29 @@ Represents findings from an external diagnostic tool (e.g. GitHub Agentic Workfl
 | `url` | string \| null | Link to external findings (issue, discussion, etc.) |
 | `matched_run_id` | int \| null | GitHub workflow run ID the findings relate to |
 | `metadata` | object | Structured diagnostic metadata (reason codes, issue numbers, etc.) |
+| `metadata.details` | object \| null | Deep content enrichment extracted from the ci-doctor issue body (see below) |
 | `collected_at` | string (ISO datetime) | Timestamp when the external finding was collected |
+
+#### `metadata.details` (deep enrichment)
+
+When `status` is `available` and the ci-doctor issue body contains structured sections, `metadata.details` is populated with sanitized, truncated (≤2000 chars/section) content:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `summary` | string | Short failure summary |
+| `root_cause` | string | Root cause analysis narrative |
+| `failed_jobs` | string | Failed jobs and error messages |
+| `investigation_findings` | string | Investigation details |
+| `recommended_actions` | string | Recommended fix steps |
+| `prevention_strategies` | string | Prevention guidance |
+| `historical_context` | string | Historical pattern context |
+| `ai_self_improvement` | string | AI team learning notes |
+| `trigger` | string | Workflow trigger type (e.g. `workflow_dispatch`) |
+| `doctor_engine` | string | ci-doctor engine (e.g. `copilot`) |
+| `doctor_model` | string | ci-doctor model (e.g. `gpt-5.1-codex-mini`) |
+| `doctor_run_url` | string | URL to the ci-doctor workflow run |
+
+All fields are optional; only sections present in the issue body are included. Internal boilerplate (HTML comments, setup hints, expiry markers, temp-file paths) is stripped before storage.
 
 ### RemediationAction (enum)
 

@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 8f16df6 -->
+<!-- LAST_VERIFIED: dda4b68 -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -22,8 +22,9 @@ PipelineHealer is an Azure-deployed, multi-agent CI remediation system built for
   - Recording runbook: `docs/DEMO_SCRIPT.md`
   - Full operator runbook: `docs/LOCAL_DEMO_RUNBOOK.md`
 - Evidence artifacts:
-  - Deterministic PR path: [demo-repo PR #53](https://github.com/Canepro/pipelinehealer-demo/pull/53)
-  - Manual-review issue path (Proposed Fix + Reason Code): [demo-repo Issue #60](https://github.com/Canepro/pipelinehealer-demo/issues/60)
+  - Deterministic PR path: [demo-repo PR #91](https://github.com/Canepro/pipelinehealer-demo/pull/91) (dependency fix)
+  - Tracking issue path: [demo-repo Issue #90](https://github.com/Canepro/pipelinehealer-demo/issues/90)
+  - ci-doctor enriched findings: [demo-repo Issue #89](https://github.com/Canepro/pipelinehealer-demo/issues/89)
 - Runtime verification commands:
   - `bash scripts/ph.sh status`
   - `bash scripts/ph.sh settings:check`
@@ -175,6 +176,8 @@ flowchart LR
     ADP --> CD[ci-doctor issue/comment findings]
     CD --> EXT[External diagnostics context]
     EXT --> DG
+    BF[Backfill Sweep every 10 min] --> ADP
+    BF --> ST
     OR --> ST[(Cosmos DB / In-Memory Storage)]
     UI[Admin Settings UI] --> API["/api/settings*"]
     API --> OR
@@ -239,6 +242,9 @@ flowchart LR
 - **Runtime Model Switching**: Change Azure OpenAI deployment name via settings UI with immediate agent cache invalidation
 - **GitHub Agentic Workflows Integration**: Passive ingestion of external diagnostics (ci-doctor) when available on monitored repos
 - **Bounded External Diagnostics Polling**: Passive ingestion waits up to ~8 minutes and performs a final immediate fetch before timeout classification
+- **Async External Diagnostics Backfill**: Background sweep (every 10 min) enriches completed activities whose ci-doctor findings arrived after the original poll window; manual trigger via `POST /api/backfill-diagnostics`
+- **Deep Content Enrichment**: Structured extraction of ci-doctor issue bodies — summary, root cause, recommended actions, historical context, doctor engine/model metadata — stored in `external_diagnostics[].metadata.details`
+- **External Findings Panel**: Collapsible UI panel rendering enriched ci-doctor findings with markdown formatting, section truncation, and auto-expand for available diagnostics
 - **Mobile Navigation Reliability**: Route-safe, notch-safe sheet navigation for portrait mobile workflows
 - **Route-Level Code Splitting**: Each page loads as a separate chunk via `React.lazy`, reducing initial bundle size
 - **Enterprise Ready**: Azure-native with full observability and security
@@ -427,8 +433,9 @@ bash scripts/ph.sh demo:e2e --wait-seconds 120
 
 1. Dashboard story: show `Processed`, `Actioned`, `Safety Gated`, and `Issue-Only` in one glance.
 2. Explainability drilldown: open selected activity details from the snapshot and show reason/evidence context.
-3. Safety gate rationale: highlight reason-code microcopy and why policy-gated changes become review issues.
-4. Audit proof: run `bash scripts/ph.sh audit:proof --limit 5` and show traceable admin change entries.
+3. External findings: expand the "External Findings Details" panel on an enriched activity to show ci-doctor's structured root cause, recommended actions, and historical context.
+4. Safety gate rationale: highlight reason-code microcopy and why policy-gated changes become review issues.
+5. Audit proof: run `bash scripts/ph.sh audit:proof --limit 5` and show traceable admin change entries.
 
 ### Shell Safety For Copy-Paste Blocks
 
