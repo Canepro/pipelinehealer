@@ -102,3 +102,41 @@ export const formatActorLabel = (actor?: string) => {
 
 export const formatAuditTimestampUtc = (timestamp: string) =>
   new Date(timestamp).toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
+
+/** Descriptions for each setting field shown to users. */
+export const SETTING_DESCRIPTIONS: Record<string, string> = {
+  heal_mode:
+    'Controls how aggressively PipelineHealer fixes failures. "safe" applies conservative fixes, "demo" is aggressive for demonstrations, "debug" adds verbose logging.',
+  auto_create_pr:
+    'When enabled, PipelineHealer automatically creates pull requests with proposed fixes for CI failures.',
+  auto_create_tracking_issue_for_prs:
+    'Creates a GitHub issue to track each PR-based remediation and auto-closes it when the PR merges.',
+  max_remediation_attempts:
+    'Maximum number of times PipelineHealer will retry fixing a single failure before giving up.',
+  azure_openai_deployment_name:
+    'The Azure OpenAI model deployment to use for AI analysis (e.g. gpt-4o, gpt-5-mini).',
+  pipeline_step_timeout_seconds:
+    'Maximum seconds each pipeline step (analyze, diagnose, remediate) is allowed to run before timing out.',
+  github_api_max_retries:
+    'How many times to retry GitHub API calls that fail with rate-limit (429) or server errors (5xx).',
+  github_api_retry_base_seconds:
+    'Initial delay between GitHub API retries. Each retry doubles the wait (exponential backoff).',
+  github_api_retry_max_seconds:
+    'Upper limit on the delay between GitHub API retries, regardless of backoff.',
+  log_prompt_max_chars:
+    'Maximum total characters from CI logs sent to the AI model for analysis.',
+  log_prompt_head_chars:
+    'Characters kept from the beginning of CI logs when they need to be truncated.',
+  log_prompt_tail_chars:
+    'Characters kept from the end of CI logs when they need to be truncated (error messages are usually at the end).',
+  gh_aw_tools_enabled:
+    'Master switch for GitHub Agentic Workflows integration. When off, no external diagnostics are collected.',
+  gh_aw_ingestion_mode:
+    'How external diagnostics are collected. "passive" reads findings from GitHub issues. "disabled" turns collection off.',
+  gh_aw_known_workflows:
+    'Workflows to skip when polling ci-doctor (prevents circular self-diagnosis). ci-doctor is always included.',
+  verify_webhook_signature_in_development:
+    'Require GitHub webhook signature verification even in development mode. Usually off for local testing.',
+  ph_allowed_repos:
+    'Restrict PipelineHealer to only process CI failures from these repositories. Leave empty to allow all.',
+}

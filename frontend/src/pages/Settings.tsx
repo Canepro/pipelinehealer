@@ -1,18 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Info, LockKeyhole } from 'lucide-react'
+import { KeyRound, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../api/client'
 import {
   AdminControlsForm,
   AuditTrailPanel,
   RuntimePolicyBanner,
-  SettingsInfoPanels,
   toSettingsForm,
 } from '../components/settings'
 import type { SettingsFormState } from '../components/settings'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -35,13 +34,13 @@ export default function SettingsPage() {
     log_prompt_tail_chars: 9000,
     gh_aw_tools_enabled: false,
     gh_aw_ingestion_mode: 'disabled',
-    gh_aw_known_workflows: ['ci-doctor', 'schema-consistency-checker', 'breaking-change-checker'],
+    gh_aw_known_workflows: ['ci-doctor'],
     ph_allowed_repos: [],
     azure_openai_deployment_name: '',
   })
   const [lastSavedForm, setLastSavedForm] = useState<SettingsFormState | null>(null)
   const [newRepoInput, setNewRepoInput] = useState('')
-  const [ghAwWorkflowsInput, setGhAwWorkflowsInput] = useState('')
+  const [, setGhAwWorkflowsInput] = useState('')
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['app-settings', adminKey],
@@ -108,7 +107,7 @@ export default function SettingsPage() {
       queryClient.setQueryData(['app-settings', adminKey], updated)
       await queryClient.invalidateQueries({ queryKey: ['app-settings', adminKey] })
       toast.success('Settings saved', {
-        description: 'Runtime settings were updated successfully.',
+        description: 'Runtime settings updated. Changes are active immediately.',
       })
     },
     onError: (err) => {
@@ -128,9 +127,12 @@ export default function SettingsPage() {
         })
         return
       }
-      toast.success(result.redeploy_attempted ? 'Settings persisted and redeploy started' : 'Settings persisted', {
-        description: result.redeploy_message,
-      })
+      toast.success(
+        result.redeploy_attempted
+          ? 'Settings persisted and redeploy started'
+          : 'Settings persisted',
+        { description: result.redeploy_message }
+      )
     },
     onError: (err) => {
       toast.error('Failed to persist settings', {
@@ -154,7 +156,7 @@ export default function SettingsPage() {
     if (!data) return
     if (hasUnsavedChanges) {
       toast.error('Save settings first', {
-        description: 'Persist and redeploy uses effective saved values only.',
+        description: 'Persist uses effective saved values only.',
       })
       return
     }
@@ -162,67 +164,78 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Admin-only runtime configuration. Edit draft values, then save to make them effective.
-          Saved values apply immediately and remain active until backend restart.
-        </p>
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Page header */}
+      <div className="flex items-center gap-3">
+        <Settings2 className="h-7 w-7 text-azure-500" />
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--ph-text)]">Settings</h1>
+          <p className="text-sm text-[var(--ph-muted)]">
+            Admin-only runtime configuration for PipelineHealer.
+          </p>
+        </div>
       </div>
 
-      {/* Admin access card */}
-      <Card className="p-4 md:p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <LockKeyhole className="h-5 w-5 text-azure-500" />
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Admin Access</h2>
-        </div>
-        <div className="flex flex-col md:flex-row gap-3">
-          <Input
-            type="password"
-            value={adminKeyInput}
-            onChange={(e) => setAdminKeyInput(e.target.value)}
-            placeholder="Enter X-Admin-Key"
-            className="flex-1"
-          />
-          <Button
-            onClick={() => setAdminKey(adminKeyInput.trim())}
-            disabled={!adminKeyInput.trim() || isLoading}
-          >
-            Load Settings
-          </Button>
-        </div>
-        <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-          Uses header <code>X-Admin-Key</code>. Keep this key private.
-        </p>
+      {/* Admin access */}
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5 text-azure-500" />
+            <CardTitle>Admin Access</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input
+              type="password"
+              value={adminKeyInput}
+              onChange={(e) => setAdminKeyInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && adminKeyInput.trim()) {
+                  e.preventDefault()
+                  setAdminKey(adminKeyInput.trim())
+                }
+              }}
+              placeholder="Enter admin key (X-Admin-Key)"
+              className="flex-1"
+            />
+            <Button
+              onClick={() => setAdminKey(adminKeyInput.trim())}
+              disabled={!adminKeyInput.trim() || isLoading}
+            >
+              {isLoading ? 'Loading...' : 'Authenticate'}
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-[var(--ph-muted)]">
+            Authenticates via the <code className="font-mono">X-Admin-Key</code> header.
+          </p>
+        </CardContent>
       </Card>
 
-      {/* Loading state */}
+      {/* Loading skeleton */}
       {adminKey && isLoading && (
-        <Card className="p-4 md:p-6">
-          <div className="space-y-3">
-            <Skeleton className="h-4 w-44" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-          </div>
+        <Card>
+          <CardContent className="py-6">
+            <div className="space-y-4">
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-2/3" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </CardContent>
         </Card>
       )}
 
       {/* Error state */}
       {adminKey && isError && (
-        <div className="card p-4 md:p-6">
-          <div className="flex items-start gap-3">
-            <Info className="h-5 w-5 text-red-500 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-red-600 dark:text-red-400">
-                Failed to load admin settings
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {error instanceof Error ? error.message : 'Unknown error'}
-              </p>
-            </div>
-          </div>
-        </div>
+        <Card className="border-rose-500/30">
+          <CardContent className="py-6">
+            <p className="text-sm font-medium text-rose-500">Failed to load settings</p>
+            <p className="text-sm text-[var(--ph-muted)] mt-1">
+              {error instanceof Error ? error.message : 'Unknown error'}
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {/* Main settings content */}
@@ -235,8 +248,6 @@ export default function SettingsPage() {
             onPersist={handlePersistAndRedeploy}
           />
 
-          <SettingsInfoPanels data={data} />
-
           <AdminControlsForm
             data={data}
             form={form}
@@ -244,7 +255,6 @@ export default function SettingsPage() {
             hasUnsavedChanges={hasUnsavedChanges}
             newRepoInput={newRepoInput}
             setNewRepoInput={setNewRepoInput}
-            ghAwWorkflowsInput={ghAwWorkflowsInput}
             setGhAwWorkflowsInput={setGhAwWorkflowsInput}
             setLastSavedForm={setLastSavedForm}
             savePending={saveMutation.isPending}
