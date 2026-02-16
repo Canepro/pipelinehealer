@@ -1,10 +1,10 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: dda4b68 -->
+<!-- LAST_VERIFIED: a2ea510 -->
 
 Use this as the only doc during recording day. It includes:
 
-- exact commands to run
+- exact commands to run (copy-paste ready, no placeholders)
 - checks to confirm each step
 - fast fallback commands
 - final 2-minute SHOW/TELL script
@@ -14,37 +14,22 @@ Related docs:
 - `docs/LOCAL_DEMO_RUNBOOK.md` for deeper setup/troubleshooting
 - `docs/HACKATHON_LOG.md` for submission checklist and milestone status
 - `docs/API.md` for full API endpoint reference and best practices
-- `docs/GH_AW_IMPLEMENTATION_TRACKER.md` for GitHub Agentic Workflows Layer 1/Layer 2 status
-
-## Scope
-
-This runbook is Azure-first for hackathon compliance and assumes Azure-hosted demo mode with the one-command runner:
-
-```bash
-bash scripts/ph.sh <command>
-```
-
-Local mode remains available for fallback testing and evaluator convenience (`docs/LOCAL_DEMO_RUNBOOK.md`).
+- `docs/CLI.md` for the full CLI command reference
 
 ## Demo Flow (3-4 Minutes)
 
 1. Dashboard story: show `Processed`, `Actioned`, `Safety Gated`, and `Issue-Only`.
 2. Explainability drilldown: open a focused activity and show reason code + evidence context.
-3. Safety boundary: show `Why Safety Gated` microcopy and explain policy-driven issue fallback.
-4. Runtime policy + audit proof: open `/settings`, show the Effective Runtime Policy banner (mode, PR toggle, scope), then run `bash scripts/ph.sh audit:proof --limit 5`.
-
-Real-repo canary rollout is available when needed:
-
-```bash
-bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
-```
+3. External findings: expand the "External Findings Details" panel to show ci-doctor's structured root cause, recommended actions, and doctor metadata.
+4. Safety boundary: show `Why Safety Gated` microcopy and explain policy-driven issue fallback.
+5. Runtime policy + audit proof: open `/settings`, show the Effective Runtime Policy banner (mode, PR toggle, scope), then run `bash scripts/ph.sh audit:proof --limit 5`.
 
 ## 1) Pre-Record Setup (5-10 minutes before)
 
 Run from repo root:
 
 ```bash
-cd <repo-root>/pipelinehealer
+cd /mnt/d/repos/pipelinehealer
 git pull --ff-only origin main
 bash scripts/ph.sh warm
 bash scripts/ph.sh status
@@ -74,7 +59,6 @@ bash scripts/ph.sh deploy
 ## 2) Optional Clean Slate for Demo Repo
 
 ```bash
-cd <repo-root>/pipelinehealer
 bash scripts/ph.sh demo:reset
 ```
 
@@ -85,7 +69,6 @@ Pass check:
 ## 3) Main E2E Demo Command (Use On Camera)
 
 ```bash
-cd <repo-root>/pipelinehealer
 bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 120
 ```
 
@@ -102,12 +85,24 @@ Pass checks in output:
 - at least one dependency/lint remediation shows PR creation
 - test/build_config/timeout produce issues (or structured failure records)
 
+### Single Failure Type (faster, focused demo)
+
+If you only want to show one failure type on camera:
+
+```bash
+gh workflow run ci.yml --repo Canepro/pipelinehealer-demo --field failure_type=dependency
+```
+
+Then verify:
+
+```bash
+bash scripts/ph.sh demo:proof --repo Canepro/pipelinehealer-demo --limit 5
+```
+
 ## 4) Verification Commands (If You Need Extra Proof)
 
 ```bash
-cd <repo-root>/pipelinehealer
-DEMO_REPO="Canepro/pipelinehealer-demo"
-bash scripts/ph.sh demo:proof --repo "$DEMO_REPO" --limit 10
+bash scripts/ph.sh demo:proof --repo Canepro/pipelinehealer-demo --limit 10
 bash scripts/ph.sh urls
 bash scripts/ph.sh settings:check
 bash scripts/ph.sh audit:proof --limit 5
@@ -122,13 +117,20 @@ Expected result pattern:
 - Issues: test + build_config + timeout
 - Admin audit proof should show latest entries containing `request_id`, actor fingerprint, and old/new change values.
 - Settings page should show runtime scope clearly (`Allowlist (N)` or `Unrestricted`) in the Effective Runtime Policy banner.
-- Allowed repositories section in Admin Controls supports add/remove of `owner/repo` entries and persists via `PATCH /api/settings`.
-- For `ci-doctor` external diagnostics enrichment, allow up to ~8 minutes for bounded polling plus issue publication latency.
-- If an activity shows `reason_code=poll_window_exhausted`, the background backfill sweep (every 10 min) will automatically enrich it when ci-doctor findings arrive. For immediate results, trigger manually:
-  ```bash
-  curl -s -X POST -H "X-API-Key: $API_AUTH_KEY" "$BACKEND_URL/api/backfill-diagnostics?max_age_hours=24"
-  ```
-- Enriched activities show an "External Findings Details" panel in Activity Detail with structured root cause, recommended actions, and doctor metadata.
+
+### External diagnostics enrichment
+
+ci-doctor findings may take up to ~8 minutes (bounded polling plus issue publication latency). If the pipeline finishes before ci-doctor, the backfill sweep runs automatically every 10 minutes and enriches activities when findings arrive.
+
+For immediate results, trigger manually:
+
+```bash
+bash scripts/ph.sh backfill
+```
+
+Or use the "Backfill Diagnostics" button on the Activity Detail page in the UI.
+
+Enriched activities show an "External Findings Details" collapsible panel in Activity Detail with structured root cause, recommended actions, and doctor metadata.
 
 ## 5) 2-Minute Recording Script (Final)
 
@@ -179,17 +181,13 @@ TELL: PipelineHealer is not just an AI that opens PRs. It is an AI-governed reme
 Merge or close demo artifacts if needed:
 
 ```bash
-DEMO_REPO="Canepro/pipelinehealer-demo"
-gh pr list -R "$DEMO_REPO"
-gh issue list -R "$DEMO_REPO" --state open
-# close issues one-by-one when needed:
-# gh issue close -R "$DEMO_REPO" <issue_number>
+gh pr list -R Canepro/pipelinehealer-demo
+gh issue list -R Canepro/pipelinehealer-demo --state open
 ```
 
 Return to low-cost mode:
 
 ```bash
-cd <repo-root>/pipelinehealer
 bash scripts/ph.sh lowcost
 bash scripts/ph.sh status
 ```

@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 8b70c37 -->
+<!-- LAST_VERIFIED: a2ea510 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -180,6 +180,25 @@ bash scripts/ph.sh logs:grep --pattern "error" --tail 1000
 ```
 
 Log commands are grep-tolerant: empty output (no matches) exits 0, not failure.
+
+### External Diagnostics
+
+| Command | Description |
+|---------|-------------|
+| `backfill` | Trigger on-demand backfill sweep for ci-doctor external diagnostics |
+
+```bash
+bash scripts/ph.sh backfill
+bash scripts/ph.sh backfill --max-age-hours 48
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--max-age-hours` | `24` | Only consider activities created within this many hours (1–168) |
+
+Finds completed activities whose ci-doctor poll window was exhausted and attaches findings that have been published since. A background sweep also runs automatically every 10 minutes, so manual triggering is only needed for immediate results.
+
+The same action is available in the UI via the "Backfill Diagnostics" button on the Activity Detail page.
 
 ---
 
