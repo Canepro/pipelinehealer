@@ -233,11 +233,34 @@ bash scripts/ph.sh deploy --engine podman
 
 ## 1D) Local Dev vs Azure Dev (Important)
 
-- Local dev = your laptop/WSL containers (`http://127.0.0.1:8000`, `http://127.0.0.1:3000`)
+- Local dev = your laptop containers or host-native processes (`http://127.0.0.1:8000`, `http://127.0.0.1:3000`)
 - Azure dev = Container Apps URLs (`https://<app>.azurecontainerapps.io`)
 
 If Azure is down or slow, local dev can still work normally.
 Always check local endpoints first when debugging.
+
+### Using `ph.sh` Commands Locally
+
+By default, `ph.sh` targets your Azure deployment. To use it against a local backend, set `PH_BACKEND_URL`:
+
+```bash
+export PH_BACKEND_URL=http://127.0.0.1:8000
+
+bash scripts/ph.sh settings:check           # works — hits local backend
+bash scripts/ph.sh settings:audit --limit 10 # works
+bash scripts/ph.sh audit:proof --limit 5     # works
+bash scripts/ph.sh backfill                  # works
+bash scripts/ph.sh logs --tail 100           # works — uses docker compose logs
+bash scripts/ph.sh logs:grep --pattern error # works
+```
+
+Azure-only commands (`deploy`, `warm`, `lowcost`, `status`, `urls`, `webhook:*`, `rollout:canary`, `demo:e2e`) will print a clear error message and exit when `PH_BACKEND_URL` is set.
+
+To switch back to Azure mode, unset the variable:
+
+```bash
+unset PH_BACKEND_URL
+```
 
 ## 1E) Scale-To-Zero (What It Is)
 

@@ -210,10 +210,48 @@ The same action is available in the UI via the "Backfill Diagnostics" button on 
 - **Enum validation**: `--heal-mode`, `--auto-create-pr`, `--gh-aw-tools-enabled`, and `--gh-aw-ingestion-mode` validate against allowed values before proceeding.
 - **Strict mode**: `set -euo pipefail` is enabled throughout. Log grep pipelines use `|| true` to remain tolerant of empty results.
 
+## Local Mode
+
+By default, all commands target your Azure deployment. To use `ph.sh` against a local backend, set `PH_BACKEND_URL`:
+
+```bash
+export PH_BACKEND_URL=http://127.0.0.1:8000
+bash scripts/ph.sh settings:check
+bash scripts/ph.sh logs --tail 100
+bash scripts/ph.sh backfill
+```
+
+### Commands That Work Locally
+
+| Command | Local behavior |
+|---------|---------------|
+| `settings:check` | Hits local backend API |
+| `settings:audit` | Hits local backend API |
+| `audit:proof` | Creates audit entries on local backend |
+| `backfill` | Triggers backfill sweep on local backend |
+| `logs` | Uses `docker compose logs` (filtered) |
+| `logs:raw` | Uses `docker compose logs` (unfiltered) |
+| `logs:grep` | Uses `docker compose logs` + grep |
+| `demo:proof` | Lists PRs/issues via GitHub CLI (no backend needed) |
+| `demo:reset` | Resets demo fixtures via GitHub CLI (no backend needed) |
+
+### Azure-Only Commands
+
+These commands manage Azure infrastructure and will print a clear error when `PH_BACKEND_URL` is set:
+
+`deploy`, `deploy:env`, `deploy:bg`, `deploy:logs`, `deploy:status`, `urls`, `status`, `warm`, `lowcost`, `webhook:add`, `webhook:disable`, `rollout:canary`, `demo:e2e`.
+
+### Switching Back to Azure
+
+```bash
+unset PH_BACKEND_URL
+```
+
 ## Environment Overrides
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `PH_BACKEND_URL` | *(unset — Azure mode)* | Set to target a local backend (for example `http://127.0.0.1:8000`) |
 | `PH_RG` | `rg-canepro-ph-dev-eus` | Azure resource group |
 | `PH_BACKEND_APP` | `ca-canepro-ph-backend` | Backend Container App name |
 | `PH_FRONTEND_APP` | `ca-canepro-ph-frontend` | Frontend Container App name |

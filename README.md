@@ -62,6 +62,17 @@ bash scripts/ph.sh webhook:add --repo owner/repo1
 bash scripts/ph.sh webhook:disable --repo owner/repo1
 ```
 
+**Local mode:** Most `ph.sh` commands default to Azure, but you can target a local backend by setting `PH_BACKEND_URL`:
+
+```bash
+PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh settings:check
+PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh logs --tail 100
+PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh backfill
+```
+
+Commands that work locally: `settings:check`, `settings:audit`, `audit:proof`, `backfill`, `logs`, `logs:raw`, `logs:grep`, `demo:proof`, `demo:reset`.
+Azure-only commands (`deploy`, `warm`, `lowcost`, `status`, `urls`, `webhook:*`, `rollout:canary`, `demo:e2e`) print a clear error when `PH_BACKEND_URL` is set.
+
 ## What Problem This Solves
 
 CI failures often force teams into repetitive, low-signal triage loops. PipelineHealer reduces that operational drag by turning failed runs into structured, actionable outputs:

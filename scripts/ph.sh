@@ -77,6 +77,19 @@ Examples:
   bash scripts/ph.sh logs:grep --pattern "debug-mode"
   bash scripts/ph.sh warm
   bash scripts/ph.sh lowcost
+
+Local mode:
+  Set PH_BACKEND_URL to target a local backend instead of Azure:
+
+  PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh settings:check
+  PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh logs --tail 100
+  PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh backfill
+
+  Commands that work locally: settings:check, settings:audit, audit:proof,
+  backfill, logs, logs:raw, logs:grep, demo:proof, demo:reset, help.
+
+  Azure-only commands (deploy, warm, lowcost, status, urls, webhook:*,
+  rollout:canary, demo:e2e) print a clear error when PH_BACKEND_URL is set.
 EOF
 }
 
@@ -137,7 +150,48 @@ upsert_env_key() {
   chmod 600 "$file"
 }
 
+# ---------------------------------------------------------------------------
+# Local vs Azure mode
+# ---------------------------------------------------------------------------
+# Set PH_BACKEND_URL to target a local backend (e.g. http://127.0.0.1:8000).
+# When set, API-calling commands (settings:check, settings:audit, audit:proof,
+# backfill, logs, logs:raw, logs:grep) work against the local instance.
+# Azure-only commands (deploy, warm, lowcost, status, webhook:*, urls) will
+# print a clear message and exit.
+
+is_local_mode() {
+  [[ -n "${PH_BACKEND_URL:-}" ]]
+}
+
+require_azure() {
+  if is_local_mode; then
+    echo "Error: '$1' requires an Azure deployment. It does not apply in local mode (PH_BACKEND_URL is set)." >&2
+    echo "See docs/LOCAL_DEMO_RUNBOOK.md for local equivalents." >&2
+    exit 1
+  fi
+}
+
+resolve_backend_url() {
+  if is_local_mode; then
+    # Strip trailing slash for consistency
+    echo "${PH_BACKEND_URL%/}"
+  else
+    need_cmd az
+    local fqdn
+    fqdn="$(az containerapp show \
+      -g "$AZ_RESOURCE_GROUP" \
+      -n "$BACKEND_APP" \
+      --query properties.configuration.ingress.fqdn \
+      -o tsv | tr -d '\r\n')"
+    echo "https://$fqdn"
+  fi
+}
+
 resolve_backend_fqdn() {
+  if is_local_mode; then
+    echo "Error: resolve_backend_fqdn called in local mode. Use resolve_backend_url instead." >&2
+    exit 1
+  fi
   need_cmd az
   az containerapp show \
     -g "$AZ_RESOURCE_GROUP" \
@@ -147,6 +201,7 @@ resolve_backend_fqdn() {
 }
 
 resolve_frontend_fqdn() {
+  require_azure "urls"
   need_cmd az
   az containerapp show \
     -g "$AZ_RESOURCE_GROUP" \
@@ -403,7 +458,6 @@ scale_mode() {
 # ---------------------------------------------------------------------------
 
 settings_check() {
-  need_cmd az
   need_cmd curl
   if [[ ! -f "$REPO_ROOT/backend/.env" ]]; then
     echo "Missing env file: $REPO_ROOT/backend/.env" >&2
@@ -419,12 +473,12 @@ fetch_settings_json() {
   mapfile -t _keys < <(read_auth_keys)
   api_key="${_keys[0]}"
   admin_key="${_keys[1]}"
-  local backend_fqdn
-  backend_fqdn="$(resolve_backend_fqdn)"
+  local base_url
+  base_url="$(resolve_backend_url)"
   curl -fsS \
     -H "X-API-Key: $api_key" \
     -H "X-Admin-Key: $admin_key" \
-    "https://$backend_fqdn/api/settings"
+    "$base_url/api/settings"
 }
 
 settings_audit() {
@@ -451,12 +505,12 @@ settings_audit() {
   mapfile -t _keys < <(read_auth_keys)
   api_key="${_keys[0]}"
   admin_key="${_keys[1]}"
-  local backend_fqdn
-  backend_fqdn="$(resolve_backend_fqdn)"
+  local base_url
+  base_url="$(resolve_backend_url)"
   curl -fsS \
     -H "X-API-Key: $api_key" \
     -H "X-Admin-Key: $admin_key" \
-    "https://$backend_fqdn/api/settings/audit?limit=$limit"
+    "$base_url/api/settings/audit?limit=$limit"
   echo
 }
 
@@ -482,12 +536,11 @@ audit_proof() {
     esac
   done
 
-  local api_key admin_key backend_fqdn base_url current_auto next_auto
+  local api_key admin_key base_url current_auto next_auto
   mapfile -t _keys < <(read_auth_keys)
   api_key="${_keys[0]}"
   admin_key="${_keys[1]}"
-  backend_fqdn="$(resolve_backend_fqdn)"
-  base_url="https://$backend_fqdn"
+  base_url="$(resolve_backend_url)"
 
   current_auto="$(curl -fsS \
     -H "X-API-Key: $api_key" \
@@ -568,6 +621,7 @@ cmd_demo_proof() {
 # ---------------------------------------------------------------------------
 
 show_urls() {
+  require_azure "urls"
   local backend_fqdn frontend_fqdn
   backend_fqdn="$(resolve_backend_fqdn)"
   frontend_fqdn="$(resolve_frontend_fqdn)"
@@ -628,8 +682,17 @@ deploy_status() {
 # Log inspection (grep -tolerant: empty output is not an error)
 # ---------------------------------------------------------------------------
 
+_detect_compose_cmd() {
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    echo "docker compose"
+  elif command -v podman >/dev/null 2>&1; then
+    echo "podman compose"
+  else
+    echo ""
+  fi
+}
+
 cmd_logs() {
-  need_cmd az
   local tail_count="300"
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -642,30 +705,43 @@ cmd_logs() {
       *) echo "Unknown argument for logs: $1" >&2; exit 2 ;;
     esac
   done
-  az containerapp logs show \
-    -n "$BACKEND_APP" \
-    -g "$AZ_RESOURCE_GROUP" \
-    --tail "$tail_count" \
-    --type console 2>/dev/null \
-    | grep -v "azure.cosmos" \
-    | grep -v "x-ms-" \
-    | grep -v "headers:" \
-    | grep -v "'Content" \
-    | grep -v "'Cache" \
-    | grep -v "'Accept" \
-    | grep -v "'authorization" \
-    | grep -v "'Server'" \
-    | grep -v "'Date'" \
-    | grep -v "'lsn'" \
-    | grep -v "body is sent" \
-    | grep -v "method:" \
-    | grep -v "Connecting to" \
-    | grep -v "Successfully Connected" \
-    || true
+  if is_local_mode; then
+    local compose_cmd
+    compose_cmd="$(_detect_compose_cmd)"
+    if [[ -z "$compose_cmd" ]]; then
+      echo "No docker/podman compose found. View logs from the terminal running uvicorn instead." >&2
+      exit 1
+    fi
+    $compose_cmd --env-file "$REPO_ROOT/backend/.env" logs --tail "$tail_count" backend 2>/dev/null \
+      | grep -v "azure.cosmos" \
+      | grep -v "x-ms-" \
+      || true
+  else
+    need_cmd az
+    az containerapp logs show \
+      -n "$BACKEND_APP" \
+      -g "$AZ_RESOURCE_GROUP" \
+      --tail "$tail_count" \
+      --type console 2>/dev/null \
+      | grep -v "azure.cosmos" \
+      | grep -v "x-ms-" \
+      | grep -v "headers:" \
+      | grep -v "'Content" \
+      | grep -v "'Cache" \
+      | grep -v "'Accept" \
+      | grep -v "'authorization" \
+      | grep -v "'Server'" \
+      | grep -v "'Date'" \
+      | grep -v "'lsn'" \
+      | grep -v "body is sent" \
+      | grep -v "method:" \
+      | grep -v "Connecting to" \
+      | grep -v "Successfully Connected" \
+      || true
+  fi
 }
 
 cmd_logs_raw() {
-  need_cmd az
   local tail_count="200"
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -678,16 +754,26 @@ cmd_logs_raw() {
       *) echo "Unknown argument for logs:raw: $1" >&2; exit 2 ;;
     esac
   done
-  az containerapp logs show \
-    -n "$BACKEND_APP" \
-    -g "$AZ_RESOURCE_GROUP" \
-    --tail "$tail_count" \
-    --type console 2>/dev/null \
-    || true
+  if is_local_mode; then
+    local compose_cmd
+    compose_cmd="$(_detect_compose_cmd)"
+    if [[ -z "$compose_cmd" ]]; then
+      echo "No docker/podman compose found. View logs from the terminal running uvicorn instead." >&2
+      exit 1
+    fi
+    $compose_cmd --env-file "$REPO_ROOT/backend/.env" logs --tail "$tail_count" backend 2>/dev/null || true
+  else
+    need_cmd az
+    az containerapp logs show \
+      -n "$BACKEND_APP" \
+      -g "$AZ_RESOURCE_GROUP" \
+      --tail "$tail_count" \
+      --type console 2>/dev/null \
+      || true
+  fi
 }
 
 cmd_logs_grep() {
-  need_cmd az
   local pattern="" tail_count="500"
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -710,13 +796,26 @@ cmd_logs_grep() {
     echo "Usage: bash scripts/ph.sh logs:grep --pattern <regex> [--tail N]" >&2
     exit 2
   fi
-  az containerapp logs show \
-    -n "$BACKEND_APP" \
-    -g "$AZ_RESOURCE_GROUP" \
-    --tail "$tail_count" \
-    --type console 2>/dev/null \
-    | grep -iE "$pattern" \
-    || true
+  if is_local_mode; then
+    local compose_cmd
+    compose_cmd="$(_detect_compose_cmd)"
+    if [[ -z "$compose_cmd" ]]; then
+      echo "No docker/podman compose found. View logs from the terminal running uvicorn instead." >&2
+      exit 1
+    fi
+    $compose_cmd --env-file "$REPO_ROOT/backend/.env" logs --tail "$tail_count" backend 2>/dev/null \
+      | grep -iE "$pattern" \
+      || true
+  else
+    need_cmd az
+    az containerapp logs show \
+      -n "$BACKEND_APP" \
+      -g "$AZ_RESOURCE_GROUP" \
+      --tail "$tail_count" \
+      --type console 2>/dev/null \
+      | grep -iE "$pattern" \
+      || true
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -1011,13 +1110,13 @@ cmd_backfill() {
   local api_key
   mapfile -t _keys < <(read_auth_keys)
   api_key="${_keys[0]}"
-  local backend_fqdn
-  backend_fqdn="$(resolve_backend_fqdn)"
+  local base_url
+  base_url="$(resolve_backend_url)"
 
   echo "Triggering backfill sweep (max_age_hours=$max_age_hours)..."
   curl -fsS -X POST \
     -H "X-API-Key: $api_key" \
-    "https://$backend_fqdn/api/backfill-diagnostics?max_age_hours=$max_age_hours"
+    "$base_url/api/backfill-diagnostics?max_age_hours=$max_age_hours"
   echo
 }
 
@@ -1038,15 +1137,19 @@ case "$COMMAND" in
     usage
     ;;
   deploy)
+    require_azure "deploy"
     bash "$SCRIPT_DIR/deploy/redeploy_azure_containerapps.sh" "$@"
     ;;
   deploy:env)
+    require_azure "deploy:env"
     bash "$SCRIPT_DIR/deploy/redeploy_azure_containerapps.sh" --env-only "$@"
     ;;
   deploy:bg)
+    require_azure "deploy:bg"
     deploy_bg "$@"
     ;;
   deploy:logs)
+    require_azure "deploy:logs"
     if [[ ! -f "$DEPLOY_LOG" ]]; then
       echo "No log file yet: $DEPLOY_LOG"
       exit 0
@@ -1054,33 +1157,40 @@ case "$COMMAND" in
     tail -f "$DEPLOY_LOG"
     ;;
   deploy:status)
+    require_azure "deploy:status"
     deploy_status
     ;;
   urls)
     show_urls
     ;;
   demo:e2e)
+    require_azure "demo:e2e"
     bash "$SCRIPT_DIR/demo/run_e2e_azure.sh" "$@"
     ;;
   demo:proof)
     cmd_demo_proof "$@"
     ;;
   webhook:add)
+    require_azure "webhook:add"
     cmd_webhook_add "$@"
     ;;
   webhook:disable)
+    require_azure "webhook:disable"
     cmd_webhook_disable "$@"
     ;;
   rollout:canary)
+    require_azure "rollout:canary"
     cmd_rollout_canary "$@"
     ;;
   demo:reset)
     bash "$SCRIPT_DIR/demo/reset_demo_fixtures.sh" "$@"
     ;;
   warm)
+    require_azure "warm"
     scale_mode 1
     ;;
   lowcost)
+    require_azure "lowcost"
     scale_mode 0
     ;;
   status)
