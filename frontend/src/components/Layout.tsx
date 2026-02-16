@@ -41,10 +41,13 @@ export default function Layout() {
       <div className="hidden md:flex md:w-64 md:flex-col">
         <div className="flex flex-col flex-grow pt-5 border-r border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)]/95 overflow-y-auto">
           {/* Logo */}
-          <div className="flex items-center flex-shrink-0 px-4">
+          <Link
+            to="/"
+            className="mx-3 flex items-center rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-800/40"
+          >
             <Zap className="h-7 w-7 text-azure-400" />
             <span className="ml-2 text-xl font-semibold tracking-tight text-slate-100">PipelineHealer</span>
-          </div>
+          </Link>
 
           {/* Navigation */}
           <div className="mt-8 flex-grow flex flex-col">
@@ -93,8 +96,11 @@ export default function Layout() {
       {/* Mobile header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-20 flex items-center justify-between h-14 pt-[env(safe-area-inset-top)] bg-[color:var(--ph-bg-elevated)]/95 backdrop-blur border-b border-[var(--ph-border)] px-3">
         <div className="flex items-center gap-2 min-w-0">
-          <Zap className="h-5 w-5 text-azure-400 shrink-0" />
-          <span className="text-sm font-semibold text-slate-100 tracking-tight truncate">{currentPageTitle}</span>
+          <Link to="/" className="flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-slate-800/50">
+            <Zap className="h-5 w-5 text-azure-400 shrink-0" />
+            <span className="text-sm font-semibold text-slate-100 tracking-tight">PipelineHealer</span>
+          </Link>
+          <span className="text-xs text-slate-400 truncate">{currentPageTitle}</span>
         </div>
 
         <Sheet open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen}>

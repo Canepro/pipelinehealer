@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import {
   BarChart,
   Bar,
@@ -14,6 +15,7 @@ import {
 } from 'recharts'
 import {
   Activity,
+  ArrowRight,
   CheckCircle,
   Clock,
   FileText,
@@ -113,6 +115,11 @@ export default function Dashboard() {
       ? Math.round((stats.issue_remediations / stats.actioned_remediations) * 100)
       : 0
     : 0
+  const successRate = stats
+    ? stats.actioned_remediations > 0
+      ? Math.round((stats.successful_remediations / stats.actioned_remediations) * 100)
+      : 0
+    : 0
   const recentActivities = (activities || []).slice(0, 5)
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
 
@@ -164,6 +171,16 @@ export default function Dashboard() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 4)
   }, [activities])
+  const externalSignalCount = useMemo(
+    () =>
+      (activities || []).filter((activity) =>
+        (activity.external_diagnostics || []).some((item) => item.status === 'available')
+      ).length,
+    [activities]
+  )
+  const lastUpdatedLabel = stats?.last_updated
+    ? new Date(stats.last_updated).toLocaleString()
+    : 'Unavailable'
 
   const showStatsLoading = statsLoading && !statsError
   const statsErrorMessage =
@@ -173,56 +190,102 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Dashboard
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Overview of CI/CD healing activities
-        </p>
-      </div>
+      {/* Executive header */}
+      <Card className="border-azure-500/20 bg-[radial-gradient(120%_100%_at_0%_0%,rgba(53,111,174,0.25),transparent_52%),var(--ph-surface)]">
+        <CardContent className="p-5 md:p-6">
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+            <div className="max-w-2xl">
+              <Badge variant="outline">Operations Command Center</Badge>
+              <h1 className="mt-3 text-2xl font-bold tracking-tight text-[var(--ph-text)] sm:text-3xl">
+                Pipeline Reliability Dashboard
+              </h1>
+              <p className="mt-2 text-sm leading-relaxed text-[var(--ph-muted)] sm:text-base">
+                Track remediation throughput, safety posture, and external diagnostic signals from one place.
+              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <Button asChild size="sm">
+                  <Link to="/app/activities">
+                    Review Activities
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="secondary">
+                  <Link to="/app/settings">Runtime Settings</Link>
+                </Button>
+              </div>
+            </div>
 
-      {/* Story-First Metrics */}
-      {showStatsLoading ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Card key={`stats-skeleton-${index}`}>
-              <CardContent className="p-4 md:p-5 space-y-3">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-8 w-20" />
-              </CardContent>
-            </Card>
-          ))}
+            <div className="grid grid-cols-2 gap-3 sm:min-w-[360px]">
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
+                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">Success Rate</p>
+                <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">{successRate}%</p>
+              </div>
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
+                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">External Signals</p>
+                <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">{externalSignalCount}</p>
+              </div>
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
+                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">Avg Resolution</p>
+                <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">
+                  {stats?.average_resolution_time_seconds
+                    ? `${Math.round(stats.average_resolution_time_seconds)}s`
+                    : 'N/A'}
+                </p>
+              </div>
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
+                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">Last Updated</p>
+                <p className="mt-1 truncate text-sm font-medium text-[var(--ph-text)]">{lastUpdatedLabel}</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-[var(--ph-text)]">Healing Throughput</h2>
+          <Badge variant="outline">Last 30 days</Badge>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatsCard
-            title="Processed"
-            value={stats?.total_runs_processed || 0}
-            icon={Activity}
-            color="blue"
-          />
-          <StatsCard
-            title="Actioned"
-            value={stats?.actioned_remediations || 0}
-            icon={CheckCircle}
-            color="green"
-          />
-          <StatsCard
-            title="Safety Gated"
-            value={`${stats?.safety_blocked_remediations || 0} (${safetyGatedRate}%)`}
-            icon={ShieldAlert}
-            color="red"
-          />
-          <StatsCard
-            title="Issue-Only"
-            value={`${stats?.issue_remediations || 0} (${issueRate}%)`}
-            icon={FileText}
-            color="yellow"
-          />
-        </div>
-      )}
+        {showStatsLoading ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Card key={`stats-skeleton-${index}`}>
+                <CardContent className="p-4 md:p-5 space-y-3">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-8 w-20" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <StatsCard
+              title="Processed"
+              value={stats?.total_runs_processed || 0}
+              icon={Activity}
+              color="blue"
+            />
+            <StatsCard
+              title="Actioned"
+              value={stats?.actioned_remediations || 0}
+              icon={CheckCircle}
+              color="green"
+            />
+            <StatsCard
+              title="Safety Gated"
+              value={`${stats?.safety_blocked_remediations || 0} (${safetyGatedRate}%)`}
+              icon={ShieldAlert}
+              color="red"
+            />
+            <StatsCard
+              title="Issue-Only"
+              value={`${stats?.issue_remediations || 0} (${issueRate}%)`}
+              icon={FileText}
+              color="yellow"
+            />
+          </div>
+        )}
+      </section>
 
       <Card>
         <CardHeader className="pb-2">
@@ -251,7 +314,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div>
-              <p className="text-sm font-medium text-gray-200">{EMPTY_STATES.safetyGated.title}</p>
+              <p className="text-sm font-medium text-[var(--ph-text)]">{EMPTY_STATES.safetyGated.title}</p>
               <p className="mt-1 text-sm text-gray-400">{EMPTY_STATES.safetyGated.body}</p>
             </div>
           )}
@@ -271,7 +334,7 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Failure Types (Last 30 Days)</CardTitle>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Total failures observed: <span className="font-semibold text-white">{totalFailures}</span>
+              Total failures observed: <span className="font-semibold text-[var(--ph-text)]">{totalFailures}</span>
             </p>
           </CardHeader>
           <CardContent>
@@ -339,7 +402,7 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Top Repositories</CardTitle>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Most active repo: <span className="font-semibold text-white">{topRepository?.name || 'N/A'}</span>{' '}
+              Most active repo: <span className="font-semibold text-[var(--ph-text)]">{topRepository?.name || 'N/A'}</span>{' '}
               <span className="text-gray-400">({topRepository?.count || 0} runs)</span>
             </p>
           </CardHeader>
@@ -432,7 +495,7 @@ export default function Dashboard() {
                 </label>
                 <div className="flex flex-wrap items-end gap-2">
                   <Button asChild variant="secondary" size="sm">
-                    <a href={`/app/activities?focus=${selectedActivity?.id || ''}`}>View activity</a>
+                    <Link to={`/app/activities?focus=${selectedActivity?.id || ''}`}>View activity</Link>
                   </Button>
                   {selectedArtifactUrl && (
                     <Button asChild variant="ghost" size="sm">
@@ -463,19 +526,19 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
                 <div className="rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Failure Type</p>
-                  <p className="mt-1 text-sm font-semibold text-white">{selectedFailureType}</p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedFailureType}</p>
                 </div>
                 <div className="rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Confidence</p>
-                  <p className="mt-1 text-sm font-semibold text-white">{selectedConfidence}</p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedConfidence}</p>
                 </div>
                 <div className="rounded-lg border border-[var(--ph-border)] p-3 lg:col-span-2">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Proposed Action</p>
-                  <p className="mt-1 text-sm font-semibold text-white">{selectedActionTaken}</p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedActionTaken}</p>
                 </div>
                 <div className="rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Reason Code</p>
-                  <p className="mt-1 text-sm font-semibold text-white">{selectedReasonCode || 'N/A'}</p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedReasonCode || 'N/A'}</p>
                 </div>
               </div>
 
@@ -499,7 +562,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 {evidenceLines.length > 0 ? (
-                  <ul className="space-y-1 text-sm text-gray-300">
+                  <ul className="space-y-1 text-sm text-[var(--ph-text)]">
                     {evidenceLines.map((line, index) => (
                       <li key={index} className="truncate">
                         {line}
@@ -526,7 +589,7 @@ export default function Dashboard() {
             Recent Activities
           </h2>
           <Button asChild size="sm" variant="ghost">
-            <a href="/app/activities">View all</a>
+            <Link to="/app/activities">View all</Link>
           </Button>
         </div>
         <ActivityTable
