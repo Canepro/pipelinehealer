@@ -32,47 +32,38 @@ bash scripts/ph.sh help
 
 For the full CLI reference (all commands, flags, error handling, env overrides), see `docs/CLI.md`.
 
-Common commands:
+**Works locally and on Azure** (set `PH_BACKEND_URL` for local):
 
 ```bash
-bash scripts/ph.sh deploy
-bash scripts/ph.sh deploy:env
-bash scripts/ph.sh urls
-bash scripts/ph.sh status
-bash scripts/ph.sh settings:check
-bash scripts/ph.sh settings:audit --limit 5
-bash scripts/ph.sh settings:persist
-bash scripts/ph.sh audit:proof --limit 5
-bash scripts/ph.sh logs
-bash scripts/ph.sh logs:grep --pattern "debug-mode"
-bash scripts/ph.sh demo:e2e
-bash scripts/ph.sh demo:proof --repo Canepro/pipelinehealer-demo --limit 10
+bash scripts/ph.sh settings:check                                  # view runtime settings
+bash scripts/ph.sh settings:audit --limit 5                        # view admin audit trail
+bash scripts/ph.sh audit:proof --limit 5                           # create traceable audit entries
+bash scripts/ph.sh logs                                            # backend logs (filtered)
+bash scripts/ph.sh logs:grep --pattern "error"                     # grep backend logs
+bash scripts/ph.sh backfill                                        # trigger diagnostics backfill
+bash scripts/ph.sh demo:proof --repo Canepro/pipelinehealer-demo   # show PRs/issues for a repo
+bash scripts/ph.sh demo:reset                                      # reset demo fixtures
 ```
 
-Real-repo onboarding (canary-safe defaults):
-
 ```bash
-# 1) Configure repo allowlist + issue-only safe mode, then sync Azure runtime env
-bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
-
-# 2) Add/update webhook for one repo (workflow_run only)
-bash scripts/ph.sh webhook:add --repo owner/repo1
-
-# 3) Disable Azure webhook for one repo
-bash scripts/ph.sh webhook:disable --repo owner/repo1
-```
-
-**Local mode:** Most `ph.sh` commands default to Azure, but you can target a local backend by setting `PH_BACKEND_URL`:
-
-```bash
+# Local mode — prefix with PH_BACKEND_URL to target localhost:
 PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh settings:check
-PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh logs --tail 100
-PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh backfill
 ```
 
-**Works locally:** `settings:check`, `settings:audit`, `audit:proof`, `backfill`, `logs`, `logs:raw`, `logs:grep`, `demo:proof`, `demo:reset`.
+**Azure-only** (requires an Azure deployment — prints a clear error if `PH_BACKEND_URL` is set):
 
-**Azure-only** (prints a clear error when `PH_BACKEND_URL` is set): `deploy`, `warm`, `lowcost`, `status`, `urls`, `webhook:*`, `rollout:canary`, `demo:e2e`.
+```bash
+bash scripts/ph.sh deploy                                            # build, push, update Azure apps
+bash scripts/ph.sh deploy:env                                        # sync env vars only (no rebuild)
+bash scripts/ph.sh urls                                              # print Azure backend/frontend URLs
+bash scripts/ph.sh status                                            # Container App status + replicas
+bash scripts/ph.sh warm                                              # disable scale-to-zero for demos
+bash scripts/ph.sh lowcost                                           # re-enable scale-to-zero
+bash scripts/ph.sh demo:e2e                                          # full Azure E2E demo flow
+bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2    # canary onboarding (issue-only)
+bash scripts/ph.sh webhook:add --repo owner/repo1                    # add Azure webhook for a repo
+bash scripts/ph.sh webhook:disable --repo owner/repo1                # disable Azure webhook for a repo
+```
 
 ## What Problem This Solves
 
