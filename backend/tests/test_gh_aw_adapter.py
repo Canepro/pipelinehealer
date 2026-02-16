@@ -358,6 +358,23 @@ def test_sanitize_section_strips_html_comments_and_footer() -> None:
     assert "More useful content." in cleaned
 
 
+def test_sanitize_section_strips_gh_aw_setup_hints_and_expiry() -> None:
+    raw = (
+        "This mirrors the documented dependency failure.\n"
+        "\n"
+        ">\n"
+        "> To add this workflow in your repository, run `gh aw add github/gh-aw/...`. "
+        "See [usage guide](https://github.github.com/gh-aw/guides/packaging-imports/).\n"
+        "> - [x] expires  on Feb 17, 2026, 12:14 AM UTC\n"
+        "- [x] expires on Mar 1, 2026\n"
+    )
+    cleaned = PassiveIssueGHAWAdapter._sanitize_section(raw)
+    assert "To add this workflow" not in cleaned
+    assert "usage guide" not in cleaned
+    assert "expires" not in cleaned
+    assert "documented dependency failure" in cleaned
+
+
 def test_sanitize_section_strips_standalone_temp_paths() -> None:
     raw = (
         "Investigation logged.\n"
