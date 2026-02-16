@@ -759,11 +759,6 @@ async def retry_activity(
             owner=owner, repo=repo, run_id=activity.workflow_run_id
         )
 
-        activity.status = RemediationStatus.PENDING
-        activity.error = None
-        activity.updated_at = utcnow()
-        await storage.update_activity(activity)
-
         return {
             "status": "queued",
             "activity_id": activity_id,

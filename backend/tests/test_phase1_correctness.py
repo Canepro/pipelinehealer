@@ -199,6 +199,11 @@ async def test_dashboard_retry_calls_rerun_failed_jobs() -> None:
     resp = response.json()
     assert resp["status"] == "queued"
     assert gh.rerun_calls == [("octo", "demo", 123)]
+    updated = await storage.get_activity("a1")
+    assert updated is not None
+    # Retry should keep the original activity immutable; webhook retries create
+    # a new activity record keyed by run_attempt.
+    assert updated.status == RemediationStatus.FAILED
 
 
 @pytest.mark.asyncio

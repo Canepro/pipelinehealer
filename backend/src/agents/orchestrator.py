@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import re
 import time
 from collections.abc import Awaitable
 from datetime import timedelta
@@ -42,6 +43,11 @@ _EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS: tuple[float, ...] = (
     90.0,
     75.0,
 )
+
+
+def _normalize_workflow_identifier(name: str) -> str:
+    """Normalize workflow names/identifiers for robust comparisons."""
+    return re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-")
 
 
 class OrchestratorAgent:
@@ -112,6 +118,37 @@ class OrchestratorAgent:
             return []
         if self._settings.gh_aw_ingestion_mode != "passive":
             return []
+
+        # Skip passive polling when the failed workflow is itself one of the
+        # gh-aw workflows (e.g. schema-consistency-checker). In these cases
+        # ci-doctor findings are not expected for the same failing run and
+        # waiting up to 8 minutes makes retries look stuck.
+        workflow_name = event.workflow_run.name or ""
+        workflow_identifier = _normalize_workflow_identifier(workflow_name)
+        known_identifiers = {
+            _normalize_workflow_identifier(name)
+            for name in self._settings.gh_aw_known_workflows
+            if name
+        }
+        if workflow_identifier and workflow_identifier in known_identifiers:
+            logger.info(
+                "Skipping ci-doctor polling for known gh-aw workflow failure: %s (run %s)",
+                workflow_name,
+                event.workflow_run.id,
+            )
+            return [
+                ExternalDiagnostic(
+                    source="ci-doctor",
+                    status=ExternalDiagnosticStatus.UNAVAILABLE,
+                    summary="Skipped ci-doctor polling for known gh-aw workflow failure",
+                    matched_run_id=event.workflow_run.id,
+                    metadata={
+                        "reason_code": "skip_known_gh_aw_workflow",
+                        "workflow_name": workflow_name,
+                        "workflow_identifier": workflow_identifier,
+                    },
+                )
+            ]
 
         try:
             capability = await self._gh_aw_adapter.discover_capability(owner, repo)

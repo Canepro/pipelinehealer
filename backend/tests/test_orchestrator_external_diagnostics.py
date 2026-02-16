@@ -159,6 +159,23 @@ class _TransientErrorThenAvailableAdapter:
         ]
 
 
+class _FailIfCalledAdapter:
+    async def discover_capability(self, owner: str, repo: str) -> GHAWCapability:
+        _ = owner, repo
+        raise AssertionError("discover_capability should not be called")
+
+    async def collect_external_diagnostics(
+        self,
+        owner: str,
+        repo: str,
+        run_id: int,
+        head_sha: str,
+        run_number: int | None = None,
+    ) -> list[ExternalDiagnostic]:
+        _ = owner, repo, run_id, head_sha, run_number
+        raise AssertionError("collect_external_diagnostics should not be called")
+
+
 @pytest.fixture(autouse=True)
 def _clear_settings_cache() -> None:
     reset_settings()
@@ -179,6 +196,28 @@ async def test_collect_external_diagnostics_reports_capability_unavailable(monke
     assert len(diagnostics) == 1
     assert diagnostics[0].status == ExternalDiagnosticStatus.UNAVAILABLE
     assert diagnostics[0].metadata.get("reason_code") == "capability_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_skips_known_gh_aw_workflow(monkeypatch) -> None:
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "true")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "passive")
+    monkeypatch.setenv(
+        "GH_AW_KNOWN_WORKFLOWS",
+        "ci-doctor,schema-consistency-checker,breaking-change-checker",
+    )
+    reset_settings()
+
+    orchestrator = OrchestratorAgent(github_tools=_DummyGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
+    orchestrator._gh_aw_adapter = _FailIfCalledAdapter()  # type: ignore[assignment]
+    event = _event()
+    event.workflow_run.name = "Schema Consistency Checker"
+
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", event)
+    assert len(diagnostics) == 1
+    assert diagnostics[0].status == ExternalDiagnosticStatus.UNAVAILABLE
+    assert diagnostics[0].metadata.get("reason_code") == "skip_known_gh_aw_workflow"
+    assert diagnostics[0].metadata.get("workflow_identifier") == "schema-consistency-checker"
 
 
 @pytest.mark.asyncio
