@@ -132,20 +132,29 @@ class OrchestratorAgent:
         }
         if workflow_identifier and workflow_identifier in known_identifiers:
             logger.info(
-                "Skipping ci-doctor polling for known gh-aw workflow failure: %s (run %s)",
+                (
+                    "Skipping ci-doctor polling because failed workflow is a known "
+                    "gh-aw workflow: %s (%s, run %s)"
+                ),
                 workflow_name,
+                workflow_identifier,
                 event.workflow_run.id,
             )
             return [
                 ExternalDiagnostic(
                     source="ci-doctor",
                     status=ExternalDiagnosticStatus.UNAVAILABLE,
-                    summary="Skipped ci-doctor polling for known gh-aw workflow failure",
+                    summary=(
+                        f"Skipped ci-doctor polling because failed workflow "
+                        f"'{workflow_name}' is itself a gh-aw workflow."
+                    ),
                     matched_run_id=event.workflow_run.id,
                     metadata={
                         "reason_code": "skip_known_gh_aw_workflow",
+                        "skip_reason": "failed_workflow_is_gh_aw_workflow",
                         "workflow_name": workflow_name,
                         "workflow_identifier": workflow_identifier,
+                        "polling_source": "ci-doctor",
                     },
                 )
             ]
