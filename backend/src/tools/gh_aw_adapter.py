@@ -96,6 +96,16 @@ class GHAWAdapter(Protocol):
         When ``None``, the adapter discovers available sources automatically.
         """
 
+    async def collect_noop_signals(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        exclude_sources: set[str] | None = None,
+    ) -> list[ExternalDiagnostic]:
+        """Collect informational noop signals from gh-aw workflows that ran
+        but found nothing actionable."""
+
 
 class NullGHAWAdapter:
     """No-op adapter used until passive ingestion is implemented."""
@@ -121,6 +131,16 @@ class NullGHAWAdapter:
         sources: list[DiagnosticSourceConfig] | None = None,
     ) -> list[ExternalDiagnostic]:
         _ = run_number, sources
+        return []
+
+    async def collect_noop_signals(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        exclude_sources: set[str] | None = None,
+    ) -> list[ExternalDiagnostic]:
+        _ = owner, repo, exclude_sources
         return []
 
 
@@ -626,6 +646,156 @@ class PassiveIssueGHAWAdapter:
             if score > 0:
                 return (score, f"comment_{basis}")
         return (0, "none")
+
+    # ------------------------------------------------------------------
+    # Noop signal collection
+    # ------------------------------------------------------------------
+
+    # Heading pattern in noop comments: "### Workflow Name"
+    _NOOP_HEADING_RE = re.compile(r"^###\s+(.+)", re.MULTILINE)
+    # Footer pattern: "> Generated from [Name](url)"
+    _NOOP_FOOTER_RE = re.compile(
+        r">\s*Generated from\s+\[([^\]]+)\]\(([^)]+)\)",
+    )
+
+    @classmethod
+    def _parse_noop_comment(cls, body: str) -> dict[str, str] | None:
+        """Extract workflow name, message, and run URL from a noop comment.
+
+        Returns ``None`` if the comment doesn't match the expected format.
+        """
+        heading_match = cls._NOOP_HEADING_RE.search(body)
+        if not heading_match:
+            return None
+        workflow_name = heading_match.group(1).strip()
+
+        footer_match = cls._NOOP_FOOTER_RE.search(body)
+        run_url = footer_match.group(2).strip() if footer_match else None
+
+        # The message is everything between the heading and the footer,
+        # stripped of blank lines and the footer itself.
+        lines = body.split("\n")
+        heading_idx = next(
+            (i for i, ln in enumerate(lines) if ln.strip().startswith("### ")),
+            0,
+        )
+        message_lines: list[str] = []
+        for line in lines[heading_idx + 1 :]:
+            stripped = line.strip()
+            if stripped.startswith(">"):
+                continue
+            if stripped:
+                message_lines.append(stripped)
+        message = " ".join(message_lines).strip()[:500]
+
+        return {
+            "workflow_name": workflow_name,
+            "message": message or f"{workflow_name}: no action needed",
+            "run_url": run_url or "",
+        }
+
+    async def collect_noop_signals(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        exclude_sources: set[str] | None = None,
+    ) -> list[ExternalDiagnostic]:
+        """Collect recent noop signals from the ``[agentics] No-Op Runs`` issue.
+
+        Returns informational diagnostics for gh-aw workflows that ran but
+        found nothing actionable.  Sources already represented in
+        *exclude_sources* are skipped to avoid duplicates.
+        """
+        exclude = exclude_sources or set()
+
+        # Find the noop tracking issue.
+        list_issues = getattr(self._github_tools, "list_issues", None)
+        if list_issues is None:
+            return []
+
+        try:
+            candidates = await list_issues(
+                owner,
+                repo,
+                state="open",
+                labels="agentic-workflows",
+                sort="updated",
+                direction="desc",
+                per_page=5,
+            )
+        except Exception as exc:
+            logger.warning("Failed to search for noop issue in %s/%s: %s", owner, repo, exc)
+            return []
+
+        noop_issue: dict[str, object] | None = None
+        for issue in candidates:
+            title = str(issue.get("title", "")).strip()
+            if "[agentics]" in title.lower() and "no-op" in title.lower():
+                noop_issue = issue
+                break
+
+        if noop_issue is None:
+            return []
+
+        issue_number = noop_issue.get("number")
+        if not isinstance(issue_number, int):
+            return []
+
+        # Fetch recent comments.
+        list_comments = getattr(self._github_tools, "list_issue_comments", None)
+        if list_comments is None:
+            return []
+
+        try:
+            comments = await list_comments(owner, repo, issue_number, 10)
+        except Exception as exc:
+            logger.warning("Failed to fetch noop comments from #%s: %s", issue_number, exc)
+            return []
+
+        issue_url = str(noop_issue.get("html_url", "")).strip() or None
+        diagnostics: list[ExternalDiagnostic] = []
+        seen_sources: set[str] = set()
+
+        # Comments are returned newest-last; reverse to process newest first.
+        for comment in reversed(comments):
+            body = str(comment.get("body", ""))
+            parsed = self._parse_noop_comment(body)
+            if parsed is None:
+                continue
+
+            slug = re.sub(r"[^a-z0-9]+", "-", parsed["workflow_name"].lower()).strip("-")
+            if slug in seen_sources or slug in exclude:
+                continue
+            seen_sources.add(slug)
+
+            diagnostics.append(
+                ExternalDiagnostic(
+                    source=slug,
+                    status=ExternalDiagnosticStatus.AVAILABLE,
+                    summary=parsed["message"],
+                    url=parsed["run_url"] or issue_url,
+                    matched_run_id=None,
+                    confidence_delta=0.0,
+                    metadata={
+                        "noop": True,
+                        "workflow_name": parsed["workflow_name"],
+                        "noop_issue_number": issue_number,
+                    },
+                )
+            )
+
+        if diagnostics:
+            logger.info(
+                "Collected %d noop signal(s) from %s/%s #%s: %s",
+                len(diagnostics),
+                owner,
+                repo,
+                issue_number,
+                [d.source for d in diagnostics],
+            )
+
+        return diagnostics
 
 
 def create_gh_aw_adapter(*, github_tools: GitHubTools) -> GHAWAdapter:

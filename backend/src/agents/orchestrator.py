@@ -250,6 +250,26 @@ class OrchestratorAgent:
             )
             all_diagnostics.extend(ci_doctor_findings)
 
+        # --- Phase 3: Noop signals (informational context) ---
+        # Collect recent noop signals from gh-aw workflows that ran but
+        # found nothing actionable.  Skip sources that already produced
+        # actual findings to avoid noise.
+        sources_with_findings = {
+            d.source
+            for d in all_diagnostics
+            if d.status == ExternalDiagnosticStatus.AVAILABLE
+        }
+        try:
+            noop_signals = await self._gh_aw_adapter.collect_noop_signals(
+                owner, repo, exclude_sources=sources_with_findings,
+            )
+            all_diagnostics.extend(noop_signals)
+        except Exception as exc:
+            logger.warning(
+                "Noop signal collection failed for %s/%s: %s",
+                owner, repo, exc,
+            )
+
         return all_diagnostics
 
     async def _poll_ci_doctor(

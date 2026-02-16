@@ -487,3 +487,91 @@ async def test_collect_multi_source_returns_findings_from_both() -> None:
     assert "ci-doctor" in sources_found
     assert "breaking-change-checker" in sources_found
     assert len(diagnostics) == 2
+
+
+# ---------------------------------------------------------------------------
+# Noop signal collection tests
+# ---------------------------------------------------------------------------
+
+_NOOP_COMMENT_BCC = """\
+### Breaking Change Checker
+
+No breaking changes detected in commits from the last 24 hours. Analysis complete. Repository contains no CLI code - this is a demo Node.js application.
+
+> Generated from [Breaking Change Checker](https://github.com/Canepro/pipelinehealer-demo/actions/runs/22073449192)
+"""
+
+_NOOP_COMMENT_OTHER = """\
+### Schema Consistency Checker
+
+No schema inconsistencies found. All schemas match documentation.
+
+> Generated from [Schema Consistency Checker](https://github.com/Canepro/pipelinehealer-demo/actions/runs/99999999)
+"""
+
+
+def test_parse_noop_comment_extracts_fields() -> None:
+    parsed = PassiveIssueGHAWAdapter._parse_noop_comment(_NOOP_COMMENT_BCC)
+    assert parsed is not None
+    assert parsed["workflow_name"] == "Breaking Change Checker"
+    assert "No breaking changes" in parsed["message"]
+    assert "no CLI code" in parsed["message"]
+    assert "22073449192" in parsed["run_url"]
+
+
+def test_parse_noop_comment_returns_none_for_unrelated() -> None:
+    assert PassiveIssueGHAWAdapter._parse_noop_comment("Just a random comment") is None
+    assert PassiveIssueGHAWAdapter._parse_noop_comment("") is None
+
+
+@pytest.mark.asyncio
+async def test_collect_noop_signals_finds_recent_comments() -> None:
+    gh = _FakeGitHubTools()
+    gh.listed_issues = [
+        {
+            "number": 92,
+            "title": "[agentics] No-Op Runs",
+            "html_url": "https://github.com/Canepro/pipelinehealer-demo/issues/92",
+            "state": "open",
+        }
+    ]
+    gh.issue_comments[92] = [
+        {"body": _NOOP_COMMENT_BCC},
+        {"body": _NOOP_COMMENT_OTHER},
+    ]
+    adapter = PassiveIssueGHAWAdapter(gh, known_workflows=["ci-doctor"])
+
+    signals = await adapter.collect_noop_signals("Canepro", "pipelinehealer-demo")
+    assert len(signals) == 2
+
+    sources = {s.source for s in signals}
+    assert "breaking-change-checker" in sources
+    assert "schema-consistency-checker" in sources
+
+    for s in signals:
+        assert s.status == ExternalDiagnosticStatus.AVAILABLE
+        assert s.confidence_delta == 0.0
+        assert s.metadata.get("noop") is True
+
+
+@pytest.mark.asyncio
+async def test_collect_noop_signals_excludes_sources_with_findings() -> None:
+    gh = _FakeGitHubTools()
+    gh.listed_issues = [
+        {
+            "number": 92,
+            "title": "[agentics] No-Op Runs",
+            "html_url": "https://github.com/Canepro/pipelinehealer-demo/issues/92",
+            "state": "open",
+        }
+    ]
+    gh.issue_comments[92] = [
+        {"body": _NOOP_COMMENT_BCC},
+    ]
+    adapter = PassiveIssueGHAWAdapter(gh, known_workflows=["ci-doctor"])
+
+    signals = await adapter.collect_noop_signals(
+        "Canepro", "pipelinehealer-demo",
+        exclude_sources={"breaking-change-checker"},
+    )
+    assert len(signals) == 0
