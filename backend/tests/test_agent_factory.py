@@ -38,3 +38,25 @@ def test_as_agent_compat_falls_back_to_chat_agent(monkeypatch) -> None:
     assert result.chat_client is client
     assert result.instructions == "test"
     assert result.name == "demo"
+
+
+def test_as_agent_compat_falls_back_to_agent_when_chat_agent_missing(monkeypatch) -> None:
+    class _ClientWithoutAsAgent:
+        pass
+
+    class _FakeAgent:
+        def __init__(self, chat_client, instructions=None, *, name=None, **kwargs) -> None:
+            self.chat_client = chat_client
+            self.instructions = instructions
+            self.name = name
+
+    monkeypatch.delattr("agent_framework.ChatAgent", raising=False)
+    monkeypatch.setattr("agent_framework.Agent", _FakeAgent, raising=False)
+
+    client = _ClientWithoutAsAgent()
+    result = _as_agent_compat(client, name="demo", instructions="test")
+
+    assert isinstance(result, _FakeAgent)
+    assert result.chat_client is client
+    assert result.instructions == "test"
+    assert result.name == "demo"

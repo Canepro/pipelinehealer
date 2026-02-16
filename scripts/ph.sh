@@ -630,6 +630,7 @@ show_urls() {
 }
 
 show_status() {
+  require_azure "status"
   need_cmd az
   az containerapp list \
     -g "$AZ_RESOURCE_GROUP" \

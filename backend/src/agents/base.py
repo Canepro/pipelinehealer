@@ -143,14 +143,29 @@ def _as_agent_compat(client: Any, *, name: str, instructions: str) -> Any:
     if callable(as_agent):
         return as_agent(name=name, instructions=instructions)
 
-    # Compatibility fallback for older Agent Framework versions.
-    from agent_framework import ChatAgent
+    # Compatibility fallback for Agent Framework versions where `as_agent` is absent.
+    import agent_framework
+
+    chat_agent_cls = getattr(agent_framework, "ChatAgent", None)
+    if chat_agent_cls is not None:
+        logger.warning(
+            "Client %s has no as_agent(); falling back to ChatAgent compatibility wrapper.",
+            type(client).__name__,
+        )
+        return chat_agent_cls(client, instructions=instructions, name=name)
+
+    agent_cls = getattr(agent_framework, "Agent", None)
+    if agent_cls is None:
+        raise RuntimeError(
+            f"Client {type(client).__name__} has no as_agent(), and agent_framework "
+            "exports neither ChatAgent nor Agent."
+        )
 
     logger.warning(
-        "Client %s has no as_agent(); falling back to ChatAgent compatibility wrapper.",
+        "Client %s has no as_agent(); ChatAgent is unavailable, using Agent wrapper.",
         type(client).__name__,
     )
-    return ChatAgent(client, instructions=instructions, name=name)
+    return agent_cls(client, instructions=instructions, name=name)
 
 
 def create_cloud_agent(

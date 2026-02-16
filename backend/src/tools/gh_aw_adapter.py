@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
 from collections.abc import Mapping
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from ..config import get_settings
@@ -285,7 +285,7 @@ class PassiveIssueGHAWAdapter:
         details: dict[str, object] = {}
 
         # Map well-known sections to structured keys.
-        _SECTION_MAP = {
+        section_map = {
             "Summary": "summary",
             "Root Cause Analysis": "root_cause",
             "Failed Jobs and Errors": "failed_jobs",
@@ -295,7 +295,7 @@ class PassiveIssueGHAWAdapter:
             "AI Team Self-Improvement": "ai_self_improvement",
             "Historical Context": "historical_context",
         }
-        for heading, key in _SECTION_MAP.items():
+        for heading, key in section_map.items():
             raw = sections.get(heading, "")
             text = cls._sanitize_section(raw)
             if text:

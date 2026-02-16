@@ -647,7 +647,7 @@ Be specific about:
 
         if overlaps:
             unique_overlaps = sorted(set(overlaps))
-            diagnosis.affected_files = sorted(set([*diagnosis.affected_files, *unique_overlaps]))[:20]
+            diagnosis.affected_files = sorted({*diagnosis.affected_files, *unique_overlaps})[:20]
             diagnosis.error_details["changed_file_overlap"] = unique_overlaps
             diagnosis.confidence = min(0.95, diagnosis.confidence + 0.06)
             return diagnosis
