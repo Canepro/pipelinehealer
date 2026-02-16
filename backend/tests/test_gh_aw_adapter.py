@@ -3,7 +3,10 @@
 import pytest
 
 from src.models import ExternalDiagnosticStatus
-from src.tools.gh_aw_adapter import PassiveIssueGHAWAdapter
+from src.tools.gh_aw_adapter import KNOWN_ISSUE_SOURCES, PassiveIssueGHAWAdapter
+
+# Pre-built source config for ci-doctor used in tests that skip discovery.
+_CI_DOCTOR_SOURCE = next(s for s in KNOWN_ISSUE_SOURCES if s.name == "ci-doctor")
 
 
 class _FakeGitHubTools:
@@ -61,6 +64,7 @@ async def test_discover_capability_detects_ci_doctor_lock_workflow() -> None:
     capability = await adapter.discover_capability("Canepro", "pipelinehealer")
     assert capability.is_available is True
     assert "ci-doctor" in capability.available_workflows
+    assert any(s.name == "ci-doctor" for s in capability.available_sources)
 
 
 @pytest.mark.asyncio
@@ -71,7 +75,26 @@ async def test_discover_capability_unavailable_without_ci_doctor() -> None:
 
     capability = await adapter.discover_capability("Canepro", "pipelinehealer")
     assert capability.is_available is False
-    assert capability.reason == "ci_doctor_workflow_not_found"
+    assert capability.reason == "no_known_diagnostic_sources_found"
+
+
+@pytest.mark.asyncio
+async def test_discover_capability_detects_multiple_sources() -> None:
+    """When both ci-doctor and breaking-change-checker are present, both are discovered."""
+    gh = _FakeGitHubTools()
+    gh.workflows = [
+        {"path": ".github/workflows/ci-doctor.lock.yml"},
+        {"path": ".github/workflows/breaking-change-checker.lock.yml"},
+        {"path": ".github/workflows/ci.yml"},
+    ]
+    adapter = PassiveIssueGHAWAdapter(gh, known_workflows=["ci-doctor"])
+
+    capability = await adapter.discover_capability("Canepro", "pipelinehealer")
+    assert capability.is_available is True
+    source_names = {s.name for s in capability.available_sources}
+    assert "ci-doctor" in source_names
+    assert "breaking-change-checker" in source_names
+    assert len(capability.available_sources) == 2
 
 
 @pytest.mark.asyncio
@@ -101,6 +124,7 @@ async def test_collect_external_diagnostics_filters_by_run_and_sha() -> None:
         run_id=4242,
         head_sha="abcdef1234567890",
         run_number=7,
+        sources=[_CI_DOCTOR_SOURCE],
     )
     assert len(diagnostics) == 1
     assert diagnostics[0].status == ExternalDiagnosticStatus.AVAILABLE
@@ -128,6 +152,7 @@ async def test_collect_external_diagnostics_matches_run_url_and_title_prefix_wit
         run_id=4242,
         head_sha="abcdef1234567890",
         run_number=7,
+        sources=[_CI_DOCTOR_SOURCE],
     )
 
     assert len(diagnostics) == 1
@@ -162,6 +187,7 @@ async def test_collect_external_diagnostics_matches_from_issue_comment() -> None
         run_id=4242,
         head_sha="abcdef1234567890",
         run_number=7,
+        sources=[_CI_DOCTOR_SOURCE],
     )
 
     assert len(diagnostics) == 1
@@ -191,6 +217,7 @@ async def test_collect_external_diagnostics_uses_list_issues_fallback_when_searc
         run_id=4242,
         head_sha="abcdef1234567890",
         run_number=7,
+        sources=[_CI_DOCTOR_SOURCE],
     )
 
     assert len(diagnostics) == 1
@@ -229,6 +256,7 @@ async def test_collect_external_diagnostics_prefers_latest_run_specific_issue_ov
         run_id=22032840035,
         head_sha="0329e474de4d2ec312b0c8660b03c3210a4e87ac",
         run_number=139,
+        sources=[_CI_DOCTOR_SOURCE],
     )
 
     assert len(diagnostics) == 1
@@ -259,6 +287,7 @@ async def test_collect_external_diagnostics_ignores_sha_only_matches_without_run
         run_id=22039999999,
         head_sha="0329e474de4d2ec312b0c8660b03c3210a4e87ac",
         run_number=999,
+        sources=[_CI_DOCTOR_SOURCE],
     )
 
     assert diagnostics == []
@@ -409,6 +438,7 @@ async def test_collect_external_diagnostics_includes_details() -> None:
         run_id=22044458052,
         head_sha="e3cbc1f685c95ce9c7b114574ced127bed9f4e35",
         run_number=142,
+        sources=[_CI_DOCTOR_SOURCE],
     )
 
     assert len(diagnostics) == 1
@@ -418,3 +448,42 @@ async def test_collect_external_diagnostics_includes_details() -> None:
     assert "root_cause" in details
     assert "historical_context" in details
     assert details.get("doctor_engine") == "copilot"
+
+
+@pytest.mark.asyncio
+async def test_collect_multi_source_returns_findings_from_both() -> None:
+    """When collecting from multiple sources, each produces independent results."""
+    bcc_source = next(s for s in KNOWN_ISSUE_SOURCES if s.name == "breaking-change-checker")
+
+    gh = _FakeGitHubTools()
+    gh.issues = [
+        {
+            "number": 50,
+            "title": "[CI Failure Doctor] Run #7 investigation",
+            "body": "https://github.com/Canepro/repo/actions/runs/4242 failed",
+            "html_url": "https://github.com/Canepro/repo/issues/50",
+            "state": "open",
+        },
+        {
+            "number": 51,
+            "title": "[breaking-change] Daily Breaking Change Analysis",
+            "body": "Commit abcdef123456 introduces a breaking CLI change",
+            "html_url": "https://github.com/Canepro/repo/issues/51",
+            "state": "open",
+        },
+    ]
+    adapter = PassiveIssueGHAWAdapter(gh, known_workflows=["ci-doctor"])
+
+    diagnostics = await adapter.collect_external_diagnostics(
+        owner="Canepro",
+        repo="repo",
+        run_id=4242,
+        head_sha="abcdef1234567890",
+        run_number=7,
+        sources=[_CI_DOCTOR_SOURCE, bcc_source],
+    )
+
+    sources_found = {d.source for d in diagnostics}
+    assert "ci-doctor" in sources_found
+    assert "breaking-change-checker" in sources_found
+    assert len(diagnostics) == 2

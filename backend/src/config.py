@@ -98,10 +98,12 @@ class Settings(BaseSettings):
     gh_aw_known_workflows: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: [
             "ci-doctor",
-            "schema-consistency-checker",
-            "breaking-change-checker",
         ],
-        description="Known external diagnostics workflow identifiers",
+        description=(
+            "Workflow names to skip when polling ci-doctor for external diagnostics. "
+            "ci-doctor is always included to prevent circular self-diagnosis. "
+            "Add others only if you explicitly want to suppress polling for them."
+        ),
     )
 
     # Application Configuration

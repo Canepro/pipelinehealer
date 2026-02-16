@@ -977,14 +977,20 @@ _persist_hydrate_from_live() {
 _persist_write_env() {
   # Write populated _sp_ vars to backend/.env.
   local normalized_csv="${_sp_repos_csv:-}"
-  if [[ "$_sp_clear_repos" != "1" && -n "$normalized_csv" ]]; then
-    normalized_csv="$(echo "$normalized_csv" | tr -d '[:space:]')"
+  if [[ "$_sp_from_settings" == "1" || "$_sp_clear_repos" == "1" || -n "$normalized_csv" ]]; then
+    if [[ "$_sp_clear_repos" != "1" && -n "$normalized_csv" ]]; then
+      normalized_csv="$(echo "$normalized_csv" | tr -d '[:space:]')"
+    fi
+    upsert_env_key "PH_ALLOWED_REPOS" "$normalized_csv"
   fi
 
-  upsert_env_key "PH_ALLOWED_REPOS" "$normalized_csv"
-
   # Helper: write key if value is non-empty.
-  _write_if_set() { [[ -n "${2:-}" ]] && upsert_env_key "$1" "$2"; }
+  _write_if_set() {
+    if [[ -n "${2:-}" ]]; then
+      upsert_env_key "$1" "$2"
+    fi
+    return 0
+  }
 
   _write_if_set "HEAL_MODE" "${_sp_heal_mode:-}"
   _write_if_set "AUTO_CREATE_PR" "${_sp_auto_create_pr:-}"

@@ -5,10 +5,10 @@ import asyncio
 import pytest
 
 from src.agents.orchestrator import (
-    OrchestratorAgent,
     _EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS,
+    OrchestratorAgent,
 )
-from src.config import get_settings, reset_settings
+from src.config import reset_settings
 from src.models import (
     ExternalDiagnostic,
     ExternalDiagnosticStatus,
@@ -17,7 +17,13 @@ from src.models import (
     WorkflowRunEvent,
 )
 from src.storage import InMemoryStorage
-from src.tools.gh_aw_adapter import GHAWCapability
+from src.tools.gh_aw_adapter import (
+    KNOWN_ISSUE_SOURCES,
+    DiagnosticSourceConfig,
+    GHAWCapability,
+)
+
+_CI_DOCTOR_SOURCE = next(s for s in KNOWN_ISSUE_SOURCES if s.name == "ci-doctor")
 
 
 def _event() -> WorkflowRunEvent:
@@ -73,8 +79,10 @@ class _UnavailableAdapter:
         run_id: int,
         head_sha: str,
         run_number: int | None = None,
+        *,
+        sources: list[DiagnosticSourceConfig] | None = None,
     ) -> list[ExternalDiagnostic]:
-        _ = owner, repo, run_id, head_sha, run_number
+        _ = owner, repo, run_id, head_sha, run_number, sources
         return []
 
 
@@ -84,7 +92,11 @@ class _EventuallyAvailableAdapter:
 
     async def discover_capability(self, owner: str, repo: str) -> GHAWCapability:
         _ = owner, repo
-        return GHAWCapability(repo_full_name="Canepro/repo", is_available=True)
+        return GHAWCapability(
+            repo_full_name="Canepro/repo",
+            is_available=True,
+            available_sources=[_CI_DOCTOR_SOURCE],
+        )
 
     async def collect_external_diagnostics(
         self,
@@ -93,8 +105,10 @@ class _EventuallyAvailableAdapter:
         run_id: int,
         head_sha: str,
         run_number: int | None = None,
+        *,
+        sources: list[DiagnosticSourceConfig] | None = None,
     ) -> list[ExternalDiagnostic]:
-        _ = owner, repo, run_id, head_sha, run_number
+        _ = owner, repo, run_id, head_sha, run_number, sources
         self.calls += 1
         if self.calls < 2:
             return []
@@ -114,7 +128,11 @@ class _NeverAvailableAdapter:
 
     async def discover_capability(self, owner: str, repo: str) -> GHAWCapability:
         _ = owner, repo
-        return GHAWCapability(repo_full_name="Canepro/repo", is_available=True)
+        return GHAWCapability(
+            repo_full_name="Canepro/repo",
+            is_available=True,
+            available_sources=[_CI_DOCTOR_SOURCE],
+        )
 
     async def collect_external_diagnostics(
         self,
@@ -123,8 +141,10 @@ class _NeverAvailableAdapter:
         run_id: int,
         head_sha: str,
         run_number: int | None = None,
+        *,
+        sources: list[DiagnosticSourceConfig] | None = None,
     ) -> list[ExternalDiagnostic]:
-        _ = owner, repo, run_id, head_sha, run_number
+        _ = owner, repo, run_id, head_sha, run_number, sources
         self.calls += 1
         return []
 
@@ -135,7 +155,11 @@ class _TransientErrorThenAvailableAdapter:
 
     async def discover_capability(self, owner: str, repo: str) -> GHAWCapability:
         _ = owner, repo
-        return GHAWCapability(repo_full_name="Canepro/repo", is_available=True)
+        return GHAWCapability(
+            repo_full_name="Canepro/repo",
+            is_available=True,
+            available_sources=[_CI_DOCTOR_SOURCE],
+        )
 
     async def collect_external_diagnostics(
         self,
@@ -144,8 +168,10 @@ class _TransientErrorThenAvailableAdapter:
         run_id: int,
         head_sha: str,
         run_number: int | None = None,
+        *,
+        sources: list[DiagnosticSourceConfig] | None = None,
     ) -> list[ExternalDiagnostic]:
-        _ = owner, repo, run_id, head_sha, run_number
+        _ = owner, repo, run_id, head_sha, run_number, sources
         self.calls += 1
         if self.calls == 1:
             raise RuntimeError("transient")
@@ -159,10 +185,17 @@ class _TransientErrorThenAvailableAdapter:
         ]
 
 
-class _FailIfCalledAdapter:
+class _SkipListAdapter:
+    """Returns ci-doctor as available source so discovery succeeds,
+    but collect should never be called when the skip list triggers."""
+
     async def discover_capability(self, owner: str, repo: str) -> GHAWCapability:
         _ = owner, repo
-        raise AssertionError("discover_capability should not be called")
+        return GHAWCapability(
+            repo_full_name="Canepro/repo",
+            is_available=True,
+            available_sources=[_CI_DOCTOR_SOURCE],
+        )
 
     async def collect_external_diagnostics(
         self,
@@ -171,9 +204,11 @@ class _FailIfCalledAdapter:
         run_id: int,
         head_sha: str,
         run_number: int | None = None,
+        *,
+        sources: list[DiagnosticSourceConfig] | None = None,
     ) -> list[ExternalDiagnostic]:
-        _ = owner, repo, run_id, head_sha, run_number
-        raise AssertionError("collect_external_diagnostics should not be called")
+        _ = owner, repo, run_id, head_sha, run_number, sources
+        raise AssertionError("collect should not be called for skipped ci-doctor")
 
 
 @pytest.fixture(autouse=True)
@@ -209,15 +244,17 @@ async def test_collect_external_diagnostics_skips_known_gh_aw_workflow(monkeypat
     reset_settings()
 
     orchestrator = OrchestratorAgent(github_tools=_DummyGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
-    orchestrator._gh_aw_adapter = _FailIfCalledAdapter()  # type: ignore[assignment]
+    orchestrator._gh_aw_adapter = _SkipListAdapter()  # type: ignore[assignment]
     event = _event()
     event.workflow_run.name = "Schema Consistency Checker"
 
     diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", event)
-    assert len(diagnostics) == 1
-    assert diagnostics[0].status == ExternalDiagnosticStatus.UNAVAILABLE
-    assert diagnostics[0].metadata.get("reason_code") == "skip_known_gh_aw_workflow"
-    assert diagnostics[0].metadata.get("workflow_identifier") == "schema-consistency-checker"
+    # ci-doctor is the only source; when the skip list triggers,
+    # the orchestrator records a skip diagnostic without calling collect.
+    skip_diags = [d for d in diagnostics if d.metadata.get("reason_code") == "skip_known_gh_aw_workflow"]
+    assert len(skip_diags) == 1
+    assert skip_diags[0].status == ExternalDiagnosticStatus.UNAVAILABLE
+    assert skip_diags[0].metadata.get("workflow_identifier") == "schema-consistency-checker"
 
 
 @pytest.mark.asyncio

@@ -378,6 +378,8 @@ Be specific about:
         config_patterns = [
             (r"env.*not.*set", "Environment variable not set"),
             (r"secret.*not.*found", "Secret not configured"),
+            (r"none of the following secrets?\s+are\s+set", "Secret not configured"),
+            (r"requires?.*secret.*configured", "Secret not configured"),
             (r"permission.*denied", "Permission denied"),
             (r"file.*not.*found", "Required file not found"),
             (r"(?:api|rate)\s*limit(?:ed)?", "External API rate limit reached"),
@@ -389,11 +391,29 @@ Be specific about:
 
         for pattern, description in config_patterns:
             if re.search(pattern, error_text, re.IGNORECASE):
-                # Try to extract missing env vars
-                env_var_match = re.search(
-                    r"(?:env|variable|secret)[:\s]+['\"]?([A-Z_]+)", error_text
+                # Try to extract missing env vars/secrets from common message formats.
+                missing_vars: list[str] = []
+                for env_var in re.findall(
+                    r"(?:env(?:ironment)?(?:\s+variable)?|variable|secret)[:\s]+['\"]?([A-Z_][A-Z0-9_]*)",
+                    error_text,
+                    flags=re.IGNORECASE,
+                ):
+                    if env_var not in missing_vars:
+                        missing_vars.append(env_var)
+
+                list_match = re.search(
+                    r"none of the following secrets?\s+are\s+set:\s*([A-Z0-9_, ]+)",
+                    error_text,
+                    flags=re.IGNORECASE,
                 )
-                missing_vars = [env_var_match.group(1)] if env_var_match else []
+                if list_match:
+                    for env_var in re.split(r"[,\s]+", list_match.group(1).strip()):
+                        if (
+                            env_var
+                            and re.fullmatch(r"[A-Z_][A-Z0-9_]*", env_var)
+                            and env_var not in missing_vars
+                        ):
+                            missing_vars.append(env_var)
 
                 return Diagnosis(
                     failure_type=FailureType.BUILD_CONFIG,

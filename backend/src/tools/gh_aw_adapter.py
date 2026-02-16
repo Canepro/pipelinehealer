@@ -1,4 +1,11 @@
-"""Adapter contracts for optional GitHub Agentic Workflows diagnostics."""
+"""Adapter contracts for optional GitHub Agentic Workflows diagnostics.
+
+Supports multi-source collection: each gh-aw workflow that creates GitHub
+Issues (ci-doctor, breaking-change-checker, etc.) is a separate diagnostic
+source with its own label, title prefix, match threshold, and confidence
+delta.  Findings are tagged with the originating source name so the
+dashboard can clearly attribute them.
+"""
 
 from __future__ import annotations
 
@@ -14,7 +21,46 @@ from .github_tools import GitHubTools
 
 logger = logging.getLogger(__name__)
 
-_MIN_STRONG_MATCH_SCORE = 90
+
+# ---------------------------------------------------------------------------
+# Diagnostic source registry
+# ---------------------------------------------------------------------------
+
+@dataclass(slots=True)
+class DiagnosticSourceConfig:
+    """Configuration for a single gh-aw diagnostic source that creates Issues."""
+
+    name: str
+    label: str
+    title_prefix: str
+    confidence_delta: float = 0.08
+    min_match_score: int = 90
+
+
+# Known gh-aw workflows that publish findings as GitHub Issues.
+# ci-doctor: run-specific analysis (triggered by CI failure) — needs strong match.
+# breaking-change-checker: ambient analysis (schedule/manual) — SHA match is enough.
+KNOWN_ISSUE_SOURCES: tuple[DiagnosticSourceConfig, ...] = (
+    DiagnosticSourceConfig(
+        name="ci-doctor",
+        label="ci-doctor",
+        title_prefix="[CI Failure Doctor]",
+        confidence_delta=0.08,
+        min_match_score=90,
+    ),
+    DiagnosticSourceConfig(
+        name="breaking-change-checker",
+        label="breaking-change",
+        title_prefix="[breaking-change]",
+        confidence_delta=0.05,
+        min_match_score=20,
+    ),
+)
+
+# Lookup by workflow slug for quick access during capability discovery.
+_SOURCE_BY_SLUG: dict[str, DiagnosticSourceConfig] = {
+    src.name: src for src in KNOWN_ISSUE_SOURCES
+}
 
 
 @dataclass(slots=True)
@@ -24,6 +70,7 @@ class GHAWCapability:
     repo_full_name: str
     is_available: bool
     available_workflows: list[str] = field(default_factory=list)
+    available_sources: list[DiagnosticSourceConfig] = field(default_factory=list)
     reason: str | None = None
 
 
@@ -40,8 +87,14 @@ class GHAWAdapter(Protocol):
         run_id: int,
         head_sha: str,
         run_number: int | None = None,
+        *,
+        sources: list[DiagnosticSourceConfig] | None = None,
     ) -> list[ExternalDiagnostic]:
-        """Collect structured external diagnostics for a workflow run."""
+        """Collect structured external diagnostics for a workflow run.
+
+        When *sources* is provided, only those sources are searched.
+        When ``None``, the adapter discovers available sources automatically.
+        """
 
 
 class NullGHAWAdapter:
@@ -64,13 +117,15 @@ class NullGHAWAdapter:
         run_id: int,
         head_sha: str,
         run_number: int | None = None,
+        *,
+        sources: list[DiagnosticSourceConfig] | None = None,
     ) -> list[ExternalDiagnostic]:
-        _ = run_number
+        _ = run_number, sources
         return []
 
 
 class PassiveIssueGHAWAdapter:
-    """Passive adapter that ingests ci-doctor issue evidence when available."""
+    """Passive adapter that ingests gh-aw issue evidence from multiple sources."""
 
     def __init__(self, github_tools: GitHubTools, known_workflows: list[str]) -> None:
         self._github_tools = github_tools
@@ -88,6 +143,7 @@ class PassiveIssueGHAWAdapter:
         return filename
 
     async def discover_capability(self, owner: str, repo: str) -> GHAWCapability:
+        """Discover which gh-aw diagnostic sources are present in the repo."""
         repo_full_name = f"{owner}/{repo}"
         try:
             workflows = await self._github_tools.list_repo_workflows(owner, repo)
@@ -98,23 +154,31 @@ class PassiveIssueGHAWAdapter:
                 reason=f"workflow_list_failed:{type(exc).__name__}",
             )
 
-        matched: list[str] = []
+        slugs: set[str] = set()
         for workflow in workflows:
             path = str(workflow.get("path", "")).strip()
             if not path:
                 continue
             slug = self._workflow_slug_from_path(path)
-            if slug in self._known_workflows:
-                matched.append(slug)
+            if slug:
+                slugs.add(slug)
 
-        unique = sorted(set(matched))
-        has_ci_doctor = "ci-doctor" in unique
+        # Match discovered slugs against known diagnostic sources.
+        discovered_sources: list[DiagnosticSourceConfig] = []
+        for slug in sorted(slugs):
+            source_cfg = _SOURCE_BY_SLUG.get(slug)
+            if source_cfg is not None:
+                discovered_sources.append(source_cfg)
+
+        available_workflows = sorted(slugs & set(self._known_workflows) | {s.name for s in discovered_sources})
+        is_available = len(discovered_sources) > 0
 
         return GHAWCapability(
             repo_full_name=repo_full_name,
-            is_available=has_ci_doctor,
-            available_workflows=unique,
-            reason=None if has_ci_doctor else "ci_doctor_workflow_not_found",
+            is_available=is_available,
+            available_workflows=available_workflows,
+            available_sources=discovered_sources,
+            reason=None if is_available else "no_known_diagnostic_sources_found",
         )
 
     @staticmethod
@@ -320,22 +384,32 @@ class PassiveIssueGHAWAdapter:
 
         return details
 
-    async def collect_external_diagnostics(
+    # ------------------------------------------------------------------
+    # Multi-source collection
+    # ------------------------------------------------------------------
+
+    async def _collect_from_source(
         self,
+        source: DiagnosticSourceConfig,
         owner: str,
         repo: str,
         run_id: int,
         head_sha: str,
-        run_number: int | None = None,
+        run_number: int | None,
     ) -> list[ExternalDiagnostic]:
+        """Search for issues from a single diagnostic source and match to the run."""
         run_number_query = f'"run #{run_number}"' if run_number is not None else ""
+        label = source.label
+        prefix = source.title_prefix
+
         query_candidates = [
-            f'label:"ci-doctor" "{run_id}" "{head_sha[:12]}"',
-            f'"[CI Failure Doctor]" "{run_id}" "{head_sha[:12]}"',
-            f'"[CI Failure Doctor]" {run_number_query}'.strip(),
-            'label:"ci-doctor"',
-            '"[CI Failure Doctor]"',
+            f'label:"{label}" "{run_id}" "{head_sha[:12]}"',
+            f'"{prefix}" "{run_id}" "{head_sha[:12]}"',
+            f'"{prefix}" {run_number_query}'.strip(),
+            f'label:"{label}"',
+            f'"{prefix}"',
         ]
+
         issues: list[dict[str, object]] = []
         seen_numbers: set[int] = set()
         for query in query_candidates:
@@ -349,8 +423,8 @@ class PassiveIssueGHAWAdapter:
                 per_page=20,
             )
             logger.info(
-                "ci-doctor query %r returned %d issues for run %s",
-                query, len(found), run_id,
+                "%s query %r returned %d issues for run %s",
+                source.name, query, len(found), run_id,
             )
             for issue in found:
                 number = issue.get("number")
@@ -360,6 +434,7 @@ class PassiveIssueGHAWAdapter:
                     continue
                 seen_numbers.add(number)
                 issues.append(issue)
+
         # GitHub Search can lag indexing for freshly created/updated issues.
         # Fallback to the repo issues listing endpoint for low-latency visibility.
         list_issues = getattr(self._github_tools, "list_issues", None)
@@ -369,7 +444,7 @@ class PassiveIssueGHAWAdapter:
                     owner,
                     repo,
                     state="all",
-                    labels="ci-doctor",
+                    labels=label,
                     sort="updated",
                     direction="desc",
                     per_page=30,
@@ -383,7 +458,10 @@ class PassiveIssueGHAWAdapter:
                     seen_numbers.add(number)
                     issues.append(issue)
             except Exception as exc:
-                logger.warning("Fallback list_issues failed for %s/%s: %s", owner, repo, type(exc).__name__)
+                logger.warning(
+                    "Fallback list_issues for %s failed for %s/%s: %s",
+                    source.name, owner, repo, type(exc).__name__,
+                )
 
         candidates: list[tuple[int, str, str, dict[str, object]]] = []
         for issue in issues:
@@ -398,8 +476,8 @@ class PassiveIssueGHAWAdapter:
                 if not isinstance(number, int):
                     continue
                 logger.info(
-                    "Issue #%s title/body did not match run %s; checking comments",
-                    number, run_id,
+                    "%s issue #%s title/body did not match run %s; checking comments",
+                    source.name, number, run_id,
                 )
                 score, match_basis = await self._issue_comments_match_run(
                     owner=owner,
@@ -410,16 +488,19 @@ class PassiveIssueGHAWAdapter:
                     run_number=run_number,
                 )
                 if score <= 0:
-                    logger.info("Issue #%s comments also did not match run %s; skipping", number, run_id)
+                    logger.info(
+                        "%s issue #%s comments also did not match run %s; skipping",
+                        source.name, number, run_id,
+                    )
                     continue
-                logger.info("Issue #%s matched run %s via comments (%s)", number, run_id, match_basis)
-            if score < _MIN_STRONG_MATCH_SCORE:
                 logger.info(
-                    "Issue #%s matched run %s only weakly (%s, score=%s); skipping",
-                    number,
-                    run_id,
-                    match_basis,
-                    score,
+                    "%s issue #%s matched run %s via comments (%s)",
+                    source.name, number, run_id, match_basis,
+                )
+            if score < source.min_match_score:
+                logger.info(
+                    "%s issue #%s matched run %s only weakly (%s, score=%s < min %s); skipping",
+                    source.name, number, run_id, match_basis, score, source.min_match_score,
                 )
                 continue
             issue_ts = self._parse_issue_timestamp(issue)
@@ -428,11 +509,11 @@ class PassiveIssueGHAWAdapter:
         if not candidates:
             return []
 
-        # Prefer strongest correlation first, then newest issue activity.
         candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
         best_score, _, best_basis, best_issue = candidates[0]
         logger.info(
-            "Selected ci-doctor issue #%s for run %s with score=%s basis=%s among %d candidates",
+            "Selected %s issue #%s for run %s with score=%s basis=%s among %d candidates",
+            source.name,
             best_issue.get("number"),
             run_id,
             best_score,
@@ -440,41 +521,76 @@ class PassiveIssueGHAWAdapter:
             len(candidates),
         )
 
-        diagnostics: list[ExternalDiagnostic] = []
         number = best_issue.get("number")
-        issue = best_issue
-        if best_score > 0:
-            if not isinstance(number, int):
-                return []
-            title = str(issue.get("title", "")).strip()
-            issue_url = str(issue.get("html_url", "")).strip() or None
-            state = str(issue.get("state", "")).strip().lower()
-            body = str(issue.get("body", ""))
+        if not isinstance(number, int):
+            return []
 
-            metadata: dict[str, object] = {
-                "issue_number": number,
-                "issue_state": state,
-                "match_basis": best_basis,
-            }
+        title = str(best_issue.get("title", "")).strip()
+        issue_url = str(best_issue.get("html_url", "")).strip() or None
+        state = str(best_issue.get("state", "")).strip().lower()
+        body = str(best_issue.get("body", ""))
 
-            # Extract structured content from the ci-doctor issue body.
-            details = self._extract_issue_details(body)
-            if details:
-                metadata["details"] = details
+        metadata: dict[str, object] = {
+            "issue_number": number,
+            "issue_state": state,
+            "match_basis": best_basis,
+        }
 
-            diagnostics.append(
-                ExternalDiagnostic(
-                    source="ci-doctor",
-                    status=ExternalDiagnosticStatus.AVAILABLE,
-                    summary=title or "ci-doctor findings available",
-                    url=issue_url,
-                    matched_run_id=run_id,
-                    confidence_delta=0.08,
-                    metadata=metadata,
-                )
+        details = self._extract_issue_details(body)
+        if details:
+            metadata["details"] = details
+
+        return [
+            ExternalDiagnostic(
+                source=source.name,
+                status=ExternalDiagnosticStatus.AVAILABLE,
+                summary=title or f"{source.name} findings available",
+                url=issue_url,
+                matched_run_id=run_id,
+                confidence_delta=source.confidence_delta,
+                metadata=metadata,
             )
+        ]
 
-        return diagnostics
+    async def collect_external_diagnostics(
+        self,
+        owner: str,
+        repo: str,
+        run_id: int,
+        head_sha: str,
+        run_number: int | None = None,
+        *,
+        sources: list[DiagnosticSourceConfig] | None = None,
+    ) -> list[ExternalDiagnostic]:
+        """Collect diagnostics from gh-aw sources for a run.
+
+        When *sources* is provided, only those sources are searched.
+        When ``None``, capability discovery runs automatically.
+        """
+        if sources is None:
+            capability = await self.discover_capability(owner, repo)
+            sources = capability.available_sources
+        if not sources:
+            return []
+
+        all_diagnostics: list[ExternalDiagnostic] = []
+        for source in sources:
+            try:
+                findings = await self._collect_from_source(
+                    source=source,
+                    owner=owner,
+                    repo=repo,
+                    run_id=run_id,
+                    head_sha=head_sha,
+                    run_number=run_number,
+                )
+                all_diagnostics.extend(findings)
+            except Exception as exc:
+                logger.warning(
+                    "Error collecting from %s for %s/%s run %s: %s",
+                    source.name, owner, repo, run_id, exc,
+                )
+        return all_diagnostics
 
     async def _issue_comments_match_run(
         self,

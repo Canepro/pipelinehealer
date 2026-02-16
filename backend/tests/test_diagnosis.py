@@ -199,6 +199,30 @@ class TestPatternBasedDiagnosis:
         assert diagnosis is not None
         assert diagnosis.failure_type == FailureType.BUILD_CONFIG
 
+    def test_detect_missing_secret_from_gh_aw_message(self) -> None:
+        """Classify missing COPILOT token validation as build config."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="agent",
+            raw_logs=(
+                "Error: None of the following secrets are set: COPILOT_GITHUB_TOKEN\n"
+                "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN secret "
+                "to be configured."
+            ),
+            error_lines=[
+                "Error: None of the following secrets are set: COPILOT_GITHUB_TOKEN",
+                "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN secret to be configured.",
+            ],
+            summary="missing secret",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.BUILD_CONFIG
+        assert diagnosis.root_cause == "Secret not configured"
+        assert "COPILOT_GITHUB_TOKEN" in diagnosis.error_details.get("missing_env_vars", [])
+
     def test_detect_workflow_permission_error(self) -> None:
         """Test detection of GitHub token permission errors."""
         log_analysis = LogAnalysis(

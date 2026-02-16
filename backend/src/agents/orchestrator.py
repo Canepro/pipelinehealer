@@ -20,7 +20,7 @@ from ..models import (
     WorkflowRunEvent,
 )
 from ..storage import ActivityStorage
-from ..tools.gh_aw_adapter import GHAWAdapter, create_gh_aw_adapter
+from ..tools.gh_aw_adapter import DiagnosticSourceConfig, GHAWAdapter, create_gh_aw_adapter
 from ..tools.github_tools import GitHubTools
 from .base import create_cloud_agent, get_agent_prompt
 from .diagnosis import DiagnosisAgent
@@ -113,58 +113,25 @@ class OrchestratorAgent:
         repo: str,
         event: WorkflowRunEvent,
     ) -> list[ExternalDiagnostic]:
-        """Collect optional external diagnostics signals when feature-flagged on."""
+        """Collect external diagnostics from all available gh-aw sources.
+
+        Ambient sources (breaking-change-checker, etc.) are collected
+        immediately in a single pass.  ci-doctor is polled with bounded
+        backoff because it triggers asynchronously after a CI failure and
+        needs time to publish its issue.
+        """
         if not self._settings.gh_aw_tools_enabled:
             return []
         if self._settings.gh_aw_ingestion_mode != "passive":
             return []
 
-        # Skip passive polling when the failed workflow is itself one of the
-        # gh-aw workflows (e.g. schema-consistency-checker). In these cases
-        # ci-doctor findings are not expected for the same failing run and
-        # waiting up to 8 minutes makes retries look stuck.
-        workflow_name = event.workflow_run.name or ""
-        workflow_identifier = _normalize_workflow_identifier(workflow_name)
-        known_identifiers = {
-            _normalize_workflow_identifier(name)
-            for name in self._settings.gh_aw_known_workflows
-            if name
-        }
-        if workflow_identifier and workflow_identifier in known_identifiers:
-            logger.info(
-                (
-                    "Skipping ci-doctor polling because failed workflow is a known "
-                    "gh-aw workflow: %s (%s, run %s)"
-                ),
-                workflow_name,
-                workflow_identifier,
-                event.workflow_run.id,
-            )
-            return [
-                ExternalDiagnostic(
-                    source="ci-doctor",
-                    status=ExternalDiagnosticStatus.UNAVAILABLE,
-                    summary=(
-                        f"Skipped ci-doctor polling because failed workflow "
-                        f"'{workflow_name}' is itself a gh-aw workflow."
-                    ),
-                    matched_run_id=event.workflow_run.id,
-                    metadata={
-                        "reason_code": "skip_known_gh_aw_workflow",
-                        "skip_reason": "failed_workflow_is_gh_aw_workflow",
-                        "workflow_name": workflow_name,
-                        "workflow_identifier": workflow_identifier,
-                        "polling_source": "ci-doctor",
-                    },
-                )
-            ]
-
+        # --- Discover available diagnostic sources ---
         try:
             capability = await self._gh_aw_adapter.discover_capability(owner, repo)
         except Exception as exc:
             return [
                 ExternalDiagnostic(
-                    source="ci-doctor",
+                    source="external-diagnostics",
                     status=ExternalDiagnosticStatus.ERROR,
                     summary="Failed to evaluate external diagnostics capability",
                     matched_run_id=event.workflow_run.id,
@@ -183,9 +150,9 @@ class OrchestratorAgent:
             )
             return [
                 ExternalDiagnostic(
-                    source="ci-doctor",
+                    source="external-diagnostics",
                     status=ExternalDiagnosticStatus.UNAVAILABLE,
-                    summary="External ci-doctor workflow not available for this repository",
+                    summary="No gh-aw diagnostic sources found for this repository",
                     matched_run_id=event.workflow_run.id,
                     metadata={
                         "reason_code": "capability_unavailable",
@@ -195,7 +162,106 @@ class OrchestratorAgent:
                 )
             ]
 
-        # Poll with bounded backoff to allow ci-doctor time to publish issue findings.
+        # --- Determine skip list (only affects ci-doctor self-diagnosis) ---
+        workflow_name = event.workflow_run.name or ""
+        workflow_identifier = _normalize_workflow_identifier(workflow_name)
+        skip_identifiers = {
+            _normalize_workflow_identifier(name)
+            for name in self._settings.gh_aw_known_workflows
+            if name
+        }
+        skip_ci_doctor = (
+            workflow_identifier != ""
+            and workflow_identifier in skip_identifiers
+        )
+
+        # Separate ci-doctor from ambient sources.
+        ci_doctor_source = None
+        ambient_sources = []
+        for src in capability.available_sources:
+            if src.name == "ci-doctor":
+                ci_doctor_source = src
+            else:
+                ambient_sources.append(src)
+
+        all_diagnostics: list[ExternalDiagnostic] = []
+        run_id = event.workflow_run.id
+        head_sha = event.workflow_run.head_sha
+        run_number = event.workflow_run.run_number
+
+        # --- Phase 1: Immediate collection from ambient sources ---
+        if ambient_sources:
+            try:
+                ambient_findings = await self._gh_aw_adapter.collect_external_diagnostics(
+                    owner=owner,
+                    repo=repo,
+                    run_id=run_id,
+                    head_sha=head_sha,
+                    run_number=run_number,
+                    sources=ambient_sources,
+                )
+                all_diagnostics.extend(ambient_findings)
+                if ambient_findings:
+                    logger.info(
+                        "Collected %d ambient diagnostic(s) from %s for %s/%s run %s",
+                        len(ambient_findings),
+                        [s.name for s in ambient_sources],
+                        owner,
+                        repo,
+                        run_id,
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "Ambient diagnostics collection failed for %s/%s run %s: %s",
+                    owner, repo, run_id, exc,
+                )
+
+        # --- Phase 2: ci-doctor (skipped or polled with backoff) ---
+        if ci_doctor_source is None:
+            # ci-doctor not present in repo; nothing to poll.
+            pass
+        elif skip_ci_doctor:
+            logger.info(
+                "Skipping ci-doctor polling: failed workflow '%s' is in the skip list (run %s)",
+                workflow_name,
+                run_id,
+            )
+            all_diagnostics.append(
+                ExternalDiagnostic(
+                    source="ci-doctor",
+                    status=ExternalDiagnosticStatus.UNAVAILABLE,
+                    summary=(
+                        f"Skipped ci-doctor polling because failed workflow "
+                        f"'{workflow_name}' is in the skip list."
+                    ),
+                    matched_run_id=run_id,
+                    metadata={
+                        "reason_code": "skip_known_gh_aw_workflow",
+                        "skip_reason": "failed_workflow_is_gh_aw_workflow",
+                        "workflow_name": workflow_name,
+                        "workflow_identifier": workflow_identifier,
+                    },
+                )
+            )
+        else:
+            # Poll with bounded backoff for ci-doctor issue findings.
+            ci_doctor_findings = await self._poll_ci_doctor(
+                ci_doctor_source, owner, repo, run_id, head_sha, run_number,
+            )
+            all_diagnostics.extend(ci_doctor_findings)
+
+        return all_diagnostics
+
+    async def _poll_ci_doctor(
+        self,
+        source: DiagnosticSourceConfig,
+        owner: str,
+        repo: str,
+        run_id: int,
+        head_sha: str,
+        run_number: int | None,
+    ) -> list[ExternalDiagnostic]:
+        """Poll for ci-doctor findings with bounded backoff."""
         last_collection_error_type: str | None = None
         for attempt, delay in enumerate((0.0, *_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS)):
             if delay > 0:
@@ -204,46 +270,44 @@ class OrchestratorAgent:
                 findings = await self._gh_aw_adapter.collect_external_diagnostics(
                     owner=owner,
                     repo=repo,
-                    run_id=event.workflow_run.id,
-                    head_sha=event.workflow_run.head_sha,
-                    run_number=event.workflow_run.run_number,
+                    run_id=run_id,
+                    head_sha=head_sha,
+                    run_number=run_number,
+                    sources=[source],
                 )
             except Exception as exc:
                 last_collection_error_type = type(exc).__name__
                 logger.warning(
                     "Transient ci-doctor collection failure for %s/%s run %s on attempt %s: %s",
-                    owner,
-                    repo,
-                    event.workflow_run.id,
-                    attempt,
-                    last_collection_error_type,
+                    owner, repo, run_id, attempt, last_collection_error_type,
                 )
                 continue
             if findings:
                 return findings
 
-        # One final immediate read reduces edge misses where ci-doctor publishes right
-        # after the last scheduled polling attempt.
+        # Final immediate read to reduce edge misses.
         try:
             final_findings = await self._gh_aw_adapter.collect_external_diagnostics(
                 owner=owner,
                 repo=repo,
-                run_id=event.workflow_run.id,
-                head_sha=event.workflow_run.head_sha,
-                run_number=event.workflow_run.run_number,
+                run_id=run_id,
+                head_sha=head_sha,
+                run_number=run_number,
+                sources=[source],
             )
         except Exception as exc:
             last_collection_error_type = type(exc).__name__
             final_findings = []
         if final_findings:
             return final_findings
+
         if last_collection_error_type is not None:
             return [
                 ExternalDiagnostic(
                     source="ci-doctor",
                     status=ExternalDiagnosticStatus.ERROR,
                     summary="Failed to collect ci-doctor findings after retries",
-                    matched_run_id=event.workflow_run.id,
+                    matched_run_id=run_id,
                     metadata={
                         "reason_code": "collection_failed",
                         "error_type": last_collection_error_type,
@@ -257,7 +321,7 @@ class OrchestratorAgent:
                 source="ci-doctor",
                 status=ExternalDiagnosticStatus.UNAVAILABLE,
                 summary="No ci-doctor findings published within bounded polling window",
-                matched_run_id=event.workflow_run.id,
+                matched_run_id=run_id,
                 metadata={
                     "reason_code": "poll_window_exhausted",
                     "poll_delays_seconds": list(_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS),
