@@ -70,8 +70,9 @@ PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh logs --tail 100
 PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh backfill
 ```
 
-Commands that work locally: `settings:check`, `settings:audit`, `audit:proof`, `backfill`, `logs`, `logs:raw`, `logs:grep`, `demo:proof`, `demo:reset`.
-Azure-only commands (`deploy`, `warm`, `lowcost`, `status`, `urls`, `webhook:*`, `rollout:canary`, `demo:e2e`) print a clear error when `PH_BACKEND_URL` is set.
+**Works locally:** `settings:check`, `settings:audit`, `audit:proof`, `backfill`, `logs`, `logs:raw`, `logs:grep`, `demo:proof`, `demo:reset`.
+
+**Azure-only** (prints a clear error when `PH_BACKEND_URL` is set): `deploy`, `warm`, `lowcost`, `status`, `urls`, `webhook:*`, `rollout:canary`, `demo:e2e`.
 
 ## What Problem This Solves
 
