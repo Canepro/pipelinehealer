@@ -51,9 +51,9 @@ Always execute scripts with `bash scripts/...`. Do not use `source` or `. script
 - Do not commit secrets.
 - Update docs when behavior changes:
   1. `README.md`
-  2. `docs/DEMO_SCRIPT.md`
+  2. `docs/API.md`
   3. `docs/LOCAL_DEMO_RUNBOOK.md`
-  4. `docs/HACKATHON_LOG.md`
+  4. `docs/CLI.md`
 
 ## Quality Gates
 

@@ -360,7 +360,6 @@ PipelineHealer is built for controlled remediation, not unconstrained autonomous
 Recommended local stack (backend + frontend):
 
 ```bash
-cd <repo-root>/pipelinehealer
 cp backend/.env.example backend/.env
 # edit backend/.env
 
@@ -375,7 +374,6 @@ Use `--env-file backend/.env` with compose commands to avoid empty-env warnings.
 Optional full container stack (backend + frontend + cosmos emulator):
 
 ```bash
-cd <repo-root>/pipelinehealer
 podman compose --env-file backend/.env up -d backend frontend cosmos-emulator
 podman compose --env-file backend/.env ps
 ```
@@ -407,12 +405,10 @@ For the exact commands to reproduce the full demo flow (backend + smee.io + `gh 
 
 - `docs/LOCAL_DEMO_RUNBOOK.md`
 - `docs/DEMO_SCRIPT.md` (2-minute recording script + checklist)
-- `docs/HACKATHON_LOG.md` (phase status, submission checklist, milestone log)
 
 For Azure-hosted demos, use the one-command runner (recommended):
 
 ```bash
-cd <repo-root>/pipelinehealer
 bash scripts/ph.sh demo:e2e
 ```
 
@@ -484,7 +480,6 @@ azd up
 If you already have Azure resources provisioned, use one command:
 
 ```bash
-cd <repo-root>/pipelinehealer
 bash scripts/ph.sh deploy
 ```
 
@@ -501,7 +496,6 @@ What this does:
 Sync env vars only (no image rebuild):
 
 ```bash
-cd <repo-root>/pipelinehealer
 bash scripts/ph.sh deploy:env
 ```
 

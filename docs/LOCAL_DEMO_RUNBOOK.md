@@ -42,7 +42,6 @@ This is optional for simple one-liners, but recommended for deployment/webhook b
 Instead of running many manual commands, use:
 
 ```bash
-cd <repo-root>/pipelinehealer
 bash scripts/ph.sh demo:e2e
 ```
 
@@ -158,7 +157,6 @@ Use this when `main` has new commits and you want Azure Container Apps to reflec
 Run as a script (not inline) to avoid shell restarts in interactive terminals.
 
 ```bash
-cd <repo-root>/pipelinehealer
 bash scripts/ph.sh deploy
 ```
 
@@ -168,7 +166,6 @@ Important:
 Sync env vars only (if image is already current):
 
 ```bash
-cd <repo-root>/pipelinehealer
 bash scripts/ph.sh deploy:env
 ```
 

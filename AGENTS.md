@@ -72,7 +72,7 @@ bun run build
 - Admin settings routes (`/api/settings*`) use dual-key auth in non-development: `X-API-Key` + `X-Admin-Key`.
 - Recommended demo mode: `HEAL_MODE=safe`.
 - Real-repo canary mode: `PH_ALLOWED_REPOS` + `HEAL_MODE=safe` with `AUTO_CREATE_PR=false` for issue-only observation.
-- Current demo fixture trigger set: `dependency,lint,test,build_config,timeout`.
+- Current demo fixture trigger set: `dependency,lint,test,build_config,timeout,prettier,docker`.
 - For demo reliability: `bash scripts/ph.sh warm` before recording; `lowcost` afterward.
 
 ## Public Repo Hygiene
