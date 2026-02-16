@@ -19,37 +19,23 @@ The following are already implemented in the current project state:
 
 ## Next Priorities
 
-## 0) Layer 2 Foundations (GitHub Agentic Workflows + UX Reliability)
+## ~~0) Layer 2 Foundations (GitHub Agentic Workflows + UX Reliability)~~ — COMPLETE
 
-- Implement Layer 2 via API-first integration for external diagnostics signals (no production subprocess dependency).
-- Keep PipelineHealer as native-first remediation control plane; use `gh aw` as optional supplemental diagnostics.
-- Sequence delivery explicitly:
-  - **PR 0**: settings reliability + allowlist UX fixes
-  - **PR A**: config/contracts
-  - **PR B**: universal diagnosis upgrades (history + PR-file correlation + richer patterns)
-  - **PR C**: passive ingestion MVP (optional external diagnostics, no mandatory dispatch)
-  - **PR D**: UI/operator surface + hardening + demo reliability
-- Resolve settings/allowlist reliability before enabling Layer 2 for demo-critical paths.
-- Add explicit UX semantics for runtime settings:
-  - draft vs saved state
-  - effective scope confirmation
-  - persistence behavior across restart/redeploy
-- Prioritize universal diagnosis gains before optional external integrations:
-  - improve native diagnosis quality for every monitored repo
-  - keep external diagnostics strictly additive
-- Handle `ci-doctor` timing and repo capability gaps in MVP:
-  - bounded wait/poll before fallback to native diagnosis
-  - explicit "workflow not installed/capability unavailable" handling with non-blocking native fallback
-  - async backfill pass for `poll_window_exhausted` activities so late-arriving ci-doctor findings can enrich existing records
-- Add regression tests for:
-  - settings update path (`PATCH /api/settings`)
-  - webhook allowlist enforcement (`PH_ALLOWED_REPOS`)
-  - frontend add/remove/save/reload allowlist flow
+All Layer 2 delivery phases (PR 0 through PR G) are implemented and deployed:
 
-Acceptance target:
-
-- No known reproductions for "repo add looks saved but not effective" and "list does not persist without clear UI messaging."
-- Operators can reliably determine whether a setting is draft-only, runtime-active, or durable.
+- ~~Implement Layer 2 via API-first integration for external diagnostics signals (no production subprocess dependency).~~ (Done)
+- ~~Keep PipelineHealer as native-first remediation control plane; use `gh aw` as optional supplemental diagnostics.~~ (Done)
+- ~~Sequence delivery explicitly (PR 0 → PR A → PR B → PR C → PR D → PR E → PR F → PR G).~~ (Done: all merged to `main`)
+- ~~Resolve settings/allowlist reliability before enabling Layer 2 for demo-critical paths.~~ (Done)
+- ~~Add explicit UX semantics for runtime settings (draft vs saved, effective scope, persistence behavior).~~ (Done: Cosmos DB durable persistence with in-memory fallback, runtime-only warning banner, "Persist Settings" action)
+- ~~Prioritize universal diagnosis gains before optional external integrations.~~ (Done: PR B universal diagnosis upgrades)
+- ~~Handle `ci-doctor` timing and repo capability gaps in MVP:~~ (Done)
+  - ~~bounded wait/poll before fallback to native diagnosis~~ (Done: 480s polling window)
+  - ~~explicit "workflow not installed/capability unavailable" handling with non-blocking native fallback~~ (Done: reason codes)
+  - ~~async backfill pass for `poll_window_exhausted` activities so late-arriving ci-doctor findings can enrich existing records~~ (Done: background sweep every 10 min + manual `POST /api/backfill-diagnostics` + CLI `bash scripts/ph.sh backfill` + UI button)
+- ~~Deep content enrichment for external diagnostics~~ (Done: structured `details` extraction from ci-doctor issue bodies — summary, root cause, recommended actions, historical context — with boilerplate sanitization)
+- ~~External Findings panel in Activity Detail UI~~ (Done: collapsible panel with inline markdown rendering, truncation, auto-expand for available findings)
+- ~~Add regression tests for settings update path, webhook allowlist enforcement, and frontend allowlist flow.~~ (Done)
 
 ## 1) Higher-Confidence Auto-Remediation
 
@@ -95,25 +81,22 @@ Acceptance target:
 - ~~Add structured audit trail fields for policy decisions (why PR vs issue).~~ (Done: reason codes + explainability snapshot in UI)
 - ~~Move admin settings audit trail from in-memory runtime storage to durable storage (Cosmos DB or Log Analytics).~~ (Done: Cosmos DB with in-memory fallback)
 - Add log retention and search improvements beyond `logs:grep`.
-- Add Layer 2 diagnostics observability:
-  - external-tool invocation success/failure counters
-  - latency metrics for dispatch -> findings ingestion
-  - fallback reason-code distribution for unavailable optional external diagnostics paths
+- ~~Add Layer 2 diagnostics observability (basic):~~ (Partial — reason-code tracking, status badges, and findings links are live in UI)
+  - Add external-tool invocation success/failure counters (not yet — requires metrics backend)
+  - Add latency metrics for dispatch -> findings ingestion (not yet)
+  - ~~Fallback reason-code distribution for unavailable optional external diagnostics paths~~ (Done: reason codes stored and visible in activity records)
 
 ## Documentation Improvement Plan (Professional Standard)
 
-- Keep architecture and execution docs synchronized with code in each Layer 2 PR:
-  - `docs/GH_AW_IMPLEMENTATION_TRACKER.md` (status, checklists, strategy, and decisions)
-  - `docs/API.md` (new endpoints/fields/contracts)
-  - `docs/DEMO_SCRIPT.md` + `docs/LOCAL_DEMO_RUNBOOK.md` (operator flow and troubleshooting)
+- ~~Keep architecture and execution docs synchronized with code in each Layer 2 PR.~~ (Done: `API.md`, `DEMO_SCRIPT.md`, `LOCAL_DEMO_RUNBOOK.md`, `CLI.md`, `README.md`, `HACKATHON_LOG.md` all updated through PR G)
+- ~~Add dedicated CLI reference.~~ (Done: `docs/CLI.md`)
+- ~~Make demo script presentation-ready (no placeholders, concrete commands).~~ (Done: `docs/DEMO_SCRIPT.md`)
 - Add a release-quality "What changed / Why / Rollback" section to major doc updates.
 - Require every new runtime setting to document:
   - default value
   - persistence model
   - failure mode and fallback behavior
-- Require Layer 2 docs to preserve the contract:
-  - PipelineHealer native diagnosis/remediation is always primary
-  - `gh aw`/`ci-doctor` integration is additive and never a hard dependency
+- ~~Require Layer 2 docs to preserve the contract (native-first, gh-aw additive).~~ (Done: contract enforced throughout implementation)
 - Add known-issues section with explicit reproduction and mitigation for active bugs until closed.
 
 ## 7) Demo Experience Hardening
@@ -121,7 +104,7 @@ Acceptance target:
 - Add a `demo:prep` command to combine `warm`, `settings:check`, and baseline validation.
 - Add a `demo:cleanup` command to merge/close demo artifacts and return to low-cost mode.
 - ~~Add optional "recording-safe" mode that suppresses noisy logs during video capture.~~ (Done: Cosmos SDK noise suppression + `logs` command with built-in noise filtering)
-- Expand demo-repo workflow fixtures with additional deterministic trigger types (`prettier`, `permissions`, `docker`) once the fixture workflow and backend routing are re-aligned.
+- ~~Expand demo-repo workflow fixtures with additional deterministic trigger types.~~ (Done: demo repo now has 7 failure types — `dependency`, `lint`, `test`, `build_config`, `timeout`, `prettier`, `docker` — with single-type and custom-subset CLI triggers)
 
 ## Guiding Principles
 

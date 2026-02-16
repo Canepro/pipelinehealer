@@ -1,6 +1,6 @@
 # GitHub Agentic Workflows Implementation Tracker
 
-**Last updated:** February 15, 2026
+**Last updated:** February 16, 2026
 
 This tracker is the single source of truth for GitHub Agentic Workflows adoption in PipelineHealer, covering both the original research review and execution status.
 
@@ -34,7 +34,7 @@ Primary source: [`Meet the Workflows: Fault Investigation`](https://github.githu
 | Workstream | Status | Notes |
 |---|---|---|
 | Layer 1: baseline repo hygiene | Completed | merged in PR #3 with passing CI checks |
-| Layer 2: PipelineHealer orchestration integration | In Progress | PR A through PR F implemented on `main`; demo hardening and release polish remain |
+| Layer 2: PipelineHealer orchestration integration | **Complete** | PR A through PR G implemented on `main`; backfill + deep enrichment + UI panel shipped |
 
 ## Layer 1 Checklist (Repo Hygiene)
 
@@ -62,11 +62,12 @@ Primary source: [`Meet the Workflows: Fault Investigation`](https://github.githu
 - [x] Implement backend adapter for capability discovery + optional `gh aw` signal ingestion.
 - [x] Ingest `gh aw` outputs (issues/comments/discussions) into diagnosis/remediation signals without blocking native diagnosis/remediation.
 - [x] Surface `gh aw` run status and findings in dashboard activity views.
-- [ ] Add demo flow narrative:
+- [x] Add demo flow narrative:
   - failure detected
   - `gh aw` workflow invoked
-  - findings consumed
+  - findings consumed (with async backfill for late arrivals)
   - fix recommendation produced
+  - external findings panel in Activity Detail UI
 
 ## Layer 2 Program Plan (Professional Draft)
 
@@ -102,26 +103,16 @@ Implementation note:
 
 #### D2: Runtime settings durability model
 
-Status: **Pending decision before PR A**
+Status: **Resolved**
 
-Current behavior:
-
-- Admin settings updates (including `ph_allowed_repos`) are in-memory runtime mutations only.
-- Changes are not durable across backend restart/redeploy.
-
-Decision options:
-
-- Temporary: keep in-memory and document constraints.
-- Preferred: add durable shared persistence for mutable settings.
+Decision: Cosmos DB durable persistence with in-memory fallback. Settings are auto-restored on startup. UI includes "Persist Settings" action and runtime-only warning banner.
 
 #### D3: Preflight gating risks
 
-- Risk A: allowlist additions may appear successful in UI but not be effective in some runtime paths.
-- Risk B: allowlist/runtime settings are not durable across restart/redeploy.
+Status: **Resolved**
 
-Gate:
-
-- Do not mark Layer 2 "demo-ready" until D2 is accepted and D3 behavior is explicitly handled (fix or documented constraint).
+- ~~Risk A: allowlist additions may appear successful in UI but not be effective.~~ Fixed: settings update path and webhook enforcement tested.
+- ~~Risk B: allowlist/runtime settings are not durable across restart/redeploy.~~ Fixed: Cosmos DB durable persistence (see D2).
 
 ### Delivery Phases and PR Plan
 
@@ -313,12 +304,30 @@ Acceptance:
   - Added activity detail external diagnostics card with status badges, confidence deltas, and findings links.
   - Added activities list/table external diagnostic badges plus findings actions.
   - Added empty-state messaging when external diagnostics are absent.
-- Scoped **PR G** (next):
-  - Add async backfill for activities that complete with `external_diagnostics.reason_code == poll_window_exhausted`.
-  - Keep eventual-consistency behavior non-blocking and policy-safe (no remediation replay, diagnostics enrichment only).
+- Implemented **PR G** on `main`:
+  - Added async backfill sweep (background task every 10 min + manual `POST /api/backfill-diagnostics` endpoint).
+  - Added `bash scripts/ph.sh backfill [--max-age-hours N]` CLI command and UI "Backfill Diagnostics" button.
+  - Added deep content enrichment: structured `details` extraction from ci-doctor issue bodies (summary, root cause, recommended actions, historical context) with boilerplate sanitization.
+  - Added collapsible "External Findings Details" panel in Activity Detail UI with inline markdown rendering, truncation, and auto-expand for available findings.
+  - Added storage `get_backfill_candidates` method for both Cosmos DB and in-memory backends.
+  - Added 8 backfill unit tests + 7 extraction/sanitization unit tests.
+  - E2E validated: `dependency` failure → PipelineHealer PR #91 + Issue #90 → ci-doctor Issue #89 → backfill enrichment → UI panel rendering.
 - Closed superseded docs-only PR: `https://github.com/Canepro/pipelinehealer/pull/2`.
 - Merged Layer 1 PR #3 to `main` after passing CI checks.
 - Updated baseline CI install step to `uv pip install --system -e ".[dev]"` for GitHub Actions compatibility.
+
+### February 16, 2026
+
+- Implemented **PR G** (async backfill + deep enrichment):
+  - Background sweep task polls every 10 min for `poll_window_exhausted` activities and enriches with late-arriving ci-doctor findings.
+  - Manual trigger via `POST /api/backfill-diagnostics` endpoint, `bash scripts/ph.sh backfill` CLI, and UI button.
+  - Deep content enrichment parses ci-doctor issue bodies into structured `details` (summary, root cause, recommended actions, historical context, doctor engine/model metadata).
+  - Boilerplate sanitization strips HTML comments, AI-generated footers, gh-aw setup hints, expiry markers, and temp-file paths before persistence.
+  - Collapsible "External Findings Details" panel in Activity Detail UI with markdown rendering, section truncation, and auto-expand.
+- E2E validated full loop: `dependency` failure → PR #91 + Issue #90 → ci-doctor Issue #89 → backfill → enriched UI panel.
+- Updated all documentation: `README.md`, `API.md`, `CLI.md`, `DEMO_SCRIPT.md`, `LOCAL_DEMO_RUNBOOK.md`, `HACKATHON_LOG.md`.
+- Marked Layer 2 status as **Complete** (PR A through PR G all on `main`).
+- Resolved D2 (settings durability: Cosmos DB) and D3 (preflight gating risks: fixed and tested).
 
 ## Execution Commands (Layer 1)
 
