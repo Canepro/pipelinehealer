@@ -293,6 +293,12 @@ This is the long-form project tracker for hackathon execution status, submission
   - Exposed `llm_provider` in runtime settings read/write flow and persistence map.
   - Added provider health endpoint (`GET /api/settings/llm/provider-health`).
   - Surfaced provider selector and health status in Settings UI (AI Configuration section).
+- Shipped Phase 3 provider path for `openai_compatible`:
+  - Added runtime settings/env support for `OPENAI_COMPATIBLE_BASE_URL`, `OPENAI_COMPATIBLE_MODEL`, `OPENAI_COMPATIBLE_API_KEY`.
+  - Added concrete backend agent implementation for OpenAI-compatible chat completions.
+  - Extended provider health adapter for OpenAI-compatible endpoint checks and actionable missing-config reasons.
+  - Extended Settings API/UI to view/edit provider-specific OpenAI-compatible fields and configuration status.
+  - Added/updated tests for provider selection and adapter behavior.
 - Backend test count: 121 passing. Frontend lint/build clean.
 
 ## Project Tracking Plan (Now -> Mar 15)

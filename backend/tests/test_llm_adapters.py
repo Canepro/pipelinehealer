@@ -17,11 +17,11 @@ def test_azure_adapter_health_ok() -> None:
     assert health["reason"] == "ok"
 
 
-def test_placeholder_adapter_health_not_implemented() -> None:
+def test_openai_compatible_adapter_reports_missing_config() -> None:
     settings = Settings(_env_file=None, llm_provider="openai_compatible")
     adapter = get_llm_provider_adapter(settings)
     health = adapter.health(settings)
     assert health["provider"] == "openai_compatible"
-    assert health["implemented"] is False
+    assert health["implemented"] is True
     assert health["available"] is False
-    assert health["reason"] == "not_implemented"
+    assert health["reason"] == "missing_base_url"

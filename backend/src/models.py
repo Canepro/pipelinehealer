@@ -258,6 +258,9 @@ class AppSettingsView(BaseModel):
     cors_allowed_origins: list[str]
     cors_allow_origin_regex: str
     llm_provider: str
+    openai_compatible_base_url: str
+    openai_compatible_model: str
+    openai_compatible_api_key_configured: bool
     azure_openai_endpoint: str
     azure_openai_deployment_name: str
     azure_openai_api_version: str
@@ -284,6 +287,8 @@ class AdminSettingsUpdateRequest(BaseModel):
     gh_aw_known_workflows: list[str] | None = None
     ph_allowed_repos: list[str] | None = None
     llm_provider: str | None = None
+    openai_compatible_base_url: str | None = None
+    openai_compatible_model: str | None = None
     azure_openai_deployment_name: str | None = None
 
 

@@ -48,6 +48,18 @@ class Settings(BaseSettings):
         default="",
         description="Azure OpenAI API key (optional; recommended for local dev if you don't want Azure CLI login)",
     )
+    openai_compatible_base_url: str = Field(
+        default="",
+        description="Base URL for OpenAI-compatible API provider (e.g. https://api.openai.com/v1)",
+    )
+    openai_compatible_model: str = Field(
+        default="",
+        description="Model name for OpenAI-compatible provider (e.g. gpt-4o-mini, claude-compatible alias)",
+    )
+    openai_compatible_api_key: str = Field(
+        default="",
+        description="API key for OpenAI-compatible provider",
+    )
     llm_provider: str = Field(
         default=LLMProviderName.AZURE_OPENAI.value,
         description=(
@@ -394,6 +406,20 @@ class Settings(BaseSettings):
             )
 
         return endpoint
+
+    @field_validator("openai_compatible_base_url")
+    @classmethod
+    def validate_openai_compatible_base_url(cls, value: str) -> str:
+        """Validate OpenAI-compatible base URL."""
+        base_url = value.strip()
+        if not base_url:
+            return base_url
+        parsed = urlparse(base_url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError(
+                "OPENAI_COMPATIBLE_BASE_URL must be a full URL, e.g. https://api.openai.com/v1"
+            )
+        return base_url
 
 
 _settings_singleton: Settings | None = None

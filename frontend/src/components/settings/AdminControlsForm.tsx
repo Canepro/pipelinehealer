@@ -202,34 +202,78 @@ export default function AdminControlsForm({
                   </SelectContent>
                 </Select>
               </FieldGroup>
-              <FieldGroup label="Model Deployment Name" field="azure_openai_deployment_name">
+              <FieldGroup
+                label={form.llm_provider === 'azure_openai' ? 'Model Deployment Name' : 'Model Name'}
+                field={
+                  form.llm_provider === 'azure_openai'
+                    ? 'azure_openai_deployment_name'
+                    : 'openai_compatible_model'
+                }
+              >
                 <Input
                   type="text"
-                  value={form.azure_openai_deployment_name}
+                  value={
+                    form.llm_provider === 'azure_openai'
+                      ? form.azure_openai_deployment_name
+                      : form.openai_compatible_model
+                  }
                   onChange={(e) =>
                     setForm((prev) => ({
                       ...prev,
-                      azure_openai_deployment_name: e.target.value,
+                      ...(form.llm_provider === 'azure_openai'
+                        ? { azure_openai_deployment_name: e.target.value }
+                        : { openai_compatible_model: e.target.value }),
                     }))
                   }
-                  placeholder="e.g. gpt-4o, gpt-5-mini"
+                  placeholder={
+                    form.llm_provider === 'azure_openai'
+                      ? 'e.g. gpt-4o, gpt-5-mini'
+                      : 'e.g. gpt-4o-mini, claude-compatible-model'
+                  }
                 />
               </FieldGroup>
-
-              <div className="space-y-1.5">
-                <Label className="text-[var(--ph-muted)]">Endpoint</Label>
-                <p className="text-sm font-medium text-[var(--ph-text)] break-words py-2 font-mono leading-relaxed">
-                  {data.azure_openai_endpoint || (
-                    <span className="text-[var(--ph-muted)] italic">Not configured</span>
-                  )}
-                </p>
-              </div>
+              {form.llm_provider === 'azure_openai' ? (
+                <div className="space-y-1.5">
+                  <Label className="text-[var(--ph-muted)]">Endpoint</Label>
+                  <p className="text-sm font-medium text-[var(--ph-text)] break-words py-2 font-mono leading-relaxed">
+                    {data.azure_openai_endpoint || (
+                      <span className="text-[var(--ph-muted)] italic">Not configured</span>
+                    )}
+                  </p>
+                </div>
+              ) : (
+                <FieldGroup label="Provider Base URL" field="openai_compatible_base_url">
+                  <Input
+                    type="text"
+                    value={form.openai_compatible_base_url}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        openai_compatible_base_url: e.target.value,
+                      }))
+                    }
+                    placeholder="https://api.openai.com/v1"
+                  />
+                </FieldGroup>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <ReadOnlyField label="API Version" value={data.azure_openai_api_version} />
               <ReadOnlyField label="Chat API Version" value={data.azure_openai_chat_api_version} />
             </div>
+            {form.llm_provider === 'openai_compatible' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <ReadOnlyField
+                  label="OpenAI-Compatible Key"
+                  value={data.openai_compatible_api_key_configured ? 'Configured' : 'Not configured'}
+                />
+                <ReadOnlyField
+                  label="Provider Endpoint"
+                  value={data.openai_compatible_base_url || 'Not configured'}
+                />
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <ReadOnlyField
                 label="Provider Health"

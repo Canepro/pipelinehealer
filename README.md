@@ -106,7 +106,7 @@ PipelineHealer intentionally mixes deterministic logic with LLM calls.
 - Remediation narrative — write high-quality PR/issue bodies and root-cause descriptions (the actual file edits are still deterministic).
 
 Portability note:
-- PipelineHealer is Azure-first today, with an early provider-selection scaffold (`LLM_PROVIDER`) to support future non-Azure model backends without major rewrites.
+- PipelineHealer is Azure-first today and now includes a working `openai_compatible` provider path (`LLM_PROVIDER`) so non-Azure model endpoints can be integrated without major rewrites.
 
 **Pure logic:**
 
@@ -510,6 +510,10 @@ bash scripts/ph.sh lowcost
 | `AZURE_OPENAI_DEPLOYMENT_NAME` | Model deployment name (for example `gpt-4o`, `gpt-4o-mini`, `gpt-5-mini`) | Yes |
 | `AZURE_OPENAI_API_VERSION` | API version for the primary Responses client (default: `2025-04-01-preview`) | Optional |
 | `AZURE_OPENAI_CHAT_API_VERSION` | API version for the fallback Chat Completions client (default: `2024-12-01-preview`) | Optional |
+| `LLM_PROVIDER` | Model provider selector: `azure_openai`, `openai_compatible`, or `custom` | Optional (default: `azure_openai`) |
+| `OPENAI_COMPATIBLE_BASE_URL` | Base URL for OpenAI-compatible API (for example `https://api.openai.com/v1`) | Required when `LLM_PROVIDER=openai_compatible` |
+| `OPENAI_COMPATIBLE_MODEL` | Model name for OpenAI-compatible chat completions | Required when `LLM_PROVIDER=openai_compatible` |
+| `OPENAI_COMPATIBLE_API_KEY` | API key for OpenAI-compatible endpoint | Required when `LLM_PROVIDER=openai_compatible` |
 | `COSMOS_DB_ENDPOINT` | Cosmos DB endpoint (in-memory fallback used when empty) | Optional (prod) |
 | `GITHUB_WEBHOOK_SECRET` | Webhook signature secret | Yes (prod) |
 | `GITHUB_PERSONAL_ACCESS_TOKEN` | GitHub PAT for API access | Yes |

@@ -106,6 +106,9 @@ export interface AppSettings {
   cors_allowed_origins: string[]
   cors_allow_origin_regex: string
   llm_provider: 'azure_openai' | 'openai_compatible' | 'custom'
+  openai_compatible_base_url: string
+  openai_compatible_model: string
+  openai_compatible_api_key_configured: boolean
   azure_openai_endpoint: string
   azure_openai_deployment_name: string
   azure_openai_api_version: string
@@ -151,6 +154,8 @@ export interface AdminSettingsUpdate {
   gh_aw_known_workflows?: string[]
   ph_allowed_repos?: string[]
   llm_provider?: 'azure_openai' | 'openai_compatible' | 'custom'
+  openai_compatible_base_url?: string
+  openai_compatible_model?: string
   azure_openai_deployment_name?: string
 }
 

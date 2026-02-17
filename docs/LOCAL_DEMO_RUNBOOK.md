@@ -222,6 +222,12 @@ If you are using Docker Compose (no local venv), run:
 bash scripts/ph.sh aoai:check
 ```
 
+If `aoai:check` cannot run in your environment, use this direct container check:
+
+```bash
+docker compose --env-file backend/.env exec backend python3 -c "import os; from openai import AzureOpenAI; c=AzureOpenAI(api_key=os.environ['AZURE_OPENAI_API_KEY'], api_version=os.environ.get('AZURE_OPENAI_CHAT_API_VERSION','2024-12-01-preview'), azure_endpoint=os.environ['AZURE_OPENAI_ENDPOINT']); r=c.chat.completions.create(model=os.environ['AZURE_OPENAI_DEPLOYMENT_NAME'], messages=[{'role':'user','content':'Reply with OK'}], max_tokens=8); print('model connectivity OK.'); print(r.choices[0].message.content)"
+```
+
 **What success looks like:** Output ends with `model connectivity OK.`
 
 **If it fails:** Double-check `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT_NAME`, and `AZURE_OPENAI_API_KEY` in your `backend/.env`. The endpoint should be the base URL only (no extra path segments).

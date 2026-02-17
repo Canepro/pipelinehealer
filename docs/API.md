@@ -433,7 +433,10 @@ Returns the current runtime configuration (non-secret values only).
   "azure_openai_endpoint": "https://your-resource.cognitiveservices.azure.com/",
   "azure_openai_deployment_name": "gpt-5-mini",
   "azure_openai_api_version": "2025-04-01-preview",
-  "azure_openai_chat_api_version": "2024-12-01-preview"
+  "azure_openai_chat_api_version": "2024-12-01-preview",
+  "openai_compatible_base_url": null,
+  "openai_compatible_model": null,
+  "openai_compatible_api_key_configured": false
 }
 ```
 
@@ -485,6 +488,8 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 | `gh_aw_known_workflows` | list[string] | Workflow names to detect (e.g. `ci-doctor`, `schema-consistency-checker`) |
 | `azure_openai_deployment_name` | string | Non-empty; switches AI model deployment at runtime |
 | `llm_provider` | string | `azure_openai`, `openai_compatible`, or `custom` |
+| `openai_compatible_base_url` | string | Required when `llm_provider=openai_compatible`; must be `http(s)://...` |
+| `openai_compatible_model` | string | Required when `llm_provider=openai_compatible` |
 
 **Validation**: `log_prompt_head_chars + log_prompt_tail_chars` must be `<= log_prompt_max_chars`.
 
@@ -512,6 +517,18 @@ Returns health/status for the currently selected LLM provider adapter.
   "endpoint": "https://example.openai.azure.com/",
   "deployment_name": "gpt-5-mini",
   "api_version": "2025-04-01-preview"
+}
+```
+
+Example when using `llm_provider=openai_compatible` with missing config:
+
+```json
+{
+  "provider": "openai_compatible",
+  "implemented": true,
+  "available": false,
+  "reason": "missing_base_url",
+  "message": "OPENAI_COMPATIBLE_BASE_URL is not configured."
 }
 ```
 

@@ -8,6 +8,7 @@ from typing import Any
 from azure.identity import DefaultAzureCredential
 
 from ..config import get_settings
+from ..llm.openai_compatible import OpenAICompatibleAgent
 from ..llm.providers import LLMProviderName, resolve_llm_provider
 
 logger = logging.getLogger(__name__)
@@ -181,11 +182,30 @@ def create_cloud_agent(
         settings = get_settings()
 
     provider = resolve_llm_provider(getattr(settings, "llm_provider", "azure_openai"))
-    if provider != LLMProviderName.AZURE_OPENAI:
+    if provider == LLMProviderName.OPENAI_COMPATIBLE:
+        base_url = getattr(settings, "openai_compatible_base_url", "") or ""
+        api_key = getattr(settings, "openai_compatible_api_key", "") or ""
+        model = getattr(settings, "openai_compatible_model", "") or ""
+        if not (base_url and api_key and model):
+            logger.warning(
+                "OpenAI-compatible provider selected but missing config; "
+                "OPENAI_COMPATIBLE_BASE_URL, OPENAI_COMPATIBLE_API_KEY, and "
+                "OPENAI_COMPATIBLE_MODEL are required. Falling back to NoopAgent."
+            )
+            return NoopAgent()
+        return OpenAICompatibleAgent(
+            base_url=base_url,
+            api_key=api_key,
+            model=model,
+            instructions=instructions,
+        )
+
+    if provider == LLMProviderName.CUSTOM:
         logger.warning(
-            "LLM provider '%s' is not implemented yet; using Azure OpenAI path.",
+            "LLM provider '%s' is scaffolded but not implemented yet; using NoopAgent.",
             provider.value,
         )
+        return NoopAgent()
     return _create_azure_cloud_agent(
         name=name,
         instructions=instructions,

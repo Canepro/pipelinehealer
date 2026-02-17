@@ -181,6 +181,9 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         cors_allowed_origins=settings.cors_allowed_origins,
         cors_allow_origin_regex=settings.cors_allow_origin_regex,
         llm_provider=settings.llm_provider,
+        openai_compatible_base_url=settings.openai_compatible_base_url,
+        openai_compatible_model=settings.openai_compatible_model,
+        openai_compatible_api_key_configured=bool(settings.openai_compatible_api_key),
         azure_openai_endpoint=settings.azure_openai_endpoint,
         azure_openai_deployment_name=settings.azure_openai_deployment_name,
         azure_openai_api_version=settings.azure_openai_api_version,
@@ -212,6 +215,8 @@ _MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = (
     ("gh_aw_known_workflows", "GH_AW_KNOWN_WORKFLOWS"),
     ("ph_allowed_repos", "PH_ALLOWED_REPOS"),
     ("llm_provider", "LLM_PROVIDER"),
+    ("openai_compatible_base_url", "OPENAI_COMPATIBLE_BASE_URL"),
+    ("openai_compatible_model", "OPENAI_COMPATIBLE_MODEL"),
     ("azure_openai_deployment_name", "AZURE_OPENAI_DEPLOYMENT_NAME"),
 )
 
@@ -354,6 +359,10 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         if not normalized:
             raise ValueError("invalid azure_openai_deployment_name")
         return normalized
+    if attr_name == "openai_compatible_base_url":
+        return str(value).strip()
+    if attr_name == "openai_compatible_model":
+        return str(value).strip()
     if attr_name == "llm_provider":
         normalized = str(value).strip().lower()
         if normalized not in {"azure_openai", "openai_compatible", "custom"}:
@@ -523,6 +532,12 @@ async def update_app_settings(
                 detail="llm_provider must be one of: azure_openai, openai_compatible, custom",
             )
         changes["llm_provider"] = llm_provider
+
+    if "openai_compatible_base_url" in changes:
+        changes["openai_compatible_base_url"] = str(changes["openai_compatible_base_url"]).strip()
+
+    if "openai_compatible_model" in changes:
+        changes["openai_compatible_model"] = str(changes["openai_compatible_model"]).strip()
 
     max_chars = int(changes.get("log_prompt_max_chars", settings.log_prompt_max_chars))
     head_chars = int(changes.get("log_prompt_head_chars", settings.log_prompt_head_chars))

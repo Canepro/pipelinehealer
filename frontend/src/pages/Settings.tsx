@@ -22,6 +22,8 @@ export default function SettingsPage() {
   const [useSessionAuth, setUseSessionAuth] = useState(false)
   const [form, setForm] = useState<SettingsFormState>({
     llm_provider: 'azure_openai',
+    openai_compatible_base_url: '',
+    openai_compatible_model: '',
     heal_mode: 'safe',
     auto_create_pr: true,
     auto_create_tracking_issue_for_prs: true,
@@ -91,6 +93,8 @@ export default function SettingsPage() {
     mutationFn: () => {
       const payload: Record<string, unknown> = {
         llm_provider: form.llm_provider,
+        openai_compatible_base_url: form.openai_compatible_base_url.trim(),
+        openai_compatible_model: form.openai_compatible_model.trim(),
         heal_mode: form.heal_mode,
         auto_create_pr: form.auto_create_pr,
         auto_create_tracking_issue_for_prs: form.auto_create_tracking_issue_for_prs,

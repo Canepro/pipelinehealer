@@ -1,5 +1,6 @@
 from pydantic import ValidationError
 
+from src.agents.base import NoopAgent, create_cloud_agent
 from src.config import Settings
 from src.llm.providers import LLMProviderName, resolve_llm_provider
 
@@ -36,3 +37,25 @@ def test_settings_reject_invalid_llm_provider() -> None:
         assert "LLM_PROVIDER must be one of" in str(exc)
     else:
         raise AssertionError("Expected ValidationError for invalid LLM provider")
+
+
+def test_create_cloud_agent_returns_noop_for_custom_provider() -> None:
+    settings = Settings(_env_file=None, llm_provider="custom")
+    agent = create_cloud_agent(
+        name="Test",
+        instructions="test",
+        credential=None,  # type: ignore[arg-type]
+        settings=settings,
+    )
+    assert isinstance(agent, NoopAgent)
+
+
+def test_create_cloud_agent_openai_compatible_without_required_config_returns_noop() -> None:
+    settings = Settings(_env_file=None, llm_provider="openai_compatible")
+    agent = create_cloud_agent(
+        name="Test",
+        instructions="test",
+        credential=None,  # type: ignore[arg-type]
+        settings=settings,
+    )
+    assert isinstance(agent, NoopAgent)
