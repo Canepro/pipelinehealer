@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 412159e -->
+<!-- LAST_VERIFIED: 34621ff -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -188,6 +188,15 @@ bash scripts/ph.sh logs:grep --pattern "error" --tail 1000
 ```
 
 Log commands are grep-tolerant: empty output (no matches) exits 0, not failure.
+
+If you run log commands on a local Docker setup without Azure CLI installed, first point `ph.sh` at local backend mode:
+
+```bash
+export PH_BACKEND_URL=http://127.0.0.1:8000
+bash scripts/ph.sh logs:grep --pattern "openai|responses|chat.completions"
+```
+
+Otherwise `ph.sh` stays in Azure mode and may fail with `Missing required command: az`.
 
 ### External Diagnostics
 
