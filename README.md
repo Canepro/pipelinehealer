@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: ff06548 -->
+<!-- LAST_VERIFIED: 3041d55 -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -20,6 +20,7 @@ PipelineHealer is an AI-powered multi-agent system that automatically detects, d
 | [API Reference](docs/API.md) | Endpoints, auth, data models, best practices |
 | [CLI Reference](docs/CLI.md) | `scripts/ph.sh` commands, flags, env overrides |
 | [Local & Azure Runbook](docs/LOCAL_DEMO_RUNBOOK.md) | Detailed E2E setup and operations |
+| [Future Plan](docs/FUTURE_PLAN.md) | Post-hackathon roadmap |
 | [Contributing](CONTRIBUTING.md) | PR guidelines, quality gates, docs policy |
 | [Security](SECURITY.md) | Vulnerability reporting, secret hygiene |
 
@@ -30,7 +31,6 @@ PipelineHealer is an AI-powered multi-agent system that automatically detects, d
 - Live demo path with deterministic failure triggers and auditable outcomes.
 - Multi-agent architecture using Microsoft Agent Framework + Azure services.
 - Production-minded safeguards: auth controls, audit trail, explainability, and idempotent remediation artifact reuse.
-| [Future Plan](docs/FUTURE_PLAN.md) | Post-hackathon roadmap |
 
 ## One-Command Operations
 
@@ -104,6 +104,9 @@ PipelineHealer intentionally mixes deterministic logic with LLM calls.
 - Log summarization — condense raw job logs into a short, structured summary.
 - Diagnosis fallback — when pattern rules do not confidently match, the model produces a structured `Diagnosis` JSON.
 - Remediation narrative — write high-quality PR/issue bodies and root-cause descriptions (the actual file edits are still deterministic).
+
+Portability note:
+- PipelineHealer is Azure-first today, with an early provider-selection scaffold (`LLM_PROVIDER`) to support future non-Azure model backends without major rewrites.
 
 **Pure logic:**
 

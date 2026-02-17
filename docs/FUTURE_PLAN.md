@@ -23,6 +23,87 @@ The following are already implemented in the current project state:
 
 ## Next Priorities
 
+## 0) Platform Extension Track (MCP + Learning + Admin UX)
+
+### 0.1 MCP Foundation (Recommended first)
+
+- Add an MCP provider abstraction in backend tools layer:
+  - `MCPToolProvider` interface (connect, list tools, invoke, health check)
+  - provider registry and per-provider feature flags
+- Start with read-only MCP actions before write actions:
+  - diagnostics/context retrieval
+  - incident metadata lookup
+  - knowledge/runbook retrieval
+- Add policy controls for MCP in admin settings:
+  - provider enabled/disabled
+  - read vs write mode
+  - allowed repositories/projects
+  - timeout/retry budget per provider
+- Add full audit attributes for MCP calls:
+  - provider, tool name, latency, success/failure, error class, request ID
+
+Initial MCP providers to prioritize:
+
+- GitHub MCP (context enrichment and artifact lookup)
+- Azure Monitor/Application Insights MCP (trace/log diagnostics correlation)
+- Ticketing MCP (Jira/ServiceNow/Linear) for enterprise escalation path
+- Knowledge MCP (Confluence/internal docs) for remediation context
+
+### 0.2 Learning System (Policy-safe, human-in-the-loop)
+
+- Add a durable "remediation memory" store:
+  - incident fingerprint
+  - diagnosis + action taken
+  - outcome (success/failure/rollback)
+  - human feedback signal
+- Add a retrieval layer before diagnosis/remediation:
+  - fetch similar historical incidents and inject evidence into agent context
+- Add controlled "playbook promotion":
+  - promote repeated successful patterns to deterministic remediation templates
+  - require thresholds (for example N successful outcomes) before promotion
+- Add explicit approval mode:
+  - operator approves/rejects learned playbooks
+  - rejected candidates recorded with reason for model feedback
+- Preserve trust controls:
+  - no autonomous policy mutation without human approval
+  - all learned behavior remains explainable and auditable
+
+### 0.3 Admin UX: Settings + Control Center
+
+- Keep **Settings** focused on static/runtime configuration.
+- Add a new **Control Center** page for operational governance:
+  - MCP provider health and permissions
+  - learning queue (candidates, approvals, rejects)
+  - remediation replay/simulation controls
+  - policy impact preview (what would happen under current settings)
+- Improve professional IA and visual hierarchy:
+  - grouped sections: Access, Policy, Integrations, Learning, Persistence
+  - sticky change summary panel with unsaved + effective values
+  - environment scope chips (`runtime`, `persisted`, `redeploy pending`)
+  - explicit "safe defaults" and risk labels for advanced toggles
+
+### 0.4 Model Platform Portability (Azure-first, not Azure-locked)
+
+Keep Azure OpenAI as the default path now, but design for pluggable model providers early.
+
+- Add provider abstraction:
+  - `LLMProvider` interface (`analyze`, `diagnose`, `remediate`, `health_check`)
+  - concrete adapters: `azure_openai` (current), `openai_compatible`, `custom_gateway`
+- Separate provider selection from model routing:
+  - task-level model choices (`analysis`, `diagnosis`, `remediation`)
+  - fallback chains per task (primary -> cheaper fallback -> deterministic fallback)
+- Add runtime config surface:
+  - `LLM_PROVIDER=azure_openai|openai_compatible|custom`
+  - provider-specific env groups (endpoint/base_url, auth key, api version/model/deployment)
+  - optional task overrides for model names
+- Keep prompts portable:
+  - normalize provider responses into one internal schema
+  - keep provider translation logic inside adapters only
+- Add portability quality gates:
+  - provider contract tests (same prompts, consistent structured output)
+  - outage/fallback tests (timeouts, 429, 5xx)
+  - regression checks for diagnosis/remediation behavior parity
+
 ## ~~0) Layer 2 Foundations (GitHub Agentic Workflows + UX Reliability)~~ — COMPLETE
 
 All Layer 2 delivery phases (PR 0 through PR G) are implemented and deployed:
@@ -78,6 +159,12 @@ All Layer 2 delivery phases (PR 0 through PR G) are implemented and deployed:
 - Keep webhook handlers thin and source-specific (`/webhook/github`, future `/webhook/gitlab`, `/webhook/jenkins`).
 - Preserve deterministic remediation boundaries across providers.
 
+### 5.1 Multi-provider Readiness via MCP
+
+- Route provider-specific calls through adapter/MCP boundaries.
+- Keep orchestrator contracts provider-agnostic (`fetch_failure_context`, `publish_artifact`, `rerun_pipeline`).
+- Add compatibility matrix in docs for supported provider capabilities.
+
 ## 6) Observability and Reporting
 
 - ~~Add dashboard views for remediation trend lines and outcome ratios over time.~~ (Done: bar chart + pie chart + stats cards)
@@ -89,6 +176,16 @@ All Layer 2 delivery phases (PR 0 through PR G) are implemented and deployed:
   - Add external-tool invocation success/failure counters (not yet — requires metrics backend)
   - Add latency metrics for dispatch -> findings ingestion (not yet)
   - ~~Fallback reason-code distribution for unavailable optional external diagnostics paths~~ (Done: reason codes stored and visible in activity records)
+
+### 6.1 Multi-model Observability
+
+- Track model path per activity:
+  - provider, model/deployment, fallback-used flag, latency, token/cost estimate
+- Add UI explainability fields:
+  - "Model Path" summary in activity details and dashboard drilldown
+- Alert on degradation:
+  - sustained fallback rate increase
+  - timeout/error spikes by provider
 
 ## Documentation Improvement Plan (Professional Standard)
 
@@ -102,6 +199,26 @@ All Layer 2 delivery phases (PR 0 through PR G) are implemented and deployed:
   - failure mode and fallback behavior
 - ~~Require Layer 2 docs to preserve the contract (native-first, gh-aw additive).~~ (Done: contract enforced throughout implementation)
 - Add known-issues section with explicit reproduction and mitigation for active bugs until closed.
+
+### MCP + Learning Docs Additions
+
+- Add `docs/MCP_INTEGRATION_PLAN.md`:
+  - provider onboarding checklist
+  - auth model
+  - timeout/retry and blast-radius policy
+- Add `docs/LEARNING_SYSTEM_PLAN.md`:
+  - learning lifecycle (observe -> candidate -> approve -> active -> retire)
+  - safety and governance rules
+  - rollback path for promoted playbooks
+- Add architecture update in `README.md` and `docs/API.md` once contracts are implemented.
+
+### Model Portability Docs Additions
+
+- Add `docs/MODEL_PROVIDER_STRATEGY.md`:
+  - provider adapter contract
+  - routing and fallback policy
+  - migration plan from Azure-only to multi-provider
+  - cost/latency tradeoff guidance
 
 ## 7) Demo Experience Hardening
 

@@ -7,6 +7,8 @@ from urllib.parse import urlparse
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+from .llm.providers import LLMProviderName, resolve_llm_provider
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
@@ -45,6 +47,13 @@ class Settings(BaseSettings):
     azure_openai_api_key: str = Field(
         default="",
         description="Azure OpenAI API key (optional; recommended for local dev if you don't want Azure CLI login)",
+    )
+    llm_provider: str = Field(
+        default=LLMProviderName.AZURE_OPENAI.value,
+        description=(
+            "LLM provider backend. "
+            "Current production path is azure_openai; other values are scaffolded for future expansion."
+        ),
     )
 
     # Azure Cosmos DB Configuration
@@ -343,6 +352,12 @@ class Settings(BaseSettings):
         if normalized not in {"api_key", "entra", "hybrid"}:
             raise ValueError("AUTH_MODE must be one of: api_key, entra, hybrid")
         return normalized
+
+    @field_validator("llm_provider")
+    @classmethod
+    def validate_llm_provider(cls, value: str) -> str:
+        """Validate LLM provider selection."""
+        return resolve_llm_provider(value).value
 
     @field_validator("gh_aw_ingestion_mode")
     @classmethod

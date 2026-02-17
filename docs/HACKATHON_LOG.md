@@ -279,6 +279,15 @@ This is the long-form project tracker for hackathon execution status, submission
   - Full pipeline completed: detection → diagnosis (dependency, 85%) → remediation (PR [#91](https://github.com/Canepro/pipelinehealer-demo/pull/91), issue [#90](https://github.com/Canepro/pipelinehealer-demo/issues/90)) → ci-doctor findings ingested (issue [#89](https://github.com/Canepro/pipelinehealer-demo/issues/89), match via `run_url`).
   - Deep enrichment payload validated: structured `summary`, `root_cause`, `recommended_actions`, `historical_context`, `doctor_engine`, `doctor_model`, `doctor_run_url`, `trigger` all populated.
 - **Documentation alignment pass**: updated `README.md` (evidence artifacts, features, demo flow, architecture diagram), `docs/API.md` (sample response, `metadata.details` schema), `docs/DEMO_SCRIPT.md` (backfill/enrichment notes), `docs/LOCAL_DEMO_RUNBOOK.md` (backfill timing), `docs/HACKATHON_LOG.md` (this entry).
+
+### Feb 17, 2026
+
+- Shipped Phase 1 model portability scaffold (non-breaking, Azure-first runtime unchanged):
+  - Added `backend/src/llm/providers.py` with provider enum + resolver (`azure_openai`, `openai_compatible`, `custom`).
+  - Added `LLM_PROVIDER` runtime setting with validation in `config.py`.
+  - Wired `create_cloud_agent()` to route through provider resolution and currently default to Azure implementation path (with warning for unimplemented providers).
+  - Added unit tests for provider resolution + settings validation (`backend/tests/test_llm_provider_selection.py`).
+  - Updated `.env.example` and README notes to document portability scaffold.
 - Backend test count: 121 passing. Frontend lint/build clean.
 
 ## Project Tracking Plan (Now -> Mar 15)

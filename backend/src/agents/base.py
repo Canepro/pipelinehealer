@@ -8,6 +8,7 @@ from typing import Any
 from azure.identity import DefaultAzureCredential
 
 from ..config import get_settings
+from ..llm.providers import LLMProviderName, resolve_llm_provider
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +170,31 @@ def _as_agent_compat(client: Any, *, name: str, instructions: str) -> Any:
 
 
 def create_cloud_agent(
+    *,
+    name: str,
+    instructions: str,
+    credential: DefaultAzureCredential,
+    settings: Any = None,
+) -> Any:
+    """Create an agent-framework ChatAgent from current settings."""
+    if settings is None:
+        settings = get_settings()
+
+    provider = resolve_llm_provider(getattr(settings, "llm_provider", "azure_openai"))
+    if provider != LLMProviderName.AZURE_OPENAI:
+        logger.warning(
+            "LLM provider '%s' is not implemented yet; using Azure OpenAI path.",
+            provider.value,
+        )
+    return _create_azure_cloud_agent(
+        name=name,
+        instructions=instructions,
+        credential=credential,
+        settings=settings,
+    )
+
+
+def _create_azure_cloud_agent(
     *,
     name: str,
     instructions: str,
