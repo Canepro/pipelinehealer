@@ -237,6 +237,14 @@ Returns activity records with optional filtering and pagination.
       "suggested_fix": "Update or install the missing dependency",
       "is_auto_fixable": true
     },
+    "llm_model_path": {
+      "provider": "azure_openai",
+      "model": "gpt-5-mini",
+      "fallback_used": false,
+      "call_count": 2,
+      "total_latency_ms": 742.11,
+      "error_count": 0
+    },
     "remediation_result": {
       "success": true,
       "action_taken": "create_pr",
@@ -425,6 +433,11 @@ Returns the current runtime configuration (non-secret values only).
   "github_auth_mode": "pat",
   "ph_allowed_repos": ["Canepro/pipelinehealer-demo"],
   "llm_provider": "azure_openai",
+  "mcp_enabled": false,
+  "mcp_provider": "disabled",
+  "mcp_read_only": true,
+  "mcp_timeout_seconds": 15.0,
+  "mcp_max_retries": 1,
   "gh_aw_tools_enabled": false,
   "gh_aw_ingestion_mode": "disabled",
   "gh_aw_known_workflows": ["ci-doctor", "schema-consistency-checker", "breaking-change-checker"],
@@ -490,6 +503,11 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 | `llm_provider` | string | `azure_openai`, `openai_compatible`, or `custom` |
 | `openai_compatible_base_url` | string | Required when `llm_provider=openai_compatible`; must be `http(s)://...` |
 | `openai_compatible_model` | string | Required when `llm_provider=openai_compatible` |
+| `mcp_enabled` | bool | Enable MCP provider integration hooks |
+| `mcp_provider` | string | `disabled`, `github`, `azure_monitor`, or `custom` |
+| `mcp_read_only` | bool | Restrict MCP actions to read-only mode |
+| `mcp_timeout_seconds` | float | 0–120 |
+| `mcp_max_retries` | int | 0–10 |
 
 **Validation**: `log_prompt_head_chars + log_prompt_tail_chars` must be `<= log_prompt_max_chars`.
 
@@ -529,6 +547,26 @@ Example when using `llm_provider=openai_compatible` with missing config:
   "available": false,
   "reason": "missing_base_url",
   "message": "OPENAI_COMPATIBLE_BASE_URL is not configured."
+}
+```
+
+#### `GET /api/settings/mcp/provider-health`
+
+Returns health/status for the currently selected MCP provider adapter.
+
+**Auth**: `X-API-Key` + `X-Admin-Key`
+
+**Response** `200 OK` (`MCPProviderHealthView`):
+
+```json
+{
+  "provider": "github",
+  "enabled": true,
+  "read_only": true,
+  "available": false,
+  "reason": "missing_github_token",
+  "message": "GITHUB_PERSONAL_ACCESS_TOKEN is required for GitHub MCP provider.",
+  "configured_tools": []
 }
 ```
 
@@ -673,6 +711,19 @@ Returns recent admin settings change records (latest first).
 | `error_details` | object | Additional structured details |
 | `suggested_fix` | string | High-level suggested remediation |
 | `is_auto_fixable` | bool | Whether safe auto-remediation is supported |
+
+### LLMModelPath (object)
+
+Observed model path telemetry for one activity.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `provider` | string | Effective provider used for calls (`azure_openai`, `openai_compatible`, etc.) |
+| `model` | string | Deployment/model used during activity execution |
+| `fallback_used` | bool | Whether compatibility fallback path was used |
+| `call_count` | int | Number of observed LLM invocations |
+| `total_latency_ms` | float | Aggregate LLM call latency in milliseconds |
+| `error_count` | int | Number of failed LLM calls before retry/fallback success |
 
 ### ExternalDiagnostic (object)
 

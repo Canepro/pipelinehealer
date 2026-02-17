@@ -33,13 +33,15 @@ Future provider candidates:
 
 - `LLM_PROVIDER` runtime setting introduced (`azure_openai`, `openai_compatible`, `custom`).
 - Azure provider path remains active default.
-- Non-Azure values are scaffolded and reported as not-yet-implemented.
+- `openai_compatible` provider path is implemented (runtime config + health + execution path).
+- `custom` remains scaffolded (no-op with explicit health/status).
 - Provider health endpoint available at:
   - `GET /api/settings/llm/provider-health`
+- Model-path telemetry is available per activity (`llm_model_path`) and surfaced in UI.
 
 ## Next Implementation Steps
 
-1. Implement concrete non-Azure provider adapters.
-2. Add provider-specific credential/config validation.
-3. Add model-path telemetry to activity metadata and explainability UI.
+1. Add additional concrete providers beyond `openai_compatible` (for example `custom_gateway`).
+2. Expand provider-specific credential/config validation (including proactive auth probes).
+3. Add token/cost estimation fields to model-path telemetry.
 4. Add contract tests to ensure parity across providers.

@@ -299,6 +299,16 @@ This is the long-form project tracker for hackathon execution status, submission
   - Extended provider health adapter for OpenAI-compatible endpoint checks and actionable missing-config reasons.
   - Extended Settings API/UI to view/edit provider-specific OpenAI-compatible fields and configuration status.
   - Added/updated tests for provider selection and adapter behavior.
+- Shipped Phase 4 multi-model observability:
+  - Added per-activity `llm_model_path` telemetry (provider, model/deployment, fallback-used, call count, total latency, error count).
+  - Added runtime LLM telemetry collector with async context propagation and automatic recording in agent wrappers.
+  - Surfaced model-path observability in dashboard explainability snapshot, activities table badges, and activity detail view.
+- Shipped MCP foundation (preview scaffold):
+  - Added MCP runtime settings/env controls: `MCP_ENABLED`, `MCP_PROVIDER`, `MCP_READ_ONLY`, `MCP_TIMEOUT_SECONDS`, `MCP_MAX_RETRIES`.
+  - Added MCP provider registry scaffolding and health contract (`disabled`, `github`, `azure_monitor`, `custom`).
+  - Added admin endpoint: `GET /api/settings/mcp/provider-health`.
+  - Added MCP settings controls + health status in frontend settings UI.
+  - Added focused unit/security tests for MCP provider behavior and health endpoint.
 - Backend test count: 121 passing. Frontend lint/build clean.
 
 ## Project Tracking Plan (Now -> Mar 15)

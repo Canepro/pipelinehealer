@@ -67,6 +67,26 @@ class Settings(BaseSettings):
             "Current production path is azure_openai; other values are scaffolded for future expansion."
         ),
     )
+    mcp_enabled: bool = Field(
+        default=False,
+        description="Enable MCP provider integration hooks",
+    )
+    mcp_provider: str = Field(
+        default="disabled",
+        description="MCP provider backend: disabled, github, azure_monitor, or custom",
+    )
+    mcp_read_only: bool = Field(
+        default=True,
+        description="Allow only read-only MCP actions",
+    )
+    mcp_timeout_seconds: float = Field(
+        default=15.0,
+        description="Timeout budget for MCP provider calls",
+    )
+    mcp_max_retries: int = Field(
+        default=1,
+        description="Retry budget for MCP provider calls",
+    )
 
     # Azure Cosmos DB Configuration
     cosmos_db_endpoint: str = Field(
@@ -370,6 +390,17 @@ class Settings(BaseSettings):
     def validate_llm_provider(cls, value: str) -> str:
         """Validate LLM provider selection."""
         return resolve_llm_provider(value).value
+
+    @field_validator("mcp_provider")
+    @classmethod
+    def validate_mcp_provider(cls, value: str) -> str:
+        """Validate MCP provider selection."""
+        normalized = value.strip().lower()
+        if normalized not in {"disabled", "github", "azure_monitor", "custom"}:
+            raise ValueError(
+                "MCP_PROVIDER must be one of: disabled, github, azure_monitor, custom"
+            )
+        return normalized
 
     @field_validator("gh_aw_ingestion_mode")
     @classmethod

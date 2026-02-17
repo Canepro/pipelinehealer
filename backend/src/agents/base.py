@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import random
+import time
 from typing import Any
 
 from azure.identity import DefaultAzureCredential
@@ -10,6 +11,7 @@ from azure.identity import DefaultAzureCredential
 from ..config import get_settings
 from ..llm.openai_compatible import OpenAICompatibleAgent
 from ..llm.providers import LLMProviderName, resolve_llm_provider
+from ..llm.telemetry import record_llm_call
 
 logger = logging.getLogger(__name__)
 
@@ -106,9 +108,16 @@ class FallbackAgent:
     def __init__(self, primary: Any, fallback: Any):
         self._primary = primary
         self._fallback = fallback
+        self._last_call_used_fallback = False
+
+    @property
+    def last_call_used_fallback(self) -> bool:
+        return self._last_call_used_fallback
 
     async def run(self, prompt: str) -> Any:
+        self._last_call_used_fallback = False
         if self._primary_failed:
+            self._last_call_used_fallback = True
             result = await _run_with_llm_retry(self._fallback, prompt)
             logger.debug("[debug-mode] Using cached fallback agent (Chat)")
             return result
@@ -129,9 +138,37 @@ class FallbackAgent:
                 exc,
             )
             FallbackAgent._primary_failed = True
+            self._last_call_used_fallback = True
             result = await _run_with_llm_retry(self._fallback, prompt)
             logger.debug("[debug-mode] Fallback agent (Chat) succeeded")
             return result
+
+
+class ObservedAgent:
+    """Wrapper that emits per-call model-path telemetry for active activities."""
+
+    def __init__(self, *, agent: Any, provider: str, model: str):
+        self._agent = agent
+        self._provider = provider
+        self._model = model
+
+    async def run(self, prompt: str) -> Any:
+        started = time.perf_counter()
+        success = False
+        fallback_used = False
+        try:
+            result = await self._agent.run(prompt)
+            success = True
+            return result
+        finally:
+            fallback_used = bool(getattr(self._agent, "last_call_used_fallback", False))
+            record_llm_call(
+                provider=self._provider,
+                model=self._model,
+                fallback_used=fallback_used,
+                latency_ms=(time.perf_counter() - started) * 1000.0,
+                success=success,
+            )
 
 
 def _as_agent_compat(client: Any, *, name: str, instructions: str) -> Any:
@@ -193,11 +230,15 @@ def create_cloud_agent(
                 "OPENAI_COMPATIBLE_MODEL are required. Falling back to NoopAgent."
             )
             return NoopAgent()
-        return OpenAICompatibleAgent(
-            base_url=base_url,
-            api_key=api_key,
+        return ObservedAgent(
+            agent=OpenAICompatibleAgent(
+                base_url=base_url,
+                api_key=api_key,
+                model=model,
+                instructions=instructions,
+            ),
+            provider=provider.value,
             model=model,
-            instructions=instructions,
         )
 
     if provider == LLMProviderName.CUSTOM:
@@ -206,11 +247,17 @@ def create_cloud_agent(
             provider.value,
         )
         return NoopAgent()
-    return _create_azure_cloud_agent(
+    azure_agent = _create_azure_cloud_agent(
         name=name,
         instructions=instructions,
         credential=credential,
         settings=settings,
+    )
+    deployment_name = getattr(settings, "azure_openai_deployment_name", "") or "unknown"
+    return ObservedAgent(
+        agent=azure_agent,
+        provider=provider.value,
+        model=deployment_name,
     )
 
 

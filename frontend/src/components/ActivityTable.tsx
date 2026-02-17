@@ -109,6 +109,14 @@ function getDiagnosisSourceLabel(activity: Activity): string | null {
   return null
 }
 
+function getModelPathLabel(activity: Activity): string | null {
+  const path = activity.llm_model_path
+  if (!path) return null
+  const provider = path.provider || 'unknown'
+  const model = path.model || 'unknown'
+  return `${provider}:${model}`
+}
+
 export default function ActivityTable({
   activities,
   isLoading,
@@ -157,6 +165,7 @@ export default function ActivityTable({
           const meta = getIssueProposalMeta(activity)
           const externalMeta = getExternalDiagnosticsMeta(activity)
           const diagnosisSourceLabel = getDiagnosisSourceLabel(activity)
+          const modelPathLabel = getModelPathLabel(activity)
           return (
             <div
               key={activity.id}
@@ -209,6 +218,16 @@ export default function ActivityTable({
                 {diagnosisSourceLabel && (
                   <Badge className="max-w-full break-all rounded-md text-[11px]" variant="secondary">
                     Diagnosis: {diagnosisSourceLabel}
+                  </Badge>
+                )}
+                {modelPathLabel && (
+                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant="secondary">
+                    Model: {modelPathLabel}
+                  </Badge>
+                )}
+                {activity.llm_model_path?.fallback_used && (
+                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant="outline">
+                    Fallback Used
                   </Badge>
                 )}
                 {meta.reusedExistingPr && (
@@ -274,6 +293,7 @@ export default function ActivityTable({
               const meta = getIssueProposalMeta(activity)
               const externalMeta = getExternalDiagnosticsMeta(activity)
               const diagnosisSourceLabel = getDiagnosisSourceLabel(activity)
+              const modelPathLabel = getModelPathLabel(activity)
               return (
                 <TableRow
                   key={activity.id}
@@ -343,6 +363,18 @@ export default function ActivityTable({
                         <Badge className="rounded-md text-[11px]" variant="secondary">
                           Diagnosis: {diagnosisSourceLabel}
                         </Badge>
+                      </div>
+                    )}
+                    {modelPathLabel && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        <Badge className="rounded-md text-[11px]" variant="secondary">
+                          Model: {modelPathLabel}
+                        </Badge>
+                        {activity.llm_model_path?.fallback_used && (
+                          <Badge className="rounded-md text-[11px]" variant="outline">
+                            Fallback Used
+                          </Badge>
+                        )}
                       </div>
                     )}
                     {meta.reusedExistingPr && (

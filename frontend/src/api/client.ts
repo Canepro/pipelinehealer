@@ -53,6 +53,14 @@ export interface Activity {
   status: string
   failure_type?: string
   diagnosis?: Diagnosis
+  llm_model_path?: {
+    provider: string
+    model: string
+    fallback_used: boolean
+    call_count: number
+    total_latency_ms: number
+    error_count: number
+  }
   remediation_result?: RemediationResult
   created_at: string
   updated_at: string
@@ -109,6 +117,11 @@ export interface AppSettings {
   openai_compatible_base_url: string
   openai_compatible_model: string
   openai_compatible_api_key_configured: boolean
+  mcp_enabled: boolean
+  mcp_provider: 'disabled' | 'github' | 'azure_monitor' | 'custom'
+  mcp_read_only: boolean
+  mcp_timeout_seconds: number
+  mcp_max_retries: number
   azure_openai_endpoint: string
   azure_openai_deployment_name: string
   azure_openai_api_version: string
@@ -124,6 +137,16 @@ export interface LLMProviderHealth {
   endpoint?: string
   deployment_name?: string
   api_version?: string
+}
+
+export interface MCPProviderHealth {
+  provider: string
+  enabled: boolean
+  read_only: boolean
+  available: boolean
+  reason: string
+  message: string
+  configured_tools: string[]
 }
 
 export interface AdminSettingsAuditEntry {
@@ -156,6 +179,11 @@ export interface AdminSettingsUpdate {
   llm_provider?: 'azure_openai' | 'openai_compatible' | 'custom'
   openai_compatible_base_url?: string
   openai_compatible_model?: string
+  mcp_enabled?: boolean
+  mcp_provider?: 'disabled' | 'github' | 'azure_monitor' | 'custom'
+  mcp_read_only?: boolean
+  mcp_timeout_seconds?: number
+  mcp_max_retries?: number
   azure_openai_deployment_name?: string
 }
 
@@ -265,6 +293,8 @@ export const api = {
     ),
   getLLMProviderHealth: (adminKey: string | undefined) =>
     fetchJson<LLMProviderHealth>('/api/settings/llm/provider-health', { adminKey }),
+  getMCPProviderHealth: (adminKey: string | undefined) =>
+    fetchJson<MCPProviderHealth>('/api/settings/mcp/provider-health', { adminKey }),
   updateSettings: (adminKey: string | undefined, payload: AdminSettingsUpdate) =>
     fetchJson<AppSettings>('/api/settings', {
       method: 'PATCH',

@@ -4,6 +4,11 @@ export type SettingsFormState = {
   llm_provider: 'azure_openai' | 'openai_compatible' | 'custom'
   openai_compatible_base_url: string
   openai_compatible_model: string
+  mcp_enabled: boolean
+  mcp_provider: 'disabled' | 'github' | 'azure_monitor' | 'custom'
+  mcp_read_only: boolean
+  mcp_timeout_seconds: number
+  mcp_max_retries: number
   heal_mode: 'safe' | 'demo' | 'debug'
   auto_create_pr: boolean
   auto_create_tracking_issue_for_prs: boolean
@@ -61,6 +66,18 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
         : 'azure_openai',
   openai_compatible_base_url: data.openai_compatible_base_url ?? '',
   openai_compatible_model: data.openai_compatible_model ?? '',
+  mcp_enabled: data.mcp_enabled ?? false,
+  mcp_provider:
+    data.mcp_provider === 'github'
+      ? 'github'
+      : data.mcp_provider === 'azure_monitor'
+        ? 'azure_monitor'
+        : data.mcp_provider === 'custom'
+          ? 'custom'
+          : 'disabled',
+  mcp_read_only: data.mcp_read_only ?? true,
+  mcp_timeout_seconds: data.mcp_timeout_seconds ?? 15,
+  mcp_max_retries: data.mcp_max_retries ?? 1,
   heal_mode: data.heal_mode === 'demo' ? 'demo' : data.heal_mode === 'debug' ? 'debug' : 'safe',
   auto_create_pr: data.auto_create_pr,
   auto_create_tracking_issue_for_prs: data.auto_create_tracking_issue_for_prs,
@@ -127,11 +144,21 @@ export const SETTING_DESCRIPTIONS: Record<string, string> = {
   azure_openai_deployment_name:
     'The Azure OpenAI model deployment to use for AI analysis (e.g. gpt-4o, gpt-5-mini).',
   llm_provider:
-    'Model backend selector. azure_openai is production-ready; openai_compatible and custom are scaffolded for future provider expansion.',
+    'Model backend selector. azure_openai is production-ready, openai_compatible is available, and custom remains scaffolded.',
   openai_compatible_base_url:
     'Base URL for an OpenAI-compatible provider endpoint (example: https://api.openai.com/v1).',
   openai_compatible_model:
     'Model name used when llm_provider=openai_compatible.',
+  mcp_enabled:
+    'Enable MCP integration hooks for external tool-provider adapters.',
+  mcp_provider:
+    'MCP provider selector. disabled is safest; github is scaffolded for read-only integration first.',
+  mcp_read_only:
+    'Restrict MCP providers to read-only operations.',
+  mcp_timeout_seconds:
+    'Timeout budget for MCP provider requests.',
+  mcp_max_retries:
+    'Retry budget for transient MCP provider failures.',
   pipeline_step_timeout_seconds:
     'Maximum seconds each pipeline step (analyze, diagnose, remediate) is allowed to run before timing out.',
   github_api_max_retries:

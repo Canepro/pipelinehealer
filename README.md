@@ -92,6 +92,7 @@ PipelineHealer prioritizes governed remediation over unchecked autonomy:
 - **Safety gating**: policy boundaries are explicit (for example allowlist scope), with reason codes visible in UI.
 - **Explainability panels**: each selected activity surfaces failure type, confidence, proposed action, reason code, and evidence lines.
 - **Diagnosis provenance**: activity views show `diagnosis_source` (`pattern` or `llm`) so operators can confirm whether AI inference was used.
+- **Model-path observability**: activity views and explainability snapshot show provider, model/deployment, fallback usage, and LLM call/latency totals when AI was used.
 - **Request-id propagation**: responses include trace identifiers so actions can be correlated across UI and backend logs.
 - **Admin audit trail**: settings changes are recorded with old/new diffs, actor fingerprints, and trace data (`/api/settings/audit`).
 
@@ -198,6 +199,8 @@ flowchart LR
 - **Admin Audit Visibility**: Explicit-load audit panel with request IDs, actor fingerprints, and old/new setting diffs
 - **Settings Persistence**: One-click "Persist Settings" saves mutable runtime config to Cosmos DB; auto-restored on startup
 - **Runtime Model Switching**: Change Azure OpenAI deployment name via settings UI with immediate agent cache invalidation
+- **Per-Activity Model Path Telemetry**: Captures observed provider/model path (`llm_model_path`) with fallback-used flag, call count, and aggregate latency
+- **MCP Foundation (Preview)**: MCP provider registry + health endpoint + settings controls (`MCP_*`) for phased multi-tool integration
 - **GitHub Agentic Workflows Integration**: Passive ingestion of external diagnostics (ci-doctor) when available on monitored repos
 - **Bounded External Diagnostics Polling**: Passive ingestion waits up to ~8 minutes and performs a final immediate fetch before timeout classification
 - **Async External Diagnostics Backfill**: Background sweep (every 10 min) enriches completed activities whose ci-doctor findings arrived after the original poll window; manual trigger via `POST /api/backfill-diagnostics`
@@ -514,6 +517,11 @@ bash scripts/ph.sh lowcost
 | `OPENAI_COMPATIBLE_BASE_URL` | Base URL for OpenAI-compatible API (for example `https://api.openai.com/v1`) | Required when `LLM_PROVIDER=openai_compatible` |
 | `OPENAI_COMPATIBLE_MODEL` | Model name for OpenAI-compatible chat completions | Required when `LLM_PROVIDER=openai_compatible` |
 | `OPENAI_COMPATIBLE_API_KEY` | API key for OpenAI-compatible endpoint | Required when `LLM_PROVIDER=openai_compatible` |
+| `MCP_ENABLED` | Enable MCP integration hooks (`true`/`false`) | Optional (default: `false`) |
+| `MCP_PROVIDER` | MCP provider selector: `disabled`, `github`, `azure_monitor`, `custom` | Optional (default: `disabled`) |
+| `MCP_READ_ONLY` | Restrict MCP to read-only operations | Optional (default: `true`) |
+| `MCP_TIMEOUT_SECONDS` | Timeout budget for MCP provider calls | Optional (default: `15`) |
+| `MCP_MAX_RETRIES` | Retry budget for transient MCP provider failures | Optional (default: `1`) |
 | `COSMOS_DB_ENDPOINT` | Cosmos DB endpoint (in-memory fallback used when empty) | Optional (prod) |
 | `GITHUB_WEBHOOK_SECRET` | Webhook signature secret | Yes (prod) |
 | `GITHUB_PERSONAL_ACCESS_TOKEN` | GitHub PAT for API access | Yes |

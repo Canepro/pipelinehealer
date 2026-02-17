@@ -27,18 +27,18 @@ The following are already implemented in the current project state:
 
 ### 0.1 MCP Foundation (Recommended first)
 
-- Add an MCP provider abstraction in backend tools layer:
-  - `MCPToolProvider` interface (connect, list tools, invoke, health check)
-  - provider registry and per-provider feature flags
+- ~~Add an MCP provider abstraction in backend tools layer:~~ (Done: foundation scaffold)
+  - ~~`MCPToolProvider` interface (connect, list tools, invoke, health check)~~
+  - ~~provider registry and per-provider feature flags~~
+- ~~Add policy controls for MCP in admin settings:~~ (Done: initial controls)
+  - ~~provider enabled/disabled~~
+  - ~~read vs write mode~~ (read-only toggle)
+  - timeout/retry budget per provider
+- ~~Add MCP provider health endpoint for operator visibility.~~ (Done: `GET /api/settings/mcp/provider-health`)
 - Start with read-only MCP actions before write actions:
   - diagnostics/context retrieval
   - incident metadata lookup
   - knowledge/runbook retrieval
-- Add policy controls for MCP in admin settings:
-  - provider enabled/disabled
-  - read vs write mode
-  - allowed repositories/projects
-  - timeout/retry budget per provider
 - Add full audit attributes for MCP calls:
   - provider, tool name, latency, success/failure, error class, request ID
 
@@ -179,10 +179,11 @@ All Layer 2 delivery phases (PR 0 through PR G) are implemented and deployed:
 
 ### 6.1 Multi-model Observability
 
-- Track model path per activity:
-  - provider, model/deployment, fallback-used flag, latency, token/cost estimate
-- Add UI explainability fields:
-  - "Model Path" summary in activity details and dashboard drilldown
+- ~~Track model path per activity:~~ (Done: baseline telemetry)
+  - ~~provider, model/deployment, fallback-used flag, latency~~
+  - token/cost estimate (pending)
+- ~~Add UI explainability fields:~~ (Done)
+  - ~~"Model Path" summary in activity details and dashboard drilldown~~
 - Alert on degradation:
   - sustained fallback rate increase
   - timeout/error spikes by provider

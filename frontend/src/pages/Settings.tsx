@@ -24,6 +24,11 @@ export default function SettingsPage() {
     llm_provider: 'azure_openai',
     openai_compatible_base_url: '',
     openai_compatible_model: '',
+    mcp_enabled: false,
+    mcp_provider: 'disabled',
+    mcp_read_only: true,
+    mcp_timeout_seconds: 15,
+    mcp_max_retries: 1,
     heal_mode: 'safe',
     auto_create_pr: true,
     auto_create_tracking_issue_for_prs: true,
@@ -78,6 +83,16 @@ export default function SettingsPage() {
     retry: false,
   })
 
+  const {
+    data: mcpProviderHealth,
+    isLoading: isMcpHealthLoading,
+  } = useQuery({
+    queryKey: ['mcp-provider-health', adminKey, useSessionAuth],
+    queryFn: () => api.getMCPProviderHealth(effectiveAdminKey),
+    enabled: hasAuthAttempt,
+    retry: false,
+  })
+
   useEffect(() => {
     if (!data) return
     const next = toSettingsForm(data)
@@ -95,6 +110,11 @@ export default function SettingsPage() {
         llm_provider: form.llm_provider,
         openai_compatible_base_url: form.openai_compatible_base_url.trim(),
         openai_compatible_model: form.openai_compatible_model.trim(),
+        mcp_enabled: form.mcp_enabled,
+        mcp_provider: form.mcp_provider,
+        mcp_read_only: form.mcp_read_only,
+        mcp_timeout_seconds: form.mcp_timeout_seconds,
+        mcp_max_retries: form.mcp_max_retries,
         heal_mode: form.heal_mode,
         auto_create_pr: form.auto_create_pr,
         auto_create_tracking_issue_for_prs: form.auto_create_tracking_issue_for_prs,
@@ -288,6 +308,8 @@ export default function SettingsPage() {
             setForm={setForm}
             llmProviderHealth={llmProviderHealth}
             isLlmHealthLoading={isLlmHealthLoading}
+            mcpProviderHealth={mcpProviderHealth}
+            isMcpHealthLoading={isMcpHealthLoading}
             hasUnsavedChanges={hasUnsavedChanges}
             newRepoInput={newRepoInput}
             setNewRepoInput={setNewRepoInput}

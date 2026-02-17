@@ -66,6 +66,12 @@ async def _get_llm_provider_health(headers: dict[str, str] | None = None) -> htt
         return await client.get("/api/settings/llm/provider-health", headers=headers or {})
 
 
+async def _get_mcp_provider_health(headers: dict[str, str] | None = None) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.get("/api/settings/mcp/provider-health", headers=headers or {})
+
+
 async def _post_settings_persist(
     payload: dict[str, object] | None = None,
     headers: dict[str, str] | None = None,
@@ -648,6 +654,24 @@ async def test_settings_exposes_llm_provider_health(monkeypatch) -> None:
     assert body["provider"] == "azure_openai"
     assert body["implemented"] is True
     assert body["available"] is True
+
+
+@pytest.mark.asyncio
+async def test_settings_exposes_mcp_provider_health(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    monkeypatch.setenv("MCP_PROVIDER", "github")
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "")
+    reset_settings()
+
+    response = await _get_mcp_provider_health(headers={"X-Admin-Key": "admin-secret"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["provider"] == "github"
+    assert body["enabled"] is True
+    assert body["available"] is False
+    assert body["reason"] == "missing_github_token"
 
 
 @pytest.mark.asyncio

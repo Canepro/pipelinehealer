@@ -12,6 +12,11 @@ from azure.identity import DefaultAzureCredential
 from opentelemetry import trace
 
 from ..config import get_settings
+from ..llm.telemetry import (
+    LLMTelemetryCollector,
+    reset_llm_telemetry_collector,
+    set_llm_telemetry_collector,
+)
 from ..models import (
     ActivityRecord,
     ExternalDiagnostic,
@@ -464,6 +469,8 @@ class OrchestratorAgent:
         run_id = event.workflow_run.id
 
         logger.info(f"Processing workflow failure: {owner}/{repo} run {run_id}")
+        telemetry_collector = LLMTelemetryCollector()
+        telemetry_token = set_llm_telemetry_collector(telemetry_collector)
 
         is_debug = self._settings.heal_mode == "debug"
         src_logger = logging.getLogger("src")
@@ -648,6 +655,18 @@ class OrchestratorAgent:
             await self._storage.update_activity(activity)
             return activity
           finally:
+            try:
+                model_path = telemetry_collector.to_model_path()
+                if model_path is not None:
+                    activity.llm_model_path = model_path
+                    await self._storage.update_activity(activity)
+            except Exception:
+                logger.debug(
+                    "Failed to persist LLM model-path telemetry for activity %s",
+                    activity.id,
+                    exc_info=True,
+                )
+            reset_llm_telemetry_collector(telemetry_token)
             if is_debug:
                 src_logger.setLevel(prev_level)
                 for handler, level in prev_handler_levels:

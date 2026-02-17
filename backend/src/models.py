@@ -182,6 +182,17 @@ class ExternalDiagnostic(BaseModel):
     collected_at: datetime = Field(default_factory=utcnow)
 
 
+class LLMModelPath(BaseModel):
+    """Observed model execution path for one activity."""
+
+    provider: str
+    model: str
+    fallback_used: bool = False
+    call_count: int = 0
+    total_latency_ms: float = 0.0
+    error_count: int = 0
+
+
 # =============================================================================
 # Activity Tracking Models
 # =============================================================================
@@ -198,6 +209,7 @@ class ActivityRecord(BaseModel):
     status: RemediationStatus
     failure_type: FailureType | None = None
     diagnosis: Diagnosis | None = None
+    llm_model_path: LLMModelPath | None = None
     remediation_result: RemediationResult | None = None
     external_diagnostics: list[ExternalDiagnostic] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utcnow)
@@ -261,6 +273,11 @@ class AppSettingsView(BaseModel):
     openai_compatible_base_url: str
     openai_compatible_model: str
     openai_compatible_api_key_configured: bool
+    mcp_enabled: bool
+    mcp_provider: str
+    mcp_read_only: bool
+    mcp_timeout_seconds: float
+    mcp_max_retries: int
     azure_openai_endpoint: str
     azure_openai_deployment_name: str
     azure_openai_api_version: str
@@ -289,6 +306,11 @@ class AdminSettingsUpdateRequest(BaseModel):
     llm_provider: str | None = None
     openai_compatible_base_url: str | None = None
     openai_compatible_model: str | None = None
+    mcp_enabled: bool | None = None
+    mcp_provider: str | None = None
+    mcp_read_only: bool | None = None
+    mcp_timeout_seconds: float | None = Field(default=None, gt=0.0, le=120.0)
+    mcp_max_retries: int | None = Field(default=None, ge=0, le=10)
     azure_openai_deployment_name: str | None = None
 
 
@@ -303,6 +325,18 @@ class LLMProviderHealthView(BaseModel):
     endpoint: str | None = None
     deployment_name: str | None = None
     api_version: str | None = None
+
+
+class MCPProviderHealthView(BaseModel):
+    """Health/status payload for configured MCP provider adapter."""
+
+    provider: str
+    enabled: bool
+    read_only: bool
+    available: bool
+    reason: str
+    message: str
+    configured_tools: list[str] = Field(default_factory=list)
 
 
 class AdminSettingsAuditEntry(BaseModel):

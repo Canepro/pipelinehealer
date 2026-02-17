@@ -155,6 +155,11 @@ export default function Dashboard() {
       : selectedActivity?.diagnosis?.diagnosis_source === 'pattern'
         ? 'Pattern'
         : 'Unknown'
+  const selectedModelPath = selectedActivity?.llm_model_path
+    ? `${selectedActivity.llm_model_path.provider}:${selectedActivity.llm_model_path.model}`
+    : 'N/A'
+  const selectedFallbackUsed = selectedActivity?.llm_model_path?.fallback_used ? 'Yes' : 'No'
+  const selectedLlmCalls = selectedActivity?.llm_model_path?.call_count ?? 0
   const selectedFailureType = selectedActivity?.failure_type || 'unknown'
   const selectedArtifactUrl =
     selectedActivity?.remediation_result?.pr_url || selectedActivity?.remediation_result?.issue_url || null
@@ -529,7 +534,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-6">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-7">
                 <div className="rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Failure Type</p>
                   <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedFailureType}</p>
@@ -543,6 +548,15 @@ export default function Dashboard() {
                   <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedDiagnosisSource}</p>
                 </div>
                 <div className="rounded-lg border border-[var(--ph-border)] p-3 lg:col-span-2">
+                  <p className="text-xs uppercase tracking-wide text-gray-400">Model Path</p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)] break-all">{selectedModelPath}</p>
+                  {selectedActivity?.llm_model_path && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      Calls: {selectedLlmCalls} • Fallback used: {selectedFallbackUsed}
+                    </p>
+                  )}
+                </div>
+                <div className="rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Proposed Action</p>
                   <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedActionTaken}</p>
                 </div>

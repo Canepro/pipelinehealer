@@ -12,7 +12,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { AppSettings, LLMProviderHealth } from '../../api/client'
+import type { AppSettings, LLMProviderHealth, MCPProviderHealth } from '../../api/client'
 import type { SettingsFormState } from './types'
 import { normalizeRepoInput, SETTING_DESCRIPTIONS, toSettingsForm } from './types'
 import { Badge } from '@/components/ui/badge'
@@ -32,6 +32,8 @@ interface Props {
   setForm: Dispatch<SetStateAction<SettingsFormState>>
   llmProviderHealth?: LLMProviderHealth
   isLlmHealthLoading?: boolean
+  mcpProviderHealth?: MCPProviderHealth
+  isMcpHealthLoading?: boolean
   hasUnsavedChanges: boolean
   newRepoInput: string
   setNewRepoInput: Dispatch<SetStateAction<string>>
@@ -49,6 +51,8 @@ export default function AdminControlsForm({
   setForm,
   llmProviderHealth,
   isLlmHealthLoading,
+  mcpProviderHealth,
+  isMcpHealthLoading,
   hasUnsavedChanges,
   newRepoInput,
   setNewRepoInput,
@@ -299,7 +303,108 @@ export default function AdminControlsForm({
           </CardContent>
         </Card>
 
-        {/* ── Section 3: Repository Scope ── */}
+        {/* ── Section 3: MCP Integration (preview) ── */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-azure-500" />
+              <CardTitle>MCP Integration (Preview)</CardTitle>
+            </div>
+            <p className="text-sm text-[var(--ph-muted)]">
+              Foundation controls for provider-agnostic MCP tool integration.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <SwitchField
+                label="Enable MCP"
+                field="mcp_enabled"
+                checked={form.mcp_enabled}
+                onChange={(v) => setForm((p) => ({ ...p, mcp_enabled: v }))}
+              />
+              <SwitchField
+                label="Read-Only Mode"
+                field="mcp_read_only"
+                checked={form.mcp_read_only}
+                onChange={(v) => setForm((p) => ({ ...p, mcp_read_only: v }))}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <FieldGroup label="MCP Provider" field="mcp_provider">
+                <Select
+                  value={form.mcp_provider}
+                  onValueChange={(v) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      mcp_provider: v as SettingsFormState['mcp_provider'],
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="disabled">disabled</SelectItem>
+                    <SelectItem value="github">github (recommended first)</SelectItem>
+                    <SelectItem value="azure_monitor">azure_monitor (scaffold)</SelectItem>
+                    <SelectItem value="custom">custom (scaffold)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldGroup>
+              <FieldGroup label="Timeout (seconds)" field="mcp_timeout_seconds">
+                <Input
+                  type="number"
+                  min={1}
+                  max={120}
+                  step={0.5}
+                  value={form.mcp_timeout_seconds}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, mcp_timeout_seconds: Number(e.target.value) }))
+                  }
+                />
+              </FieldGroup>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <FieldGroup label="Max Retries" field="mcp_max_retries">
+                <Input
+                  type="number"
+                  min={0}
+                  max={10}
+                  value={form.mcp_max_retries}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, mcp_max_retries: Number(e.target.value) }))
+                  }
+                />
+              </FieldGroup>
+              <ReadOnlyField
+                label="MCP Provider Health"
+                value={
+                  isMcpHealthLoading
+                    ? 'Checking...'
+                    : mcpProviderHealth
+                      ? `${mcpProviderHealth.available ? 'Healthy' : 'Degraded'} (${mcpProviderHealth.reason})`
+                      : 'Unavailable'
+                }
+              />
+            </div>
+            {mcpProviderHealth?.configured_tools?.length ? (
+              <div className="space-y-1">
+                <Label className="text-[var(--ph-muted)]">Configured Tools</Label>
+                <div className="flex flex-wrap gap-2">
+                  {mcpProviderHealth.configured_tools.map((tool) => (
+                    <Badge key={tool} variant="secondary" className="font-mono text-xs">
+                      {tool}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        {/* ── Section 4: Repository Scope ── */}
         <Card>
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
@@ -367,7 +472,7 @@ export default function AdminControlsForm({
           </CardContent>
         </Card>
 
-        {/* ── Section 4: External Diagnostics (gh-aw) ── */}
+        {/* ── Section 5: External Diagnostics (gh-aw) ── */}
         <Card>
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
@@ -470,7 +575,7 @@ export default function AdminControlsForm({
           </CardContent>
         </Card>
 
-        {/* ── Section 5: Security ── */}
+        {/* ── Section 6: Security ── */}
         <Card>
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
@@ -520,7 +625,7 @@ export default function AdminControlsForm({
           </CardContent>
         </Card>
 
-        {/* ── Section 6: Advanced (collapsed by default) ── */}
+        {/* ── Section 7: Advanced (collapsed by default) ── */}
         <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
           <Card>
             <CollapsibleTrigger asChild>

@@ -5,6 +5,7 @@ import hashlib
 import logging
 import os
 import re
+from dataclasses import asdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -24,10 +25,12 @@ from ..models import (
     DashboardStats,
     FailureType,
     LLMProviderHealthView,
+    MCPProviderHealthView,
     RemediationStatus,
     utcnow,
 )
 from ..storage import ActivityStorage
+from ..tools.mcp_provider import get_mcp_provider
 from ..workflows.pipeline_healer import PipelineHealerWorkflow
 from .deps import get_storage, get_workflow
 from .security import get_request_principal, require_admin_key, require_api_key
@@ -184,6 +187,11 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         openai_compatible_base_url=settings.openai_compatible_base_url,
         openai_compatible_model=settings.openai_compatible_model,
         openai_compatible_api_key_configured=bool(settings.openai_compatible_api_key),
+        mcp_enabled=settings.mcp_enabled,
+        mcp_provider=settings.mcp_provider,
+        mcp_read_only=settings.mcp_read_only,
+        mcp_timeout_seconds=settings.mcp_timeout_seconds,
+        mcp_max_retries=settings.mcp_max_retries,
         azure_openai_endpoint=settings.azure_openai_endpoint,
         azure_openai_deployment_name=settings.azure_openai_deployment_name,
         azure_openai_api_version=settings.azure_openai_api_version,
@@ -217,6 +225,11 @@ _MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = (
     ("llm_provider", "LLM_PROVIDER"),
     ("openai_compatible_base_url", "OPENAI_COMPATIBLE_BASE_URL"),
     ("openai_compatible_model", "OPENAI_COMPATIBLE_MODEL"),
+    ("mcp_enabled", "MCP_ENABLED"),
+    ("mcp_provider", "MCP_PROVIDER"),
+    ("mcp_read_only", "MCP_READ_ONLY"),
+    ("mcp_timeout_seconds", "MCP_TIMEOUT_SECONDS"),
+    ("mcp_max_retries", "MCP_MAX_RETRIES"),
     ("azure_openai_deployment_name", "AZURE_OPENAI_DEPLOYMENT_NAME"),
 )
 
@@ -335,11 +348,25 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         "auto_create_tracking_issue_for_prs",
         "verify_webhook_signature_in_development",
         "gh_aw_tools_enabled",
+        "mcp_enabled",
+        "mcp_read_only",
     }:
         return _coerce_bool(value)
-    if attr_name in {"max_remediation_attempts", "github_api_max_retries", "log_prompt_max_chars", "log_prompt_head_chars", "log_prompt_tail_chars"}:
+    if attr_name in {
+        "max_remediation_attempts",
+        "github_api_max_retries",
+        "log_prompt_max_chars",
+        "log_prompt_head_chars",
+        "log_prompt_tail_chars",
+        "mcp_max_retries",
+    }:
         return int(value)
-    if attr_name in {"pipeline_step_timeout_seconds", "github_api_retry_base_seconds", "github_api_retry_max_seconds"}:
+    if attr_name in {
+        "pipeline_step_timeout_seconds",
+        "github_api_retry_base_seconds",
+        "github_api_retry_max_seconds",
+        "mcp_timeout_seconds",
+    }:
         return float(value)
     if attr_name == "gh_aw_ingestion_mode":
         normalized = str(value).strip().lower()
@@ -367,6 +394,11 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         normalized = str(value).strip().lower()
         if normalized not in {"azure_openai", "openai_compatible", "custom"}:
             raise ValueError("invalid llm_provider")
+        return normalized
+    if attr_name == "mcp_provider":
+        normalized = str(value).strip().lower()
+        if normalized not in {"disabled", "github", "azure_monitor", "custom"}:
+            raise ValueError("invalid mcp_provider")
         return normalized
     return value
 
@@ -539,6 +571,15 @@ async def update_app_settings(
     if "openai_compatible_model" in changes:
         changes["openai_compatible_model"] = str(changes["openai_compatible_model"]).strip()
 
+    if "mcp_provider" in changes:
+        mcp_provider = str(changes["mcp_provider"]).strip().lower()
+        if mcp_provider not in {"disabled", "github", "azure_monitor", "custom"}:
+            raise HTTPException(
+                status_code=422,
+                detail="mcp_provider must be one of: disabled, github, azure_monitor, custom",
+            )
+        changes["mcp_provider"] = mcp_provider
+
     max_chars = int(changes.get("log_prompt_max_chars", settings.log_prompt_max_chars))
     head_chars = int(changes.get("log_prompt_head_chars", settings.log_prompt_head_chars))
     tail_chars = int(changes.get("log_prompt_tail_chars", settings.log_prompt_tail_chars))
@@ -603,6 +644,18 @@ async def get_llm_provider_health() -> LLMProviderHealthView:
     settings = get_settings()
     adapter = get_llm_provider_adapter(settings)
     return LLMProviderHealthView(**adapter.health(settings))
+
+
+@router.get(
+    "/settings/mcp/provider-health",
+    response_model=MCPProviderHealthView,
+    dependencies=[Depends(require_admin_key)],
+)
+async def get_mcp_provider_health() -> MCPProviderHealthView:
+    """Get health/status for the configured MCP provider adapter."""
+    settings = get_settings()
+    provider = get_mcp_provider(settings)
+    return MCPProviderHealthView(**asdict(provider.health(settings)))
 
 
 @router.get(

@@ -626,6 +626,41 @@ export default function ActivityDetail() {
                 </p>
               </div>
             </div>
+            {activity.llm_model_path && (
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Model Path</p>
+                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Provider</p>
+                    <p className="text-gray-900 dark:text-white">{activity.llm_model_path.provider}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Model/Deployment</p>
+                    <p className="text-gray-900 dark:text-white break-all">{activity.llm_model_path.model}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Fallback Used</p>
+                    <p className="text-gray-900 dark:text-white">
+                      {activity.llm_model_path.fallback_used ? 'Yes' : 'No'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">LLM Calls</p>
+                    <p className="text-gray-900 dark:text-white">{activity.llm_model_path.call_count}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Total Latency</p>
+                    <p className="text-gray-900 dark:text-white">
+                      {Math.round(activity.llm_model_path.total_latency_ms)} ms
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">LLM Errors</p>
+                    <p className="text-gray-900 dark:text-white">{activity.llm_model_path.error_count}</p>
+                  </div>
+                </div>
+              </div>
+            )}
             {activity.diagnosis.suggested_fix && (
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
