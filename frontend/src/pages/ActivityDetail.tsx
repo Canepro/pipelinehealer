@@ -588,7 +588,7 @@ export default function ActivityDetail() {
                 {activity.diagnosis.root_cause}
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Confidence
@@ -613,6 +613,14 @@ export default function ActivityDetail() {
                 </p>
                 <p className="mt-1 text-gray-900 dark:text-white">
                   {activity.diagnosis.is_auto_fixable ? 'Yes' : 'No'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Diagnosis Source
+                </p>
+                <p className="mt-1 text-gray-900 dark:text-white capitalize">
+                  {activity.diagnosis.diagnosis_source || 'unknown'}
                 </p>
               </div>
             </div>

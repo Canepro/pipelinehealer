@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 41d30eb -->
+<!-- LAST_VERIFIED: 412159e -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -222,6 +222,24 @@ bash scripts/ph.sh settings:check
 
 - Confirm backend `AUTH_MODE` and `ENTRA_*` values are synced (`bash scripts/ph.sh deploy:env`).
 - If frontend `VITE_ENTRA_*` changed, run full deploy (`bash scripts/ph.sh deploy`).
+
+`Client error '403 Forbidden' for GitHub issue/PR creation`:
+
+- Most common cause: token lacks repository write permissions for the target repo.
+- For fine-grained PATs, ensure repository access is granted and Issues/PR write permissions are enabled.
+- Check repo settings (Issues enabled, repo not archived/read-only).
+- Verify token scope/access with:
+
+```bash
+gh auth status
+gh issue create -R <owner>/<repo> -t "PipelineHealer auth test" -b "test"
+```
+
+- Ensure `GITHUB_PERSONAL_ACCESS_TOKEN` in `backend/.env` is correct, then sync:
+
+```bash
+bash scripts/ph.sh deploy:env
+```
 
 Terminal closes unexpectedly:
 

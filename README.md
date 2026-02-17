@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 771a5a2 -->
+<!-- LAST_VERIFIED: 412159e -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -83,6 +83,7 @@ PipelineHealer prioritizes governed remediation over unchecked autonomy:
 
 - **Safety gating**: policy boundaries are explicit (for example allowlist scope), with reason codes visible in UI.
 - **Explainability panels**: each selected activity surfaces failure type, confidence, proposed action, reason code, and evidence lines.
+- **Diagnosis provenance**: activity views show `diagnosis_source` (`pattern` or `llm`) so operators can confirm whether AI inference was used.
 - **Request-id propagation**: responses include trace identifiers so actions can be correlated across UI and backend logs.
 - **Admin audit trail**: settings changes are recorded with old/new diffs, actor fingerprints, and trace data (`/api/settings/audit`).
 

@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 41d30eb -->
+<!-- LAST_VERIFIED: 412159e -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -124,11 +124,13 @@ bash scripts/ph.sh status
 | `settings:audit` | GET `/api/settings/audit` (admin audit trail) |
 | `settings:persist` | Persist settings to `backend/.env` and optionally redeploy |
 | `audit:proof` | Create two traceable audit entries and print latest records |
+| `aoai:check` | Verify Azure OpenAI connectivity from local backend container |
 
 ```bash
 bash scripts/ph.sh settings:check
 bash scripts/ph.sh settings:audit --limit 20
 bash scripts/ph.sh audit:proof --limit 5
+bash scripts/ph.sh aoai:check
 ```
 
 #### `settings:persist`
@@ -239,6 +241,7 @@ bash scripts/ph.sh backfill
 | `logs:grep` | Uses `docker compose logs` + grep |
 | `demo:proof` | Lists PRs/issues via GitHub CLI (no backend needed) |
 | `demo:reset` | Resets demo fixtures via GitHub CLI (no backend needed) |
+| `aoai:check` | Runs Azure OpenAI connectivity check inside backend container |
 
 ### Azure-Only Commands
 

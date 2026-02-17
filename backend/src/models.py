@@ -23,6 +23,13 @@ class FailureType(StrEnum):
     UNKNOWN = "unknown"
 
 
+class DiagnosisSource(StrEnum):
+    """Source used to produce a diagnosis."""
+
+    PATTERN = "pattern"
+    LLM = "llm"
+
+
 class RemediationStatus(StrEnum):
     """Status of a remediation attempt."""
 
@@ -135,6 +142,7 @@ class Diagnosis(BaseModel):
     error_details: dict[str, Any] = Field(default_factory=dict)
     suggested_fix: str = ""
     is_auto_fixable: bool = False
+    diagnosis_source: DiagnosisSource | None = None
 
 
 class RemediationPlan(BaseModel):

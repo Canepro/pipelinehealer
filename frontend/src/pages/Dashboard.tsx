@@ -149,6 +149,12 @@ export default function Dashboard() {
     typeof selectedActivity?.diagnosis?.confidence === 'number'
       ? `${Math.round(selectedActivity.diagnosis.confidence * 100)}%`
       : 'N/A'
+  const selectedDiagnosisSource =
+    selectedActivity?.diagnosis?.diagnosis_source === 'llm'
+      ? 'LLM'
+      : selectedActivity?.diagnosis?.diagnosis_source === 'pattern'
+        ? 'Pattern'
+        : 'Unknown'
   const selectedFailureType = selectedActivity?.failure_type || 'unknown'
   const selectedArtifactUrl =
     selectedActivity?.remediation_result?.pr_url || selectedActivity?.remediation_result?.issue_url || null
@@ -523,7 +529,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-6">
                 <div className="rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Failure Type</p>
                   <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedFailureType}</p>
@@ -531,6 +537,10 @@ export default function Dashboard() {
                 <div className="rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Confidence</p>
                   <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedConfidence}</p>
+                </div>
+                <div className="rounded-lg border border-[var(--ph-border)] p-3">
+                  <p className="text-xs uppercase tracking-wide text-gray-400">Diagnosis Source</p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedDiagnosisSource}</p>
                 </div>
                 <div className="rounded-lg border border-[var(--ph-border)] p-3 lg:col-span-2">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Proposed Action</p>

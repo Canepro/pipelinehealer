@@ -8,7 +8,7 @@ from typing import Any
 from azure.identity import DefaultAzureCredential
 
 from ..config import get_settings
-from ..models import Diagnosis, ExternalDiagnostic, FailureType, LogAnalysis
+from ..models import Diagnosis, DiagnosisSource, ExternalDiagnostic, FailureType, LogAnalysis
 from ..tools.github_tools import GitHubTools
 from .base import create_cloud_agent, get_agent_prompt
 
@@ -104,7 +104,7 @@ class DiagnosisAgent:
                 pattern_diagnosis.confidence,
                 pattern_diagnosis.root_cause[:200] if pattern_diagnosis.root_cause else "N/A",
             )
-            return pattern_diagnosis
+            return self._with_source(pattern_diagnosis, DiagnosisSource.PATTERN)
 
         if external_diagnostics:
             logger.debug(
@@ -168,15 +168,18 @@ Be specific about:
             logger.error(f"Agent diagnosis failed: {e}")
             # Fall back to pattern-based diagnosis if available
             if pattern_diagnosis:
-                return pattern_diagnosis
+                return self._with_source(pattern_diagnosis, DiagnosisSource.PATTERN)
 
             return Diagnosis(
                 failure_type=FailureType.UNKNOWN,
                 confidence=0.3,
                 root_cause=f"Diagnosis failed: {e}",
                 is_auto_fixable=False,
+                diagnosis_source=DiagnosisSource.LLM,
             )
 
+        if diagnosis.diagnosis_source is None:
+            diagnosis = self._with_source(diagnosis, DiagnosisSource.LLM)
         return diagnosis
 
     def _pattern_based_diagnosis(
@@ -248,6 +251,7 @@ Be specific about:
                     root_cause=description,
                     is_auto_fixable=True,
                     suggested_fix="Update or install the missing dependency",
+                    diagnosis_source=DiagnosisSource.PATTERN,
                     error_details={
                         "package_name": package_name,
                         "package_manager": package_manager,
@@ -274,6 +278,7 @@ Be specific about:
                     root_cause=description,
                     is_auto_fixable=True,
                     suggested_fix="Add eslint.config.js (flat config)" if is_missing_config else f"Run {linter} with --fix flag",
+                    diagnosis_source=DiagnosisSource.PATTERN,
                     error_details={
                         "linter": linter,
                         "missing_file": "eslint.config.js" if is_missing_config else "",
@@ -295,6 +300,7 @@ Be specific about:
                     root_cause=description,
                     is_auto_fixable=False,
                     suggested_fix="Stabilize flaky test and remove timing/order dependence",
+                    diagnosis_source=DiagnosisSource.PATTERN,
                     error_details={
                         "is_flaky": True,
                         "test_framework": self._detect_test_framework(error_text),
@@ -320,6 +326,7 @@ Be specific about:
                     root_cause=description,
                     is_auto_fixable=False,
                     suggested_fix="Review and fix the failing tests",
+                    diagnosis_source=DiagnosisSource.PATTERN,
                     error_details={
                         "is_flaky": is_flaky,
                         "test_framework": self._detect_test_framework(error_text),
@@ -343,6 +350,7 @@ Be specific about:
                     root_cause=description,
                     is_auto_fixable=False,
                     suggested_fix="Increase timeout or optimize the slow operation",
+                    diagnosis_source=DiagnosisSource.PATTERN,
                     error_details={},
                 )
 
@@ -366,6 +374,7 @@ Be specific about:
                     root_cause=description,
                     is_auto_fixable=True,
                     suggested_fix="Add minimal `permissions` block to the workflow",
+                    diagnosis_source=DiagnosisSource.PATTERN,
                     error_details={
                         "workflow_permissions_fix": True,
                         "permissions": {
@@ -421,6 +430,7 @@ Be specific about:
                     root_cause=description,
                     is_auto_fixable=False,
                     suggested_fix="Check repository secrets and environment configuration",
+                    diagnosis_source=DiagnosisSource.PATTERN,
                     error_details={
                         "missing_env_vars": missing_vars,
                     },
@@ -777,6 +787,7 @@ Be specific about:
                 is_auto_fixable=bool(data.get("is_auto_fixable", False)),
                 suggested_fix=data.get("suggested_fix", ""),
                 error_details=data.get("error_details", {}),
+                diagnosis_source=DiagnosisSource.LLM,
             )
 
         logger.warning(
@@ -793,4 +804,11 @@ Be specific about:
             confidence=0.3,
             root_cause="Could not determine root cause",
             is_auto_fixable=False,
+            diagnosis_source=DiagnosisSource.LLM,
         )
+    @staticmethod
+    def _with_source(diagnosis: Diagnosis, source: DiagnosisSource) -> Diagnosis:
+        """Ensure diagnosis source is set for observability/UI trust surface."""
+        if diagnosis.diagnosis_source is not None:
+            return diagnosis
+        return diagnosis.model_copy(update={"diagnosis_source": source})

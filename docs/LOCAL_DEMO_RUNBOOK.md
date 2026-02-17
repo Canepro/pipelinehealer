@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 41d30eb -->
+<!-- LAST_VERIFIED: 412159e -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -216,6 +216,12 @@ source .venv/bin/activate
 python3 scripts/aoai_smoke.py
 ```
 
+If you are using Docker Compose (no local venv), run:
+
+```bash
+bash scripts/ph.sh aoai:check
+```
+
 **What success looks like:** Output ends with `model connectivity OK.`
 
 **If it fails:** Double-check `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT_NAME`, and `AZURE_OPENAI_API_KEY` in your `backend/.env`. The endpoint should be the base URL only (no extra path segments).
@@ -288,6 +294,11 @@ curl -sS "http://127.0.0.1:8000/api/activities?limit=20"
 gh pr list -R <owner>/<repo>
 gh issue list -R <owner>/<repo> --state open
 ```
+
+To confirm whether AI inference was used for a specific activity, open Activity Detail and check `Diagnosis Source`:
+
+- `pattern` = deterministic rule-based diagnosis
+- `llm` = LLM-assisted diagnosis path
 
 ---
 
@@ -432,6 +443,32 @@ This usually means the fix branch already exists from a previous run. Merge or d
 ### Remediation shows `410 Gone` or `403 Forbidden`
 
 The target repository has issues or PRs disabled, or is archived. PipelineHealer handles this gracefully — the activity completes as `completed` with a reason code like `OUTPUT_ISSUES_DISABLED` visible in the Activity Detail page.
+
+### Remediation shows `403 Forbidden` for `/repos/<owner>/<repo>/issues` or pull request APIs
+
+This usually means an auth/permission mismatch for GitHub write actions.
+
+Common causes:
+
+- PAT lacks required write scopes/permissions for the repo.
+- Fine-grained token is not granted access to the target repository.
+- Fine-grained token permissions for Issues/Pull requests are read-only or unset (must allow write).
+- Repository has Issues disabled (for issue fallback) or is read-only/archived.
+- Runtime token in `backend/.env` differs from the one you tested locally.
+
+Quick checks:
+
+```bash
+gh auth status
+gh issue create -R <owner>/<repo> -t "PipelineHealer auth test" -b "test"
+gh pr list -R <owner>/<repo>
+```
+
+If needed, update `GITHUB_PERSONAL_ACCESS_TOKEN` in `backend/.env` and resync runtime env:
+
+```bash
+bash scripts/ph.sh deploy:env
+```
 
 ### **(WSL only)** Azure CLI errors: `UtilAcceptVsock... accept4 failed 110`
 

@@ -1,7 +1,7 @@
 """Tests for the Diagnosis Agent."""
 
 from src.agents.diagnosis import DiagnosisAgent
-from src.models import FailureType, LogAnalysis
+from src.models import DiagnosisSource, FailureType, LogAnalysis
 
 
 class TestPatternBasedDiagnosis:
@@ -26,6 +26,7 @@ class TestPatternBasedDiagnosis:
         assert diagnosis is not None
         assert diagnosis.failure_type == FailureType.DEPENDENCY
         assert diagnosis.confidence >= 0.8
+        assert diagnosis.diagnosis_source == DiagnosisSource.PATTERN
 
     def test_detect_python_module_not_found(self) -> None:
         """Test detection of Python ModuleNotFoundError."""

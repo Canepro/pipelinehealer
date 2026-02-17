@@ -58,6 +58,7 @@ Commands:
   settings:audit    Call backend /api/settings/audit using API+ADMIN keys from backend/.env
   settings:persist  Persist selected settings to backend/.env and redeploy env-only
   audit:proof       Create two traceable admin audit entries and print latest audit records
+  aoai:check        Verify Azure OpenAI connectivity from local backend container
   backfill          Trigger on-demand backfill sweep for external diagnostics (ci-doctor)
   help              Show this help
 
@@ -86,7 +87,7 @@ Local mode:
   PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh backfill
 
   Commands that work locally: settings:check, settings:audit, audit:proof,
-  backfill, logs, logs:raw, logs:grep, demo:proof, demo:reset, help.
+  aoai:check, backfill, logs, logs:raw, logs:grep, demo:proof, demo:reset, help.
 
   Azure-only commands (deploy, warm, lowcost, status, urls, webhook:*,
   rollout:canary, demo:e2e) print a clear error when PH_BACKEND_URL is set.
@@ -1128,6 +1129,50 @@ cmd_backfill() {
 }
 
 # ---------------------------------------------------------------------------
+# Azure OpenAI connectivity check (local docker backend container)
+# ---------------------------------------------------------------------------
+
+cmd_aoai_check() {
+  local compose_cmd
+  compose_cmd="$(_detect_compose_cmd)"
+  if [[ -z "$compose_cmd" ]]; then
+    echo "No docker/podman compose found. Cannot run containerized AOAI check." >&2
+    exit 1
+  fi
+
+  echo "Checking Azure OpenAI connectivity from backend container..."
+  $compose_cmd --env-file "$REPO_ROOT/backend/.env" exec backend python3 - <<'PY'
+import os
+import sys
+from openai import AzureOpenAI
+
+missing = [k for k in ("AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_DEPLOYMENT_NAME", "AZURE_OPENAI_API_KEY") if not os.environ.get(k)]
+if missing:
+    print(f"AOAI connectivity FAILED: missing env vars: {', '.join(missing)}", file=sys.stderr)
+    raise SystemExit(2)
+
+endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
+deployment = os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"]
+api_key = os.environ["AZURE_OPENAI_API_KEY"]
+api_version = os.environ.get("AZURE_OPENAI_CHAT_API_VERSION", "2024-12-01-preview")
+
+client = AzureOpenAI(
+    api_key=api_key,
+    api_version=api_version,
+    azure_endpoint=endpoint,
+)
+
+resp = client.chat.completions.create(
+    model=deployment,
+    messages=[{"role": "user", "content": "Reply with OK"}],
+    max_tokens=8,
+)
+print("model connectivity OK.")
+print((resp.choices[0].message.content or "").strip())
+PY
+}
+
+# ---------------------------------------------------------------------------
 # Command dispatch
 # ---------------------------------------------------------------------------
 
@@ -1217,6 +1262,9 @@ case "$COMMAND" in
     ;;
   backfill)
     cmd_backfill "$@"
+    ;;
+  aoai:check)
+    cmd_aoai_check "$@"
     ;;
   logs)
     cmd_logs "$@"

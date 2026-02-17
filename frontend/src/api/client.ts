@@ -26,6 +26,7 @@ export interface DashboardStats {
 
 export interface Diagnosis {
   failure_type: string
+  diagnosis_source?: 'pattern' | 'llm'
   confidence: number
   root_cause: string
   affected_files: string[]

@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 41d30eb -->
+<!-- LAST_VERIFIED: 412159e -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -226,6 +226,7 @@ Returns activity records with optional filtering and pagination.
     "failure_type": "dependency",
     "diagnosis": {
       "failure_type": "dependency",
+      "diagnosis_source": "pattern",
       "confidence": 0.85,
       "root_cause": "missing Node.js module",
       "affected_files": [],
@@ -612,6 +613,26 @@ Returns recent admin settings change records (latest first).
 | `unavailable` | External workflow not installed on the monitored repo, or no findings available within bounded polling |
 | `disabled` | External diagnostics integration disabled by runtime settings |
 | `error` | Error during external diagnostic retrieval |
+
+### DiagnosisSource (enum)
+
+| Value | Description |
+|-------|-------------|
+| `pattern` | Deterministic pattern-based diagnosis path |
+| `llm` | LLM-assisted diagnosis path |
+
+### Diagnosis (object)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `failure_type` | FailureType | Failure category |
+| `diagnosis_source` | DiagnosisSource \| null | Whether diagnosis came from deterministic pattern logic or LLM path |
+| `confidence` | float | Confidence score (`0.0`–`1.0`) |
+| `root_cause` | string | Human-readable root cause |
+| `affected_files` | string[] | Suspected impacted files |
+| `error_details` | object | Additional structured details |
+| `suggested_fix` | string | High-level suggested remediation |
+| `is_auto_fixable` | bool | Whether safe auto-remediation is supported |
 
 ### ExternalDiagnostic (object)
 

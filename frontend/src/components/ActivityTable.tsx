@@ -100,6 +100,13 @@ function getIssueProposalMeta(activity: Activity): {
   return { includesProposedFix: includes, reasonCode: reason, output }
 }
 
+function getDiagnosisSourceLabel(activity: Activity): string | null {
+  const source = activity.diagnosis?.diagnosis_source
+  if (source === 'llm') return 'LLM'
+  if (source === 'pattern') return 'Pattern'
+  return null
+}
+
 export default function ActivityTable({
   activities,
   isLoading,
@@ -147,6 +154,7 @@ export default function ActivityTable({
         {activities.map((activity) => {
           const meta = getIssueProposalMeta(activity)
           const externalMeta = getExternalDiagnosticsMeta(activity)
+          const diagnosisSourceLabel = getDiagnosisSourceLabel(activity)
           return (
             <div
               key={activity.id}
@@ -194,6 +202,11 @@ export default function ActivityTable({
                 {externalMeta && (
                   <Badge className="max-w-full break-all rounded-md text-[11px]" variant={externalMeta.variant}>
                     {externalMeta.label}
+                  </Badge>
+                )}
+                {diagnosisSourceLabel && (
+                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant="secondary">
+                    Diagnosis: {diagnosisSourceLabel}
                   </Badge>
                 )}
               </div>
@@ -253,6 +266,7 @@ export default function ActivityTable({
             {activities.map((activity) => {
               const meta = getIssueProposalMeta(activity)
               const externalMeta = getExternalDiagnosticsMeta(activity)
+              const diagnosisSourceLabel = getDiagnosisSourceLabel(activity)
               return (
                 <TableRow
                   key={activity.id}
@@ -314,6 +328,13 @@ export default function ActivityTable({
                       <div className="mt-2 flex flex-wrap gap-1">
                         <Badge className="rounded-md text-[11px]" variant={externalMeta.variant}>
                           {externalMeta.label}
+                        </Badge>
+                      </div>
+                    )}
+                    {diagnosisSourceLabel && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        <Badge className="rounded-md text-[11px]" variant="secondary">
+                          Diagnosis: {diagnosisSourceLabel}
                         </Badge>
                       </div>
                     )}
