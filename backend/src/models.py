@@ -257,6 +257,7 @@ class AppSettingsView(BaseModel):
     ph_allowed_repos: list[str]
     cors_allowed_origins: list[str]
     cors_allow_origin_regex: str
+    llm_provider: str
     azure_openai_endpoint: str
     azure_openai_deployment_name: str
     azure_openai_api_version: str
@@ -282,7 +283,21 @@ class AdminSettingsUpdateRequest(BaseModel):
     gh_aw_ingestion_mode: str | None = None
     gh_aw_known_workflows: list[str] | None = None
     ph_allowed_repos: list[str] | None = None
+    llm_provider: str | None = None
     azure_openai_deployment_name: str | None = None
+
+
+class LLMProviderHealthView(BaseModel):
+    """Health/status payload for configured LLM provider adapter."""
+
+    provider: str
+    implemented: bool
+    available: bool
+    reason: str
+    message: str
+    endpoint: str | None = None
+    deployment_name: str | None = None
+    api_version: str | None = None
 
 
 class AdminSettingsAuditEntry(BaseModel):

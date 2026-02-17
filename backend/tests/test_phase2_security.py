@@ -60,6 +60,12 @@ async def _get_settings_audit(headers: dict[str, str] | None = None) -> httpx.Re
         return await client.get("/api/settings/audit", headers=headers or {})
 
 
+async def _get_llm_provider_health(headers: dict[str, str] | None = None) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.get("/api/settings/llm/provider-health", headers=headers or {})
+
+
 async def _post_settings_persist(
     payload: dict[str, object] | None = None,
     headers: dict[str, str] | None = None,
@@ -345,6 +351,7 @@ async def test_settings_endpoint_returns_non_secret_fields(monkeypatch) -> None:
 
     data = response.json()
     assert data["azure_openai_deployment_name"] == "gpt-5-mini"
+    assert data["llm_provider"] == "azure_openai"
     assert "azure_openai_api_key" not in data
 
 
@@ -591,6 +598,56 @@ async def test_admin_can_patch_azure_openai_deployment_name(monkeypatch) -> None
     )
     assert response.status_code == 200
     assert response.json()["azure_openai_deployment_name"] == "gpt-5-mini-fast"
+
+
+@pytest.mark.asyncio
+async def test_admin_can_patch_llm_provider(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    response = await _patch_settings(
+        {"llm_provider": "openai_compatible"},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    assert response.json()["llm_provider"] == "openai_compatible"
+
+
+@pytest.mark.asyncio
+async def test_admin_patch_rejects_invalid_llm_provider(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    response = await _patch_settings(
+        {"llm_provider": "bad_provider"},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 422
+    assert "llm_provider" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_settings_exposes_llm_provider_health(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com/")
+    monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-mini")
+    reset_settings()
+
+    response = await _get_llm_provider_health(headers={"X-Admin-Key": "admin-secret"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["provider"] == "azure_openai"
+    assert body["implemented"] is True
+    assert body["available"] is True
 
 
 @pytest.mark.asyncio

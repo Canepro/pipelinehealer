@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: eac467e -->
+<!-- LAST_VERIFIED: 853bc3b -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -424,6 +424,7 @@ Returns the current runtime configuration (non-secret values only).
   "github_app_configured": false,
   "github_auth_mode": "pat",
   "ph_allowed_repos": ["Canepro/pipelinehealer-demo"],
+  "llm_provider": "azure_openai",
   "gh_aw_tools_enabled": false,
   "gh_aw_ingestion_mode": "disabled",
   "gh_aw_known_workflows": ["ci-doctor", "schema-consistency-checker", "breaking-change-checker"],
@@ -483,6 +484,7 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 | `gh_aw_ingestion_mode` | string | `disabled` or `passive` |
 | `gh_aw_known_workflows` | list[string] | Workflow names to detect (e.g. `ci-doctor`, `schema-consistency-checker`) |
 | `azure_openai_deployment_name` | string | Non-empty; switches AI model deployment at runtime |
+| `llm_provider` | string | `azure_openai`, `openai_compatible`, or `custom` |
 
 **Validation**: `log_prompt_head_chars + log_prompt_tail_chars` must be `<= log_prompt_max_chars`.
 
@@ -491,6 +493,27 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 **Response** `422 Unprocessable Entity`: validation failure.
 
 **Side Effects**: Creates an audit entry (persisted to Cosmos DB when available, in-memory fallback otherwise). Triggers agent cache invalidation when `azure_openai_deployment_name` changes so the new model takes effect immediately.
+
+#### `GET /api/settings/llm/provider-health`
+
+Returns health/status for the currently selected LLM provider adapter.
+
+**Auth**: `X-API-Key` + `X-Admin-Key`
+
+**Response** `200 OK` (`LLMProviderHealthView`):
+
+```json
+{
+  "provider": "azure_openai",
+  "implemented": true,
+  "available": true,
+  "reason": "ok",
+  "message": "Azure OpenAI provider configuration looks valid.",
+  "endpoint": "https://example.openai.azure.com/",
+  "deployment_name": "gpt-5-mini",
+  "api_version": "2025-04-01-preview"
+}
+```
 
 #### `POST /api/settings/persist`
 

@@ -105,10 +105,22 @@ export interface AppSettings {
   ph_allowed_repos: string[]
   cors_allowed_origins: string[]
   cors_allow_origin_regex: string
+  llm_provider: 'azure_openai' | 'openai_compatible' | 'custom'
   azure_openai_endpoint: string
   azure_openai_deployment_name: string
   azure_openai_api_version: string
   azure_openai_chat_api_version: string
+}
+
+export interface LLMProviderHealth {
+  provider: string
+  implemented: boolean
+  available: boolean
+  reason: string
+  message: string
+  endpoint?: string
+  deployment_name?: string
+  api_version?: string
 }
 
 export interface AdminSettingsAuditEntry {
@@ -138,6 +150,7 @@ export interface AdminSettingsUpdate {
   gh_aw_ingestion_mode?: 'disabled' | 'passive'
   gh_aw_known_workflows?: string[]
   ph_allowed_repos?: string[]
+  llm_provider?: 'azure_openai' | 'openai_compatible' | 'custom'
   azure_openai_deployment_name?: string
 }
 
@@ -245,6 +258,8 @@ export const api = {
       `/api/settings/audit?limit=${Math.max(1, Math.min(limit, 200))}`,
       { adminKey }
     ),
+  getLLMProviderHealth: (adminKey: string | undefined) =>
+    fetchJson<LLMProviderHealth>('/api/settings/llm/provider-health', { adminKey }),
   updateSettings: (adminKey: string | undefined, payload: AdminSettingsUpdate) =>
     fetchJson<AppSettings>('/api/settings', {
       method: 'PATCH',

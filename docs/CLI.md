@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: eac467e -->
+<!-- LAST_VERIFIED: 853bc3b -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -197,6 +197,20 @@ bash scripts/ph.sh logs:grep --pattern "openai|responses|chat.completions"
 ```
 
 Otherwise `ph.sh` stays in Azure mode and may fail with `Missing required command: az`.
+
+### Testing Safety Wrapper
+
+Use the safe pytest wrapper to prevent indefinitely hanging test runs:
+
+```bash
+bash scripts/pytest_safe.sh backend/tests/test_phase1_correctness.py -q
+PYTEST_TIMEOUT_SECONDS=2400 bash scripts/pytest_safe.sh backend/tests -q
+```
+
+Defaults:
+
+- timeout: `1800s` (30 minutes)
+- graceful stop: `TERM`, then forced kill after 30s if needed
 
 ### External Diagnostics
 

@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: eac467e -->
+<!-- LAST_VERIFIED: 853bc3b -->
 
 Use this index to find the right doc quickly.
 
@@ -16,6 +16,7 @@ Use this index to find the right doc quickly.
 - `CLI.md` — canonical `scripts/ph.sh` CLI reference: all commands, flags, error handling, env overrides
 - `DEMO_SCRIPT.md` — single-file recording checklist and 2-minute narration script
 - `LOCAL_DEMO_RUNBOOK.md` — full local and Azure E2E operator runbook
+- `MODEL_PROVIDER_STRATEGY.md` — Azure-first but provider-portable model backend strategy
 - `PREDEPLOY_PLACEHOLDER_AUDIT.md` — pre-deploy stop-ship checklist
 
 ### Tier 3 — Internal/Transient (author discretion; archive post-submission)

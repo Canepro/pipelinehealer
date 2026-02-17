@@ -288,6 +288,11 @@ This is the long-form project tracker for hackathon execution status, submission
   - Wired `create_cloud_agent()` to route through provider resolution and currently default to Azure implementation path (with warning for unimplemented providers).
   - Added unit tests for provider resolution + settings validation (`backend/tests/test_llm_provider_selection.py`).
   - Updated `.env.example` and README notes to document portability scaffold.
+- Shipped Phase 2 model portability wiring (still non-breaking, Azure runtime unchanged):
+  - Added provider adapter health scaffolding (`backend/src/llm/adapters.py`).
+  - Exposed `llm_provider` in runtime settings read/write flow and persistence map.
+  - Added provider health endpoint (`GET /api/settings/llm/provider-health`).
+  - Surfaced provider selector and health status in Settings UI (AI Configuration section).
 - Backend test count: 121 passing. Frontend lint/build clean.
 
 ## Project Tracking Plan (Now -> Mar 15)

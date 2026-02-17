@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [adminKey, setAdminKey] = useState('')
   const [useSessionAuth, setUseSessionAuth] = useState(false)
   const [form, setForm] = useState<SettingsFormState>({
+    llm_provider: 'azure_openai',
     heal_mode: 'safe',
     auto_create_pr: true,
     auto_create_tracking_issue_for_prs: true,
@@ -65,6 +66,16 @@ export default function SettingsPage() {
     retry: false,
   })
 
+  const {
+    data: llmProviderHealth,
+    isLoading: isLlmHealthLoading,
+  } = useQuery({
+    queryKey: ['llm-provider-health', adminKey, useSessionAuth],
+    queryFn: () => api.getLLMProviderHealth(effectiveAdminKey),
+    enabled: hasAuthAttempt,
+    retry: false,
+  })
+
   useEffect(() => {
     if (!data) return
     const next = toSettingsForm(data)
@@ -79,6 +90,7 @@ export default function SettingsPage() {
   const saveMutation = useMutation({
     mutationFn: () => {
       const payload: Record<string, unknown> = {
+        llm_provider: form.llm_provider,
         heal_mode: form.heal_mode,
         auto_create_pr: form.auto_create_pr,
         auto_create_tracking_issue_for_prs: form.auto_create_tracking_issue_for_prs,
@@ -270,6 +282,8 @@ export default function SettingsPage() {
             data={data}
             form={form}
             setForm={setForm}
+            llmProviderHealth={llmProviderHealth}
+            isLlmHealthLoading={isLlmHealthLoading}
             hasUnsavedChanges={hasUnsavedChanges}
             newRepoInput={newRepoInput}
             setNewRepoInput={setNewRepoInput}

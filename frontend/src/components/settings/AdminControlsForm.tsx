@@ -12,7 +12,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { AppSettings } from '../../api/client'
+import type { AppSettings, LLMProviderHealth } from '../../api/client'
 import type { SettingsFormState } from './types'
 import { normalizeRepoInput, SETTING_DESCRIPTIONS, toSettingsForm } from './types'
 import { Badge } from '@/components/ui/badge'
@@ -30,6 +30,8 @@ interface Props {
   data: AppSettings
   form: SettingsFormState
   setForm: Dispatch<SetStateAction<SettingsFormState>>
+  llmProviderHealth?: LLMProviderHealth
+  isLlmHealthLoading?: boolean
   hasUnsavedChanges: boolean
   newRepoInput: string
   setNewRepoInput: Dispatch<SetStateAction<string>>
@@ -45,6 +47,8 @@ export default function AdminControlsForm({
   data,
   form,
   setForm,
+  llmProviderHealth,
+  isLlmHealthLoading,
   hasUnsavedChanges,
   newRepoInput,
   setNewRepoInput,
@@ -173,11 +177,31 @@ export default function AdminControlsForm({
               <CardTitle>AI Configuration</CardTitle>
             </div>
             <p className="text-sm text-[var(--ph-muted)]">
-              Azure OpenAI model used for log analysis and diagnosis.
+              Configure model provider and deployment for log analysis and diagnosis.
             </p>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <FieldGroup label="LLM Provider" field="llm_provider">
+                <Select
+                  value={form.llm_provider}
+                  onValueChange={(v) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      llm_provider: v as SettingsFormState['llm_provider'],
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="azure_openai">azure_openai (recommended)</SelectItem>
+                    <SelectItem value="openai_compatible">openai_compatible (scaffold)</SelectItem>
+                    <SelectItem value="custom">custom (scaffold)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldGroup>
               <FieldGroup label="Model Deployment Name" field="azure_openai_deployment_name">
                 <Input
                   type="text"
@@ -205,6 +229,28 @@ export default function AdminControlsForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <ReadOnlyField label="API Version" value={data.azure_openai_api_version} />
               <ReadOnlyField label="Chat API Version" value={data.azure_openai_chat_api_version} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <ReadOnlyField
+                label="Provider Health"
+                value={
+                  isLlmHealthLoading
+                    ? 'Checking...'
+                    : llmProviderHealth
+                      ? `${llmProviderHealth.available ? 'Healthy' : 'Degraded'} (${llmProviderHealth.reason})`
+                      : 'Unavailable'
+                }
+              />
+              <ReadOnlyField
+                label="Provider Status"
+                value={
+                  llmProviderHealth
+                    ? llmProviderHealth.implemented
+                      ? 'Implemented'
+                      : 'Scaffolded only'
+                    : 'Unknown'
+                }
+              />
             </div>
           </CardContent>
         </Card>

@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
 from ..config import get_settings
+from ..llm.adapters import get_llm_provider_adapter
 from ..models import (
     ActivityRecord,
     AdminSettingsAuditEntry,
@@ -22,6 +23,7 @@ from ..models import (
     AppSettingsView,
     DashboardStats,
     FailureType,
+    LLMProviderHealthView,
     RemediationStatus,
     utcnow,
 )
@@ -178,6 +180,7 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         ph_allowed_repos=_safe_settings_allowlist(settings.ph_allowed_repos),
         cors_allowed_origins=settings.cors_allowed_origins,
         cors_allow_origin_regex=settings.cors_allow_origin_regex,
+        llm_provider=settings.llm_provider,
         azure_openai_endpoint=settings.azure_openai_endpoint,
         azure_openai_deployment_name=settings.azure_openai_deployment_name,
         azure_openai_api_version=settings.azure_openai_api_version,
@@ -208,6 +211,7 @@ _MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = (
     ("gh_aw_ingestion_mode", "GH_AW_INGESTION_MODE"),
     ("gh_aw_known_workflows", "GH_AW_KNOWN_WORKFLOWS"),
     ("ph_allowed_repos", "PH_ALLOWED_REPOS"),
+    ("llm_provider", "LLM_PROVIDER"),
     ("azure_openai_deployment_name", "AZURE_OPENAI_DEPLOYMENT_NAME"),
 )
 
@@ -349,6 +353,11 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         normalized = str(value).strip()
         if not normalized:
             raise ValueError("invalid azure_openai_deployment_name")
+        return normalized
+    if attr_name == "llm_provider":
+        normalized = str(value).strip().lower()
+        if normalized not in {"azure_openai", "openai_compatible", "custom"}:
+            raise ValueError("invalid llm_provider")
         return normalized
     return value
 
@@ -506,6 +515,15 @@ async def update_app_settings(
             )
         changes["azure_openai_deployment_name"] = deployment_name
 
+    if "llm_provider" in changes:
+        llm_provider = str(changes["llm_provider"]).strip().lower()
+        if llm_provider not in {"azure_openai", "openai_compatible", "custom"}:
+            raise HTTPException(
+                status_code=422,
+                detail="llm_provider must be one of: azure_openai, openai_compatible, custom",
+            )
+        changes["llm_provider"] = llm_provider
+
     max_chars = int(changes.get("log_prompt_max_chars", settings.log_prompt_max_chars))
     head_chars = int(changes.get("log_prompt_head_chars", settings.log_prompt_head_chars))
     tail_chars = int(changes.get("log_prompt_tail_chars", settings.log_prompt_tail_chars))
@@ -558,6 +576,18 @@ async def update_app_settings(
     logger.info("Admin runtime settings updated; changed_keys=%s", sorted(changes.keys()))
 
     return _build_settings_view(storage)
+
+
+@router.get(
+    "/settings/llm/provider-health",
+    response_model=LLMProviderHealthView,
+    dependencies=[Depends(require_admin_key)],
+)
+async def get_llm_provider_health() -> LLMProviderHealthView:
+    """Get health/status for the configured LLM provider adapter."""
+    settings = get_settings()
+    adapter = get_llm_provider_adapter(settings)
+    return LLMProviderHealthView(**adapter.health(settings))
 
 
 @router.get(
