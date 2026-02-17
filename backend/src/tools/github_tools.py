@@ -528,6 +528,37 @@ class GitHubTools:
         )
         return cast(list[dict[str, Any]], response.json())
 
+    async def list_pull_requests(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        state: str = "open",
+        head: str | None = None,
+        base: str | None = None,
+        sort: str = "updated",
+        direction: str = "desc",
+        per_page: int = 30,
+    ) -> list[dict[str, Any]]:
+        """List pull requests for a repository."""
+        normalized_state = state.strip().lower()
+        if normalized_state not in {"open", "closed", "all"}:
+            normalized_state = "open"
+
+        params: dict[str, Any] = {
+            "state": normalized_state,
+            "sort": sort,
+            "direction": direction,
+            "per_page": max(1, min(per_page, 100)),
+        }
+        if head:
+            params["head"] = head
+        if base:
+            params["base"] = base
+
+        response = await self._request("GET", f"/repos/{owner}/{repo}/pulls", params=params)
+        return cast(list[dict[str, Any]], response.json())
+
     # =========================================================================
     # Issue Tools
     # =========================================================================
@@ -755,6 +786,7 @@ def create_github_tool_functions(github_tools: GitHubTools) -> dict[str, Any]:
         "create_branch": github_tools.create_branch,
         "create_or_update_file": github_tools.create_or_update_file,
         "create_pull_request": github_tools.create_pull_request,
+        "list_pull_requests": github_tools.list_pull_requests,
         "get_pull_request_files": github_tools.get_pull_request_files,
         "create_issue": github_tools.create_issue,
         "add_issue_comment": github_tools.add_issue_comment,

@@ -21,8 +21,8 @@ from src.models import (
     RemediationStatus,
     WorkflowRunEvent,
 )
-from src.tools.fix_generators import NotAutoApplyReason
 from src.storage import InMemoryStorage
+from src.tools.fix_generators import NotAutoApplyReason
 
 
 class FakeGitHubTools:
@@ -34,6 +34,69 @@ class FakeGitHubTools:
 
     async def get_file_contents(self, owner: str, repo: str, path: str, ref: str | None = None):
         raise NotImplementedError
+
+    async def list_pull_requests(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        state: str = "open",
+        head: str | None = None,
+        base: str | None = None,
+        sort: str = "updated",
+        direction: str = "desc",
+        per_page: int = 30,
+    ):
+        _ = owner, repo, state, head, base, sort, direction, per_page
+        return []
+
+    async def get_pull_request_files(self, owner: str, repo: str, pr_number: int, per_page: int = 100):
+        _ = owner, repo, pr_number, per_page
+        return []
+
+    async def list_issues(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        state: str = "all",
+        labels: str | None = None,
+        sort: str = "updated",
+        direction: str = "desc",
+        per_page: int = 30,
+    ):
+        _ = owner, repo, state, labels, sort, direction, per_page
+        return []
+
+    async def create_branch(self, owner: str, repo: str, branch_name: str, from_ref: str = "HEAD"):
+        _ = owner, repo, branch_name, from_ref
+        return {}
+
+    async def create_or_update_file(
+        self,
+        owner: str,
+        repo: str,
+        path: str,
+        content: str,
+        message: str,
+        branch: str,
+        sha: str | None = None,
+    ):
+        _ = owner, repo, path, content, message, branch, sha
+        return {}
+
+    async def create_pull_request(
+        self,
+        owner: str,
+        repo: str,
+        title: str,
+        body: str,
+        head: str,
+        base: str,
+        draft: bool = False,
+    ):
+        _ = owner, repo, title, body, head, base, draft
+        return {"number": 123, "html_url": f"https://github.com/{owner}/{repo}/pull/123"}
 
     async def rerun_failed_jobs(self, owner: str, repo: str, run_id: int):
         self.rerun_calls.append((owner, repo, run_id))
@@ -96,6 +159,65 @@ class FakeGitHubToolsReadOnlyRepo(FakeGitHubTools):
             f"https://api.github.com/repos/{owner}/{repo}/git/refs",
             "Repository was archived so is read-only.",
         )
+
+
+class FakeGitHubToolsBranchExistsReuse(FakeGitHubToolsWithFiles):
+    def __init__(self) -> None:
+        super().__init__(files={"README.md": "hello\n"})
+        self.create_branch_calls: list[str] = []
+        self.created_pr = False
+
+    async def create_branch(self, owner: str, repo: str, branch_name: str, from_ref: str = "HEAD"):
+        _ = owner, repo, from_ref
+        self.create_branch_calls.append(branch_name)
+        raise _http_error(
+            422,
+            "POST",
+            f"https://api.github.com/repos/{owner}/{repo}/git/refs",
+            "Reference already exists",
+        )
+
+    async def list_pull_requests(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        state: str = "open",
+        head: str | None = None,
+        base: str | None = None,
+        sort: str = "updated",
+        direction: str = "desc",
+        per_page: int = 30,
+    ):
+        _ = owner, repo, state, base, sort, direction, per_page
+        if head and head.endswith("fix/dependency-run-777"):
+            return [
+                {
+                    "number": 88,
+                    "html_url": f"https://github.com/{owner}/{repo}/pull/88",
+                    "head": {"ref": "fix/dependency-run-777"},
+                    "body": "previous remediation",
+                }
+            ]
+        return []
+
+    async def get_pull_request_files(self, owner: str, repo: str, pr_number: int, per_page: int = 100):
+        _ = owner, repo, pr_number, per_page
+        return [{"filename": "README.md"}]
+
+    async def create_pull_request(
+        self,
+        owner: str,
+        repo: str,
+        title: str,
+        body: str,
+        head: str,
+        base: str,
+        draft: bool = False,
+    ):
+        _ = owner, repo, title, body, head, base, draft
+        self.created_pr = True
+        return {"number": 99, "html_url": f"https://github.com/{owner}/{repo}/pull/99"}
 
 
 def _make_event() -> WorkflowRunEvent:
@@ -316,6 +438,34 @@ async def test_create_pr_when_repo_read_only_returns_skip() -> None:
     assert result.error_message is None
     assert result.details.get("reason_code") == "OUTPUT_REPOSITORY_READ_ONLY"
     assert result.details.get("attempted_action") == RemediationAction.CREATE_PR.value
+
+
+@pytest.mark.asyncio
+async def test_create_pr_reuses_existing_open_pr_on_ref_collision() -> None:
+    gh = FakeGitHubToolsBranchExistsReuse()
+    agent = RemediationAgent(github_tools=gh)
+    plan = RemediationPlan(
+        action=RemediationAction.CREATE_PR,
+        description="Install missing dependency",
+        branch_name="fix/dependency",
+        pr_title="[PipelineHealer] dependency fix",
+        pr_body="body",
+        file_changes=[{"file": "README.md", "content": "updated"}],
+    )
+
+    result = await agent._create_pull_request(
+        plan=plan,
+        owner="octo",
+        repo="demo",
+        base_branch="main",
+        workflow_run_id=777,
+    )
+
+    assert result.success is True
+    assert result.action_taken == RemediationAction.CREATE_PR
+    assert result.pr_url == "https://github.com/octo/demo/pull/88"
+    assert result.details.get("reused_existing_pr") is True
+    assert gh.created_pr is False
 
 
 # ---------------------------------------------------------------------------

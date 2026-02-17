@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 412159e -->
+<!-- LAST_VERIFIED: 9052970 -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -643,7 +643,7 @@ If you repeatedly trigger the same dependency/lint failure without merging prior
 
 - `422 Unprocessable Entity` on `POST /repos/.../git/refs`
 
-This usually means the target fix branch already exists (for example `fix/update-left-pad` or `fix/lint-eslint-config`).
+PipelineHealer now uses a find-or-create remediation flow: existing matching PRs/issues are reused when available, and branch-ref collisions trigger safe fallback branch suffix attempts before failing.
 
 ## Project Structure
 

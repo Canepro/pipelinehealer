@@ -1,6 +1,7 @@
 """Remediation Agent for generating fixes for CI/CD failures."""
 
 import base64
+import hashlib
 import json
 import logging
 import re
@@ -291,6 +292,123 @@ class RemediationAgent:
         # Keep branch names under common platform limits.
         return candidate[:240]
 
+    @staticmethod
+    def _fingerprint_for_plan(plan: RemediationPlan, workflow_run_id: int) -> str:
+        """Return a stable remediation fingerprint for find-or-create behavior."""
+        payload = {
+            "run_id": workflow_run_id,
+            "action": plan.action.value,
+            "branch_name": plan.branch_name or "",
+            "pr_title": plan.pr_title or "",
+            "issue_title": plan.issue_title or "",
+            "description": plan.description,
+            "files": sorted(str(change.get("file", "")) for change in plan.file_changes if change.get("file")),
+        }
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
+    @staticmethod
+    def _fingerprint_marker(fingerprint: str) -> str:
+        return f"<!-- pipelinehealer:fingerprint:{fingerprint} -->"
+
+    @staticmethod
+    def _branch_suffix(base_branch_name: str, attempt: int) -> str:
+        """Generate collision-safe branch suffix while staying under common limits."""
+        if attempt <= 1:
+            return base_branch_name
+        suffix = f"-r{attempt}"
+        max_base = max(1, 240 - len(suffix))
+        return f"{base_branch_name[:max_base]}{suffix}"
+
+    @staticmethod
+    def _is_ref_exists_conflict(exc: Exception) -> bool:
+        """True when GitHub reports branch ref already exists (422 git/refs)."""
+        if not isinstance(exc, httpx.HTTPStatusError):
+            return False
+        response = exc.response
+        request = exc.request
+        if response is None:
+            return False
+        endpoint = str(request.url.path if request is not None else "").lower()
+        if response.status_code != 422 or not endpoint.endswith("/git/refs"):
+            return False
+        try:
+            message = str(response.json().get("message", "")).lower()
+        except Exception:
+            message = response.text.lower()
+        return "reference already exists" in message
+
+    async def _find_existing_open_pr(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        head_branch: str,
+        marker: str,
+        expected_files: set[str],
+    ) -> dict[str, Any] | None:
+        """Find an existing open PR for this remediation fingerprint/branch."""
+        prs = await self._github_tools.list_pull_requests(
+            owner=owner,
+            repo=repo,
+            state="open",
+            head=f"{owner}:{head_branch}",
+            per_page=20,
+        )
+        if not prs:
+            prs = await self._github_tools.list_pull_requests(
+                owner=owner,
+                repo=repo,
+                state="open",
+                per_page=50,
+            )
+
+        for pr in prs:
+            body = str(pr.get("body", "") or "")
+            head = pr.get("head") or {}
+            ref = str(head.get("ref", "")) if isinstance(head, dict) else ""
+            if ref and ref != head_branch and marker not in body:
+                continue
+
+            if expected_files and isinstance(pr.get("number"), int):
+                try:
+                    changed_files = await self._github_tools.get_pull_request_files(
+                        owner=owner,
+                        repo=repo,
+                        pr_number=int(pr["number"]),
+                    )
+                    pr_paths = {str(item.get("filename", "")) for item in changed_files}
+                    if not (pr_paths & expected_files):
+                        continue
+                except Exception:
+                    if marker not in body:
+                        continue
+
+            return pr
+        return None
+
+    async def _find_existing_tracking_issue(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        marker: str,
+    ) -> dict[str, Any] | None:
+        """Find an existing open tracking issue by fingerprint marker."""
+        issues = await self._github_tools.list_issues(
+            owner=owner,
+            repo=repo,
+            state="open",
+            labels="pipelinehealer",
+            per_page=100,
+        )
+        for issue in issues:
+            body = str(issue.get("body", "") or "")
+            title = str(issue.get("title", "") or "").lower()
+            if marker in body and "auto-fix tracking" in title:
+                return issue
+        return None
+
     async def _create_pull_request(
         self,
         plan: RemediationPlan,
@@ -321,7 +439,56 @@ class RemediationAgent:
         try:
             tracking_issue_number: int | None = None
             tracking_issue_url: str | None = None
-            run_branch_name = self._branch_name_for_run(plan.branch_name, workflow_run_id)
+            base_run_branch_name = self._branch_name_for_run(plan.branch_name, workflow_run_id)
+            remediation_fp = self._fingerprint_for_plan(plan, workflow_run_id)
+            fp_marker = self._fingerprint_marker(remediation_fp)
+            expected_files = {
+                str(change.get("file", ""))
+                for change in plan.file_changes
+                if isinstance(change, dict) and change.get("file")
+            }
+
+            existing_pr = await self._find_existing_open_pr(
+                owner=owner,
+                repo=repo,
+                head_branch=base_run_branch_name,
+                marker=fp_marker,
+                expected_files=expected_files,
+            )
+            if existing_pr is not None:
+                existing_issue = await self._find_existing_tracking_issue(
+                    owner=owner,
+                    repo=repo,
+                    marker=fp_marker,
+                )
+                logger.info(
+                    "Reusing existing remediation PR #%s for run %s (%s/%s)",
+                    existing_pr.get("number"),
+                    workflow_run_id,
+                    owner,
+                    repo,
+                )
+                return RemediationResult(
+                    success=True,
+                    action_taken=RemediationAction.CREATE_PR,
+                    pr_url=str(existing_pr.get("html_url", "") or ""),
+                    issue_url=(
+                        str(existing_issue.get("html_url", "") or "")
+                        if existing_issue is not None
+                        else None
+                    ),
+                    details={
+                        "pr_number": existing_pr.get("number"),
+                        "tracking_issue_number": (
+                            existing_issue.get("number") if existing_issue is not None else None
+                        ),
+                        "branch_name": str(
+                            (existing_pr.get("head") or {}).get("ref", base_run_branch_name)
+                        ),
+                        "reused_existing_pr": True,
+                        "remediation_fingerprint": remediation_fp,
+                    },
+                )
 
             # Materialize structured file changes into full file contents.
             try:
@@ -352,14 +519,81 @@ class RemediationAgent:
                     reason="No applicable file changes to commit",
                 )
 
-            # Create a new branch
-            await self._github_tools.create_branch(
-                owner=owner,
-                repo=repo,
-                branch_name=run_branch_name,
-                from_ref=base_branch,
-            )
-            logger.info(f"Created branch: {run_branch_name}")
+            run_branch_name: str | None = None
+            for attempt in range(1, 5):
+                candidate_branch_name = self._branch_suffix(base_run_branch_name, attempt)
+                try:
+                    await self._github_tools.create_branch(
+                        owner=owner,
+                        repo=repo,
+                        branch_name=candidate_branch_name,
+                        from_ref=base_branch,
+                    )
+                    run_branch_name = candidate_branch_name
+                    logger.info(f"Created branch: {run_branch_name}")
+                    break
+                except Exception as e:
+                    if not self._is_ref_exists_conflict(e):
+                        raise
+                    existing_pr = await self._find_existing_open_pr(
+                        owner=owner,
+                        repo=repo,
+                        head_branch=candidate_branch_name,
+                        marker=fp_marker,
+                        expected_files=expected_files,
+                    )
+                    if existing_pr is not None:
+                        existing_issue = await self._find_existing_tracking_issue(
+                            owner=owner,
+                            repo=repo,
+                            marker=fp_marker,
+                        )
+                        logger.info(
+                            "Ref collision resolved by reusing PR #%s on branch %s",
+                            existing_pr.get("number"),
+                            candidate_branch_name,
+                        )
+                        return RemediationResult(
+                            success=True,
+                            action_taken=RemediationAction.CREATE_PR,
+                            pr_url=str(existing_pr.get("html_url", "") or ""),
+                            issue_url=(
+                                str(existing_issue.get("html_url", "") or "")
+                                if existing_issue is not None
+                                else None
+                            ),
+                            details={
+                                "pr_number": existing_pr.get("number"),
+                                "tracking_issue_number": (
+                                    existing_issue.get("number")
+                                    if existing_issue is not None
+                                    else None
+                                ),
+                                "branch_name": str(
+                                    (existing_pr.get("head") or {}).get(
+                                        "ref",
+                                        candidate_branch_name,
+                                    )
+                                ),
+                                "reused_existing_pr": True,
+                                "remediation_fingerprint": remediation_fp,
+                            },
+                        )
+                    logger.info(
+                        "Branch %s already exists for run %s; trying suffix attempt %s",
+                        candidate_branch_name,
+                        workflow_run_id,
+                        attempt + 1,
+                    )
+            if run_branch_name is None:
+                return RemediationResult(
+                    success=False,
+                    action_taken=RemediationAction.CREATE_PR,
+                    error_message=(
+                        "Unable to allocate remediation branch after repeated ref collisions"
+                    ),
+                    details={"remediation_fingerprint": remediation_fp},
+                )
 
             # Apply file changes
             for change in rendered_changes:
@@ -387,18 +621,31 @@ class RemediationAgent:
                         f"**Workflow Run:** https://github.com/{owner}/{repo}/actions/runs/{workflow_run_id}\n\n"
                         "When the PR merges, GitHub will auto-close this issue.\n\n"
                         "### Proposed Fix\n\n"
-                        f"{plan.pr_body or plan.description}\n"
+                        f"{plan.pr_body or plan.description}\n\n"
+                        f"{fp_marker}\n"
                     )
-                    issue_result = await self._github_tools.create_issue(
+                    existing_tracking_issue = await self._find_existing_tracking_issue(
                         owner=owner,
                         repo=repo,
-                        title=issue_title,
-                        body=issue_body,
-                        labels=["ci-failure", "pipelinehealer"],
+                        marker=fp_marker,
                     )
-                    tracking_issue_number = issue_result.get("number")
-                    tracking_issue_url = issue_result.get("html_url", "")
-                    logger.info(f"Created tracking issue: {tracking_issue_url}")
+                    if existing_tracking_issue is not None:
+                        issue_number_raw = existing_tracking_issue.get("number")
+                        if isinstance(issue_number_raw, int):
+                            tracking_issue_number = issue_number_raw
+                        tracking_issue_url = str(existing_tracking_issue.get("html_url", ""))
+                        logger.info(f"Reusing tracking issue: {tracking_issue_url}")
+                    else:
+                        issue_result = await self._github_tools.create_issue(
+                            owner=owner,
+                            repo=repo,
+                            title=issue_title,
+                            body=issue_body,
+                            labels=["ci-failure", "pipelinehealer"],
+                        )
+                        tracking_issue_number = issue_result.get("number")
+                        tracking_issue_url = issue_result.get("html_url", "")
+                        logger.info(f"Created tracking issue: {tracking_issue_url}")
                 except Exception as e:
                     logger.warning(f"Failed to create tracking issue (continuing): {e}")
 
@@ -406,6 +653,7 @@ class RemediationAgent:
             pr_body = plan.pr_body or "Automated fix by PipelineHealer"
             if tracking_issue_number:
                 pr_body = f"{pr_body}\n\nCloses #{tracking_issue_number}\n"
+            pr_body = f"{pr_body}\n\n{fp_marker}\n"
 
             pr_result = await self._github_tools.create_pull_request(
                 owner=owner,
@@ -428,6 +676,8 @@ class RemediationAgent:
                     "pr_number": pr_result.get("number"),
                     "tracking_issue_number": tracking_issue_number,
                     "branch_name": run_branch_name,
+                    "reused_existing_pr": False,
+                    "remediation_fingerprint": remediation_fp,
                 },
             )
 

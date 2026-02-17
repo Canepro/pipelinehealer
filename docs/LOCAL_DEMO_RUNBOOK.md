@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 412159e -->
+<!-- LAST_VERIFIED: 9052970 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -438,7 +438,13 @@ If the backend was restarted while processing an activity, it can get stuck. Thi
 
 ### PR creation fails with `422 Unprocessable Entity`
 
-This usually means the fix branch already exists from a previous run. Merge or delete the old PR first, or re-run the failing workflow to create a new activity.
+PipelineHealer now uses a find-or-create flow for remediation artifacts:
+
+- If a matching open remediation PR already exists, it is reused (no duplicate PR).
+- If a branch ref collision occurs on `POST /git/refs`, PipelineHealer checks for an existing PR on that branch first.
+- If no reusable PR is found, PipelineHealer retries with a suffixed branch name.
+
+If you still see persistent `422` failures, inspect the activity error and verify the token can read/write refs and PRs in the target repo.
 
 ### Remediation shows `410 Gone` or `403 Forbidden`
 
