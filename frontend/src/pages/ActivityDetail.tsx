@@ -75,6 +75,7 @@ function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
   includesProposedFix: boolean
   reasonCode: string | null
   reasonDetail: string | null
+  reusedExistingPr: boolean
 } {
   const includes = details?.includes_proposed_fix === true
   const reason = (
@@ -90,7 +91,8 @@ function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
       : typeof details?.reason_detail === 'string'
         ? details.reason_detail
       : null
-  return { includesProposedFix: includes, reasonCode: reason, reasonDetail }
+  const reusedExistingPr = details?.reused_existing_pr === true
+  return { includesProposedFix: includes, reasonCode: reason, reasonDetail, reusedExistingPr }
 }
 
 const DETAIL_SECTIONS: Array<{ key: string; label: string }> = [
@@ -723,6 +725,7 @@ export default function ActivityDetail() {
               </div>
             )}
             {(remediationMeta.includesProposedFix ||
+              remediationMeta.reusedExistingPr ||
               remediationMeta.reasonCode ||
               remediationMeta.reasonDetail) && (
               <div>
@@ -733,6 +736,11 @@ export default function ActivityDetail() {
                   {remediationMeta.includesProposedFix && (
                     <span className="inline-flex items-center rounded-md bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">
                       Includes Proposed Fix
+                    </span>
+                  )}
+                  {remediationMeta.reusedExistingPr && (
+                    <span className="inline-flex items-center rounded-md bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                      Reused Existing PR
                     </span>
                   )}
                   {remediationMeta.reasonCode && (

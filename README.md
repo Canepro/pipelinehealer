@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 9052970 -->
+<!-- LAST_VERIFIED: a3bd217 -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -22,6 +22,14 @@ PipelineHealer is an AI-powered multi-agent system that automatically detects, d
 | [Local & Azure Runbook](docs/LOCAL_DEMO_RUNBOOK.md) | Detailed E2E setup and operations |
 | [Contributing](CONTRIBUTING.md) | PR guidelines, quality gates, docs policy |
 | [Security](SECURITY.md) | Vulnerability reporting, secret hygiene |
+
+## Hackathon Submission Readiness
+
+- Built during the submission period with continuous public commits.
+- Public GitHub repository with runnable Azure deployment.
+- Live demo path with deterministic failure triggers and auditable outcomes.
+- Multi-agent architecture using Microsoft Agent Framework + Azure services.
+- Production-minded safeguards: auth controls, audit trail, explainability, and idempotent remediation artifact reuse.
 | [Future Plan](docs/FUTURE_PLAN.md) | Post-hackathon roadmap |
 
 ## One-Command Operations

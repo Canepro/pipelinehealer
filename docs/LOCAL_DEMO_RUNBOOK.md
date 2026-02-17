@@ -300,6 +300,18 @@ To confirm whether AI inference was used for a specific activity, open Activity 
 - `pattern` = deterministic rule-based diagnosis
 - `llm` = LLM-assisted diagnosis path
 
+### Idempotency Validation (Recommended for demos/reviews)
+
+Validate remediation deduplication with a repeated trigger:
+
+1. Trigger a deterministic failure type twice (for example `dependency`) against the same repo/workflow.
+2. Confirm the second activity does **not** create a duplicate PR/issue.
+3. In Activity Detail, confirm Result Metadata includes `Reused Existing PR`.
+4. Save evidence for your review/demo notes:
+   - two run IDs
+   - one activity screenshot showing the reuse badge
+   - one PR URL showing a single reused artifact
+
 ---
 
 ## Using `ph.sh` Commands Locally

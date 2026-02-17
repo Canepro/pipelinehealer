@@ -11,6 +11,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Project positioning: **Azure-first** for hackathon compliance, local mode as evaluation fallback
 - Runtime security: `X-API-Key` for `/api/*`; admin settings routes (`/api/settings*`) use `X-API-Key` + `X-Admin-Key` in non-development
 - Auth rollout: Microsoft Entra login and bearer token auth shipped with migration-safe `AUTH_MODE=hybrid` and strict `AUTH_MODE=entra` path ready
+- Remediation idempotency: find-or-create artifact flow shipped (reuses existing PR/issue when matched; avoids duplicate branch/PR churn on repeated runs)
 - Admin governance visibility: durable audit trail for settings changes (`GET /api/settings/audit`) persisted to Cosmos DB, with request IDs and actor fingerprints
 - Demo operations: consolidated to one-command runner `bash scripts/ph.sh ...`
 - Real-repo rollout ops: `rollout:canary`, `webhook:add`, `webhook:disable` added for issue-first canary onboarding

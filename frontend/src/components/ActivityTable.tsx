@@ -86,6 +86,7 @@ function getIssueProposalMeta(activity: Activity): {
   includesProposedFix: boolean
   reasonCode: string | null
   output: string | null
+  reusedExistingPr: boolean
 } {
   const details = activity.remediation_result?.details
   const includes = details?.includes_proposed_fix === true
@@ -97,7 +98,8 @@ function getIssueProposalMeta(activity: Activity): {
     typeof activity.remediation_result?.action_taken === 'string'
       ? activity.remediation_result.action_taken.replace('_', ' ').toUpperCase()
       : null
-  return { includesProposedFix: includes, reasonCode: reason, output }
+  const reusedExistingPr = details?.reused_existing_pr === true
+  return { includesProposedFix: includes, reasonCode: reason, output, reusedExistingPr }
 }
 
 function getDiagnosisSourceLabel(activity: Activity): string | null {
@@ -207,6 +209,11 @@ export default function ActivityTable({
                 {diagnosisSourceLabel && (
                   <Badge className="max-w-full break-all rounded-md text-[11px]" variant="secondary">
                     Diagnosis: {diagnosisSourceLabel}
+                  </Badge>
+                )}
+                {meta.reusedExistingPr && (
+                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant="success">
+                    Reused Existing PR
                   </Badge>
                 )}
               </div>
@@ -335,6 +342,13 @@ export default function ActivityTable({
                       <div className="mt-2 flex flex-wrap gap-1">
                         <Badge className="rounded-md text-[11px]" variant="secondary">
                           Diagnosis: {diagnosisSourceLabel}
+                        </Badge>
+                      </div>
+                    )}
+                    {meta.reusedExistingPr && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        <Badge className="rounded-md text-[11px]" variant="success">
+                          Reused Existing PR
                         </Badge>
                       </div>
                     )}
