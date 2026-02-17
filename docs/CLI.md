@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 34621ff -->
+<!-- LAST_VERIFIED: eac467e -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
