@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 41d30eb -->
+<!-- LAST_VERIFIED: 771a5a2 -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -11,6 +11,7 @@
 PipelineHealer is an AI-powered multi-agent system that automatically detects, diagnoses, and remediates CI/CD pipeline failures in GitHub Actions workflows. When a workflow fails, PipelineHealer analyzes the logs, classifies the failure, and either opens a fix PR for high-confidence issues or creates a structured GitHub Issue for everything else.
 
 ![Dashboard — processed count, safety gating ratios, failure type breakdown, and explainability snapshot](docs/screens/dashboard.png)
+![Landing page — policy-aware remediation overview and operational snapshot](docs/screens/Pipelinehealer-Landing_Page.png)
 
 ## Documentation
 
