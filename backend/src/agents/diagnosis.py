@@ -347,10 +347,15 @@ Be specific about:
                     is_auto_fixable=True,
                     suggested_fix="Update or install the missing dependency",
                     diagnosis_source=DiagnosisSource.PATTERN,
-                    error_details={
-                        "package_name": package_name,
-                        "package_manager": package_manager,
-                    },
+                    error_details=self._build_classification_details(
+                        family=FailureType.DEPENDENCY,
+                        pattern=pattern,
+                        signal=description,
+                        details={
+                            "package_name": package_name,
+                            "package_manager": package_manager,
+                        },
+                    ),
                 )
 
         # Check for lint/format issues
@@ -374,11 +379,16 @@ Be specific about:
                     is_auto_fixable=True,
                     suggested_fix="Add eslint.config.js (flat config)" if is_missing_config else f"Run {linter} with --fix flag",
                     diagnosis_source=DiagnosisSource.PATTERN,
-                    error_details={
-                        "linter": linter,
-                        "missing_file": "eslint.config.js" if is_missing_config else "",
-                        "violations": [],
-                    },
+                    error_details=self._build_classification_details(
+                        family=FailureType.LINT,
+                        pattern=pattern,
+                        signal=description,
+                        details={
+                            "linter": linter,
+                            "missing_file": "eslint.config.js" if is_missing_config else "",
+                            "violations": [],
+                        },
+                    ),
                 )
 
         # Check for test failures
@@ -396,24 +406,41 @@ Be specific about:
                     is_auto_fixable=False,
                     suggested_fix="Stabilize flaky test and remove timing/order dependence",
                     diagnosis_source=DiagnosisSource.PATTERN,
-                    error_details={
-                        "is_flaky": True,
-                        "test_framework": self._detect_test_framework(error_text),
-                    },
+                    error_details=self._build_classification_details(
+                        family=FailureType.TEST,
+                        pattern=pattern,
+                        signal=description,
+                        details={
+                            "is_flaky": True,
+                            "test_framework": self._detect_test_framework(error_text),
+                        },
+                    ),
                 )
 
         test_patterns = [
-            (r"FAIL\s+.*\.test\.", "Test suite failed"),
-            (r"AssertionError", "Assertion failed in test"),
-            (r"pytest.*FAILED", "pytest test failed"),
-            (r"jest.*FAIL", "Jest test failed"),
-            (r"\d+ failing", "Tests failing"),
+            (r"FAIL\s+.*\.test\.", "Test suite failed", False),
+            (r"AssertionError", "Assertion failed in test", False),
+            (r"pytest.*FAILED", "pytest test failed", False),
+            (r"jest.*FAIL", "Jest test failed", False),
+            (
+                r"\b\d+\s+failing\b(?!\s+(?:check|checks|job|jobs|workflow|workflows|step|steps|stage|stages|lint|build|config))",
+                "Tests failing",
+                True,
+            ),
         ]
 
-        for pattern, description in test_patterns:
+        for pattern, description, requires_test_context in test_patterns:
             if re.search(pattern, error_text, re.IGNORECASE):
+                has_test_context = self._has_test_context(error_text)
+                if requires_test_context and not has_test_context:
+                    logger.debug(
+                        "[debug-mode] Skipping ambiguous test signature '%s' due to missing test context.",
+                        pattern,
+                    )
+                    continue
                 # Check if it might be flaky
                 is_flaky = "timeout" in error_text.lower() or "intermittent" in error_text.lower()
+                framework = self._detect_test_framework(error_text)
 
                 return Diagnosis(
                     failure_type=FailureType.TEST,
@@ -422,10 +449,15 @@ Be specific about:
                     is_auto_fixable=False,
                     suggested_fix="Review and fix the failing tests",
                     diagnosis_source=DiagnosisSource.PATTERN,
-                    error_details={
-                        "is_flaky": is_flaky,
-                        "test_framework": self._detect_test_framework(error_text),
-                    },
+                    error_details=self._build_classification_details(
+                        family=FailureType.TEST,
+                        pattern=pattern,
+                        signal=description,
+                        details={
+                            "is_flaky": is_flaky,
+                            "test_framework": framework,
+                        },
+                    ),
                 )
 
         # Check for timeout issues
@@ -446,7 +478,11 @@ Be specific about:
                     is_auto_fixable=False,
                     suggested_fix="Increase timeout or optimize the slow operation",
                     diagnosis_source=DiagnosisSource.PATTERN,
-                    error_details={},
+                    error_details=self._build_classification_details(
+                        family=FailureType.TIMEOUT,
+                        pattern=pattern,
+                        signal=description,
+                    ),
                 )
 
         # Check for build config issues
@@ -470,13 +506,18 @@ Be specific about:
                     is_auto_fixable=True,
                     suggested_fix="Add minimal `permissions` block to the workflow",
                     diagnosis_source=DiagnosisSource.PATTERN,
-                    error_details={
-                        "workflow_permissions_fix": True,
-                        "permissions": {
-                            "contents": "write",
-                            "pull-requests": "write",
+                    error_details=self._build_classification_details(
+                        family=FailureType.BUILD_CONFIG,
+                        pattern=pattern,
+                        signal=description,
+                        details={
+                            "workflow_permissions_fix": True,
+                            "permissions": {
+                                "contents": "write",
+                                "pull-requests": "write",
+                            },
                         },
-                    },
+                    ),
                 )
 
         config_patterns = [
@@ -526,12 +567,32 @@ Be specific about:
                     is_auto_fixable=False,
                     suggested_fix="Check repository secrets and environment configuration",
                     diagnosis_source=DiagnosisSource.PATTERN,
-                    error_details={
-                        "missing_env_vars": missing_vars,
-                    },
+                    error_details=self._build_classification_details(
+                        family=FailureType.BUILD_CONFIG,
+                        pattern=pattern,
+                        signal=description,
+                        details={
+                            "missing_env_vars": missing_vars,
+                        },
+                    ),
                 )
 
         return None
+
+    def _build_classification_details(
+        self,
+        *,
+        family: FailureType,
+        pattern: str,
+        signal: str,
+        details: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Attach transparent classification metadata for operator trust surfaces."""
+        payload = dict(details or {})
+        payload["classification_signal"] = signal
+        payload["classification_family"] = family.value
+        payload["classification_pattern"] = pattern
+        return payload
 
     def _detect_test_framework(self, error_text: str) -> str:
         """Detect which test framework is being used.
@@ -556,6 +617,25 @@ Be specific about:
                 return framework
 
         return "unknown"
+
+    def _has_test_context(self, error_text: str) -> bool:
+        """Return True when logs include clear test-specific signals."""
+        text = error_text.lower()
+        markers = (
+            "pytest",
+            "jest",
+            "vitest",
+            "mocha",
+            "rspec",
+            "unittest",
+            "assertionerror",
+            "test suite",
+            "tests failed",
+            ".test.",
+            "::test",
+            "failing test",
+        )
+        return any(marker in text for marker in markers)
 
     def _prepare_analysis_summary(self, log_analyses: list[LogAnalysis]) -> str:
         """Prepare a summary of log analyses for the agent.

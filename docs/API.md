@@ -234,7 +234,10 @@ Returns activity records with optional filtering and pagination.
       "affected_files": [],
       "error_details": {
         "package_name": "left-pad",
-        "package_manager": "npm"
+        "package_manager": "npm",
+        "classification_signal": "missing Node.js module",
+        "classification_family": "dependency",
+        "classification_pattern": "Cannot find module"
       },
       "suggested_fix": "Update or install the missing dependency",
       "is_auto_fixable": true
@@ -788,6 +791,11 @@ Returns recent admin settings change records (latest first).
 | `error_details` | object | Additional structured details |
 | `suggested_fix` | string | High-level suggested remediation |
 | `is_auto_fixable` | bool | Whether safe auto-remediation is supported |
+
+When `diagnosis_source=pattern`, `error_details` may include classification transparency fields:
+- `classification_signal`: human-readable signal that matched
+- `classification_family`: failure family used by the matcher
+- `classification_pattern`: internal pattern signature used for matching
 
 ### FailureContext (object)
 

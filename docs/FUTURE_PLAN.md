@@ -26,6 +26,9 @@ The following are already implemented in the current project state:
   - per-tool policy model (`disabled|read_only|write_with_approval|auto`)
   - per-activity MCP action audit (`actor`, `tool`, `payload_hash`, `result`, `request_id`)
 - Dedicated feature documentation set under `docs/features/` for beginner/operator/expert workflows
+- Ambiguous failure-type trust hardening:
+  - generic `N failing` signatures now require test context before mapping to `test`
+  - pattern-based diagnoses now persist classification transparency metadata (`classification_signal`, `classification_family`, `classification_pattern`)
 
 ## Next Priorities
 
@@ -164,8 +167,8 @@ Use this section to capture new requests without breaking the execution lock.
 
 | ID | Item | Impact | Risk | Estimate | Recommended phase | Status |
 |---|---|---|---|---|---|---|
-| BI-001 | Release/tag workflow and release notes template | Operator confidence and repeatable deploys | Medium | M | Post 0.4 | Queued |
-| BI-002 | Additional activity classification context labels for ambiguous CI failures | Better failure-type trust for operators | Low | S | 0.3 | Queued |
+| BI-001 | Release/tag workflow and release notes template | Operator confidence and repeatable deploys | Medium | M | Post 0.4 | Completed |
+| BI-002 | Additional activity classification context labels for ambiguous CI failures | Better failure-type trust for operators | Low | S | 0.3 | Completed |
 | BI-003 | In-app live log tail/search UX (backend-safe streaming + RBAC) | Faster investigations without switching to CLI | Medium | M | Post 0.4 | Queued |
 
 ## ~~0) Layer 2 Foundations (GitHub Agentic Workflows + UX Reliability)~~ — COMPLETE

@@ -40,6 +40,9 @@ This is the long-form project tracker for hackathon execution status, submission
 - Release hygiene automation:
   - semver sync guard added for `VERSION`, backend, and frontend manifests
   - tag-driven GitHub release workflow added (`vX.Y.Z` + changelog section validation)
+- Failure-type trust hardening:
+  - ambiguous generic `N failing` signatures now require test context before mapping to `test`
+  - pattern-based diagnoses now expose classification signal/pattern metadata in activity UIs
 
 ## Phase Overview
 
@@ -162,6 +165,10 @@ This is the long-form project tracker for hackathon execution status, submission
   - `VERSION` + `CHANGELOG.md` introduced
   - `scripts/check_version_sync.sh` and `scripts/release.sh` added
   - CI now enforces version alignment and release tags validate against changelog + `VERSION`
+- Improved classification transparency and ambiguity handling:
+  - pattern-based diagnoses now persist `classification_signal`, `classification_family`, and `classification_pattern` in `diagnosis.error_details`
+  - Activity surfaces now show classification signal context for pattern-based labels
+  - tightened test matcher so generic `N failing` logs are only labeled `test` when test context is present
 - Added universal structured failure context on activities (no repo hardcoding):
   - backend extraction pipeline now records `failing_job`, `failing_step`, `failing_command`, and `signal`
   - Dashboard/Activities/Activity Detail now surface this context for faster operator triage

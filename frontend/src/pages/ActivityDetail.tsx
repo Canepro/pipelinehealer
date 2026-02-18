@@ -640,6 +640,14 @@ export default function ActivityDetail() {
   const sourceConfidenceImpact = aggregateConfidenceBySource(externalDiagnostics)
   const structuredEvidence = collectStructuredEvidence(diagnosisDetails)
   const rawEvidenceLines = collectRawEvidenceLines(diagnosisDetails)
+  const classificationSignal =
+    typeof diagnosisDetails?.classification_signal === 'string'
+      ? diagnosisDetails.classification_signal.trim()
+      : ''
+  const classificationPattern =
+    typeof diagnosisDetails?.classification_pattern === 'string'
+      ? diagnosisDetails.classification_pattern.trim()
+      : ''
   const externalSignalBefore =
     typeof diagnosisDetails?.external_signal_confidence_before === 'number'
       ? diagnosisDetails.external_signal_confidence_before
@@ -921,6 +929,24 @@ export default function ActivityDetail() {
                 {activity.diagnosis.root_cause}
               </p>
             </div>
+            {classificationSignal && (
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Classification Signal
+                </p>
+                <p className="mt-1 text-sm text-gray-900 dark:text-white break-words">
+                  {classificationSignal}
+                </p>
+                {classificationPattern && (
+                  <p
+                    className="mt-1 break-all font-mono text-[11px] text-gray-500 dark:text-gray-400"
+                    title={classificationPattern}
+                  >
+                    rule: {classificationPattern}
+                  </p>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">

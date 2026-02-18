@@ -116,6 +116,37 @@ class TestPatternBasedDiagnosis:
         assert diagnosis is not None
         assert diagnosis.failure_type == FailureType.TEST
         assert diagnosis.error_details.get("test_framework") == "pytest"
+        assert diagnosis.error_details.get("classification_signal") == "pytest test failed"
+
+    def test_generic_failing_count_without_test_context_not_test(self) -> None:
+        """Do not classify generic failing-check counts as test failures."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="ci",
+            raw_logs="1 failing check detected in workflow gate",
+            error_lines=["1 failing check detected in workflow gate"],
+            summary="Workflow gate failed",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is None or diagnosis.failure_type != FailureType.TEST
+
+    def test_generic_failing_count_with_test_context_is_test(self) -> None:
+        """Keep support for frameworks that report `N failing` style test output."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="test",
+            raw_logs="mocha run complete: 2 failing",
+            error_lines=["mocha run complete: 2 failing"],
+            summary="Mocha tests failed",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.TEST
+        assert diagnosis.error_details.get("test_framework") == "mocha"
 
     def test_detect_timeout(self) -> None:
         """Test detection of timeout errors."""

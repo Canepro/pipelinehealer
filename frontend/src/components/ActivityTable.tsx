@@ -165,6 +165,15 @@ function getFailureContext(activity: Activity): string | null {
     return summary.length > 120 ? `${summary.slice(0, 117)}...` : summary
   }
 
+  const classificationSignalRaw = activity.diagnosis?.error_details?.classification_signal
+  if (
+    activity.diagnosis?.diagnosis_source === 'pattern' &&
+    typeof classificationSignalRaw === 'string'
+  ) {
+    const signal = `Pattern: ${classificationSignalRaw.trim()}`
+    return signal.length > 90 ? `${signal.slice(0, 87)}...` : signal
+  }
+
   const rootCause = activity.diagnosis?.root_cause?.trim()
   if (rootCause) {
     return rootCause.length > 80 ? `${rootCause.slice(0, 77)}...` : rootCause

@@ -218,6 +218,10 @@ export default function Dashboard() {
   const selectedFallbackUsed = selectedActivity?.llm_model_path?.fallback_used ? 'Yes' : 'No'
   const selectedLlmCalls = selectedActivity?.llm_model_path?.call_count ?? 0
   const selectedFailureType = selectedActivity?.failure_type || 'unknown'
+  const selectedClassificationSignal =
+    typeof selectedActivity?.diagnosis?.error_details?.classification_signal === 'string'
+      ? selectedActivity.diagnosis.error_details.classification_signal
+      : ''
   const selectedArtifactUrl =
     selectedActivity?.remediation_result?.pr_url || selectedActivity?.remediation_result?.issue_url || null
   const selectedRunUrl =
@@ -608,6 +612,14 @@ export default function Dashboard() {
                 <div className="min-w-0 rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Failure Type</p>
                   <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedFailureType}</p>
+                  {selectedClassificationSignal && (
+                    <p
+                      className="mt-1 line-clamp-2 text-xs text-gray-400"
+                      title={`Pattern signal: ${selectedClassificationSignal}`}
+                    >
+                      Signal: {selectedClassificationSignal}
+                    </p>
+                  )}
                 </div>
                 <div className="min-w-0 rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Confidence</p>
