@@ -1,6 +1,6 @@
 # Logs And Investigation Guide
 
-<!-- LAST_VERIFIED: 786e214 -->
+<!-- LAST_VERIFIED: 4c9810d -->
 
 Use this guide to debug PipelineHealer behavior quickly in local, Docker, and Azure runs.
 
@@ -30,6 +30,33 @@ bash scripts/ph.sh logs
   - confirms effective runtime settings currently loaded
 - `bash scripts/ph.sh status`:
   - confirms backend/frontend app status and scale
+
+## Command Scope Matrix
+
+Use the right command path for your runtime to avoid false troubleshooting starts.
+
+### Azure deployment path (requires `az` login)
+
+```bash
+bash scripts/ph.sh status
+bash scripts/ph.sh logs
+bash scripts/ph.sh logs:grep --pattern "error|timeout|traceback|401|403"
+bash scripts/ph.sh settings:check
+bash scripts/ph.sh settings:audit --limit 10
+```
+
+### Local/Docker path (no Azure CLI required)
+
+```bash
+PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh logs
+PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh logs:grep --pattern "error|timeout|traceback"
+PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh settings:check
+```
+
+Notes:
+- `PH_BACKEND_URL` points CLI/API commands at your local backend.
+- This is the recommended path when running `docker compose` locally or backend host-native.
+- In UI, Control Center now shows these grouped command scopes with copy actions.
 
 Useful grep patterns:
 

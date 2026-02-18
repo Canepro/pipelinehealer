@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import { Badge } from '@/components/ui/badge'
 import {
   Copy,
   ExternalLink,
@@ -22,6 +23,65 @@ type ToolPolicy = 'disabled' | 'read_only' | 'write_with_approval' | 'auto'
 
 const LOGS_RUNBOOK_URL =
   'https://github.com/Canepro/pipelinehealer/blob/main/docs/LOGS_AND_INVESTIGATION.md'
+
+type InvestigationCommandScope = 'Azure' | 'Local/Docker'
+type InvestigationCommandItem = {
+  label: string
+  scope: InvestigationCommandScope
+  command: string
+  note: string
+}
+
+const INVESTIGATION_COMMANDS: InvestigationCommandItem[] = [
+  {
+    label: 'Backend status',
+    scope: 'Azure',
+    command: 'bash scripts/ph.sh status',
+    note: 'Requires Azure CLI login and target resource configuration.',
+  },
+  {
+    label: 'Filtered backend logs',
+    scope: 'Azure',
+    command: 'bash scripts/ph.sh logs',
+    note: 'Best default in deployed environments.',
+  },
+  {
+    label: 'Search error signatures',
+    scope: 'Azure',
+    command: 'bash scripts/ph.sh logs:grep --pattern "error|timeout|traceback|401|403"',
+    note: 'Fast triage path for auth/runtime failures.',
+  },
+  {
+    label: 'Settings snapshot',
+    scope: 'Azure',
+    command: 'bash scripts/ph.sh settings:check',
+    note: 'Confirms live effective settings from backend API.',
+  },
+  {
+    label: 'Audit timeline',
+    scope: 'Azure',
+    command: 'bash scripts/ph.sh settings:audit --limit 10',
+    note: 'Shows recent settings changes with actor and request id.',
+  },
+  {
+    label: 'Filtered backend logs',
+    scope: 'Local/Docker',
+    command: 'PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh logs',
+    note: 'Runs without Azure CLI when backend is local.',
+  },
+  {
+    label: 'Search error signatures',
+    scope: 'Local/Docker',
+    command: 'PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh logs:grep --pattern "error|timeout|traceback"',
+    note: 'Use same troubleshooting flow for local backend.',
+  },
+  {
+    label: 'Settings snapshot',
+    scope: 'Local/Docker',
+    command: 'PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh settings:check',
+    note: 'Useful when testing local docker/compose stack.',
+  },
+]
 
 const TOOL_METADATA: Array<{ key: string; write: boolean; label: string }> = [
   { key: 'fetch_failure_context', write: false, label: 'Failure Context' },
@@ -242,12 +302,17 @@ export default function ControlCenterPage() {
       ]
     : []
 
-  const logCommands = [
-    'bash scripts/ph.sh logs',
-    'bash scripts/ph.sh logs:grep --pattern "error|timeout|traceback"',
-    'bash scripts/ph.sh settings:check',
-    'bash scripts/ph.sh settings:audit --limit 10',
-  ]
+  const azureCommands = INVESTIGATION_COMMANDS.filter((item) => item.scope === 'Azure')
+  const localCommands = INVESTIGATION_COMMANDS.filter((item) => item.scope === 'Local/Docker')
+
+  const copyCommand = async (command: string) => {
+    try {
+      await navigator.clipboard.writeText(command)
+      toast.success('Command copied')
+    } catch {
+      toast.error('Copy failed')
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -583,37 +648,24 @@ export default function ControlCenterPage() {
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  {logCommands.map((command) => (
-                    <div
-                      key={command}
-                      className="flex items-center justify-between gap-2 rounded-md border border-[var(--ph-border)] bg-slate-900/30 px-3 py-2"
-                    >
-                      <code className="min-w-0 truncate text-xs text-slate-200" title={command}>
-                        {command}
-                      </code>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(command)
-                            toast.success('Command copied')
-                          } catch {
-                            toast.error('Copy failed')
-                          }
-                        }}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+                <div className="space-y-3">
+                  <CommandScopeBlock
+                    title="Azure Deployment Commands"
+                    description="Use these when your backend is deployed to Azure Container Apps."
+                    commands={azureCommands}
+                    onCopy={copyCommand}
+                  />
+                  <CommandScopeBlock
+                    title="Local/Docker Commands"
+                    description="Use these when testing with a local backend and no Azure CLI."
+                    commands={localCommands}
+                    onCopy={copyCommand}
+                  />
                 </div>
 
                 <div className="text-xs text-[var(--ph-muted)]">
-                  UI log links are safe and read-only. Deep runtime/container log streaming is planned as a later
-                  phase to avoid exposing infrastructure-specific credentials in-browser.
+                  Commands are grouped by execution scope so operators can avoid Azure-only paths during local
+                  troubleshooting.
                 </div>
               </CardContent>
             </Card>
@@ -661,6 +713,49 @@ export default function ControlCenterPage() {
           </CardContent>
         </Card>
       )}
+    </div>
+  )
+}
+
+function CommandScopeBlock({
+  title,
+  description,
+  commands,
+  onCopy,
+}: {
+  title: string
+  description: string
+  commands: InvestigationCommandItem[]
+  onCopy: (command: string) => void
+}) {
+  return (
+    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/20 p-3">
+      <div className="mb-2">
+        <p className="text-sm font-medium text-[var(--ph-text)]">{title}</p>
+        <p className="text-xs text-[var(--ph-muted)]">{description}</p>
+      </div>
+      <div className="space-y-2">
+        {commands.map((item) => (
+          <div
+            key={`${item.scope}-${item.label}-${item.command}`}
+            className="rounded-md border border-[var(--ph-border)] bg-slate-900/35 px-3 py-2"
+          >
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-[var(--ph-text)]">{item.label}</span>
+                <Badge variant="outline" className="text-[10px]">
+                  {item.scope}
+                </Badge>
+              </div>
+              <Button type="button" size="sm" variant="ghost" onClick={() => onCopy(item.command)}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <code className="block overflow-x-auto text-xs text-slate-200">{item.command}</code>
+            <p className="mt-1 text-[11px] text-[var(--ph-muted)]">{item.note}</p>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
