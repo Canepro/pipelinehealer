@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 _RUNTIME_SETTINGS_ID = "pipelinehealer_runtime_settings_v1"
 _RUNTIME_SETTINGS_PARTITION = "__pipelinehealer_settings__"
 _AUDIT_PARTITION = "__pipelinehealer_audit__"
+_LEARNING_QUEUE_PARTITION = "__pipelinehealer_learning_queue__"
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -211,6 +212,74 @@ class ActivityStorage:
             )
         ]
 
+        return items
+
+    async def upsert_learning_queue_item(self, item: dict[str, Any]) -> None:
+        """Persist one learning queue candidate item."""
+        await self.initialize()
+
+        payload = {
+            "id": item.get("id"),
+            "type": "learning_queue_item",
+            "repository_name": _LEARNING_QUEUE_PARTITION,
+            "repositoryId": _LEARNING_QUEUE_PARTITION,
+            "repository_id": _LEARNING_QUEUE_PARTITION,
+            **item,
+        }
+        await self._workflow_runs_container_required().upsert_item(body=payload)
+
+    async def get_learning_queue_item(self, item_id: str) -> dict[str, Any] | None:
+        """Load one learning queue candidate by ID."""
+        await self.initialize()
+
+        query = """
+            SELECT TOP 1 * FROM c
+            WHERE c.type = @type
+              AND c.id = @id
+        """
+        parameters: list[dict[str, object]] = [
+            {"name": "@type", "value": "learning_queue_item"},
+            {"name": "@id", "value": item_id},
+        ]
+        items = [
+            item
+            async for item in self._workflow_runs_container_required().query_items(
+                query=query,
+                parameters=parameters,
+            )
+        ]
+        if not items:
+            return None
+        return items[0]
+
+    async def list_learning_queue_items(
+        self,
+        *,
+        status: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """List learning queue candidates, newest first."""
+        await self.initialize()
+
+        safe_limit = max(1, min(limit, 200))
+        conditions = ["c.type = @type"]
+        parameters: list[dict[str, object]] = [{"name": "@type", "value": "learning_queue_item"}]
+        if status:
+            conditions.append("c.status = @status")
+            parameters.append({"name": "@status", "value": status})
+        where_clause = " AND ".join(conditions)
+        query = f"""
+            SELECT TOP {safe_limit} * FROM c
+            WHERE {where_clause}
+            ORDER BY c.updated_at DESC
+        """
+        items = [
+            item
+            async for item in self._workflow_runs_container_required().query_items(
+                query=query,
+                parameters=parameters,
+            )
+        ]
         return items
 
     async def get_activity(self, activity_id: str) -> ActivityRecord | None:
@@ -572,6 +641,7 @@ class InMemoryStorage(ActivityStorage):
         self._activities: dict[str, ActivityRecord] = {}
         self._runtime_settings: dict[str, Any] | None = None
         self._admin_settings_audit: list[dict[str, Any]] = []
+        self._learning_queue_items: dict[str, dict[str, Any]] = {}
         self._initialized = True
 
     async def initialize(self) -> None:
@@ -711,3 +781,31 @@ class InMemoryStorage(ActivityStorage):
         return [dict(item) for item in reversed(self._admin_settings_audit)][
             :safe_limit
         ]
+
+    async def upsert_learning_queue_item(self, item: dict[str, Any]) -> None:
+        """Persist one learning queue candidate in-memory."""
+        item_id = str(item.get("id", "")).strip()
+        if not item_id:
+            raise ValueError("Learning queue item must include a non-empty id")
+        self._learning_queue_items[item_id] = dict(item)
+
+    async def get_learning_queue_item(self, item_id: str) -> dict[str, Any] | None:
+        """Load one in-memory learning queue item by ID."""
+        item = self._learning_queue_items.get(item_id)
+        if item is None:
+            return None
+        return dict(item)
+
+    async def list_learning_queue_items(
+        self,
+        *,
+        status: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """List in-memory learning queue items, newest first."""
+        safe_limit = max(1, min(limit, 200))
+        items = list(self._learning_queue_items.values())
+        if status:
+            items = [item for item in items if str(item.get("status", "")).lower() == status.lower()]
+        items.sort(key=lambda item: str(item.get("updated_at", "")), reverse=True)
+        return [dict(item) for item in items[:safe_limit]]

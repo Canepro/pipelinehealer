@@ -50,6 +50,10 @@ This is the long-form project tracker for hackathon execution status, submission
 - Kubernetes portability added as a secondary target:
   - Helm chart shipped under `charts/pipelinehealer`
   - operator runbook added (`docs/KUBERNETES_HELM_RUNBOOK.md`)
+- Learning-system 0.2 governance slice started:
+  - learning queue API + durable storage
+  - Control Center candidate refresh and human decision actions
+  - admin audit entries for learning queue refresh/decision events
 
 ## Phase Overview
 

@@ -398,6 +398,55 @@ class MCPProviderHealthView(BaseModel):
     configured_tools: list[str] = Field(default_factory=list)
 
 
+class LearningQueueStatus(StrEnum):
+    """Status values for remediation learning queue items."""
+
+    CANDIDATE = "candidate"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ACTIVE = "active"
+    RETIRED = "retired"
+
+
+class LearningQueueItem(BaseModel):
+    """Governance-reviewed remediation learning queue item."""
+
+    id: str
+    fingerprint: str
+    title: str
+    failure_type: FailureType | None = None
+    reason_code: str | None = None
+    proposed_action: str = "skip"
+    suggested_playbook: str = ""
+    repositories: list[str] = Field(default_factory=list)
+    occurrence_count: int = 0
+    success_count: int = 0
+    sample_activity_ids: list[str] = Field(default_factory=list)
+    latest_activity_at: datetime | None = None
+    status: LearningQueueStatus = LearningQueueStatus.CANDIDATE
+    decision_reason: str = ""
+    decision_actor: str | None = None
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class LearningQueueRefreshResponse(BaseModel):
+    """Result payload for learning queue candidate refresh."""
+
+    status: str = "ok"
+    considered_activities: int
+    generated_candidates: int
+    upserted_candidates: int
+
+
+class LearningQueueDecisionRequest(BaseModel):
+    """Decision request payload for one learning queue candidate."""
+
+    action: str
+    reason: str = ""
+
+
 class AdminSettingsAuditEntry(BaseModel):
     """Admin settings change audit record (in-memory, runtime-scoped)."""
 

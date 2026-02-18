@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../api/client'
+import type { LearningQueueStatus } from '../api/client'
 import { AuditTrailPanel } from '../components/settings'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -149,7 +150,39 @@ function toneClass(tone: 'ok' | 'warn' | 'bad' | 'muted'): string {
   }
 }
 
+function learningStatusTone(status: LearningQueueStatus): 'ok' | 'warn' | 'bad' | 'muted' {
+  switch (status) {
+    case 'active':
+      return 'ok'
+    case 'approved':
+      return 'warn'
+    case 'rejected':
+    case 'retired':
+      return 'bad'
+    default:
+      return 'muted'
+  }
+}
+
+function learningStatusLabel(status: LearningQueueStatus): string {
+  switch (status) {
+    case 'candidate':
+      return 'Candidate'
+    case 'approved':
+      return 'Approved'
+    case 'rejected':
+      return 'Rejected'
+    case 'active':
+      return 'Active'
+    case 'retired':
+      return 'Retired'
+    default:
+      return status
+  }
+}
+
 export default function ControlCenterPage() {
+  const queryClient = useQueryClient()
   const [adminKeyInput, setAdminKeyInput] = useState('')
   const [adminKey, setAdminKey] = useState('')
   const [useSessionAuth, setUseSessionAuth] = useState(false)
@@ -209,6 +242,58 @@ export default function ControlCenterPage() {
     retry: false,
   })
 
+  const {
+    data: learningQueue,
+    isLoading: learningLoading,
+    isError: learningError,
+    error: learningErrorDetail,
+  } = useQuery({
+    queryKey: ['control-center-learning-queue', adminKey, useSessionAuth],
+    queryFn: () => api.getLearningQueue(effectiveAdminKey, { limit: 20 }),
+    enabled: hasAuthAttempt,
+    retry: false,
+  })
+
+  const refreshLearningMutation = useMutation({
+    mutationFn: () =>
+      api.refreshLearningQueue(effectiveAdminKey, {
+        lookback_hours: 24 * 14,
+        min_occurrences: 2,
+        max_scan: 600,
+        max_candidates: 120,
+      }),
+    onSuccess: (result) => {
+      toast.success(
+        `Learning queue refreshed: ${result.generated_candidates} generated, ${result.upserted_candidates} upserted`
+      )
+      void queryClient.invalidateQueries({
+        queryKey: ['control-center-learning-queue', adminKey, useSessionAuth],
+      })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to refresh learning queue')
+    },
+  })
+
+  const decideLearningMutation = useMutation({
+    mutationFn: (args: {
+      candidateId: string
+      action: 'approve' | 'reject' | 'activate' | 'retire' | 'reset_candidate'
+    }) => api.decideLearningQueueItem(effectiveAdminKey, args.candidateId, { action: args.action }),
+    onSuccess: (_item, vars) => {
+      toast.success(`Learning item updated: ${vars.action}`)
+      void queryClient.invalidateQueries({
+        queryKey: ['control-center-learning-queue', adminKey, useSessionAuth],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['control-center-audit', adminKey, useSessionAuth],
+      })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update learning item')
+    },
+  })
+
   const settingsErrorMessage = settingsError instanceof Error ? settingsError.message : 'Unknown error'
   const showSessionRefreshHint =
     useSessionAuth &&
@@ -244,6 +329,23 @@ export default function ControlCenterPage() {
       return { ...tool, policy, effective }
     })
   }, [settings])
+
+  const learningQueueSummary = useMemo(() => {
+    const items = learningQueue ?? []
+    const counts = {
+      candidate: 0,
+      approved: 0,
+      rejected: 0,
+      active: 0,
+      retired: 0,
+    }
+    for (const item of items) {
+      if (item.status in counts) {
+        counts[item.status] += 1
+      }
+    }
+    return counts
+  }, [learningQueue])
 
   const writeToolRows = mcpToolRows.filter((row) => row.write)
   const mcpWriteAutoCount = writeToolRows.filter((row) => row.effective.label === 'Allowed (Auto)').length
@@ -572,30 +674,101 @@ export default function ControlCenterPage() {
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Learning Queue (Next Phase)</CardTitle>
+                <CardTitle className="text-base">Learning Queue</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
-                <p>
-                  This phase remains governance-first. Human-approved learning workflow is planned after
-                  model portability.
-                </p>
-                <p>
-                  Planned states:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">
-                    observed {'->'} candidate {'->'} approved {'->'} active
-                  </span>
-                </p>
-                <div className="pt-1">
-                  <Button asChild size="sm" variant="ghost">
-                    <a
-                      href="https://github.com/Canepro/pipelinehealer/blob/main/docs/FUTURE_PLAN.md"
-                      rel="noopener noreferrer"
-                      target="_blank"
-                    >
-                      Open roadmap details
-                      <ExternalLink className="ml-1 h-3.5 w-3.5" />
-                    </a>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={refreshLearningMutation.isPending}
+                    onClick={() => refreshLearningMutation.mutate()}
+                  >
+                    {refreshLearningMutation.isPending ? 'Refreshing...' : 'Refresh Candidates'}
                   </Button>
+                  <Badge variant="outline">Candidate: {learningQueueSummary.candidate}</Badge>
+                  <Badge variant="outline">Approved: {learningQueueSummary.approved}</Badge>
+                  <Badge variant="outline">Active: {learningQueueSummary.active}</Badge>
+                </div>
+
+                {learningLoading && <p>Loading learning queue...</p>}
+                {learningError && (
+                  <p className="text-rose-400">
+                    {learningErrorDetail instanceof Error
+                      ? learningErrorDetail.message
+                      : 'Failed to load learning queue'}
+                  </p>
+                )}
+                {!learningLoading && !learningError && (learningQueue?.length ?? 0) === 0 && (
+                  <p>
+                    No learning candidates yet. Use <span className="font-medium text-[var(--ph-text)]">Refresh Candidates</span>{' '}
+                    after successful runs to generate governance-reviewed candidates.
+                  </p>
+                )}
+
+                <div className="space-y-2">
+                  {(learningQueue ?? []).slice(0, 8).map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="font-medium text-[var(--ph-text)]">{item.title}</p>
+                          <p className="text-xs text-[var(--ph-muted)]">
+                            runs: {item.occurrence_count} • success: {item.success_count} • action:{' '}
+                            {item.proposed_action}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className={toneClass(learningStatusTone(item.status))}>
+                          {learningStatusLabel(item.status)}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-xs text-[var(--ph-muted)]">{item.suggested_playbook}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={decideLearningMutation.isPending}
+                          onClick={() =>
+                            decideLearningMutation.mutate({ candidateId: item.id, action: 'approve' })
+                          }
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={decideLearningMutation.isPending}
+                          onClick={() =>
+                            decideLearningMutation.mutate({ candidateId: item.id, action: 'activate' })
+                          }
+                        >
+                          Activate
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={decideLearningMutation.isPending}
+                          onClick={() =>
+                            decideLearningMutation.mutate({ candidateId: item.id, action: 'reject' })
+                          }
+                        >
+                          Reject
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={decideLearningMutation.isPending}
+                          onClick={() =>
+                            decideLearningMutation.mutate({ candidateId: item.id, action: 'retire' })
+                          }
+                        >
+                          Retire
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>

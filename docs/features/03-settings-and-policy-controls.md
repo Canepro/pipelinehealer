@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: 786e214 -->
+<!-- LAST_VERIFIED: e4a9449 -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -12,6 +12,7 @@ This guide explains runtime controls, persistence behavior, and governance guard
 - Admin audit trail
 - Guardrails for repos, retries, and MCP tool policy
 - Task-level model routing overrides (`analysis`, `diagnosis`, `remediation`)
+- Control Center learning queue governance (`candidate -> approved -> active` lifecycle)
 
 ## Quick Start
 
@@ -40,6 +41,17 @@ bash scripts/ph.sh settings:persist --from-settings
 Backend API calls used by Save & Persist:
 - `PATCH /api/settings`
 - `POST /api/settings/persist`
+
+Learning queue API calls (Control Center):
+- `GET /api/settings/learning/queue`
+- `POST /api/settings/learning/queue/refresh`
+- `POST /api/settings/learning/queue/{candidate_id}/decision`
+
+Learning queue posture:
+- **Candidate**: recurring successful pattern detected; not active
+- **Approved**: human-reviewed and accepted for potential activation
+- **Active**: approved and enabled as a promoted operational pattern
+- **Rejected/Retired**: explicitly blocked from active use
 
 ## MCP Guardrail Policy Model
 

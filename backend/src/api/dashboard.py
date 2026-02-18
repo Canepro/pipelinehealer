@@ -24,6 +24,10 @@ from ..models import (
     AppSettingsView,
     DashboardStats,
     FailureType,
+    LearningQueueDecisionRequest,
+    LearningQueueItem,
+    LearningQueueRefreshResponse,
+    LearningQueueStatus,
     LLMProviderHealthView,
     MCPProviderHealthView,
     RemediationStatus,
@@ -307,6 +311,190 @@ async def _append_admin_settings_audit_entry(
     # Keep memory bounded for long-running pods.
     if len(_admin_settings_audit) > _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES:
         del _admin_settings_audit[: len(_admin_settings_audit) - _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES]
+
+
+_LEARNING_QUEUE_ALLOWED_STATUS = {
+    LearningQueueStatus.CANDIDATE.value,
+    LearningQueueStatus.APPROVED.value,
+    LearningQueueStatus.REJECTED.value,
+    LearningQueueStatus.ACTIVE.value,
+    LearningQueueStatus.RETIRED.value,
+}
+_LEARNING_QUEUE_ALLOWED_ACTIONS = {
+    "approve": LearningQueueStatus.APPROVED.value,
+    "reject": LearningQueueStatus.REJECTED.value,
+    "activate": LearningQueueStatus.ACTIVE.value,
+    "retire": LearningQueueStatus.RETIRED.value,
+    "reset_candidate": LearningQueueStatus.CANDIDATE.value,
+}
+
+
+def _normalize_reason_code(value: Any) -> str | None:
+    text = str(value or "").strip()
+    return text or None
+
+
+def _extract_activity_reason_code(activity: ActivityRecord) -> str | None:
+    """Extract stable reason code from activity diagnosis/remediation context."""
+    diagnosis_details = activity.diagnosis.error_details if activity.diagnosis else {}
+    if isinstance(diagnosis_details, dict):
+        reason_code = _normalize_reason_code(diagnosis_details.get("reason_code"))
+        if reason_code:
+            return reason_code
+        classification_pattern = _normalize_reason_code(
+            diagnosis_details.get("classification_pattern")
+        )
+        if classification_pattern:
+            return classification_pattern
+        classification_signal = _normalize_reason_code(
+            diagnosis_details.get("classification_signal")
+        )
+        if classification_signal:
+            return classification_signal
+
+    remediation_details = activity.remediation_result.details if activity.remediation_result else {}
+    if isinstance(remediation_details, dict):
+        reason_code = _normalize_reason_code(remediation_details.get("reason_code"))
+        if reason_code:
+            return reason_code
+    if activity.failure_context and activity.failure_context.signal:
+        return _normalize_reason_code(activity.failure_context.signal)
+    return None
+
+
+def _build_learning_fingerprint(
+    *,
+    failure_type: FailureType | None,
+    reason_code: str | None,
+    proposed_action: str,
+    suggested_playbook: str,
+) -> str:
+    material = "|".join(
+        [
+            (failure_type.value if failure_type else "unknown"),
+            reason_code or "unknown",
+            proposed_action.lower(),
+            suggested_playbook.strip().lower()[:240],
+        ]
+    )
+    return hashlib.sha1(material.encode("utf-8")).hexdigest()  # noqa: S324
+
+
+def _summarize_learning_title(
+    failure_type: FailureType | None,
+    reason_code: str | None,
+) -> str:
+    failure = failure_type.value if failure_type else "unknown"
+    if reason_code:
+        return f"{failure}: {reason_code}"
+    return f"{failure}: unclassified recurring incident"
+
+
+async def _collect_recent_activities(
+    storage: ActivityStorage,
+    *,
+    lookback_hours: float,
+    max_scan: int,
+) -> list[ActivityRecord]:
+    """Collect recent activities with bounded pagination for learning refresh."""
+    since = utcnow() - timedelta(hours=lookback_hours)
+    collected: list[ActivityRecord] = []
+    offset = 0
+    page_size = min(100, max_scan)
+    while len(collected) < max_scan:
+        remaining = max_scan - len(collected)
+        limit = min(page_size, remaining)
+        batch = await storage.get_activities(limit=limit, offset=offset, since=since)
+        if not batch:
+            break
+        collected.extend(batch)
+        offset += len(batch)
+        if len(batch) < limit:
+            break
+    return collected
+
+
+def _extract_learning_candidates(
+    activities: list[ActivityRecord],
+    *,
+    min_occurrences: int,
+) -> list[LearningQueueItem]:
+    """Build candidate groups from successful completed activities."""
+    grouped: dict[str, dict[str, Any]] = {}
+    for activity in activities:
+        if activity.status != RemediationStatus.COMPLETED:
+            continue
+        remediation = activity.remediation_result
+        if remediation is None or not remediation.success:
+            continue
+        if activity.failure_type is None:
+            continue
+
+        reason_code = _extract_activity_reason_code(activity)
+        proposed_action = remediation.action_taken.value
+        suggested_playbook = (
+            (activity.diagnosis.suggested_fix if activity.diagnosis else "")
+            or (activity.diagnosis.root_cause if activity.diagnosis else "")
+            or "No suggested fix captured."
+        ).strip()
+        fingerprint = _build_learning_fingerprint(
+            failure_type=activity.failure_type,
+            reason_code=reason_code,
+            proposed_action=proposed_action,
+            suggested_playbook=suggested_playbook,
+        )
+        bucket = grouped.setdefault(
+            fingerprint,
+            {
+                "fingerprint": fingerprint,
+                "title": _summarize_learning_title(activity.failure_type, reason_code),
+                "failure_type": activity.failure_type,
+                "reason_code": reason_code,
+                "proposed_action": proposed_action,
+                "suggested_playbook": suggested_playbook,
+                "repositories": set(),
+                "occurrence_count": 0,
+                "success_count": 0,
+                "sample_activity_ids": [],
+                "latest_activity_at": None,
+            },
+        )
+        bucket["repositories"].add(activity.repository_name)
+        bucket["occurrence_count"] += 1
+        bucket["success_count"] += 1
+        if len(bucket["sample_activity_ids"]) < 5:
+            bucket["sample_activity_ids"].append(activity.id)
+        latest = bucket["latest_activity_at"]
+        if latest is None or (activity.updated_at and activity.updated_at > latest):
+            bucket["latest_activity_at"] = activity.updated_at
+
+    candidates: list[LearningQueueItem] = []
+    for data in grouped.values():
+        if int(data["occurrence_count"]) < min_occurrences:
+            continue
+        fingerprint = str(data["fingerprint"])
+        candidate = LearningQueueItem(
+            id=f"learning-{fingerprint[:20]}",
+            fingerprint=fingerprint,
+            title=str(data["title"]),
+            failure_type=data["failure_type"],
+            reason_code=data["reason_code"],
+            proposed_action=str(data["proposed_action"]),
+            suggested_playbook=str(data["suggested_playbook"]),
+            repositories=sorted(data["repositories"]),
+            occurrence_count=int(data["occurrence_count"]),
+            success_count=int(data["success_count"]),
+            sample_activity_ids=list(data["sample_activity_ids"]),
+            latest_activity_at=data["latest_activity_at"],
+            status=LearningQueueStatus.CANDIDATE,
+        )
+        candidates.append(candidate)
+    epoch = datetime.fromtimestamp(0, tz=utcnow().tzinfo)
+    candidates.sort(
+        key=lambda item: (item.latest_activity_at or epoch).timestamp(),
+        reverse=True,
+    )
+    return candidates
 
 
 def _repo_root() -> Path:
@@ -928,6 +1116,215 @@ async def persist_app_settings(
     )
 
     return response
+
+
+@router.get(
+    "/settings/learning/queue",
+    response_model=list[LearningQueueItem],
+    dependencies=[Depends(require_admin_key)],
+)
+async def list_learning_queue(
+    status: str | None = Query(
+        default=None,
+        description=(
+            "Optional queue status filter: "
+            "candidate|approved|rejected|active|retired"
+        ),
+    ),
+    limit: int = Query(
+        default=50,
+        ge=1,
+        le=200,
+        description="Maximum number of learning queue records to return",
+    ),
+    storage: ActivityStorage = Depends(get_storage),
+) -> list[LearningQueueItem]:
+    """List remediation learning queue candidates."""
+    normalized_status = status.strip().lower() if status else None
+    if normalized_status and normalized_status not in _LEARNING_QUEUE_ALLOWED_STATUS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "status must be one of: "
+                "candidate, approved, rejected, active, retired"
+            ),
+        )
+
+    items = await storage.list_learning_queue_items(status=normalized_status, limit=limit)
+    output: list[LearningQueueItem] = []
+    for item in items:
+        try:
+            output.append(LearningQueueItem(**item))
+        except Exception as exc:
+            logger.warning("Skipping invalid learning queue item: %s", exc)
+    return output
+
+
+@router.post(
+    "/settings/learning/queue/refresh",
+    response_model=LearningQueueRefreshResponse,
+    dependencies=[Depends(require_admin_key)],
+)
+async def refresh_learning_queue(
+    request: Request,
+    lookback_hours: float = Query(
+        default=168.0,
+        ge=1.0,
+        le=24.0 * 90.0,
+        description="How far back to scan completed successful activities for candidates",
+    ),
+    min_occurrences: int = Query(
+        default=2,
+        ge=2,
+        le=20,
+        description="Minimum recurring occurrences required to create a candidate",
+    ),
+    max_scan: int = Query(
+        default=500,
+        ge=20,
+        le=5000,
+        description="Maximum activities to scan per refresh operation",
+    ),
+    max_candidates: int = Query(
+        default=100,
+        ge=1,
+        le=300,
+        description="Maximum generated candidates to upsert in one refresh",
+    ),
+    storage: ActivityStorage = Depends(get_storage),
+    user_agent: str | None = Header(default=None, alias="User-Agent"),
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
+) -> LearningQueueRefreshResponse:
+    """Build/refresh learning candidates from recent successful remediations."""
+    activities = await _collect_recent_activities(
+        storage,
+        lookback_hours=lookback_hours,
+        max_scan=max_scan,
+    )
+    generated = _extract_learning_candidates(
+        activities,
+        min_occurrences=min_occurrences,
+    )[:max_candidates]
+
+    existing_items = await storage.list_learning_queue_items(limit=300)
+    existing_by_fingerprint: dict[str, LearningQueueItem] = {}
+    for row in existing_items:
+        try:
+            parsed = LearningQueueItem(**row)
+        except Exception:
+            continue
+        existing_by_fingerprint[parsed.fingerprint] = parsed
+
+    upserted = 0
+    now = utcnow()
+    for candidate in generated:
+        existing = existing_by_fingerprint.get(candidate.fingerprint)
+        if existing is not None:
+            candidate.id = existing.id
+            candidate.created_at = existing.created_at
+            candidate.status = existing.status
+            candidate.decision_reason = existing.decision_reason
+            candidate.decision_actor = existing.decision_actor
+        candidate.updated_at = now
+        await storage.upsert_learning_queue_item(candidate.model_dump(mode="json"))
+        upserted += 1
+
+    refresh_audit_entry = AdminSettingsAuditEntry(
+        changed_keys=["learning_queue_refresh"],
+        changes={
+            "learning_queue_refresh": {
+                "old": None,
+                "new": {
+                    "lookback_hours": lookback_hours,
+                    "min_occurrences": min_occurrences,
+                    "max_scan": max_scan,
+                    "considered_activities": len(activities),
+                    "generated_candidates": len(generated),
+                    "upserted_candidates": upserted,
+                },
+            }
+        },
+        actor=_build_admin_settings_actor_fingerprint(
+            request=request,
+            x_admin_key=x_admin_key,
+        ),
+        request_id=getattr(request.state, "request_id", None),
+        client_ip=request.client.host if request.client else None,
+        user_agent=user_agent,
+    )
+    await _append_admin_settings_audit_entry(storage=storage, entry=refresh_audit_entry)
+
+    return LearningQueueRefreshResponse(
+        considered_activities=len(activities),
+        generated_candidates=len(generated),
+        upserted_candidates=upserted,
+    )
+
+
+@router.post(
+    "/settings/learning/queue/{candidate_id}/decision",
+    response_model=LearningQueueItem,
+    dependencies=[Depends(require_admin_key)],
+)
+async def decide_learning_queue_item(
+    candidate_id: str,
+    payload: LearningQueueDecisionRequest,
+    request: Request,
+    storage: ActivityStorage = Depends(get_storage),
+    user_agent: str | None = Header(default=None, alias="User-Agent"),
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
+) -> LearningQueueItem:
+    """Approve/reject/activate/retire one learning queue candidate."""
+    item = await storage.get_learning_queue_item(candidate_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Learning queue item not found")
+
+    candidate = LearningQueueItem(**item)
+    action = str(payload.action).strip().lower()
+    next_status = _LEARNING_QUEUE_ALLOWED_ACTIONS.get(action)
+    if next_status is None:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "action must be one of: approve, reject, activate, retire, reset_candidate"
+            ),
+        )
+
+    previous_status = candidate.status.value
+    candidate.status = LearningQueueStatus(next_status)
+    candidate.updated_at = utcnow()
+    candidate.decision_reason = str(payload.reason or "").strip()
+    candidate.decision_actor = _build_admin_settings_actor_fingerprint(
+        request=request,
+        x_admin_key=x_admin_key,
+    )
+    await storage.upsert_learning_queue_item(candidate.model_dump(mode="json"))
+
+    decision_audit_entry = AdminSettingsAuditEntry(
+        changed_keys=["learning_queue_decision"],
+        changes={
+            "learning_queue_decision": {
+                "old": {"status": previous_status},
+                "new": {
+                    "candidate_id": candidate.id,
+                    "fingerprint": candidate.fingerprint,
+                    "action": action,
+                    "status": candidate.status.value,
+                    "reason": candidate.decision_reason,
+                },
+            }
+        },
+        actor=candidate.decision_actor,
+        request_id=getattr(request.state, "request_id", None),
+        client_ip=request.client.host if request.client else None,
+        user_agent=user_agent,
+    )
+    await _append_admin_settings_audit_entry(
+        storage=storage,
+        entry=decision_audit_entry,
+    )
+
+    return candidate
 
 
 @router.get("/activities", response_model=list[ActivityRecord])

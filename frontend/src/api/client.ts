@@ -240,6 +240,36 @@ export interface AdminSettingsPersistResponse {
   redeploy_message: string
 }
 
+export type LearningQueueStatus = 'candidate' | 'approved' | 'rejected' | 'active' | 'retired'
+
+export interface LearningQueueItem {
+  id: string
+  fingerprint: string
+  title: string
+  failure_type?: string | null
+  reason_code?: string | null
+  proposed_action: string
+  suggested_playbook: string
+  repositories: string[]
+  occurrence_count: number
+  success_count: number
+  sample_activity_ids: string[]
+  latest_activity_at?: string | null
+  status: LearningQueueStatus
+  decision_reason: string
+  decision_actor?: string | null
+  created_at: string
+  updated_at: string
+  metadata: Record<string, unknown>
+}
+
+export interface LearningQueueRefreshResponse {
+  status: string
+  considered_activities: number
+  generated_candidates: number
+  upserted_candidates: number
+}
+
 type ApiRequestOptions = RequestInit & {
   adminKey?: string
 }
@@ -351,6 +381,44 @@ export const api = {
       method: 'POST',
       adminKey,
       body: JSON.stringify({ skip_redeploy: skipRedeploy }),
+    }),
+  getLearningQueue: (adminKey: string | undefined, params?: { status?: LearningQueueStatus; limit?: number }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.limit) searchParams.set('limit', String(params.limit))
+    const query = searchParams.toString()
+    return fetchJson<LearningQueueItem[]>(
+      `/api/settings/learning/queue${query ? `?${query}` : ''}`,
+      { adminKey }
+    )
+  },
+  refreshLearningQueue: (
+    adminKey: string | undefined,
+    params?: { lookback_hours?: number; min_occurrences?: number; max_scan?: number; max_candidates?: number }
+  ) => {
+    const searchParams = new URLSearchParams()
+    if (params?.lookback_hours) searchParams.set('lookback_hours', String(params.lookback_hours))
+    if (params?.min_occurrences) searchParams.set('min_occurrences', String(params.min_occurrences))
+    if (params?.max_scan) searchParams.set('max_scan', String(params.max_scan))
+    if (params?.max_candidates) searchParams.set('max_candidates', String(params.max_candidates))
+    const query = searchParams.toString()
+    return fetchJson<LearningQueueRefreshResponse>(
+      `/api/settings/learning/queue/refresh${query ? `?${query}` : ''}`,
+      {
+        method: 'POST',
+        adminKey,
+      }
+    )
+  },
+  decideLearningQueueItem: (
+    adminKey: string | undefined,
+    candidateId: string,
+    payload: { action: 'approve' | 'reject' | 'activate' | 'retire' | 'reset_candidate'; reason?: string }
+  ) =>
+    fetchJson<LearningQueueItem>(`/api/settings/learning/queue/${candidateId}/decision`, {
+      method: 'POST',
+      adminKey,
+      body: JSON.stringify(payload),
     }),
   
   getActivities: (params?: {

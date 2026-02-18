@@ -101,6 +101,10 @@ Initial MCP providers to prioritize:
   - diagnosis + action taken
   - outcome (success/failure/rollback)
   - human feedback signal
+- Initial governance slice delivered:
+  - durable learning queue model and storage records
+  - Control Center queue surface with refresh + human decisions (`approve`, `reject`, `activate`, `retire`)
+  - admin-audited decision trail for learning queue actions
 - Add a retrieval layer before diagnosis/remediation:
   - fetch similar historical incidents and inject evidence into agent context
 - Add controlled "playbook promotion":

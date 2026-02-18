@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 647ddde -->
+<!-- LAST_VERIFIED: e4a9449 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -696,6 +696,104 @@ Durably persists current mutable runtime settings so they survive backend restar
 
 - In Azure Container Apps, `env_file` is usually empty (no writable local `backend/.env` in the running container).
 - Settings are always persisted to durable storage regardless of environment.
+
+#### `GET /api/settings/learning/queue`
+
+Returns governance learning-queue records (candidate/approved/rejected/active/retired).
+
+**Auth**: `X-API-Key` + `X-Admin-Key`
+
+**Query Parameters**:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `status` | string | (all) | Optional filter: `candidate`, `approved`, `rejected`, `active`, `retired` |
+| `limit` | int | 50 | Max records (1–200) |
+
+**Response** `200 OK` (array of `LearningQueueItem`):
+
+```json
+[
+  {
+    "id": "learning-f6f9f8a2f30ebf72a81a",
+    "fingerprint": "f6f9f8a2f30ebf72a81ab1fd91d2a7b9f7c3024b",
+    "title": "build_config: REQUIRES_ENV_CONTEXT",
+    "failure_type": "build_config",
+    "reason_code": "REQUIRES_ENV_CONTEXT",
+    "proposed_action": "create_issue",
+    "suggested_playbook": "Add missing environment variable in workflow settings.",
+    "repositories": ["owner/repo"],
+    "occurrence_count": 4,
+    "success_count": 4,
+    "sample_activity_ids": ["..."],
+    "latest_activity_at": "2026-02-18T20:14:00Z",
+    "status": "candidate",
+    "decision_reason": "",
+    "decision_actor": null,
+    "created_at": "2026-02-18T20:15:00Z",
+    "updated_at": "2026-02-18T20:15:00Z",
+    "metadata": {}
+  }
+]
+```
+
+#### `POST /api/settings/learning/queue/refresh`
+
+Scans recent successful completed activities and refreshes recurring learning candidates.
+
+**Auth**: `X-API-Key` + `X-Admin-Key`
+
+**Query Parameters**:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `lookback_hours` | float | 168 | Activity scan window |
+| `min_occurrences` | int | 2 | Minimum recurring occurrences required for candidate creation |
+| `max_scan` | int | 500 | Max activities scanned per refresh |
+| `max_candidates` | int | 100 | Max generated candidates upserted per refresh |
+
+**Response** `200 OK`:
+
+```json
+{
+  "status": "ok",
+  "considered_activities": 128,
+  "generated_candidates": 6,
+  "upserted_candidates": 6
+}
+```
+
+Side effects:
+- Upserts learning queue entries in durable storage.
+- Appends admin audit entry with `changed_keys=["learning_queue_refresh"]`.
+
+#### `POST /api/settings/learning/queue/{candidate_id}/decision`
+
+Applies a governance decision for one learning candidate.
+
+**Auth**: `X-API-Key` + `X-Admin-Key`
+
+**Request Body**:
+
+```json
+{
+  "action": "approve",
+  "reason": "Validated during operator review"
+}
+```
+
+Allowed actions:
+- `approve`
+- `reject`
+- `activate`
+- `retire`
+- `reset_candidate`
+
+**Response** `200 OK`: updated `LearningQueueItem`.
+
+Side effects:
+- Appends admin audit entry with `changed_keys=["learning_queue_decision"]`.
+- Captures decision actor fingerprint and request correlation metadata.
 
 #### `GET /api/settings/audit`
 
