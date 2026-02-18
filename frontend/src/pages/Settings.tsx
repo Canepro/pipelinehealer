@@ -103,6 +103,18 @@ export default function SettingsPage() {
 
   const hasUnsavedChanges =
     lastSavedForm !== null && JSON.stringify(form) !== JSON.stringify(lastSavedForm)
+  const settingsErrorMessage = error instanceof Error ? error.message : 'Unknown error'
+  const showSessionRefreshHint =
+    useSessionAuth &&
+    isError &&
+    (() => {
+      const normalized = settingsErrorMessage.toLowerCase()
+      return (
+        normalized.includes('invalid or missing admin api key') ||
+        normalized.includes('invalid bearer token') ||
+        normalized.includes('missing credentials')
+      )
+    })()
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -285,9 +297,13 @@ export default function SettingsPage() {
         <Card className="border-rose-500/30">
           <CardContent className="py-6">
             <p className="text-sm font-medium text-rose-500">Failed to load settings</p>
-            <p className="text-sm text-[var(--ph-muted)] mt-1">
-              {error instanceof Error ? error.message : 'Unknown error'}
-            </p>
+            <p className="text-sm text-[var(--ph-muted)] mt-1">{settingsErrorMessage}</p>
+            {showSessionRefreshHint && (
+              <p className="text-xs text-[var(--ph-muted)] mt-3">
+                Session may be stale. Try signing out, signing in again, or clearing site data and
+                retrying.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
