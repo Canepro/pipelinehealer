@@ -151,6 +151,9 @@ export interface AppSettings {
   llm_provider: 'azure_openai' | 'openai_compatible' | 'custom'
   openai_compatible_base_url: string
   openai_compatible_model: string
+  llm_model_analysis: string
+  llm_model_diagnosis: string
+  llm_model_remediation: string
   openai_compatible_api_key_configured: boolean
   mcp_enabled: boolean
   mcp_provider: 'disabled' | 'github' | 'azure_monitor' | 'custom'
@@ -216,6 +219,9 @@ export interface AdminSettingsUpdate {
   llm_provider?: 'azure_openai' | 'openai_compatible' | 'custom'
   openai_compatible_base_url?: string
   openai_compatible_model?: string
+  llm_model_analysis?: string
+  llm_model_diagnosis?: string
+  llm_model_remediation?: string
   mcp_enabled?: boolean
   mcp_provider?: 'disabled' | 'github' | 'azure_monitor' | 'custom'
   mcp_read_only?: boolean

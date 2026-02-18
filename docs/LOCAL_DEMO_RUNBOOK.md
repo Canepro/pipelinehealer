@@ -113,6 +113,10 @@ AZURE_OPENAI_API_KEY=your-key-here         # Key 1 or Key 2 from step 1.3
 # OPENAI_COMPATIBLE_BASE_URL=https://api.openai.com/v1
 # OPENAI_COMPATIBLE_MODEL=gpt-5-mini
 # OPENAI_COMPATIBLE_API_KEY=sk-...
+# Optional per-task model overrides (empty => provider default):
+# LLM_MODEL_ANALYSIS=gpt-5-mini-fast
+# LLM_MODEL_DIAGNOSIS=gpt-5-mini-reasoner
+# LLM_MODEL_REMEDIATION=gpt-5-mini
 
 # GitHub
 GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxxxxxx # your PAT with repo + workflow scopes
@@ -285,7 +289,7 @@ Open the URL printed by Vite (usually `http://127.0.0.1:5173`). You should see a
 If you are using `LLM_PROVIDER=openai_compatible`, verify provider values through `settings:check`:
 
 ```bash
-bash scripts/ph.sh settings:check | jq '.llm_provider,.openai_compatible_base_url,.openai_compatible_model'
+bash scripts/ph.sh settings:check | jq '.llm_provider,.openai_compatible_base_url,.openai_compatible_model,.llm_model_analysis,.llm_model_diagnosis,.llm_model_remediation'
 ```
 
 If you are using Azure OpenAI, run the connectivity checks below.

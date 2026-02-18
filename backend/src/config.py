@@ -56,6 +56,27 @@ class Settings(BaseSettings):
         default="",
         description="Model name for OpenAI-compatible provider (e.g. gpt-4o-mini, claude-compatible alias)",
     )
+    llm_model_analysis: str = Field(
+        default="",
+        description=(
+            "Optional model/deployment override for analysis tasks. "
+            "When empty, provider default model is used."
+        ),
+    )
+    llm_model_diagnosis: str = Field(
+        default="",
+        description=(
+            "Optional model/deployment override for diagnosis tasks. "
+            "When empty, provider default model is used."
+        ),
+    )
+    llm_model_remediation: str = Field(
+        default="",
+        description=(
+            "Optional model/deployment override for remediation tasks. "
+            "When empty, provider default model is used."
+        ),
+    )
     openai_compatible_api_key: str = Field(
         default="",
         description="API key for OpenAI-compatible provider",
@@ -576,6 +597,12 @@ class Settings(BaseSettings):
                 "OPENAI_COMPATIBLE_BASE_URL must be a full URL, e.g. https://api.openai.com/v1"
             )
         return base_url
+
+    @field_validator("llm_model_analysis", "llm_model_diagnosis", "llm_model_remediation")
+    @classmethod
+    def normalize_llm_task_models(cls, value: str) -> str:
+        """Normalize optional per-task model override values."""
+        return value.strip()
 
 
 _settings_singleton: Settings | None = None

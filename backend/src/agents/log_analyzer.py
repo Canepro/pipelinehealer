@@ -44,6 +44,7 @@ class LogAnalyzerAgent:
                 name="LogAnalyzer",
                 instructions=get_agent_prompt("log_analyzer"),
                 credential=self._credential,
+                task="analysis",
                 settings=self._settings,
             )
 

@@ -208,6 +208,9 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         llm_provider=settings.llm_provider,
         openai_compatible_base_url=settings.openai_compatible_base_url,
         openai_compatible_model=settings.openai_compatible_model,
+        llm_model_analysis=settings.llm_model_analysis,
+        llm_model_diagnosis=settings.llm_model_diagnosis,
+        llm_model_remediation=settings.llm_model_remediation,
         openai_compatible_api_key_configured=bool(settings.openai_compatible_api_key),
         mcp_enabled=settings.mcp_enabled,
         mcp_provider=settings.mcp_provider,
@@ -254,6 +257,9 @@ _MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = (
     ("llm_provider", "LLM_PROVIDER"),
     ("openai_compatible_base_url", "OPENAI_COMPATIBLE_BASE_URL"),
     ("openai_compatible_model", "OPENAI_COMPATIBLE_MODEL"),
+    ("llm_model_analysis", "LLM_MODEL_ANALYSIS"),
+    ("llm_model_diagnosis", "LLM_MODEL_DIAGNOSIS"),
+    ("llm_model_remediation", "LLM_MODEL_REMEDIATION"),
     ("mcp_enabled", "MCP_ENABLED"),
     ("mcp_provider", "MCP_PROVIDER"),
     ("mcp_read_only", "MCP_READ_ONLY"),
@@ -480,6 +486,8 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         return str(value).strip()
     if attr_name == "openai_compatible_model":
         return str(value).strip()
+    if attr_name in {"llm_model_analysis", "llm_model_diagnosis", "llm_model_remediation"}:
+        return str(value).strip()
     if attr_name == "llm_provider":
         normalized = str(value).strip().lower()
         if normalized not in {"azure_openai", "openai_compatible", "custom"}:
@@ -699,6 +707,12 @@ async def update_app_settings(
 
     if "openai_compatible_model" in changes:
         changes["openai_compatible_model"] = str(changes["openai_compatible_model"]).strip()
+    if "llm_model_analysis" in changes:
+        changes["llm_model_analysis"] = str(changes["llm_model_analysis"]).strip()
+    if "llm_model_diagnosis" in changes:
+        changes["llm_model_diagnosis"] = str(changes["llm_model_diagnosis"]).strip()
+    if "llm_model_remediation" in changes:
+        changes["llm_model_remediation"] = str(changes["llm_model_remediation"]).strip()
 
     if "mcp_provider" in changes:
         mcp_provider = str(changes["mcp_provider"]).strip().lower()

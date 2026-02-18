@@ -35,6 +35,11 @@ Future provider candidates:
 - Azure provider path remains active default.
 - `openai_compatible` provider path is implemented (runtime config + health + execution path).
 - `custom` remains scaffolded (no-op with explicit health/status).
+- task-level overrides are live via:
+  - `LLM_MODEL_ANALYSIS`
+  - `LLM_MODEL_DIAGNOSIS`
+  - `LLM_MODEL_REMEDIATION`
+  These fall back to provider defaults when unset.
 - Provider health endpoint available at:
   - `GET /api/settings/llm/provider-health`
 - Model-path telemetry is available per activity (`llm_model_path`) and surfaced in UI.

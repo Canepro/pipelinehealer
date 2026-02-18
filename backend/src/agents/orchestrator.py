@@ -226,6 +226,7 @@ class OrchestratorAgent:
                 name="Orchestrator",
                 instructions=get_agent_prompt("orchestrator"),
                 credential=self._credential,
+                task="orchestrator",
                 settings=self._settings,
             )
 

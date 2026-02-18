@@ -144,12 +144,12 @@ Keep Azure OpenAI as the default path now, but design for pluggable model provid
   - `LLMProvider` interface (`analyze`, `diagnose`, `remediate`, `health_check`)
   - concrete adapters: `azure_openai` (current), `openai_compatible`, `custom_gateway`
 - Separate provider selection from model routing:
-  - task-level model choices (`analysis`, `diagnosis`, `remediation`)
+  - task-level model choices (`analysis`, `diagnosis`, `remediation`) (Done: runtime routing + settings UI/control center preview)
   - fallback chains per task (primary -> cheaper fallback -> deterministic fallback)
 - Add runtime config surface:
-  - `LLM_PROVIDER=azure_openai|openai_compatible|custom`
-  - provider-specific env groups (endpoint/base_url, auth key, api version/model/deployment)
-  - optional task overrides for model names
+  - `LLM_PROVIDER=azure_openai|openai_compatible|custom` (Done)
+  - provider-specific env groups (endpoint/base_url, auth key, api version/model/deployment) (Done)
+  - optional task overrides for model names (`LLM_MODEL_ANALYSIS`, `LLM_MODEL_DIAGNOSIS`, `LLM_MODEL_REMEDIATION`) (Done)
 - Keep prompts portable:
   - normalize provider responses into one internal schema
   - keep provider translation logic inside adapters only

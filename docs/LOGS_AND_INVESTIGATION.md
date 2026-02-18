@@ -99,7 +99,7 @@ Check:
 Checks:
 
 ```bash
-bash scripts/ph.sh settings:check | jq '.llm_provider,.azure_openai_endpoint,.azure_openai_deployment_name,.azure_openai_api_version,.azure_openai_chat_api_version'
+bash scripts/ph.sh settings:check | jq '.llm_provider,.azure_openai_endpoint,.azure_openai_deployment_name,.llm_model_analysis,.llm_model_diagnosis,.llm_model_remediation,.azure_openai_api_version,.azure_openai_chat_api_version'
 bash scripts/ph.sh logs:grep --pattern "Diagnosis failed|AzureOpenAIResponsesClient|API version not supported|FallbackAgent"
 ```
 

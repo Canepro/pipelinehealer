@@ -472,6 +472,9 @@ Returns the current runtime configuration (non-secret values only).
   "github_auth_mode": "pat",
   "ph_allowed_repos": ["Canepro/pipelinehealer-demo"],
   "llm_provider": "azure_openai",
+  "llm_model_analysis": "",
+  "llm_model_diagnosis": "",
+  "llm_model_remediation": "",
   "mcp_enabled": false,
   "mcp_provider": "disabled",
   "mcp_read_only": true,
@@ -495,8 +498,8 @@ Returns the current runtime configuration (non-secret values only).
   "azure_openai_deployment_name": "gpt-5-mini",
   "azure_openai_api_version": "2025-04-01-preview",
   "azure_openai_chat_api_version": "2024-12-01-preview",
-  "openai_compatible_base_url": null,
-  "openai_compatible_model": null,
+  "openai_compatible_base_url": "",
+  "openai_compatible_model": "",
   "openai_compatible_api_key_configured": false
 }
 ```
@@ -523,7 +526,10 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
   "pipeline_step_timeout_seconds": 180.0,
   "log_prompt_max_chars": 20000,
   "log_prompt_head_chars": 10000,
-  "log_prompt_tail_chars": 10000
+  "log_prompt_tail_chars": 10000,
+  "llm_model_analysis": "gpt-5-mini-fast",
+  "llm_model_diagnosis": "gpt-5-mini-reasoner",
+  "llm_model_remediation": "gpt-5-mini"
 }
 ```
 
@@ -553,6 +559,9 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 | `llm_provider` | string | `azure_openai`, `openai_compatible`, or `custom` |
 | `openai_compatible_base_url` | string | Required when `llm_provider=openai_compatible`; must be `http(s)://...` |
 | `openai_compatible_model` | string | Required when `llm_provider=openai_compatible` |
+| `llm_model_analysis` | string | Optional per-task model/deployment override for analysis |
+| `llm_model_diagnosis` | string | Optional per-task model/deployment override for diagnosis |
+| `llm_model_remediation` | string | Optional per-task model/deployment override for remediation |
 | `mcp_enabled` | bool | Enable MCP provider integration hooks |
 | `mcp_provider` | string | `disabled`, `github`, `azure_monitor`, or `custom` |
 | `mcp_read_only` | bool | Restrict MCP actions to read-only mode |
@@ -570,7 +579,7 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 
 **Response** `422 Unprocessable Entity`: validation failure.
 
-**Side Effects**: Creates an audit entry (persisted to Cosmos DB when available, in-memory fallback otherwise). Triggers agent cache invalidation when `azure_openai_deployment_name` changes so the new model takes effect immediately.
+**Side Effects**: Creates an audit entry (persisted to Cosmos DB when available, in-memory fallback otherwise). Triggers agent cache invalidation when model-routing fields change (`azure_openai_deployment_name`, `llm_provider`, `openai_compatible_model`, `llm_model_analysis`, `llm_model_diagnosis`, `llm_model_remediation`) so new routing takes effect immediately.
 
 #### `GET /api/settings/llm/provider-health`
 
@@ -669,6 +678,9 @@ Durably persists current mutable runtime settings so they survive backend restar
     "MCP_REPO_ALLOWLIST",
     "EXTERNAL_DIAGNOSTICS_WAIT_SECONDS",
     "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS",
+    "LLM_MODEL_ANALYSIS",
+    "LLM_MODEL_DIAGNOSIS",
+    "LLM_MODEL_REMEDIATION",
     "AZURE_OPENAI_DEPLOYMENT_NAME"
   ],
   "redeploy_attempted": false,

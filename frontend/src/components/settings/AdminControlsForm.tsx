@@ -210,6 +210,15 @@ export default function AdminControlsForm({
   const mcpAllowedCount = mcpEffectivePolicies.filter((row) => row.effective.status === 'allowed').length
   const mcpApprovalCount = mcpEffectivePolicies.filter((row) => row.effective.status === 'approval').length
   const mcpBlockedCount = mcpEffectivePolicies.filter((row) => row.effective.status === 'blocked').length
+  const providerDefaultModel =
+    form.llm_provider === 'azure_openai'
+      ? form.azure_openai_deployment_name.trim()
+      : form.openai_compatible_model.trim()
+  const taskModelPreview = [
+    { key: 'analysis', label: 'Analysis', override: form.llm_model_analysis.trim() },
+    { key: 'diagnosis', label: 'Diagnosis', override: form.llm_model_diagnosis.trim() },
+    { key: 'remediation', label: 'Remediation', override: form.llm_model_remediation.trim() },
+  ]
 
   const addAllowedRepo = () => {
     const normalized = normalizeRepoInput(newRepoInput)
@@ -510,6 +519,65 @@ export default function AdminControlsForm({
                     : 'Unknown'
                 }
               />
+            </div>
+            <Separator />
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-[var(--ph-text)]">
+                Task Model Routing (Optional Overrides)
+              </p>
+              <p className="text-xs text-[var(--ph-muted)]">
+                Leave blank to use the provider default model/deployment.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <FieldGroup label="Analysis Model" field="llm_model_analysis">
+                  <Input
+                    type="text"
+                    value={form.llm_model_analysis}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        llm_model_analysis: e.target.value,
+                      }))
+                    }
+                    placeholder={providerDefaultModel || 'Uses provider default'}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Diagnosis Model" field="llm_model_diagnosis">
+                  <Input
+                    type="text"
+                    value={form.llm_model_diagnosis}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        llm_model_diagnosis: e.target.value,
+                      }))
+                    }
+                    placeholder={providerDefaultModel || 'Uses provider default'}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Remediation Model" field="llm_model_remediation">
+                  <Input
+                    type="text"
+                    value={form.llm_model_remediation}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        llm_model_remediation: e.target.value,
+                      }))
+                    }
+                    placeholder={providerDefaultModel || 'Uses provider default'}
+                  />
+                </FieldGroup>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {taskModelPreview.map((task) => (
+                  <ReadOnlyField
+                    key={task.key}
+                    label={`Effective ${task.label}`}
+                    value={task.override || providerDefaultModel || 'Not configured'}
+                  />
+                ))}
+              </div>
             </div>
           </CardContent>
           </Card>

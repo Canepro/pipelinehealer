@@ -361,6 +361,9 @@ async def test_settings_endpoint_returns_non_secret_fields(monkeypatch) -> None:
     data = response.json()
     assert data["azure_openai_deployment_name"] == "gpt-5-mini"
     assert data["llm_provider"] == "azure_openai"
+    assert data["llm_model_analysis"] == ""
+    assert data["llm_model_diagnosis"] == ""
+    assert data["llm_model_remediation"] == ""
     assert "azure_openai_api_key" not in data
 
 
@@ -656,6 +659,30 @@ async def test_admin_can_patch_llm_provider(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_admin_can_patch_llm_task_model_overrides(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    response = await _patch_settings(
+        {
+            "llm_model_analysis": " gpt-5-mini-fast ",
+            "llm_model_diagnosis": "gpt-5-mini-reasoner",
+            "llm_model_remediation": "",
+        },
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["llm_model_analysis"] == "gpt-5-mini-fast"
+    assert body["llm_model_diagnosis"] == "gpt-5-mini-reasoner"
+    assert body["llm_model_remediation"] == ""
+
+
+@pytest.mark.asyncio
 async def test_admin_patch_rejects_invalid_llm_provider(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
@@ -839,6 +866,9 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
             "mcp_enabled": True,
             "mcp_provider": "github",
             "mcp_read_only": True,
+            "llm_model_analysis": "gpt-5-mini-fast",
+            "llm_model_diagnosis": "gpt-5-mini-reasoner",
+            "llm_model_remediation": "gpt-5-mini",
             "mcp_timeout_seconds": 12,
             "mcp_max_retries": 2,
             "mcp_repo_allowlist": ["Canepro/PipelineHealer"],
@@ -891,6 +921,9 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
     assert "MCP_TIMEOUT_SECONDS=12.0" in persisted_text
     assert "MCP_MAX_RETRIES=2" in persisted_text
     assert "MCP_REPO_ALLOWLIST=canepro/pipelinehealer" in persisted_text
+    assert "LLM_MODEL_ANALYSIS=gpt-5-mini-fast" in persisted_text
+    assert "LLM_MODEL_DIAGNOSIS=gpt-5-mini-reasoner" in persisted_text
+    assert "LLM_MODEL_REMEDIATION=gpt-5-mini" in persisted_text
     assert (
         "MCP_TOOL_POLICIES=fetch_failure_context=read_only,publish_artifact=disabled"
         in persisted_text

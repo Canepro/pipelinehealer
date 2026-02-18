@@ -427,6 +427,16 @@ This is the long-form project tracker for hackathon execution status, submission
 - MCP explainability polish:
   - Activity detail now shows friendly interpretation + raw code for MCP reason and action audit entries.
   - Source attribution now shows both display label and raw source key.
+- Phase 0.4 model portability slice (task-level routing):
+  - Added runtime task-level model override settings:
+    - `LLM_MODEL_ANALYSIS`
+    - `LLM_MODEL_DIAGNOSIS`
+    - `LLM_MODEL_REMEDIATION`
+  - Agent factory now routes `analysis`, `diagnosis`, and `remediation` tasks through these optional overrides, with provider-default fallback.
+  - Settings API + persistence map now include these fields and persist them durably.
+  - Settings UI now exposes task override inputs and effective-model preview.
+  - Control Center now shows a read-only task model routing preview card.
+  - Added backend tests for task override patching, persistence, and routing behavior.
 
 ## Project Tracking Plan (Now -> Mar 15)
 

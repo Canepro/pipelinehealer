@@ -187,6 +187,7 @@ bash scripts/ph.sh settings:persist --mcp-enabled true --mcp-provider github --m
 bash scripts/ph.sh settings:persist --mcp-tool-policies "fetch_failure_context=read_only,fetch_runbook_context=read_only,publish_artifact=write_with_approval,rerun_pipeline=write_with_approval"
 bash scripts/ph.sh settings:persist --mcp-repo-allowlist owner/repo1,owner/repo2
 bash scripts/ph.sh settings:persist --azure-openai-deployment-name gpt-4o --skip-redeploy
+bash scripts/ph.sh settings:persist --llm-model-analysis gpt-5-mini-fast --llm-model-diagnosis gpt-5-mini-reasoner --llm-model-remediation gpt-5-mini
 bash scripts/ph.sh settings:persist --clear-repos
 bash scripts/ph.sh settings:persist --clear-mcp-repo-allowlist
 ```
@@ -214,6 +215,9 @@ bash scripts/ph.sh settings:persist --clear-mcp-repo-allowlist
 | `--mcp-repo-allowlist` | CSV | Set `MCP_REPO_ALLOWLIST` |
 | `--clear-mcp-repo-allowlist` | — | Clear `MCP_REPO_ALLOWLIST` |
 | `--azure-openai-deployment-name` | string | Set `AZURE_OPENAI_DEPLOYMENT_NAME` |
+| `--llm-model-analysis` | string | Set `LLM_MODEL_ANALYSIS` |
+| `--llm-model-diagnosis` | string | Set `LLM_MODEL_DIAGNOSIS` |
+| `--llm-model-remediation` | string | Set `LLM_MODEL_REMEDIATION` |
 | `--skip-redeploy` | — | Write `.env` only, skip Azure env sync |
 
 Enum values are validated before writing. Invalid values exit with a clear error.

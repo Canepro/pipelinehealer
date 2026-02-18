@@ -932,6 +932,21 @@ _persist_parse_args() {
         _sp_azure_openai_deployment_name="$2"
         shift 2
         ;;
+      --llm-model-analysis)
+        require_arg "$1" "${2-}"
+        _sp_llm_model_analysis="$2"
+        shift 2
+        ;;
+      --llm-model-diagnosis)
+        require_arg "$1" "${2-}"
+        _sp_llm_model_diagnosis="$2"
+        shift 2
+        ;;
+      --llm-model-remediation)
+        require_arg "$1" "${2-}"
+        _sp_llm_model_remediation="$2"
+        shift 2
+        ;;
       --skip-redeploy)
         _sp_skip_redeploy="1"
         shift
@@ -946,7 +961,7 @@ _persist_parse_args() {
 
 _persist_validate() {
   # Check that the flag combination is valid and normalize values.
-  if [[ "$_sp_from_settings" != "1" && "$_sp_clear_repos" != "1" && "$_sp_clear_mcp_repo_allowlist" != "1" && -z "${_sp_repos_csv:-}" && -z "${_sp_heal_mode:-}" && -z "${_sp_auto_create_pr:-}" && -z "${_sp_max_remediation_attempts:-}" && -z "${_sp_pipeline_step_timeout_seconds:-}" && -z "${_sp_external_diagnostics_wait_seconds:-}" && -z "${_sp_external_diagnostics_poll_interval_seconds:-}" && -z "${_sp_gh_aw_tools_enabled:-}" && -z "${_sp_gh_aw_ingestion_mode:-}" && -z "${_sp_gh_aw_known_workflows:-}" && -z "${_sp_mcp_enabled:-}" && -z "${_sp_mcp_provider:-}" && -z "${_sp_mcp_read_only:-}" && -z "${_sp_mcp_timeout_seconds:-}" && -z "${_sp_mcp_max_retries:-}" && -z "${_sp_mcp_tool_policies:-}" && -z "${_sp_mcp_repo_allowlist:-}" && -z "${_sp_azure_openai_deployment_name:-}" ]]; then
+  if [[ "$_sp_from_settings" != "1" && "$_sp_clear_repos" != "1" && "$_sp_clear_mcp_repo_allowlist" != "1" && -z "${_sp_repos_csv:-}" && -z "${_sp_heal_mode:-}" && -z "${_sp_auto_create_pr:-}" && -z "${_sp_max_remediation_attempts:-}" && -z "${_sp_pipeline_step_timeout_seconds:-}" && -z "${_sp_external_diagnostics_wait_seconds:-}" && -z "${_sp_external_diagnostics_poll_interval_seconds:-}" && -z "${_sp_gh_aw_tools_enabled:-}" && -z "${_sp_gh_aw_ingestion_mode:-}" && -z "${_sp_gh_aw_known_workflows:-}" && -z "${_sp_mcp_enabled:-}" && -z "${_sp_mcp_provider:-}" && -z "${_sp_mcp_read_only:-}" && -z "${_sp_mcp_timeout_seconds:-}" && -z "${_sp_mcp_max_retries:-}" && -z "${_sp_mcp_tool_policies:-}" && -z "${_sp_mcp_repo_allowlist:-}" && -z "${_sp_azure_openai_deployment_name:-}" && -z "${_sp_llm_model_analysis:-}" && -z "${_sp_llm_model_diagnosis:-}" && -z "${_sp_llm_model_remediation:-}" ]]; then
     echo "Usage: bash scripts/ph.sh settings:persist --from-settings [--skip-redeploy]" >&2
     echo "   or: bash scripts/ph.sh settings:persist <flags...> [--skip-redeploy]" >&2
     echo "" >&2
@@ -959,12 +974,13 @@ _persist_validate() {
     echo "  --mcp-read-only true|false  --mcp-timeout-seconds N  --mcp-max-retries N" >&2
     echo "  --mcp-tool-policies \"tool=mode,tool2=mode\"  --mcp-repo-allowlist CSV  --clear-mcp-repo-allowlist" >&2
     echo "  --azure-openai-deployment-name NAME" >&2
+    echo "  --llm-model-analysis NAME  --llm-model-diagnosis NAME  --llm-model-remediation NAME" >&2
     exit 2
   fi
 
   if [[ "$_sp_from_settings" == "1" ]]; then
     local has_direct="0"
-    [[ "$_sp_clear_repos" == "1" || -n "${_sp_repos_csv:-}" || -n "${_sp_gh_aw_tools_enabled:-}" || -n "${_sp_gh_aw_ingestion_mode:-}" || -n "${_sp_gh_aw_known_workflows:-}" || -n "${_sp_external_diagnostics_wait_seconds:-}" || -n "${_sp_external_diagnostics_poll_interval_seconds:-}" || -n "${_sp_mcp_enabled:-}" || -n "${_sp_mcp_provider:-}" || -n "${_sp_mcp_read_only:-}" || -n "${_sp_mcp_timeout_seconds:-}" || -n "${_sp_mcp_max_retries:-}" || -n "${_sp_mcp_tool_policies:-}" || -n "${_sp_mcp_repo_allowlist:-}" || "$_sp_clear_mcp_repo_allowlist" == "1" || -n "${_sp_azure_openai_deployment_name:-}" || -n "${_sp_heal_mode:-}" || -n "${_sp_auto_create_pr:-}" || -n "${_sp_max_remediation_attempts:-}" || -n "${_sp_pipeline_step_timeout_seconds:-}" ]] && has_direct="1"
+    [[ "$_sp_clear_repos" == "1" || -n "${_sp_repos_csv:-}" || -n "${_sp_gh_aw_tools_enabled:-}" || -n "${_sp_gh_aw_ingestion_mode:-}" || -n "${_sp_gh_aw_known_workflows:-}" || -n "${_sp_external_diagnostics_wait_seconds:-}" || -n "${_sp_external_diagnostics_poll_interval_seconds:-}" || -n "${_sp_mcp_enabled:-}" || -n "${_sp_mcp_provider:-}" || -n "${_sp_mcp_read_only:-}" || -n "${_sp_mcp_timeout_seconds:-}" || -n "${_sp_mcp_max_retries:-}" || -n "${_sp_mcp_tool_policies:-}" || -n "${_sp_mcp_repo_allowlist:-}" || "$_sp_clear_mcp_repo_allowlist" == "1" || -n "${_sp_azure_openai_deployment_name:-}" || -n "${_sp_llm_model_analysis:-}" || -n "${_sp_llm_model_diagnosis:-}" || -n "${_sp_llm_model_remediation:-}" || -n "${_sp_heal_mode:-}" || -n "${_sp_auto_create_pr:-}" || -n "${_sp_max_remediation_attempts:-}" || -n "${_sp_pipeline_step_timeout_seconds:-}" ]] && has_direct="1"
     if [[ "$has_direct" == "1" ]]; then
       echo "Use --from-settings by itself (optionally with --skip-redeploy)." >&2
       exit 2
@@ -1104,6 +1120,9 @@ _persist_hydrate_from_live() {
   )"
   _sp_mcp_repo_allowlist="$(echo "$settings_json" | jq -r '.mcp_repo_allowlist | join(",")')"
   _sp_azure_openai_deployment_name="$(echo "$settings_json" | jq -r '.azure_openai_deployment_name')"
+  _sp_llm_model_analysis="$(echo "$settings_json" | jq -r '.llm_model_analysis // ""')"
+  _sp_llm_model_diagnosis="$(echo "$settings_json" | jq -r '.llm_model_diagnosis // ""')"
+  _sp_llm_model_remediation="$(echo "$settings_json" | jq -r '.llm_model_remediation // ""')"
 }
 
 _try_read_auth_keys() {
@@ -1140,6 +1159,9 @@ _persist_build_patch_payload_json() {
   SP_MCP_REPO_ALLOWLIST="${_sp_mcp_repo_allowlist:-}" \
   SP_CLEAR_MCP_REPO_ALLOWLIST="${_sp_clear_mcp_repo_allowlist:-0}" \
   SP_AZURE_OPENAI_DEPLOYMENT_NAME="${_sp_azure_openai_deployment_name:-}" \
+  SP_LLM_MODEL_ANALYSIS="${_sp_llm_model_analysis:-}" \
+  SP_LLM_MODEL_DIAGNOSIS="${_sp_llm_model_diagnosis:-}" \
+  SP_LLM_MODEL_REMEDIATION="${_sp_llm_model_remediation:-}" \
   python3 - <<'PY'
 import json
 import os
@@ -1268,6 +1290,18 @@ if os.getenv("SP_CLEAR_MCP_REPO_ALLOWLIST", "0") == "1" or mcp_repo_allowlist_ra
 deployment_name = (os.getenv("SP_AZURE_OPENAI_DEPLOYMENT_NAME", "") or "").strip()
 if deployment_name:
     payload["azure_openai_deployment_name"] = deployment_name
+
+llm_model_analysis = (os.getenv("SP_LLM_MODEL_ANALYSIS", "") or "").strip()
+if llm_model_analysis:
+    payload["llm_model_analysis"] = llm_model_analysis
+
+llm_model_diagnosis = (os.getenv("SP_LLM_MODEL_DIAGNOSIS", "") or "").strip()
+if llm_model_diagnosis:
+    payload["llm_model_diagnosis"] = llm_model_diagnosis
+
+llm_model_remediation = (os.getenv("SP_LLM_MODEL_REMEDIATION", "") or "").strip()
+if llm_model_remediation:
+    payload["llm_model_remediation"] = llm_model_remediation
 
 print(json.dumps(payload, separators=(",", ":")))
 PY
@@ -1406,6 +1440,15 @@ _persist_write_env() {
   _write_if_set "GH_AW_KNOWN_WORKFLOWS" "$normalized_workflows"
 
   _write_if_set "AZURE_OPENAI_DEPLOYMENT_NAME" "${_sp_azure_openai_deployment_name:-}"
+  if [[ "$_sp_from_settings" == "1" ]]; then
+    upsert_env_key "LLM_MODEL_ANALYSIS" "${_sp_llm_model_analysis:-}"
+    upsert_env_key "LLM_MODEL_DIAGNOSIS" "${_sp_llm_model_diagnosis:-}"
+    upsert_env_key "LLM_MODEL_REMEDIATION" "${_sp_llm_model_remediation:-}"
+  else
+    _write_if_set "LLM_MODEL_ANALYSIS" "${_sp_llm_model_analysis:-}"
+    _write_if_set "LLM_MODEL_DIAGNOSIS" "${_sp_llm_model_diagnosis:-}"
+    _write_if_set "LLM_MODEL_REMEDIATION" "${_sp_llm_model_remediation:-}"
+  fi
 }
 
 _persist_print_summary() {
@@ -1440,6 +1483,9 @@ _persist_print_summary() {
     echo "  MCP_TOOL_POLICIES=${_sp_mcp_tool_policies:-<unchanged>}"
     echo "  MCP_REPO_ALLOWLIST=${_sp_mcp_repo_allowlist:-<unchanged>}"
     echo "  AZURE_OPENAI_DEPLOYMENT_NAME=${_sp_azure_openai_deployment_name:-<unchanged>}"
+    echo "  LLM_MODEL_ANALYSIS=${_sp_llm_model_analysis:-<empty>}"
+    echo "  LLM_MODEL_DIAGNOSIS=${_sp_llm_model_diagnosis:-<empty>}"
+    echo "  LLM_MODEL_REMEDIATION=${_sp_llm_model_remediation:-<empty>}"
   elif [[ "$_sp_clear_repos" == "1" ]]; then
     echo "Persisted PH_ALLOWED_REPOS=<empty> to backend/.env"
   else
@@ -1462,6 +1508,9 @@ _persist_print_summary() {
     [[ -n "${_sp_mcp_tool_policies:-}" ]] && echo "  MCP_TOOL_POLICIES=${_sp_mcp_tool_policies}"
     [[ -n "${_sp_mcp_repo_allowlist:-}" ]] && echo "  MCP_REPO_ALLOWLIST=${_sp_mcp_repo_allowlist}"
     [[ -n "${_sp_azure_openai_deployment_name:-}" ]] && echo "  AZURE_OPENAI_DEPLOYMENT_NAME=${_sp_azure_openai_deployment_name}"
+    [[ -n "${_sp_llm_model_analysis:-}" ]] && echo "  LLM_MODEL_ANALYSIS=${_sp_llm_model_analysis}"
+    [[ -n "${_sp_llm_model_diagnosis:-}" ]] && echo "  LLM_MODEL_DIAGNOSIS=${_sp_llm_model_diagnosis}"
+    [[ -n "${_sp_llm_model_remediation:-}" ]] && echo "  LLM_MODEL_REMEDIATION=${_sp_llm_model_remediation}"
   fi
 
   if [[ "$_sp_skip_redeploy" == "1" ]]; then
@@ -1489,6 +1538,9 @@ cmd_settings_persist() {
   _sp_mcp_repo_allowlist=""
   _sp_clear_mcp_repo_allowlist="0"
   _sp_azure_openai_deployment_name=""
+  _sp_llm_model_analysis=""
+  _sp_llm_model_diagnosis=""
+  _sp_llm_model_remediation=""
   _sp_heal_mode=""
   _sp_auto_create_pr=""
   _sp_auto_create_tracking_issue_for_prs=""

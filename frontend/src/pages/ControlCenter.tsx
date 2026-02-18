@@ -215,6 +215,33 @@ export default function ControlCenterPage() {
     return `${mcpWriteBlockedCount} write action(s) are blocked by policy.`
   })()
 
+  const providerDefaultModel = (() => {
+    if (!settings) return ''
+    return settings.llm_provider === 'azure_openai'
+      ? settings.azure_openai_deployment_name
+      : settings.openai_compatible_model
+  })()
+
+  const taskModelPreview = settings
+    ? [
+        {
+          key: 'analysis',
+          label: 'Analysis',
+          model: settings.llm_model_analysis || providerDefaultModel || 'Not configured',
+        },
+        {
+          key: 'diagnosis',
+          label: 'Diagnosis',
+          model: settings.llm_model_diagnosis || providerDefaultModel || 'Not configured',
+        },
+        {
+          key: 'remediation',
+          label: 'Remediation',
+          model: settings.llm_model_remediation || providerDefaultModel || 'Not configured',
+        },
+      ]
+    : []
+
   const logCommands = [
     'bash scripts/ph.sh logs',
     'bash scripts/ph.sh logs:grep --pattern "error|timeout|traceback"',
@@ -443,6 +470,41 @@ export default function ControlCenterPage() {
               </CardContent>
             </Card>
 
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Task Model Routing Preview</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
+                <p>
+                  Provider:{' '}
+                  <span className="font-medium text-[var(--ph-text)]">{settings.llm_provider}</span>
+                </p>
+                <p>
+                  Default model:{' '}
+                  <span className="font-medium text-[var(--ph-text)]">
+                    {providerDefaultModel || 'Not configured'}
+                  </span>
+                </p>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                  {taskModelPreview.map((task) => (
+                    <div
+                      key={task.key}
+                      className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3"
+                    >
+                      <div className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">
+                        {task.label}
+                      </div>
+                      <div className="mt-1 break-words font-mono text-xs text-[var(--ph-text)]">
+                        {task.model}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Learning Queue (Next Phase)</CardTitle>

@@ -52,6 +52,7 @@ class DiagnosisAgent:
                 name="Diagnosis",
                 instructions=get_agent_prompt("diagnosis"),
                 credential=self._credential,
+                task="diagnosis",
                 settings=self._settings,
             )
 

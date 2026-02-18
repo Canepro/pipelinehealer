@@ -1,6 +1,6 @@
 from pydantic import ValidationError
 
-from src.agents.base import NoopAgent, create_cloud_agent
+from src.agents.base import NoopAgent, _resolve_model_for_task, create_cloud_agent
 from src.config import Settings
 from src.llm.providers import LLMProviderName, resolve_llm_provider
 
@@ -59,3 +59,51 @@ def test_create_cloud_agent_openai_compatible_without_required_config_returns_no
         settings=settings,
     )
     assert isinstance(agent, NoopAgent)
+
+
+def test_resolve_model_for_task_uses_task_override_first() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="azure_openai",
+        azure_openai_deployment_name="gpt-5-mini",
+        llm_model_analysis="gpt-5-mini-fast",
+    )
+    model = _resolve_model_for_task(
+        settings=settings,
+        provider=LLMProviderName.AZURE_OPENAI,
+        task="analysis",
+    )
+    assert model == "gpt-5-mini-fast"
+
+
+def test_resolve_model_for_task_falls_back_to_provider_default() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="openai_compatible",
+        openai_compatible_model="gpt-4o-mini",
+    )
+    model = _resolve_model_for_task(
+        settings=settings,
+        provider=LLMProviderName.OPENAI_COMPATIBLE,
+        task="diagnosis",
+    )
+    assert model == "gpt-4o-mini"
+
+
+def test_create_cloud_agent_openai_compatible_accepts_task_override_model() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="openai_compatible",
+        openai_compatible_base_url="https://api.openai.com/v1",
+        openai_compatible_api_key="test-key",
+        openai_compatible_model="",
+        llm_model_analysis="gpt-4o-mini",
+    )
+    agent = create_cloud_agent(
+        name="Test",
+        instructions="test",
+        credential=None,  # type: ignore[arg-type]
+        task="analysis",
+        settings=settings,
+    )
+    assert not isinstance(agent, NoopAgent)

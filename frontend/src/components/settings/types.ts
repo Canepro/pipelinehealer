@@ -4,6 +4,9 @@ export type SettingsFormState = {
   llm_provider: 'azure_openai' | 'openai_compatible' | 'custom'
   openai_compatible_base_url: string
   openai_compatible_model: string
+  llm_model_analysis: string
+  llm_model_diagnosis: string
+  llm_model_remediation: string
   mcp_enabled: boolean
   mcp_provider: 'disabled' | 'github' | 'azure_monitor' | 'custom'
   mcp_read_only: boolean
@@ -68,6 +71,9 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
         : 'azure_openai',
   openai_compatible_base_url: data.openai_compatible_base_url ?? '',
   openai_compatible_model: data.openai_compatible_model ?? '',
+  llm_model_analysis: data.llm_model_analysis ?? '',
+  llm_model_diagnosis: data.llm_model_diagnosis ?? '',
+  llm_model_remediation: data.llm_model_remediation ?? '',
   mcp_enabled: data.mcp_enabled ?? false,
   mcp_provider:
     data.mcp_provider === 'github'
@@ -186,6 +192,12 @@ export const SETTING_DESCRIPTIONS: Record<string, string> = {
     'Base URL for an OpenAI-compatible provider endpoint (example: https://api.openai.com/v1).',
   openai_compatible_model:
     'Model name used when llm_provider=openai_compatible.',
+  llm_model_analysis:
+    'Optional override model/deployment for analysis tasks. Leave empty to use provider default model.',
+  llm_model_diagnosis:
+    'Optional override model/deployment for diagnosis tasks. Leave empty to use provider default model.',
+  llm_model_remediation:
+    'Optional override model/deployment for remediation tasks. Leave empty to use provider default model.',
   mcp_enabled:
     'Enable MCP integration hooks for external tool-provider adapters.',
   mcp_provider:

@@ -58,6 +58,7 @@ class RemediationAgent:
                 name="Remediation",
                 instructions=get_agent_prompt("remediation"),
                 credential=self._credential,
+                task="remediation",
                 settings=self._settings,
             )
 

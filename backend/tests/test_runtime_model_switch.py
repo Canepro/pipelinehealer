@@ -33,14 +33,30 @@ async def test_orchestrator_refresh_rebuilds_cached_agents_with_new_deployment(m
 
     sequence = 0
 
-    def _fake_create_cloud_agent(*, name, instructions, credential, settings=None):  # type: ignore[no-untyped-def]
+    def _fake_create_cloud_agent(  # type: ignore[no-untyped-def]
+        *,
+        name,
+        instructions,
+        credential,
+        task="default",
+        settings=None,
+    ):
         _ = instructions, credential
         nonlocal sequence
         sequence += 1
+        override_by_task = {
+            "analysis": "llm_model_analysis",
+            "diagnosis": "llm_model_diagnosis",
+            "remediation": "llm_model_remediation",
+        }
+        override_key = override_by_task.get(task, "")
+        override = getattr(settings, override_key, "") if override_key else ""
+        deployment = override or getattr(settings, "azure_openai_deployment_name", "")
         return {
             "seq": sequence,
             "name": name,
-            "deployment": getattr(settings, "azure_openai_deployment_name", ""),
+            "task": task,
+            "deployment": deployment,
         }
 
     monkeypatch.setattr("src.agents.log_analyzer.create_cloud_agent", _fake_create_cloud_agent)
@@ -95,9 +111,23 @@ async def test_log_analysis_uses_new_deployment_after_refresh(monkeypatch) -> No
             _ = prompt
             return f"deployment={self._deployment}"
 
-    def _fake_create_cloud_agent(*, name, instructions, credential, settings=None):  # type: ignore[no-untyped-def]
+    def _fake_create_cloud_agent(  # type: ignore[no-untyped-def]
+        *,
+        name,
+        instructions,
+        credential,
+        task="default",
+        settings=None,
+    ):
         _ = name, instructions, credential
-        deployment = getattr(settings, "azure_openai_deployment_name", "")
+        override_by_task = {
+            "analysis": "llm_model_analysis",
+            "diagnosis": "llm_model_diagnosis",
+            "remediation": "llm_model_remediation",
+        }
+        override_key = override_by_task.get(task, "")
+        override = getattr(settings, override_key, "") if override_key else ""
+        deployment = override or getattr(settings, "azure_openai_deployment_name", "")
         return _FakeAgent(deployment=deployment)
 
     monkeypatch.setattr("src.agents.log_analyzer.create_cloud_agent", _fake_create_cloud_agent)
@@ -114,3 +144,55 @@ async def test_log_analysis_uses_new_deployment_after_refresh(monkeypatch) -> No
 
     assert switched
     assert "deployment=gpt-5-pro" in switched[0].summary
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_uses_task_model_overrides(monkeypatch) -> None:
+    monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-mini")
+    monkeypatch.setenv("LLM_MODEL_ANALYSIS", "gpt-5-mini-analysis")
+    monkeypatch.setenv("LLM_MODEL_DIAGNOSIS", "gpt-5-mini-diagnosis")
+    monkeypatch.setenv("LLM_MODEL_REMEDIATION", "gpt-5-mini-remediation")
+    reset_settings()
+
+    def _fake_create_cloud_agent(  # type: ignore[no-untyped-def]
+        *,
+        name,
+        instructions,
+        credential,
+        task="default",
+        settings=None,
+    ):
+        _ = instructions, credential
+        override_by_task = {
+            "analysis": "llm_model_analysis",
+            "diagnosis": "llm_model_diagnosis",
+            "remediation": "llm_model_remediation",
+        }
+        override_key = override_by_task.get(task, "")
+        override = getattr(settings, override_key, "") if override_key else ""
+        deployment = override or getattr(settings, "azure_openai_deployment_name", "")
+        return {"name": name, "task": task, "deployment": deployment}
+
+    monkeypatch.setattr("src.agents.log_analyzer.create_cloud_agent", _fake_create_cloud_agent)
+    monkeypatch.setattr("src.agents.diagnosis.create_cloud_agent", _fake_create_cloud_agent)
+    monkeypatch.setattr("src.agents.remediation.create_cloud_agent", _fake_create_cloud_agent)
+    monkeypatch.setattr("src.agents.orchestrator.create_cloud_agent", _fake_create_cloud_agent)
+
+    orchestrator = OrchestratorAgent(  # type: ignore[arg-type]
+        github_tools=_DummyGitHubTools(),
+        storage=InMemoryStorage(),
+    )
+
+    orchestrator_agent = await orchestrator._get_agent()
+    log_agent = await orchestrator._log_analyzer._get_agent()
+    diagnosis_agent = await orchestrator._diagnosis_agent._get_agent()
+    remediation_agent = await orchestrator._remediation_agent._get_agent()
+
+    assert orchestrator_agent["task"] == "orchestrator"
+    assert orchestrator_agent["deployment"] == "gpt-5-mini"
+    assert log_agent["task"] == "analysis"
+    assert log_agent["deployment"] == "gpt-5-mini-analysis"
+    assert diagnosis_agent["task"] == "diagnosis"
+    assert diagnosis_agent["deployment"] == "gpt-5-mini-diagnosis"
+    assert remediation_agent["task"] == "remediation"
+    assert remediation_agent["deployment"] == "gpt-5-mini-remediation"

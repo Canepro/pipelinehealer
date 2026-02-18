@@ -46,6 +46,7 @@ Use this to answer:
 - which model path handled this run?
 - did fallback occur?
 - was there latency/error pressure?
+- if task overrides are configured, did the expected task model/deployment execute?
 
 ## MCP Observability
 

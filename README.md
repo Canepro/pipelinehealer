@@ -24,6 +24,7 @@ CI failures create repetitive triage work. PipelineHealer shortens time-to-under
 - explainability (`diagnosis_source`, reason codes, evidence)
 - universal failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
 - artifact idempotency (find-or-create PR/issue reuse)
+- task-level model routing (`analysis`, `diagnosis`, `remediation`) with provider-default fallback
 
 This repository is the hackathon build, but designed for long-term production evolution.
 

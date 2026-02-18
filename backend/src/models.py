@@ -317,6 +317,9 @@ class AppSettingsView(BaseModel):
     llm_provider: str
     openai_compatible_base_url: str
     openai_compatible_model: str
+    llm_model_analysis: str
+    llm_model_diagnosis: str
+    llm_model_remediation: str
     openai_compatible_api_key_configured: bool
     mcp_enabled: bool
     mcp_provider: str
@@ -357,6 +360,9 @@ class AdminSettingsUpdateRequest(BaseModel):
     llm_provider: str | None = None
     openai_compatible_base_url: str | None = None
     openai_compatible_model: str | None = None
+    llm_model_analysis: str | None = None
+    llm_model_diagnosis: str | None = None
+    llm_model_remediation: str | None = None
     mcp_enabled: bool | None = None
     mcp_provider: str | None = None
     mcp_read_only: bool | None = None

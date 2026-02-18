@@ -10,6 +10,7 @@ This guide explains runtime controls, persistence behavior, and governance guard
 - Runtime vs persisted settings
 - Admin audit trail
 - Guardrails for repos, retries, and MCP tool policy
+- Task-level model routing overrides (`analysis`, `diagnosis`, `remediation`)
 
 ## Quick Start
 
@@ -48,6 +49,7 @@ Per-tool policy values:
 
 Current tool keys:
 - `fetch_failure_context`
+- `fetch_runbook_context`
 - `publish_artifact`
 - `rerun_pipeline`
 
@@ -64,6 +66,17 @@ Recommended baseline:
 Best practice:
 - use explicit owner/repo allowlists.
 - avoid wildcard/global scope in shared environments.
+
+## Task Model Routing
+
+Optional runtime settings:
+- `llm_model_analysis`
+- `llm_model_diagnosis`
+- `llm_model_remediation`
+
+Behavior:
+- If a task override is set, that model/deployment is used for the task.
+- If empty, PipelineHealer falls back to the provider default model (`azure_openai_deployment_name` or `openai_compatible_model`).
 
 ## Audit Trail
 

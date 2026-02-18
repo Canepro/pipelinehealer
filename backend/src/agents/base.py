@@ -4,7 +4,7 @@ import asyncio
 import logging
 import random
 import time
-from typing import Any
+from typing import Any, Literal
 
 from azure.identity import DefaultAzureCredential
 
@@ -14,6 +14,8 @@ from ..llm.providers import LLMProviderName, resolve_llm_provider
 from ..llm.telemetry import record_llm_call
 
 logger = logging.getLogger(__name__)
+
+LLMTaskName = Literal["default", "analysis", "diagnosis", "remediation", "orchestrator"]
 
 # Retry settings for transient LLM errors (429, 5xx, network).
 _LLM_MAX_RETRIES = 3
@@ -171,6 +173,27 @@ class ObservedAgent:
             )
 
 
+def _resolve_model_for_task(*, settings: Any, provider: LLMProviderName, task: LLMTaskName) -> str:
+    """Resolve effective model/deployment for a task with fallback to provider default."""
+    override_attr_by_task: dict[LLMTaskName, str] = {
+        "analysis": "llm_model_analysis",
+        "diagnosis": "llm_model_diagnosis",
+        "remediation": "llm_model_remediation",
+        "default": "",
+        "orchestrator": "",
+    }
+    override_attr = override_attr_by_task.get(task, "")
+    override_value = (
+        str(getattr(settings, override_attr, "") or "").strip() if override_attr else ""
+    )
+    if override_value:
+        return override_value
+
+    if provider == LLMProviderName.OPENAI_COMPATIBLE:
+        return str(getattr(settings, "openai_compatible_model", "") or "").strip()
+    return str(getattr(settings, "azure_openai_deployment_name", "") or "").strip()
+
+
 def _as_agent_compat(client: Any, *, name: str, instructions: str) -> Any:
     """Build an agent from a client across Agent Framework versions.
 
@@ -212,6 +235,7 @@ def create_cloud_agent(
     name: str,
     instructions: str,
     credential: DefaultAzureCredential,
+    task: LLMTaskName = "default",
     settings: Any = None,
 ) -> Any:
     """Create an agent-framework ChatAgent from current settings."""
@@ -219,15 +243,20 @@ def create_cloud_agent(
         settings = get_settings()
 
     provider = resolve_llm_provider(getattr(settings, "llm_provider", "azure_openai"))
+    effective_model = _resolve_model_for_task(
+        settings=settings,
+        provider=provider,
+        task=task,
+    )
     if provider == LLMProviderName.OPENAI_COMPATIBLE:
         base_url = getattr(settings, "openai_compatible_base_url", "") or ""
         api_key = getattr(settings, "openai_compatible_api_key", "") or ""
-        model = getattr(settings, "openai_compatible_model", "") or ""
+        model = effective_model
         if not (base_url and api_key and model):
             logger.warning(
                 "OpenAI-compatible provider selected but missing config; "
                 "OPENAI_COMPATIBLE_BASE_URL, OPENAI_COMPATIBLE_API_KEY, and "
-                "OPENAI_COMPATIBLE_MODEL are required. Falling back to NoopAgent."
+                "a task/default model are required. Falling back to NoopAgent."
             )
             return NoopAgent()
         return ObservedAgent(
@@ -251,13 +280,13 @@ def create_cloud_agent(
         name=name,
         instructions=instructions,
         credential=credential,
+        deployment_name=effective_model,
         settings=settings,
     )
-    deployment_name = getattr(settings, "azure_openai_deployment_name", "") or "unknown"
     return ObservedAgent(
         agent=azure_agent,
         provider=provider.value,
-        model=deployment_name,
+        model=effective_model or "unknown",
     )
 
 
@@ -266,6 +295,7 @@ def _create_azure_cloud_agent(
     name: str,
     instructions: str,
     credential: DefaultAzureCredential,
+    deployment_name: str | None = None,
     settings: Any = None,
 ) -> Any:
     """Create an agent-framework ChatAgent from current settings.
@@ -278,7 +308,7 @@ def _create_azure_cloud_agent(
         settings = get_settings()
 
     endpoint = getattr(settings, "azure_openai_endpoint", "") or ""
-    deployment_name = getattr(settings, "azure_openai_deployment_name", "") or ""
+    resolved_deployment_name = deployment_name or getattr(settings, "azure_openai_deployment_name", "") or ""
     api_version = getattr(settings, "azure_openai_api_version", "") or ""
     chat_api_version = getattr(settings, "azure_openai_chat_api_version", "") or ""
     api_key = getattr(settings, "azure_openai_api_key", "") or ""
@@ -300,7 +330,7 @@ def _create_azure_cloud_agent(
 
         foundry_chat_client: Any = AzureOpenAIChatClient(
             endpoint=endpoint,
-            deployment_name=deployment_name,
+            deployment_name=resolved_deployment_name,
             api_version=effective_chat_version or None,
             api_key=api_key or None,
             credential=credential,
@@ -315,7 +345,7 @@ def _create_azure_cloud_agent(
 
     responses_client: Any = AzureOpenAIResponsesClient(
         endpoint=endpoint,
-        deployment_name=deployment_name,
+        deployment_name=resolved_deployment_name,
         api_version=responses_api_version,
         api_key=api_key or None,
         credential=credential,
@@ -327,7 +357,7 @@ def _create_azure_cloud_agent(
     fallback_chat_version = chat_api_version or api_version
     fallback_chat_client: Any = AzureOpenAIChatClient(
         endpoint=endpoint,
-        deployment_name=deployment_name,
+        deployment_name=resolved_deployment_name,
         api_version=fallback_chat_version,
         api_key=api_key or None,
         credential=credential,
