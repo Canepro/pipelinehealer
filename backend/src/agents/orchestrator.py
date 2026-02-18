@@ -1,6 +1,8 @@
 """Orchestrator Agent for coordinating the healing pipeline."""
 
 import asyncio
+import base64
+import binascii
 import hashlib
 import json
 import logging
@@ -48,10 +50,18 @@ T = TypeVar("T")
 _MCP_TOOL_POLICY_VALUES = {"disabled", "read_only", "write_with_approval", "auto"}
 _MCP_DEFAULT_TOOL_POLICIES = {
     "fetch_failure_context": "read_only",
+    "fetch_runbook_context": "read_only",
     "publish_artifact": "write_with_approval",
     "rerun_pipeline": "write_with_approval",
 }
 _MCP_WRITE_TOOLS = {"publish_artifact", "rerun_pipeline"}
+_MCP_RUNBOOK_PATH_PREFERENCE = (
+    "docs/local_demo_runbook.md",
+    "docs/runbook.md",
+    "docs/troubleshooting.md",
+    "docs/ci_runbook.md",
+    "readme.md",
+)
 
 
 def _build_external_diagnostics_poll_delays(
@@ -91,6 +101,86 @@ def _build_source_attribution(
 def _count_error_diagnostics(diagnostics: list[ExternalDiagnostic]) -> int:
     """Count external diagnostic entries that represent collection errors."""
     return sum(1 for diagnostic in diagnostics if diagnostic.status == ExternalDiagnosticStatus.ERROR)
+
+
+def _decode_github_file_content(payload: dict[str, Any]) -> str:
+    """Decode GitHub contents API payload into UTF-8 text."""
+    content = payload.get("content")
+    if not isinstance(content, str) or not content.strip():
+        return ""
+    encoding = str(payload.get("encoding", "")).strip().lower()
+    if encoding == "base64":
+        compact = "".join(content.splitlines())
+        try:
+            return base64.b64decode(compact).decode("utf-8", errors="replace")
+        except (binascii.Error, ValueError):
+            return ""
+    return content
+
+
+def _select_runbook_path(tree_entries: list[dict[str, Any]]) -> str | None:
+    """Pick the best runbook-like markdown path from repository tree entries."""
+    candidate_paths: list[str] = []
+    for entry in tree_entries:
+        if not isinstance(entry, dict):
+            continue
+        if str(entry.get("type", "")).strip().lower() != "blob":
+            continue
+        raw_path = entry.get("path")
+        if not isinstance(raw_path, str):
+            continue
+        normalized = raw_path.strip()
+        if not normalized:
+            continue
+        lower = normalized.lower()
+        if not lower.endswith(".md"):
+            continue
+        if (
+            "runbook" in lower
+            or "troubleshoot" in lower
+            or "incident" in lower
+            or lower == "readme.md"
+        ):
+            candidate_paths.append(normalized)
+
+    if not candidate_paths:
+        return None
+
+    by_lower = {path.lower(): path for path in candidate_paths}
+    for preferred in _MCP_RUNBOOK_PATH_PREFERENCE:
+        resolved = by_lower.get(preferred)
+        if resolved:
+            return resolved
+    return sorted(candidate_paths)[0]
+
+
+def _build_runbook_excerpt(content: str, workflow_name: str | None = None) -> str:
+    """Build a concise runbook excerpt with keyword-biased lines first."""
+    lines = [line.strip() for line in content.splitlines() if line.strip()]
+    if not lines:
+        return ""
+
+    tokens = {
+        token
+        for token in re.split(r"[^a-z0-9]+", (workflow_name or "").lower())
+        if len(token) >= 4
+    }
+    selected: list[str] = []
+    if tokens:
+        for line in lines:
+            lower = line.lower()
+            if any(token in lower for token in tokens):
+                selected.append(line)
+            if len(selected) >= 8:
+                break
+
+    if not selected:
+        selected = lines[:8]
+
+    excerpt = "\n".join(selected)
+    if len(excerpt) > 900:
+        excerpt = excerpt[:897].rstrip() + "..."
+    return excerpt
 
 
 class OrchestratorAgent:
@@ -333,6 +423,9 @@ class OrchestratorAgent:
         tool_name: str,
         payload: dict[str, Any],
         result: str,
+        latency_ms: float = 0.0,
+        success: bool = False,
+        error_class: str | None = None,
     ) -> None:
         """Attach one MCP action audit entry to activity model-path metadata."""
         model_path = activity.mcp_model_path
@@ -341,12 +434,20 @@ class OrchestratorAgent:
         model_path.action_audit.append(
             MCPActionAuditEntry(
                 actor=f"orchestrator:{activity.repository_name}",
+                provider=model_path.provider or "unknown",
                 tool=(tool_name or "unknown").strip().lower(),
                 payload_hash=self._payload_hash(payload),
                 result=result,
                 request_id=activity.id,
+                latency_ms=round(max(0.0, float(latency_ms)), 2),
+                success=success,
+                error_class=error_class,
             )
         )
+        if latency_ms > 0:
+            model_path.total_latency_ms = round(
+                float(model_path.total_latency_ms) + float(latency_ms), 2
+            )
         if len(model_path.action_audit) > 100:
             model_path.action_audit = model_path.action_audit[-100:]
 
@@ -402,30 +503,43 @@ class OrchestratorAgent:
         max_attempts = max(1, int(self._settings.mcp_max_retries) + 1)
         last_error: Exception | None = None
         for attempt in range(1, max_attempts + 1):
+            self._increment_mcp_tool_invocation(activity, tool_name=tool_name)
+            started = time.monotonic()
             try:
                 result = await asyncio.wait_for(operation_factory(), timeout_seconds)
+                latency_ms = (time.monotonic() - started) * 1000.0
                 self._record_mcp_action_audit(
                     activity,
                     tool_name=tool_name,
                     payload=payload,
                     result=f"success:attempt_{attempt}",
+                    latency_ms=latency_ms,
+                    success=True,
                 )
                 return result
             except TimeoutError as exc:
                 last_error = exc
+                latency_ms = (time.monotonic() - started) * 1000.0
                 self._record_mcp_action_audit(
                     activity,
                     tool_name=tool_name,
                     payload=payload,
                     result=f"timeout:attempt_{attempt}",
+                    latency_ms=latency_ms,
+                    success=False,
+                    error_class=type(exc).__name__,
                 )
             except Exception as exc:  # pragma: no cover - defensive + provider variability
                 last_error = exc
+                latency_ms = (time.monotonic() - started) * 1000.0
                 self._record_mcp_action_audit(
                     activity,
                     tool_name=tool_name,
                     payload=payload,
                     result=f"error:{type(exc).__name__}:attempt_{attempt}",
+                    latency_ms=latency_ms,
+                    success=False,
+                    error_class=type(exc).__name__,
                 )
             if attempt < max_attempts:
                 await asyncio.sleep(0)
@@ -483,32 +597,109 @@ class OrchestratorAgent:
             return False, health.reason
         return True, "ok"
 
-    @staticmethod
-    def _has_github_mcp_diagnostic(
-        diagnostics: list[ExternalDiagnostic],
-    ) -> bool:
-        """Check if diagnostics contain entries from the direct GitHub MCP path."""
-        return any(
-            (diagnostic.source or "").strip().lower() == "github-mcp"
-            and diagnostic.status in {ExternalDiagnosticStatus.AVAILABLE, ExternalDiagnosticStatus.ERROR}
-            for diagnostic in diagnostics
-        )
-
-    def _should_count_fetch_failure_context(
+    async def _collect_runbook_context_from_github_mcp(
         self,
         activity: ActivityRecord,
-        diagnostics: list[ExternalDiagnostic],
-    ) -> bool:
-        """Decide whether fetch_failure_context should be counted for this run."""
-        model_path = activity.mcp_model_path
-        if model_path is None:
-            return False
-        if not model_path.enabled or model_path.provider != "github":
-            return False
-        if self._has_github_mcp_diagnostic(diagnostics):
-            return True
-        # gh-aw passive diagnostics are also a GitHub context fetch path.
-        return self._gh_aw_passive_enabled() and bool(diagnostics)
+        *,
+        owner: str,
+        repo: str,
+        event: WorkflowRunEvent,
+    ) -> list[ExternalDiagnostic]:
+        """Collect runbook/knowledge context from repository markdown docs via MCP."""
+        run_id = event.workflow_run.id
+        payload_base = {"owner": owner, "repo": repo, "run_id": run_id}
+        allowed, reason = self._check_mcp_tool_policy(
+            activity,
+            owner=owner,
+            repo=repo,
+            tool_name="fetch_runbook_context",
+            default_branch=event.repository.default_branch,
+        )
+        if not allowed:
+            self._record_mcp_action_audit(
+                activity,
+                tool_name="fetch_runbook_context",
+                payload={**payload_base, "operation": "policy_check"},
+                result=f"blocked:{reason}",
+            )
+            return []
+
+        try:
+            tree_entries = await self._run_mcp_tool_call(
+                activity,
+                tool_name="fetch_runbook_context",
+                payload={**payload_base, "operation": "get_repository_tree"},
+                operation_factory=partial(
+                    self._github_tools.get_repository_tree,
+                    owner,
+                    repo,
+                    "HEAD",
+                    True,
+                ),
+            )
+        except Exception:
+            logger.debug(
+                "GitHub MCP runbook lookup failed while reading repository tree for %s/%s",
+                owner,
+                repo,
+                exc_info=True,
+            )
+            return []
+
+        runbook_path = _select_runbook_path(tree_entries)
+        if not runbook_path:
+            return []
+
+        try:
+            runbook_payload = await self._run_mcp_tool_call(
+                activity,
+                tool_name="fetch_runbook_context",
+                payload={
+                    **payload_base,
+                    "operation": "get_file_contents",
+                    "path": runbook_path,
+                },
+                operation_factory=partial(
+                    self._github_tools.get_file_contents,
+                    owner,
+                    repo,
+                    runbook_path,
+                ),
+            )
+        except Exception:
+            logger.debug(
+                "GitHub MCP runbook lookup failed while reading %s/%s:%s",
+                owner,
+                repo,
+                runbook_path,
+                exc_info=True,
+            )
+            return []
+
+        runbook_content = _decode_github_file_content(runbook_payload)
+        runbook_excerpt = _build_runbook_excerpt(runbook_content, event.workflow_run.name)
+        if not runbook_excerpt:
+            return []
+
+        return [
+            ExternalDiagnostic(
+                source="knowledge-mcp",
+                status=ExternalDiagnosticStatus.AVAILABLE,
+                summary=f"Repository runbook context retrieved from {runbook_path}.",
+                matched_run_id=run_id,
+                confidence_delta=0.01,
+                metadata={
+                    "runbook_path": runbook_path,
+                    "details": {
+                        "summary": (
+                            f"Knowledge context loaded from `{runbook_path}` "
+                            "to support diagnosis guidance."
+                        ),
+                        "recommended_actions": runbook_excerpt,
+                    },
+                },
+            )
+        ]
 
     async def _collect_external_diagnostics_from_github_mcp(
         self,
@@ -655,7 +846,7 @@ class OrchestratorAgent:
                 + "\n".join(f"- {path}" for path in unique_changed_files[:12])
             )
 
-        return [
+        diagnostics: list[ExternalDiagnostic] = [
             ExternalDiagnostic(
                 source="github-mcp",
                 status=ExternalDiagnosticStatus.AVAILABLE,
@@ -688,6 +879,15 @@ class OrchestratorAgent:
                 },
             )
         ]
+        diagnostics.extend(
+            await self._collect_runbook_context_from_github_mcp(
+                activity,
+                owner=owner,
+                repo=repo,
+                event=event,
+            )
+        )
+        return diagnostics
 
     async def _collect_external_diagnostics(
         self,
@@ -1189,11 +1389,6 @@ class OrchestratorAgent:
             if external_diagnostics:
                 activity.external_diagnostics = external_diagnostics
             if activity.mcp_model_path is not None:
-                if self._should_count_fetch_failure_context(activity, external_diagnostics):
-                    self._increment_mcp_tool_invocation(
-                        activity,
-                        tool_name="fetch_failure_context",
-                    )
                 activity.mcp_model_path.source_attribution = _build_source_attribution(
                     external_diagnostics
                 )
@@ -1452,11 +1647,6 @@ class OrchestratorAgent:
             if d.metadata.get("reason_code") != "poll_window_exhausted"
         ] + findings
         if activity.mcp_model_path is not None:
-            if self._should_count_fetch_failure_context(activity, findings):
-                self._increment_mcp_tool_invocation(
-                    activity,
-                    tool_name="fetch_failure_context",
-                )
             activity.mcp_model_path.source_attribution = _build_source_attribution(
                 activity.external_diagnostics
             )

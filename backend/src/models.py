@@ -197,10 +197,14 @@ class MCPActionAuditEntry(BaseModel):
     """Audit record for one MCP tool-policy decision or invocation."""
 
     actor: str
+    provider: str = "unknown"
     tool: str
     payload_hash: str
     result: str
     request_id: str
+    latency_ms: float = 0.0
+    success: bool = False
+    error_class: str | None = None
 
 
 class MCPModelPath(BaseModel):
@@ -213,6 +217,7 @@ class MCPModelPath(BaseModel):
     reason: str = "disabled"
     configured_tools: list[str] = Field(default_factory=list)
     tool_invocations: dict[str, int] = Field(default_factory=dict)
+    total_latency_ms: float = 0.0
     source_attribution: dict[str, int] = Field(default_factory=dict)
     error_count: int = 0
     action_audit: list[MCPActionAuditEntry] = Field(default_factory=list)

@@ -32,6 +32,7 @@ export default function SettingsPage() {
     mcp_max_retries: 1,
     mcp_tool_policies: {
       fetch_failure_context: 'read_only',
+      fetch_runbook_context: 'read_only',
       publish_artifact: 'write_with_approval',
       rerun_pipeline: 'write_with_approval',
     },

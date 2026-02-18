@@ -76,6 +76,7 @@ class GitHubMCPProvider:
             message="GitHub MCP provider scaffolding is configured.",
             configured_tools=[
                 "fetch_failure_context",
+                "fetch_runbook_context",
                 "publish_artifact",
                 "rerun_pipeline",
             ],
@@ -142,4 +143,3 @@ def get_mcp_provider(settings: Settings) -> MCPToolProvider:
     if provider == "custom":
         return CustomMCPProvider()
     return DisabledMCPProvider()
-

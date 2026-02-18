@@ -41,4 +41,4 @@ def test_mcp_github_provider_health_ok_when_token_exists() -> None:
     assert health.available is True
     assert health.reason == "ok"
     assert "fetch_failure_context" in health.configured_tools
-
+    assert "fetch_runbook_context" in health.configured_tools

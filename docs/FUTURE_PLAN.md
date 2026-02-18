@@ -79,10 +79,10 @@ Definition of done for each phase:
 - Start with read-only MCP actions before write actions:
   - ~~diagnostics/context retrieval~~ (Done: GitHub MCP read-only run-context evidence path, decoupled from gh-aw toggles)
   - ~~incident metadata lookup~~ (Done: failing job/timed-out counts + related PR metadata + optional changed-file correlation in `github-mcp` evidence)
-  - knowledge/runbook retrieval
-- Add full audit attributes for MCP calls:
-  - provider, tool name, latency, success/failure, error class, request ID
-  - (In progress) per-activity MCP explainability now captures tool usage, source attribution, and confidence rationale
+  - ~~knowledge/runbook retrieval~~ (Done: read-only `fetch_runbook_context` path adds repository runbook context as `knowledge-mcp` evidence when available)
+- ~~Add full audit attributes for MCP calls:~~ (Done)
+  - ~~provider, tool name, latency, success/failure, error class, request ID~~
+  - ~~per-activity MCP explainability captures tool usage, source attribution, confidence rationale, and aggregate MCP latency~~
 
 Initial MCP providers to prioritize:
 

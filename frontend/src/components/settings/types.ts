@@ -89,6 +89,14 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
           : data.mcp_tool_policies?.fetch_failure_context === 'write_with_approval'
             ? 'write_with_approval'
             : 'read_only',
+    fetch_runbook_context:
+      data.mcp_tool_policies?.fetch_runbook_context === 'disabled'
+        ? 'disabled'
+        : data.mcp_tool_policies?.fetch_runbook_context === 'auto'
+          ? 'auto'
+          : data.mcp_tool_policies?.fetch_runbook_context === 'write_with_approval'
+            ? 'write_with_approval'
+            : 'read_only',
     publish_artifact:
       data.mcp_tool_policies?.publish_artifact === 'disabled'
         ? 'disabled'

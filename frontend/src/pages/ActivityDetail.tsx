@@ -39,6 +39,7 @@ function formatSourceLabel(source: string): string {
     'ci-doctor': 'CI Doctor',
     'external-diagnostics': 'External Diagnostics',
     'github-mcp': 'GitHub MCP',
+    'knowledge-mcp': 'Knowledge MCP',
     github: 'GitHub',
     gh_aw: 'GitHub Agentic Workflows',
     azure_monitor: 'Azure Monitor',
@@ -658,6 +659,7 @@ export default function ActivityDetail() {
     (a, b) => b[1] - a[1],
   )
   const mcpToolUsage = Object.entries(mcpPath?.tool_invocations ?? {}).sort((a, b) => b[1] - a[1])
+  const mcpToolCallCount = mcpToolUsage.reduce((total, [, count]) => total + count, 0)
   const mcpActionAudit = [...(mcpPath?.action_audit ?? [])].slice(-8).reverse()
   const mcpReasonCode = (mcpPath?.reason || '').trim()
   const mcpReasonLabel = formatMcpReason(mcpReasonCode)
@@ -1060,7 +1062,7 @@ export default function ActivityDetail() {
                     {showMcpDetails ? 'Hide details' : 'Show details'}
                   </button>
                 </div>
-                <div className="mt-2 grid grid-cols-1 gap-3 text-sm md:grid-cols-2 lg:grid-cols-4">
+                <div className="mt-2 grid grid-cols-1 gap-3 text-sm md:grid-cols-2 lg:grid-cols-6">
                   <div>
                     <p className="text-gray-500 dark:text-gray-400">Provider</p>
                     <p className="text-gray-900 dark:text-white">{mcpPath.provider}</p>
@@ -1086,6 +1088,16 @@ export default function ActivityDetail() {
                         raw: {mcpReasonCode}
                       </p>
                     )}
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Tool Calls</p>
+                    <p className="text-gray-900 dark:text-white">{mcpToolCallCount}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Total Latency</p>
+                    <p className="text-gray-900 dark:text-white">
+                      {Math.round(mcpPath.total_latency_ms || 0)} ms
+                    </p>
                   </div>
                 </div>
 
@@ -1206,8 +1218,11 @@ export default function ActivityDetail() {
                                   </p>
                                 )}
                                 <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                                  actor: {entry.actor} • request: {entry.request_id} • payload:{' '}
-                                  {entry.payload_hash}
+                                  actor: {entry.actor} • provider: {entry.provider} • request: {entry.request_id}
+                                </p>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                  payload: {entry.payload_hash} • latency: {Math.round(entry.latency_ms || 0)} ms
+                                  {entry.error_class ? ` • error: ${entry.error_class}` : ''}
                                 </p>
                               </li>
                             )

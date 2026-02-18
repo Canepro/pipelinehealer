@@ -56,7 +56,7 @@ type McpEffectiveState = {
   detail: string
 }
 type McpToolDefinition = {
-  key: 'fetch_failure_context' | 'publish_artifact' | 'rerun_pipeline'
+  key: 'fetch_failure_context' | 'fetch_runbook_context' | 'publish_artifact' | 'rerun_pipeline'
   label: string
   description: string
   write: boolean
@@ -67,6 +67,12 @@ const MCP_TOOL_DEFINITIONS: McpToolDefinition[] = [
     key: 'fetch_failure_context',
     label: 'fetch_failure_context',
     description: 'Read failure/job context from provider APIs.',
+    write: false,
+  },
+  {
+    key: 'fetch_runbook_context',
+    label: 'fetch_runbook_context',
+    description: 'Read runbook and troubleshooting markdown context from repositories.',
     write: false,
   },
   {
@@ -601,7 +607,7 @@ export default function AdminControlsForm({
               <StatusChip label="Approval Needed" value={String(mcpApprovalCount)} ok={mcpApprovalCount > 0} />
               <StatusChip label="Blocked Actions" value={String(mcpBlockedCount)} ok={mcpBlockedCount === 0 ? true : false} />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
               <FieldGroup label="Policy: fetch_failure_context" field="mcp_tool_policies">
                 <Select
                   value={form.mcp_tool_policies.fetch_failure_context}
@@ -611,6 +617,34 @@ export default function AdminControlsForm({
                       mcp_tool_policies: {
                         ...prev.mcp_tool_policies,
                         fetch_failure_context: value as
+                          | 'disabled'
+                          | 'read_only'
+                          | 'write_with_approval'
+                          | 'auto',
+                      },
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="disabled">disabled</SelectItem>
+                    <SelectItem value="read_only">read_only</SelectItem>
+                    <SelectItem value="write_with_approval">write_with_approval</SelectItem>
+                    <SelectItem value="auto">auto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldGroup>
+              <FieldGroup label="Policy: fetch_runbook_context" field="mcp_tool_policies">
+                <Select
+                  value={form.mcp_tool_policies.fetch_runbook_context}
+                  onValueChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      mcp_tool_policies: {
+                        ...prev.mcp_tool_policies,
+                        fetch_runbook_context: value as
                           | 'disabled'
                           | 'read_only'
                           | 'write_with_approval'

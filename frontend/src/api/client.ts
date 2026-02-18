@@ -79,14 +79,19 @@ export interface Activity {
     reason: string
     configured_tools: string[]
     tool_invocations: Record<string, number>
+    total_latency_ms: number
     source_attribution: Record<string, number>
     error_count: number
     action_audit: Array<{
       actor: string
+      provider: string
       tool: string
       payload_hash: string
       result: string
       request_id: string
+      latency_ms: number
+      success: boolean
+      error_class?: string | null
     }>
   }
   remediation_result?: RemediationResult

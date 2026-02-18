@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 8525bc9 -->
+<!-- LAST_VERIFIED: 69d116b -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -259,21 +259,28 @@ Returns activity records with optional filtering and pagination.
       "available": true,
       "read_only": true,
       "reason": "ok",
-      "configured_tools": ["fetch_failure_context", "publish_artifact", "rerun_pipeline"],
+      "configured_tools": ["fetch_failure_context", "fetch_runbook_context", "publish_artifact", "rerun_pipeline"],
       "tool_invocations": {
-        "fetch_failure_context": 1
+        "fetch_failure_context": 2,
+        "fetch_runbook_context": 2
       },
+      "total_latency_ms": 183.4,
       "source_attribution": {
-        "ci-doctor": 1
+        "github-mcp": 1,
+        "knowledge-mcp": 1
       },
       "error_count": 0,
       "action_audit": [
         {
           "actor": "orchestrator:external_diagnostics",
+          "provider": "github",
           "tool": "fetch_failure_context",
           "payload_hash": "a2cc8f03e1f5",
-          "result": "success",
-          "request_id": "req-019c6882"
+          "result": "success:attempt_1",
+          "request_id": "req-019c6882",
+          "latency_ms": 61.8,
+          "success": true,
+          "error_class": null
         }
       ]
     },
@@ -472,6 +479,7 @@ Returns the current runtime configuration (non-secret values only).
   "mcp_max_retries": 1,
   "mcp_tool_policies": {
     "fetch_failure_context": "read_only",
+    "fetch_runbook_context": "read_only",
     "publish_artifact": "write_with_approval",
     "rerun_pipeline": "write_with_approval"
   },
@@ -806,19 +814,24 @@ Observed MCP execution-path metadata for one activity.
 | `reason` | string | Short provider-health reason code (`ok`, `disabled`, `missing_github_token`, etc.) |
 | `configured_tools` | string[] | Provider-advertised tool names for this runtime |
 | `tool_invocations` | object | Per-tool invocation counts captured for the activity (actual successful/attempted calls during the run) |
+| `total_latency_ms` | float | Aggregate MCP tool-call latency in milliseconds for the activity |
 | `source_attribution` | object | Count of ingested external diagnostic sources by key (for traceability) |
 | `error_count` | int | Count of MCP tool invocation errors captured for this activity |
-| `action_audit` | MCPActionAuditEntry[] | Audited MCP actions with actor/tool/payload hash/result/request ID |
+| `action_audit` | MCPActionAuditEntry[] | Audited MCP actions with provider/tool/latency/outcome/request correlation |
 
 ### MCPActionAuditEntry (object)
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `actor` | string | Logical actor that initiated the MCP call (for example orchestrator phase) |
+| `provider` | string | MCP provider used for this action (`github`, `azure_monitor`, etc.) |
 | `tool` | string | MCP tool name |
 | `payload_hash` | string | Short hash of invocation payload for traceability without storing raw sensitive payloads |
 | `result` | string | Outcome (`success`, `blocked_policy`, `blocked_scope`, `timeout`, `error`, etc.) |
 | `request_id` | string \| null | Request/trace correlation ID when available |
+| `latency_ms` | float | Observed call latency in milliseconds (`0` for policy-blocked actions) |
+| `success` | bool | Whether the tool operation succeeded |
+| `error_class` | string \| null | Error class when failed (`TimeoutError`, `HTTPStatusError`, etc.) |
 
 ### ExternalDiagnostic (object)
 

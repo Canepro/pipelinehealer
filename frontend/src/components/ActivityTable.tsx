@@ -38,6 +38,7 @@ function formatSourceLabel(source: string): string {
     'ci-doctor': 'CI Doctor',
     'external-diagnostics': 'External Diagnostics',
     'github-mcp': 'GitHub MCP',
+    'knowledge-mcp': 'Knowledge MCP',
     github: 'GitHub',
     gh_aw: 'GitHub Agentic Workflows',
     azure_monitor: 'Azure Monitor',

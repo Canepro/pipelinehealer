@@ -53,6 +53,16 @@ class FakeGitHubTools:
             {"id": 1, "name": "test", "conclusion": "failure"},
         ]
 
+    async def get_repository_tree(
+        self,
+        owner: str,
+        repo: str,
+        tree_sha: str = "HEAD",
+        recursive: bool = True,
+    ):
+        _ = owner, repo, tree_sha, recursive
+        return []
+
     async def get_recent_commits(
         self,
         owner: str,
@@ -155,6 +165,16 @@ class FakeGitHubToolsWithFiles(FakeGitHubTools):
 
         raw = self._files[path].encode("utf-8")
         return {"encoding": "base64", "content": base64.b64encode(raw).decode("ascii")}
+
+    async def get_repository_tree(
+        self,
+        owner: str,
+        repo: str,
+        tree_sha: str = "HEAD",
+        recursive: bool = True,
+    ):
+        _ = owner, repo, tree_sha, recursive
+        return [{"path": path, "type": "blob"} for path in self._files]
 
 
 def _http_error(status_code: int, method: str, url: str, message: str) -> httpx.HTTPStatusError:
@@ -394,7 +414,7 @@ async def test_orchestrator_records_mcp_model_path_and_source_attribution(monkey
         assert result.mcp_model_path.enabled is True
         assert result.mcp_model_path.available is True
         assert "fetch_failure_context" in result.mcp_model_path.configured_tools
-        assert result.mcp_model_path.tool_invocations.get("fetch_failure_context") == 1
+        assert result.mcp_model_path.tool_invocations == {}
         assert result.mcp_model_path.source_attribution == {"gh_aw": 1, "ci_doctor": 1}
     finally:
         reset_settings()
@@ -445,9 +465,81 @@ async def test_orchestrator_records_mcp_tool_invocation_without_gh_aw(monkeypatc
     try:
         result = await orchestrator.process_workflow_failure(_make_event())
         assert result.mcp_model_path is not None
-        assert result.mcp_model_path.tool_invocations.get("fetch_failure_context") == 1
+        assert result.mcp_model_path.tool_invocations.get("fetch_failure_context") == 2
+        assert result.mcp_model_path.tool_invocations.get("fetch_runbook_context") == 1
+        assert result.mcp_model_path.total_latency_ms >= 0
+        assert result.mcp_model_path.action_audit
+        first_audit = result.mcp_model_path.action_audit[0]
+        assert first_audit.provider == "github"
+        assert first_audit.request_id == result.id
+        assert isinstance(first_audit.success, bool)
+        assert first_audit.latency_ms >= 0
         assert result.mcp_model_path.source_attribution == {"github-mcp": 1}
         assert result.external_diagnostics[0].source == "github-mcp"
+    finally:
+        reset_settings()
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_collects_runbook_context_from_github_mcp(monkeypatch) -> None:
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    monkeypatch.setenv("MCP_PROVIDER", "github")
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "test-token")
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "false")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "disabled")
+    reset_settings()
+
+    storage = InMemoryStorage()
+    gh = FakeGitHubToolsWithFiles(
+        {
+            "docs/RUNBOOK.md": (
+                "# CI Runbook\n"
+                "If lint fails in CI, run formatting locally and push again.\n"
+                "If tests fail, inspect failing job and rerun failed jobs only.\n"
+            )
+        }
+    )
+    orchestrator = OrchestratorAgent(github_tools=gh, storage=storage)
+
+    async def fake_analyze(owner: str, repo: str, run_id: int):
+        _ = owner, repo, run_id
+        return [
+            LogAnalysis(
+                job_id=1,
+                job_name="build",
+                raw_logs="FAIL",
+                error_lines=["FAIL"],
+                summary="failed",
+            )
+        ]
+
+    async def fake_diagnose(log_analyses, workflow_info=None, external_diagnostics=None):
+        _ = log_analyses, workflow_info, external_diagnostics
+        return Diagnosis(
+            failure_type=FailureType.LINT,
+            confidence=0.9,
+            root_cause="lint failed",
+            is_auto_fixable=False,
+        )
+
+    async def fake_remediate(diagnosis, repository_info, workflow_run_id, dry_run=False):
+        _ = diagnosis, repository_info, workflow_run_id, dry_run
+        return RemediationResult(success=True, action_taken=RemediationAction.CREATE_ISSUE)
+
+    orchestrator._log_analyzer.analyze = fake_analyze  # type: ignore[method-assign]
+    orchestrator._diagnosis_agent.diagnose = fake_diagnose  # type: ignore[method-assign]
+    orchestrator._remediation_agent.remediate = fake_remediate  # type: ignore[method-assign]
+
+    try:
+        result = await orchestrator.process_workflow_failure(_make_event())
+        assert result.mcp_model_path is not None
+        assert result.mcp_model_path.tool_invocations.get("fetch_runbook_context", 0) >= 2
+        knowledge = [
+            d for d in result.external_diagnostics if d.source == "knowledge-mcp"
+        ]
+        assert len(knowledge) == 1
+        assert knowledge[0].status == ExternalDiagnosticStatus.AVAILABLE
+        assert "runbook" in knowledge[0].summary.lower()
     finally:
         reset_settings()
 

@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 8525bc9 -->
+<!-- LAST_VERIFIED: 69d116b -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -184,7 +184,7 @@ bash scripts/ph.sh settings:persist --heal-mode safe --auto-create-pr false
 bash scripts/ph.sh settings:persist --gh-aw-tools-enabled true --gh-aw-ingestion-mode passive
 bash scripts/ph.sh settings:persist --external-diagnostics-wait-seconds 60 --external-diagnostics-poll-interval-seconds 15
 bash scripts/ph.sh settings:persist --mcp-enabled true --mcp-provider github --mcp-read-only true
-bash scripts/ph.sh settings:persist --mcp-tool-policies "fetch_failure_context=read_only,publish_artifact=write_with_approval,rerun_pipeline=write_with_approval"
+bash scripts/ph.sh settings:persist --mcp-tool-policies "fetch_failure_context=read_only,fetch_runbook_context=read_only,publish_artifact=write_with_approval,rerun_pipeline=write_with_approval"
 bash scripts/ph.sh settings:persist --mcp-repo-allowlist owner/repo1,owner/repo2
 bash scripts/ph.sh settings:persist --azure-openai-deployment-name gpt-4o --skip-redeploy
 bash scripts/ph.sh settings:persist --clear-repos
@@ -218,6 +218,7 @@ bash scripts/ph.sh settings:persist --clear-mcp-repo-allowlist
 
 Enum values are validated before writing. Invalid values exit with a clear error.
 For `--mcp-tool-policies`, allowed policy modes are `disabled`, `read_only`, `write_with_approval`, and `auto`.
+Common MCP tools are `fetch_failure_context`, `fetch_runbook_context`, `publish_artifact`, and `rerun_pipeline`.
 
 ### Log Inspection
 
