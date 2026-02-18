@@ -475,6 +475,9 @@ export default function ControlCenterPage() {
             }}
             title="Audit Timeline"
             description="Recent settings changes with actor and request trace. Use this as the primary governance feed."
+            defaultVisibleCount={5}
+            pageSize={5}
+            defaultExpanded={true}
           />
 
           <Card>

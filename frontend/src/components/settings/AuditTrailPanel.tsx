@@ -1,15 +1,11 @@
-import { Copy } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ChevronDown, Copy } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import type { AdminSettingsAuditEntry } from '../../api/client'
 import { EMPTY_STATES } from '../../constants/emptyStates'
-import {
-  formatActorLabel,
-  formatAuditTimestampUtc,
-  formatAuditValue,
-  getEffectiveAuditChanges,
-} from './types'
+import { formatActorLabel, formatAuditTimestampUtc, getEffectiveAuditChanges } from './types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -23,7 +19,9 @@ interface Props {
   onLoad: () => void
   title?: string
   description?: string
-  maxEntries?: number
+  defaultVisibleCount?: number
+  pageSize?: number
+  defaultExpanded?: boolean
   ctaHref?: string
   ctaLabel?: string
 }
@@ -37,11 +35,21 @@ export default function AuditTrailPanel({
   onLoad,
   title = 'Admin Audit Trail',
   description = 'Latest admin setting changes with actor, request trace, and effective diff.',
-  maxEntries,
+  defaultVisibleCount = 5,
+  pageSize = 5,
+  defaultExpanded = true,
   ctaHref,
   ctaLabel,
 }: Props) {
-  const visibleEntries = maxEntries ? entries?.slice(0, maxEntries) : entries
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
+  const [visibleCount, setVisibleCount] = useState(defaultVisibleCount)
+
+  useEffect(() => {
+    setVisibleCount(defaultVisibleCount)
+  }, [defaultVisibleCount, entries?.length])
+
+  const visibleEntries = useMemo(() => entries?.slice(0, visibleCount), [entries, visibleCount])
+  const hasMore = (entries?.length || 0) > visibleCount
 
   const handleCopyTrace = async (entry: AdminSettingsAuditEntry) => {
     if (!entry.request_id) {
@@ -84,16 +92,34 @@ export default function AuditTrailPanel({
         </Button>
       </div>
 
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <p className="text-xs text-[var(--ph-muted)]">
+          Showing {visibleEntries?.length || 0} of {entries?.length || 0} events.
+        </p>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => setIsExpanded((prev) => !prev)}
+        >
+          <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : 'rotate-0'}`} />
+          {isExpanded ? 'Collapse' : 'Expand'}
+        </Button>
+      </div>
+
       {isError && (
         <p className="mt-4 text-sm text-red-600 dark:text-red-400">
           {error instanceof Error ? error.message : 'Failed to load audit entries'}
         </p>
       )}
 
-      {visibleEntries && visibleEntries.length > 0 && (
+      {isExpanded && visibleEntries && visibleEntries.length > 0 && (
         <div className="mt-4 space-y-3">
           {visibleEntries.map((entry) => {
             const effectiveChanges = getEffectiveAuditChanges(entry)
+            const effectiveChangeJson = Object.fromEntries(
+              effectiveChanges.map(({ key, diff }) => [key, { old: diff?.old ?? null, new: diff?.new ?? null }])
+            )
             return (
               <div
                 key={`${entry.timestamp}-${entry.request_id ?? 'none'}`}
@@ -144,21 +170,40 @@ export default function AuditTrailPanel({
                   <summary className="cursor-pointer text-xs font-medium text-gray-300">
                     View value changes ({effectiveChanges.length})
                   </summary>
-                  <div className="mt-2 space-y-1 text-xs text-gray-200">
-                    {effectiveChanges.map(({ key, diff }) => (
-                      <p key={key} className="break-all">
-                        <span className="font-medium">{key}</span>: {formatAuditValue(diff?.old)} {'->'}{' '}
-                        {formatAuditValue(diff?.new)}
-                      </p>
-                    ))}
-                    {effectiveChanges.length === 0 && (
-                      <p className="text-gray-400">No effective value changes recorded.</p>
-                    )}
-                  </div>
+                  {effectiveChanges.length > 0 ? (
+                    <pre className="mt-2 overflow-x-auto rounded bg-slate-950/60 p-2 text-xs text-slate-200">
+                      {JSON.stringify(effectiveChangeJson, null, 2)}
+                    </pre>
+                  ) : (
+                    <p className="mt-2 text-xs text-gray-400">No effective value changes recorded.</p>
+                  )}
                 </details>
               </div>
             )
           })}
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {hasMore && (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => setVisibleCount((prev) => prev + pageSize)}
+              >
+                Load more
+              </Button>
+            )}
+            {visibleCount > defaultVisibleCount && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setVisibleCount(defaultVisibleCount)}
+              >
+                Show less
+              </Button>
+            )}
+          </div>
 
           {ctaHref && ctaLabel && (
             <div className="pt-1">
@@ -170,7 +215,7 @@ export default function AuditTrailPanel({
         </div>
       )}
 
-      {visibleEntries && visibleEntries.length === 0 && (
+      {isExpanded && visibleEntries && visibleEntries.length === 0 && (
         <div className="mt-4 rounded-lg border border-[var(--ph-border)] p-4">
           <p className="text-sm font-medium text-gray-200">{EMPTY_STATES.audit.title}</p>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{EMPTY_STATES.audit.body}</p>

@@ -24,7 +24,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Plan discipline lock active: implement remaining platform-extension work in this order `0.1 MCP completion -> 0.3 Control Center UX -> 0.4 model portability -> 0.2 learning system`; new items are queued in `docs/FUTURE_PLAN.md` backlog unless break/fix or security-critical
 - MCP observability upgraded: real per-call tool invocation counting, aggregate MCP latency, and enriched action-audit fields (`provider`, `latency_ms`, `success`, `error_class`); read-only runbook context retrieval (`fetch_runbook_context`) now adds `knowledge-mcp` evidence when available
 - Control Center governance route added: `/app/control-center` provides read-only runtime/auth/provider posture, MCP policy-effect matrix, and centralized audit timeline
-- Settings audit UX reworked: quick audit view moved near the top of Settings with direct navigation to full audit timeline in Control Center
+- Settings audit UX reworked: audit/trace now lives only in Control Center as a single governance source
 - Investigation access UX added in Control Center: safe logs/runbook links and copy-ready CLI commands (`logs`, `logs:grep`, `settings:check`, `settings:audit`)
 
 ## Phase Overview
@@ -200,7 +200,7 @@ This is the long-form project tracker for hackathon execution status, submission
   - added `/app/control-center` navigation entry and governance dashboard
   - surfaced MCP tool policy effect as configured vs effective outcomes
   - added Logs & Investigation quick-actions with direct runbook link and CLI copy helpers
-  - moved Settings audit section to top-level quick view for immediate operator access
+  - consolidated audit timeline into one place (Control Center), with collapse, load-more, and JSON diff rendering
 
 ### Feb 14, 2026
 

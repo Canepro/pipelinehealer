@@ -124,7 +124,7 @@ Initial MCP providers to prioritize:
   - surfaced runtime/auth/provider posture cards in one place
   - added MCP tool policy effect matrix (configured vs effective behavior)
   - added logs/investigation quick-access panel with safe links + copy-ready CLI commands
-  - reworked settings audit UX with top-positioned quick view and link to full timeline
+  - reworked audit UX as single-home in Control Center with collapse + load-more behavior and JSON change diffs
 - Add a new **Control Center** page for operational governance:
   - MCP provider health and permissions (Done: initial)
   - learning queue (candidates, approvals, rejects)
