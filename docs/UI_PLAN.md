@@ -229,6 +229,12 @@ These are enforceable defaults for all primary product screens.
     - structured context extracted from diagnosis payload
     - optional raw log extracts toggle (off by default)
   - keeps default view concise while still enabling trust-building forensic depth.
+- MCP observability surfacing:
+  - added per-activity `MCP Observability` summary in activity detail (provider, status, read-only, reason).
+  - details-on-demand panel now shows:
+    - configured MCP tools
+    - external source attribution counts
+    - tool usage counters (empty until MCP tool invocation paths are wired).
 
 ## Acceptance Checklist (Per Page)
 

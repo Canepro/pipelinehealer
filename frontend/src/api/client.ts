@@ -61,6 +61,17 @@ export interface Activity {
     total_latency_ms: number
     error_count: number
   }
+  mcp_model_path?: {
+    provider: string
+    enabled: boolean
+    available: boolean
+    read_only: boolean
+    reason: string
+    configured_tools: string[]
+    tool_invocations: Record<string, number>
+    source_attribution: Record<string, number>
+    error_count: number
+  }
   remediation_result?: RemediationResult
   created_at: string
   updated_at: string

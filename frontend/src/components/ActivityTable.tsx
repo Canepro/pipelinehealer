@@ -117,6 +117,16 @@ function getModelPathLabel(activity: Activity): string | null {
   return `${provider}:${model}`
 }
 
+function getMcpLabel(activity: Activity): { label: string; variant: 'success' | 'secondary' } | null {
+  const path = activity.mcp_model_path
+  if (!path || !path.enabled) return null
+  const provider = formatSourceLabel(path.provider || 'mcp')
+  if (path.available) {
+    return { label: `MCP: ${provider}`, variant: 'success' }
+  }
+  return { label: `MCP: ${provider} (degraded)`, variant: 'secondary' }
+}
+
 export default function ActivityTable({
   activities,
   isLoading,
@@ -166,6 +176,7 @@ export default function ActivityTable({
           const externalMeta = getExternalDiagnosticsMeta(activity)
           const diagnosisSourceLabel = getDiagnosisSourceLabel(activity)
           const modelPathLabel = getModelPathLabel(activity)
+          const mcpLabel = getMcpLabel(activity)
           return (
             <div
               key={activity.id}
@@ -223,6 +234,11 @@ export default function ActivityTable({
                 {modelPathLabel && (
                   <Badge className="max-w-full break-all rounded-md text-[11px]" variant="secondary">
                     Model: {modelPathLabel}
+                  </Badge>
+                )}
+                {mcpLabel && (
+                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant={mcpLabel.variant}>
+                    {mcpLabel.label}
                   </Badge>
                 )}
                 {activity.llm_model_path?.fallback_used && (
@@ -294,6 +310,7 @@ export default function ActivityTable({
               const externalMeta = getExternalDiagnosticsMeta(activity)
               const diagnosisSourceLabel = getDiagnosisSourceLabel(activity)
               const modelPathLabel = getModelPathLabel(activity)
+              const mcpLabel = getMcpLabel(activity)
               return (
                 <TableRow
                   key={activity.id}
@@ -375,6 +392,13 @@ export default function ActivityTable({
                             Fallback Used
                           </Badge>
                         )}
+                      </div>
+                    )}
+                    {mcpLabel && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        <Badge className="rounded-md text-[11px]" variant={mcpLabel.variant}>
+                          {mcpLabel.label}
+                        </Badge>
                       </div>
                     )}
                     {meta.reusedExistingPr && (

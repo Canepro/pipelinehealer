@@ -193,6 +193,20 @@ class LLMModelPath(BaseModel):
     error_count: int = 0
 
 
+class MCPModelPath(BaseModel):
+    """Observed MCP execution path and source attribution for one activity."""
+
+    provider: str
+    enabled: bool = False
+    available: bool = False
+    read_only: bool = True
+    reason: str = "disabled"
+    configured_tools: list[str] = Field(default_factory=list)
+    tool_invocations: dict[str, int] = Field(default_factory=dict)
+    source_attribution: dict[str, int] = Field(default_factory=dict)
+    error_count: int = 0
+
+
 # =============================================================================
 # Activity Tracking Models
 # =============================================================================
@@ -210,6 +224,7 @@ class ActivityRecord(BaseModel):
     failure_type: FailureType | None = None
     diagnosis: Diagnosis | None = None
     llm_model_path: LLMModelPath | None = None
+    mcp_model_path: MCPModelPath | None = None
     remediation_result: RemediationResult | None = None
     external_diagnostics: list[ExternalDiagnostic] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utcnow)

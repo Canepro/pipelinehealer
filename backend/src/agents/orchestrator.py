@@ -4,6 +4,7 @@ import asyncio
 import logging
 import re
 import time
+from collections import Counter
 from collections.abc import Awaitable
 from datetime import timedelta
 from typing import Any, TypeVar
@@ -21,12 +22,14 @@ from ..models import (
     ActivityRecord,
     ExternalDiagnostic,
     ExternalDiagnosticStatus,
+    MCPModelPath,
     RemediationStatus,
     WorkflowRunEvent,
 )
 from ..storage import ActivityStorage
 from ..tools.gh_aw_adapter import DiagnosticSourceConfig, GHAWAdapter, create_gh_aw_adapter
 from ..tools.github_tools import GitHubTools
+from ..tools.mcp_provider import get_mcp_provider
 from .base import create_cloud_agent, get_agent_prompt
 from .diagnosis import DiagnosisAgent
 from .log_analyzer import LogAnalyzerAgent
@@ -56,6 +59,19 @@ def _build_external_diagnostics_poll_delays(
 def _normalize_workflow_identifier(name: str) -> str:
     """Normalize workflow names/identifiers for robust comparisons."""
     return re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-")
+
+
+def _build_source_attribution(
+    diagnostics: list[ExternalDiagnostic],
+) -> dict[str, int]:
+    """Summarize diagnostic source usage counts for activity observability."""
+    if not diagnostics:
+        return {}
+    counts: Counter[str] = Counter()
+    for diagnostic in diagnostics:
+        source = (diagnostic.source or "unknown").strip().lower() or "unknown"
+        counts[source] += 1
+    return dict(counts)
 
 
 class OrchestratorAgent:
@@ -516,6 +532,24 @@ class OrchestratorAgent:
             created_id = await self._storage.create_activity(activity)
             activity.id = created_id
 
+        # Capture MCP runtime path for per-activity observability, even when disabled.
+        try:
+            mcp_health = get_mcp_provider(self._settings).health(self._settings)
+            activity.mcp_model_path = MCPModelPath(
+                provider=mcp_health.provider,
+                enabled=mcp_health.enabled,
+                available=mcp_health.available,
+                read_only=mcp_health.read_only,
+                reason=mcp_health.reason,
+                configured_tools=list(mcp_health.configured_tools),
+            )
+        except Exception:
+            logger.debug(
+                "Failed to resolve MCP provider health for activity %s",
+                activity.id,
+                exc_info=True,
+            )
+
         with tracer.start_as_current_span(
             "pipeline.process",
             attributes={
@@ -563,6 +597,10 @@ class OrchestratorAgent:
             external_diagnostics = await self._collect_external_diagnostics(owner, repo, event)
             if external_diagnostics:
                 activity.external_diagnostics = external_diagnostics
+            if activity.mcp_model_path is not None:
+                activity.mcp_model_path.source_attribution = _build_source_attribution(
+                    external_diagnostics
+                )
 
             with tracer.start_as_current_span("pipeline.step.diagnose") as span:
                 t1 = time.monotonic()

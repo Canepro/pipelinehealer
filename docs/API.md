@@ -245,6 +245,19 @@ Returns activity records with optional filtering and pagination.
       "total_latency_ms": 742.11,
       "error_count": 0
     },
+    "mcp_model_path": {
+      "provider": "github",
+      "enabled": true,
+      "available": true,
+      "read_only": true,
+      "reason": "ok",
+      "configured_tools": ["fetch_failure_context", "publish_artifact", "rerun_pipeline"],
+      "tool_invocations": {},
+      "source_attribution": {
+        "ci-doctor": 1
+      },
+      "error_count": 0
+    },
     "remediation_result": {
       "success": true,
       "action_taken": "create_pr",
@@ -732,6 +745,22 @@ Observed model path telemetry for one activity.
 | `call_count` | int | Number of observed LLM invocations |
 | `total_latency_ms` | float | Aggregate LLM call latency in milliseconds |
 | `error_count` | int | Number of failed LLM calls before retry/fallback success |
+
+### MCPModelPath (object)
+
+Observed MCP execution-path metadata for one activity.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `provider` | string | Effective MCP provider selected at runtime (`disabled`, `github`, `azure_monitor`, `custom`) |
+| `enabled` | bool | Whether MCP integration was enabled when activity ran |
+| `available` | bool | Provider reported healthy/available state |
+| `read_only` | bool | Whether provider was constrained to read-only actions |
+| `reason` | string | Short provider-health reason code (`ok`, `disabled`, `missing_github_token`, etc.) |
+| `configured_tools` | string[] | Provider-advertised tool names for this runtime |
+| `tool_invocations` | object | Per-tool invocation counts captured for the activity (empty when no MCP tools were called) |
+| `source_attribution` | object | Count of ingested external diagnostic sources by key (for traceability) |
+| `error_count` | int | Count of MCP tool invocation errors captured for this activity |
 
 ### ExternalDiagnostic (object)
 

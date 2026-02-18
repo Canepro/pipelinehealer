@@ -209,6 +209,11 @@ function aggregateConfidenceBySource(
     .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
 }
 
+function formatMcpStatus(enabled: boolean, available: boolean): string {
+  if (!enabled) return 'Disabled'
+  return available ? 'Ready' : 'Degraded'
+}
+
 const DETAIL_SECTIONS: Array<{ key: string; label: string }> = [
   { key: 'summary', label: 'Summary' },
   { key: 'root_cause', label: 'Root Cause' },
@@ -445,6 +450,7 @@ export default function ActivityDetail() {
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
   const [showRawEvidence, setShowRawEvidence] = useState(false)
+  const [showMcpDetails, setShowMcpDetails] = useState(false)
 
   const { data: activity, isLoading, error } = useQuery({
     queryKey: ['activity', id],
@@ -496,6 +502,11 @@ export default function ActivityDetail() {
   const sourceConfidenceImpact = aggregateConfidenceBySource(externalDiagnostics)
   const structuredEvidence = collectStructuredEvidence(diagnosisDetails)
   const rawEvidenceLines = collectRawEvidenceLines(diagnosisDetails)
+  const mcpPath = activity.mcp_model_path
+  const mcpSourceAttribution = Object.entries(mcpPath?.source_attribution ?? {}).sort(
+    (a, b) => b[1] - a[1],
+  )
+  const mcpToolUsage = Object.entries(mcpPath?.tool_invocations ?? {}).sort((a, b) => b[1] - a[1])
 
   return (
     <div className="space-y-6">
@@ -778,6 +789,122 @@ export default function ActivityDetail() {
                     <p className="text-gray-900 dark:text-white">{activity.llm_model_path.error_count}</p>
                   </div>
                 </div>
+              </div>
+            )}
+            {mcpPath && (
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    MCP Observability
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowMcpDetails((prev) => !prev)}
+                    className="text-xs font-medium text-azure-600 hover:text-azure-700 dark:text-azure-400"
+                  >
+                    {showMcpDetails ? 'Hide details' : 'Show details'}
+                  </button>
+                </div>
+                <div className="mt-2 grid grid-cols-1 gap-3 text-sm md:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Provider</p>
+                    <p className="text-gray-900 dark:text-white">{mcpPath.provider}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Status</p>
+                    <p className="text-gray-900 dark:text-white">
+                      {formatMcpStatus(mcpPath.enabled, mcpPath.available)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Read Only</p>
+                    <p className="text-gray-900 dark:text-white">{mcpPath.read_only ? 'Yes' : 'No'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Reason</p>
+                    <p className="text-gray-900 dark:text-white break-words">{mcpPath.reason}</p>
+                  </div>
+                </div>
+
+                {showMcpDetails && (
+                  <div className="mt-4 border-t border-gray-200 pt-3 dark:border-gray-700">
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          Configured Tools
+                        </p>
+                        {mcpPath.configured_tools.length > 0 ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {mcpPath.configured_tools.map((tool) => (
+                              <span
+                                key={tool}
+                                className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-mono text-gray-700 dark:bg-gray-900/70 dark:text-gray-200"
+                              >
+                                {tool}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                            No configured MCP tools for this provider.
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          Source Attribution
+                        </p>
+                        {mcpSourceAttribution.length > 0 ? (
+                          <ul className="mt-2 space-y-1">
+                            {mcpSourceAttribution.map(([source, count]) => (
+                              <li
+                                key={source}
+                                className="flex items-center justify-between rounded border border-gray-200 px-2 py-1 text-sm dark:border-gray-700"
+                              >
+                                <span className="text-gray-700 dark:text-gray-200">
+                                  {formatSourceLabel(source)}
+                                </span>
+                                <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
+                                  {count}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                            No external source attributions were recorded for this activity.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        Tool Usage
+                      </p>
+                      {mcpToolUsage.length > 0 ? (
+                        <ul className="mt-2 space-y-1">
+                          {mcpToolUsage.map(([tool, count]) => (
+                            <li
+                              key={tool}
+                              className="flex items-center justify-between rounded border border-gray-200 px-2 py-1 text-sm dark:border-gray-700"
+                            >
+                              <span className="font-mono text-xs text-gray-700 dark:text-gray-200">
+                                {tool}
+                              </span>
+                              <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
+                                {count}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                          No MCP tool invocations captured for this activity yet.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {(sourceConfidenceImpact.length > 0 ||

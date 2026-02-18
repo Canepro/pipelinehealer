@@ -7,10 +7,13 @@ import pytest
 
 from src.agents.orchestrator import OrchestratorAgent
 from src.agents.remediation import RemediationAgent
+from src.config import reset_settings
 from src.main import app
 from src.models import (
     ActivityRecord,
     Diagnosis,
+    ExternalDiagnostic,
+    ExternalDiagnosticStatus,
     FailureType,
     GitHubRepository,
     GitHubWorkflowRun,
@@ -299,6 +302,74 @@ async def test_orchestrator_uses_existing_activity_id() -> None:
     activities = await storage.get_activities(limit=10)
     assert len(activities) == 1
     assert activities[0].id == "activity-1"
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_records_mcp_model_path_and_source_attribution(monkeypatch) -> None:
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    monkeypatch.setenv("MCP_PROVIDER", "github")
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "test-token")
+    reset_settings()
+
+    storage = InMemoryStorage()
+    gh = FakeGitHubTools()
+    orchestrator = OrchestratorAgent(github_tools=gh, storage=storage)
+
+    async def fake_analyze(owner: str, repo: str, run_id: int):
+        _ = owner, repo, run_id
+        return [
+            LogAnalysis(
+                job_id=1,
+                job_name="build",
+                raw_logs="FAIL",
+                error_lines=["FAIL"],
+                summary="failed",
+            )
+        ]
+
+    async def fake_diagnose(log_analyses, workflow_info=None, external_diagnostics=None):
+        _ = log_analyses, workflow_info, external_diagnostics
+        return Diagnosis(
+            failure_type=FailureType.TEST,
+            confidence=0.9,
+            root_cause="unit test failed",
+            is_auto_fixable=False,
+        )
+
+    async def fake_remediate(diagnosis, repository_info, workflow_run_id, dry_run=False):
+        _ = diagnosis, repository_info, workflow_run_id, dry_run
+        return RemediationResult(success=True, action_taken=RemediationAction.CREATE_ISSUE)
+
+    async def fake_collect_external(owner: str, repo: str, event: WorkflowRunEvent):
+        _ = owner, repo, event
+        return [
+            ExternalDiagnostic(
+                source="gh_aw",
+                status=ExternalDiagnosticStatus.AVAILABLE,
+                summary="external findings",
+            ),
+            ExternalDiagnostic(
+                source="ci_doctor",
+                status=ExternalDiagnosticStatus.UNAVAILABLE,
+                summary="no confidence change",
+            ),
+        ]
+
+    orchestrator._log_analyzer.analyze = fake_analyze  # type: ignore[method-assign]
+    orchestrator._diagnosis_agent.diagnose = fake_diagnose  # type: ignore[method-assign]
+    orchestrator._remediation_agent.remediate = fake_remediate  # type: ignore[method-assign]
+    orchestrator._collect_external_diagnostics = fake_collect_external  # type: ignore[method-assign]
+
+    try:
+        result = await orchestrator.process_workflow_failure(_make_event())
+        assert result.mcp_model_path is not None
+        assert result.mcp_model_path.provider == "github"
+        assert result.mcp_model_path.enabled is True
+        assert result.mcp_model_path.available is True
+        assert "fetch_failure_context" in result.mcp_model_path.configured_tools
+        assert result.mcp_model_path.source_attribution == {"gh_aw": 1, "ci_doctor": 1}
+    finally:
+        reset_settings()
 
 
 @pytest.mark.asyncio

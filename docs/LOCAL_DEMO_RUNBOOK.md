@@ -317,6 +317,11 @@ To confirm whether AI inference was used for a specific activity, open Activity 
 - `pattern` = deterministic rule-based diagnosis
 - `llm` = LLM-assisted diagnosis path
 
+If MCP is enabled, the same Activity Detail now includes `MCP Observability`:
+
+- summary: `Provider`, `Status`, `Read Only`, `Reason`
+- expandable details: `Configured Tools`, `Source Attribution`, `Tool Usage`
+
 ### Idempotency Validation (Recommended for demos/reviews)
 
 Validate remediation deduplication with a repeated trigger:

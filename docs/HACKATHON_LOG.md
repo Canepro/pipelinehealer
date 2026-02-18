@@ -347,6 +347,22 @@ This is the long-form project tracker for hackathon execution status, submission
 - Quality gates:
   - `frontend: bun run lint` passed
   - `frontend: bun run build` passed
+- Shipped MCP activity observability surfacing:
+  - Backend: added `mcp_model_path` to activity records with per-run MCP provider snapshot:
+    - provider, enabled/available/read_only state, reason code
+    - configured tools
+    - source attribution counts from external diagnostics
+    - tool invocation counters scaffold (`tool_invocations`) and `error_count`
+  - Orchestrator now records MCP provider health and source attribution for each processed activity.
+  - Frontend:
+    - Activity detail now shows `MCP Observability` summary-first with expandable details.
+    - Activities table adds compact MCP status badges (e.g., `MCP: Github`, `MCP: Github (degraded)`).
+  - API docs updated with `MCPModelPath` schema + activity payload example.
+- Additional quality gates for this phase:
+  - `python3 -m pytest backend/tests/test_phase1_correctness.py::test_orchestrator_records_mcp_model_path_and_source_attribution -q` passed
+  - `python3 -m pytest backend/tests/test_mcp_provider.py backend/tests/test_orchestrator_external_diagnostics.py -q` passed
+  - `python3 -m mypy backend/src` passed
+  - `python3 -m ruff check backend/src backend/tests/test_phase1_correctness.py` passed
 
 ## Project Tracking Plan (Now -> Mar 15)
 
