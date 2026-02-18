@@ -185,6 +185,36 @@ export default function ControlCenterPage() {
     })
   }, [settings])
 
+  const writeToolRows = mcpToolRows.filter((row) => row.write)
+  const mcpWriteAutoCount = writeToolRows.filter((row) => row.effective.label === 'Allowed (Auto)').length
+  const mcpWriteApprovalCount = writeToolRows.filter(
+    (row) => row.effective.label === 'Approval Required'
+  ).length
+  const mcpWriteBlockedCount = writeToolRows.filter((row) => row.effective.label === 'Blocked').length
+
+  const remediationPolicySummary = (() => {
+    if (!settings) return 'N/A'
+    if (!settings.auto_create_pr) return 'Issue-only path (automatic PR creation is disabled).'
+    if (settings.heal_mode === 'safe') return 'Safe mode: conservative PR path with policy gating.'
+    if (settings.heal_mode === 'demo') return 'Demo mode: aggressive automation for demonstrations.'
+    return 'Debug mode: safe behavior with increased diagnostic verbosity.'
+  })()
+
+  const mcpWriteSummary = (() => {
+    if (!settings) return 'N/A'
+    if (!settings.mcp_enabled || settings.mcp_provider === 'disabled') {
+      return 'MCP write actions are inactive (provider disabled).'
+    }
+    if (settings.mcp_read_only) return 'Global read-only mode blocks all MCP write actions.'
+    if (mcpWriteAutoCount > 0) {
+      return `${mcpWriteAutoCount} write action(s) can run automatically under current policy.`
+    }
+    if (mcpWriteApprovalCount > 0) {
+      return `${mcpWriteApprovalCount} write action(s) require explicit approval.`
+    }
+    return `${mcpWriteBlockedCount} write action(s) are blocked by policy.`
+  })()
+
   const logCommands = [
     'bash scripts/ph.sh logs',
     'bash scripts/ph.sh logs:grep --pattern "error|timeout|traceback"',
@@ -377,6 +407,69 @@ export default function ControlCenterPage() {
                   Poll interval:{' '}
                   <span className="font-medium text-[var(--ph-text)]">{settings.external_diagnostics_poll_interval_seconds}s</span>
                 </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Policy Impact Preview</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
+                <p>
+                  Remediation path:{' '}
+                  <span className="font-medium text-[var(--ph-text)]">{remediationPolicySummary}</span>
+                </p>
+                <p>
+                  Diagnostics cadence:{' '}
+                  <span className="font-medium text-[var(--ph-text)]">
+                    wait {settings.external_diagnostics_wait_seconds}s / poll{' '}
+                    {settings.external_diagnostics_poll_interval_seconds}s
+                  </span>
+                </p>
+                <p>
+                  MCP write posture:{' '}
+                  <span className="font-medium text-[var(--ph-text)]">{mcpWriteSummary}</span>
+                </p>
+                <p>
+                  Repo scope:{' '}
+                  <span className="font-medium text-[var(--ph-text)]">
+                    {settings.ph_allowed_repos.length === 0
+                      ? 'All repositories (no allowlist)'
+                      : `${settings.ph_allowed_repos.length} allowlisted repository entries`}
+                  </span>
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Learning Queue (Next Phase)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
+                <p>
+                  This phase remains governance-first. Human-approved learning workflow is planned after
+                  model portability.
+                </p>
+                <p>
+                  Planned states:{' '}
+                  <span className="font-medium text-[var(--ph-text)]">
+                    observed {'->'} candidate {'->'} approved {'->'} active
+                  </span>
+                </p>
+                <div className="pt-1">
+                  <Button asChild size="sm" variant="ghost">
+                    <a
+                      href="https://github.com/Canepro/pipelinehealer/blob/main/docs/FUTURE_PLAN.md"
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      Open roadmap details
+                      <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                    </a>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>

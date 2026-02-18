@@ -16,8 +16,8 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/app', icon: LayoutDashboard },
-  { name: 'Control Center', href: '/app/control-center', icon: ShieldCheck },
   { name: 'Activities', href: '/app/activities', icon: Activity },
+  { name: 'Control Center', href: '/app/control-center', icon: ShieldCheck },
   { name: 'Settings', href: '/app/settings', icon: Settings },
 ]
 
