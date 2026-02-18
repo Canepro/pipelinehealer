@@ -13,7 +13,7 @@ from ..storage import ActivityStorage
 from ..workflows.pipeline_healer import PipelineHealerWorkflow
 
 
-def get_storage(request: Request) -> ActivityStorage:
+async def get_storage(request: Request) -> ActivityStorage:
     """FastAPI dependency: return the ``ActivityStorage`` from app state."""
     storage: ActivityStorage | None = getattr(request.app.state, "storage", None)
     if storage is None:
@@ -21,7 +21,7 @@ def get_storage(request: Request) -> ActivityStorage:
     return storage
 
 
-def get_workflow(request: Request) -> PipelineHealerWorkflow:
+async def get_workflow(request: Request) -> PipelineHealerWorkflow:
     """FastAPI dependency: return the ``PipelineHealerWorkflow`` from app state."""
     workflow: PipelineHealerWorkflow | None = getattr(request.app.state, "workflow", None)
     if workflow is None:

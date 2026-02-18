@@ -9,6 +9,7 @@ from uuid import uuid4
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .api import dashboard, webhook
 from .config import get_settings
@@ -38,6 +39,43 @@ logger = structlog.get_logger(__name__)
 
 
 _BACKFILL_INTERVAL_SECONDS = 600  # 10 minutes
+
+
+class RequestIdMiddleware:
+    """Attach/preserve request IDs without relying on BaseHTTPMiddleware."""
+
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request_id: str | None = None
+        for name, value in scope.get("headers", []):
+            if name.lower() == b"x-request-id":
+                text = value.decode("utf-8", errors="ignore").strip()
+                if text:
+                    request_id = text
+                break
+
+        if not request_id:
+            request_id = str(uuid4())
+
+        state = scope.setdefault("state", {})
+        if isinstance(state, dict):
+            state["request_id"] = request_id
+
+        async def send_wrapper(message: Message) -> None:
+            if message.get("type") == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers = [h for h in headers if h[0].lower() != b"x-request-id"]
+                headers.append((b"x-request-id", request_id.encode("utf-8")))
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
 
 
 async def _backfill_sweep_loop(workflow: PipelineHealerWorkflow) -> None:
@@ -138,16 +176,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    @app.middleware("http")
-    async def request_id_middleware(request, call_next):  # type: ignore[no-untyped-def]
-        """Attach/request a stable request ID and return it in response headers."""
-        # Preserve caller-supplied IDs so operators can correlate curl/UI actions with logs.
-        request_id = request.headers.get("X-Request-Id") or str(uuid4())
-        request.state.request_id = request_id
-        response = await call_next(request)
-        response.headers["X-Request-Id"] = request_id
-        return response
+    app.add_middleware(RequestIdMiddleware)
 
     # Include routers
     app.include_router(webhook.router)
