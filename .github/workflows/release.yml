@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version sync
+        run: bash scripts/check_version_sync.sh
+
+      - name: Validate tag matches VERSION
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="$(cat VERSION | tr -d '\r\n')"
+          expected="v${version}"
+          if [[ "$TAG_NAME" != "$expected" ]]; then
+            echo "Tag/version mismatch." >&2
+            echo "  tag:      $TAG_NAME" >&2
+            echo "  expected: $expected" >&2
+            exit 1
+          fi
+
+      - name: Extract release notes from CHANGELOG
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          tag = os.environ["TAG_NAME"].strip()
+          raw = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          pattern = rf"^## \[{re.escape(tag)}\](?: - [^\n]+)?\n(.*?)(?=^## \[|\Z)"
+          match = re.search(pattern, raw, flags=re.MULTILINE | re.DOTALL)
+          if not match:
+              raise SystemExit(f"Missing CHANGELOG section for {tag}.")
+          notes = match.group(1).strip()
+          if not notes:
+              raise SystemExit(f"Empty CHANGELOG section for {tag}.")
+          Path("release_notes.md").write_text(notes + "\n", encoding="utf-8")
+          PY
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ github.ref_name }}
+          body_path: release_notes.md
+          generate_release_notes: false

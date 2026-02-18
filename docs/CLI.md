@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 69d116b -->
+<!-- LAST_VERIFIED: 1c2acd3 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -24,6 +24,7 @@ Important: execute with `bash scripts/...`, never `source` or `. scripts/...`.
 | Backend API | read/update runtime via API | No | Yes | Use `PH_BACKEND_URL` for local or non-Azure backend |
 | GitHub-only | inspect/reset demo artifacts | No | No | Uses `gh` only |
 | Local container ops | container logs + AOAI smoke | No | No | Requires local Docker/Podman compose stack |
+| Repo maintenance | version sync + release prep | No | No | Uses `scripts/check_version_sync.sh` and `scripts/release.sh` |
 
 Quick examples:
 
@@ -36,6 +37,9 @@ bash scripts/ph.sh deploy
 
 # GitHub-only scope
 bash scripts/ph.sh demo:proof --repo owner/repo --limit 10
+
+# Repo maintenance scope
+bash scripts/check_version_sync.sh
 ```
 
 ---
@@ -223,6 +227,26 @@ bash scripts/ph.sh settings:persist --clear-mcp-repo-allowlist
 Enum values are validated before writing. Invalid values exit with a clear error.
 For `--mcp-tool-policies`, allowed policy modes are `disabled`, `read_only`, `write_with_approval`, and `auto`.
 Common MCP tools are `fetch_failure_context`, `fetch_runbook_context`, `publish_artifact`, and `rerun_pipeline`.
+
+### Versioning and Release (Repo Maintenance)
+
+These helper scripts are intentionally separate from `scripts/ph.sh`.
+
+| Command | Description |
+|---------|-------------|
+| `bash scripts/check_version_sync.sh` | Verifies `VERSION`, backend, and frontend versions match |
+| `bash scripts/release.sh <patch|minor|major|x.y.z>` | Bumps versions and prepares `CHANGELOG.md` release section |
+
+```bash
+bash scripts/check_version_sync.sh
+bash scripts/release.sh patch
+```
+
+Suggested release flow:
+1. Confirm working tree is clean and CI is green.
+2. Run `bash scripts/release.sh patch` (or `minor`/`major`).
+3. Edit release notes in `CHANGELOG.md` under the new `vX.Y.Z` section.
+4. Commit release files, tag `vX.Y.Z`, then push with `--follow-tags`.
 
 ### Log Inspection
 

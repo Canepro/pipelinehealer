@@ -18,7 +18,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run ShellCheck
-        run: shellcheck scripts/ph.sh scripts/deploy/*.sh scripts/demo/*.sh
+        run: shellcheck scripts/ph.sh scripts/release.sh scripts/check_version_sync.sh scripts/deploy/*.sh scripts/demo/*.sh
+
+  version_sync:
+    name: Version Sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify root/backend/frontend versions are aligned
+        run: bash scripts/check_version_sync.sh
 
   backend:
     name: Backend Tests and Types

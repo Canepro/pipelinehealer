@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 786e214 -->
+<!-- LAST_VERIFIED: 1c2acd3 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -45,6 +45,7 @@ Azure is the default deployment path for hackathon requirements, but the runtime
 - [Demo Script](docs/DEMO_SCRIPT.md)
 - [Logs & Investigation](docs/LOGS_AND_INVESTIGATION.md)
 - [Model Provider Strategy](docs/MODEL_PROVIDER_STRATEGY.md)
+- [Changelog](CHANGELOG.md)
 - [Settings & Policy Feature Guide](docs/features/03-settings-and-policy-controls.md)
 - [Explainability & Observability Guide](docs/features/05-explainability-and-observability.md)
 - [Future Plan](docs/FUTURE_PLAN.md)
@@ -95,6 +96,22 @@ bash scripts/ph.sh demo:e2e
 ```
 
 Use full command docs for flags and troubleshooting: `docs/CLI.md`.
+
+## Versioning and release
+
+Project versions are synchronized across:
+- `VERSION`
+- `backend/pyproject.toml`
+- `frontend/package.json`
+
+Release helpers:
+
+```bash
+bash scripts/check_version_sync.sh
+bash scripts/release.sh patch
+```
+
+Tag-based release publishing is automated by `.github/workflows/release.yml` on `vX.Y.Z` tags.
 
 ## Security and governance defaults
 

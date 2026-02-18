@@ -37,6 +37,9 @@ This is the long-form project tracker for hackathon execution status, submission
 - Deploy reliability hardening:
   - `deploy` now prints resolved deployed backend/frontend image references from Azure after update
   - full deploy now fails fast if deployed image refs do not match the requested commit tag
+- Release hygiene automation:
+  - semver sync guard added for `VERSION`, backend, and frontend manifests
+  - tag-driven GitHub release workflow added (`vX.Y.Z` + changelog section validation)
 
 ## Phase Overview
 
@@ -155,6 +158,10 @@ This is the long-form project tracker for hackathon execution status, submission
   - runtime settings for `MCP_TOOL_POLICIES` and `MCP_REPO_ALLOWLIST`
   - per-tool policy model (`disabled`, `read_only`, `write_with_approval`, `auto`)
   - orchestrator enforcement + action-audit metadata (`actor`, `tool`, `payload hash`, `result`, `request id`)
+- Added release/version baseline automation:
+  - `VERSION` + `CHANGELOG.md` introduced
+  - `scripts/check_version_sync.sh` and `scripts/release.sh` added
+  - CI now enforces version alignment and release tags validate against changelog + `VERSION`
 - Added universal structured failure context on activities (no repo hardcoding):
   - backend extraction pipeline now records `failing_job`, `failing_step`, `failing_command`, and `signal`
   - Dashboard/Activities/Activity Detail now surface this context for faster operator triage
