@@ -21,3 +21,26 @@ def test_accepts_valid_cognitiveservices_endpoint() -> None:
         azure_openai_endpoint="https://ai-foundry-canepro.cognitiveservices.azure.com/",
     )
     assert settings.azure_openai_endpoint == "https://ai-foundry-canepro.cognitiveservices.azure.com/"
+
+
+def test_parses_mcp_tool_policies_from_csv() -> None:
+    settings = Settings(
+        _env_file=None,
+        mcp_tool_policies="fetch_failure_context=read_only,publish_artifact=disabled",
+    )
+    assert settings.mcp_tool_policies == {
+        "fetch_failure_context": "read_only",
+        "publish_artifact": "disabled",
+    }
+
+
+def test_rejects_invalid_mcp_tool_policy_mode() -> None:
+    try:
+        Settings(
+            _env_file=None,
+            mcp_tool_policies="fetch_failure_context=bad_mode",
+        )
+    except ValidationError as exc:
+        assert "MCP_TOOL_POLICIES values must be one of" in str(exc)
+    else:
+        raise AssertionError("Expected ValidationError for invalid MCP tool policy mode")

@@ -45,22 +45,46 @@ const REASON_LABELS: Record<string, string> = {
 }
 
 function getEvidenceLines(activity: ActivityItem | null): string[] {
-  if (!activity?.diagnosis?.error_details) return []
-  const details = activity.diagnosis.error_details as Record<string, unknown>
+  const lines: string[] = []
+  const details = (activity?.diagnosis?.error_details ?? {}) as Record<string, unknown>
   const listKeys = ['key_log_lines', 'relevant_log_lines', 'log_messages', 'evidence']
   for (const key of listKeys) {
     const value = details[key]
-    if (Array.isArray(value)) {
-      return value
-        .filter((line): line is string => typeof line === 'string' && line.trim().length > 0)
-        .slice(0, 2)
+    if (!Array.isArray(value)) continue
+    for (const line of value) {
+      if (typeof line !== 'string' || line.trim().length === 0) continue
+      lines.push(line.trim())
+      if (lines.length >= 2) {
+        return lines
+      }
     }
   }
   const message = details.message
   if (typeof message === 'string' && message.trim().length > 0) {
-    return [message]
+    lines.push(message.trim())
   }
-  return []
+  if (lines.length > 0) return lines.slice(0, 2)
+
+  const diagnostics = activity?.external_diagnostics ?? []
+  const representative =
+    diagnostics.find((item) => item.status === 'available') ??
+    diagnostics.find((item) => item.summary && item.summary.trim().length > 0)
+  if (!representative) return []
+  const meta = representative.metadata as Record<string, unknown>
+  const detailsBlock = meta.details as Record<string, unknown> | undefined
+  if (detailsBlock) {
+    const candidateKeys = ['summary', 'root_cause', 'investigation_findings']
+    for (const key of candidateKeys) {
+      const value = detailsBlock[key]
+      if (typeof value !== 'string' || value.trim().length === 0) continue
+      lines.push(value.trim())
+      if (lines.length >= 2) return lines
+    }
+  }
+  if (representative.summary && representative.summary.trim().length > 0) {
+    lines.push(representative.summary.trim())
+  }
+  return lines.slice(0, 2)
 }
 
 export default function Dashboard() {

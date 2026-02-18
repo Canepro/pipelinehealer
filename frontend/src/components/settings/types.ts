@@ -9,6 +9,8 @@ export type SettingsFormState = {
   mcp_read_only: boolean
   mcp_timeout_seconds: number
   mcp_max_retries: number
+  mcp_tool_policies: Record<string, 'disabled' | 'read_only' | 'write_with_approval' | 'auto'>
+  mcp_repo_allowlist: string[]
   heal_mode: 'safe' | 'demo' | 'debug'
   auto_create_pr: boolean
   auto_create_tracking_issue_for_prs: boolean
@@ -78,6 +80,33 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
   mcp_read_only: data.mcp_read_only ?? true,
   mcp_timeout_seconds: data.mcp_timeout_seconds ?? 15,
   mcp_max_retries: data.mcp_max_retries ?? 1,
+  mcp_tool_policies: {
+    fetch_failure_context:
+      data.mcp_tool_policies?.fetch_failure_context === 'disabled'
+        ? 'disabled'
+        : data.mcp_tool_policies?.fetch_failure_context === 'auto'
+          ? 'auto'
+          : data.mcp_tool_policies?.fetch_failure_context === 'write_with_approval'
+            ? 'write_with_approval'
+            : 'read_only',
+    publish_artifact:
+      data.mcp_tool_policies?.publish_artifact === 'disabled'
+        ? 'disabled'
+        : data.mcp_tool_policies?.publish_artifact === 'auto'
+          ? 'auto'
+          : data.mcp_tool_policies?.publish_artifact === 'read_only'
+            ? 'read_only'
+            : 'write_with_approval',
+    rerun_pipeline:
+      data.mcp_tool_policies?.rerun_pipeline === 'disabled'
+        ? 'disabled'
+        : data.mcp_tool_policies?.rerun_pipeline === 'auto'
+          ? 'auto'
+          : data.mcp_tool_policies?.rerun_pipeline === 'read_only'
+            ? 'read_only'
+            : 'write_with_approval',
+  },
+  mcp_repo_allowlist: data.mcp_repo_allowlist ?? [],
   heal_mode: data.heal_mode === 'demo' ? 'demo' : data.heal_mode === 'debug' ? 'debug' : 'safe',
   auto_create_pr: data.auto_create_pr,
   auto_create_tracking_issue_for_prs: data.auto_create_tracking_issue_for_prs,
@@ -159,6 +188,10 @@ export const SETTING_DESCRIPTIONS: Record<string, string> = {
     'Timeout budget for MCP provider requests.',
   mcp_max_retries:
     'Retry budget for transient MCP provider failures.',
+  mcp_tool_policies:
+    'Per-tool MCP policy: disabled, read_only, write_with_approval, or auto.',
+  mcp_repo_allowlist:
+    'Optional MCP-specific repository allowlist (owner/repo). Empty means MCP follows PH_ALLOWED_REPOS fallback.',
   pipeline_step_timeout_seconds:
     'Maximum seconds each pipeline step (analyze, diagnose, remediate) is allowed to run before timing out.',
   github_api_max_retries:

@@ -38,6 +38,8 @@ interface Props {
   hasUnsavedChanges: boolean
   newRepoInput: string
   setNewRepoInput: Dispatch<SetStateAction<string>>
+  newMcpRepoInput: string
+  setNewMcpRepoInput: Dispatch<SetStateAction<string>>
   setGhAwWorkflowsInput: Dispatch<SetStateAction<string>>
   setLastSavedForm: Dispatch<SetStateAction<SettingsFormState | null>>
   savePending: boolean
@@ -59,6 +61,8 @@ export default function AdminControlsForm({
   hasUnsavedChanges,
   newRepoInput,
   setNewRepoInput,
+  newMcpRepoInput,
+  setNewMcpRepoInput,
   setGhAwWorkflowsInput,
   setLastSavedForm,
   savePending,
@@ -87,6 +91,25 @@ export default function AdminControlsForm({
       ph_allowed_repos: [...prev.ph_allowed_repos, normalized],
     }))
     setNewRepoInput('')
+  }
+
+  const addMcpAllowedRepo = () => {
+    const normalized = normalizeRepoInput(newMcpRepoInput)
+    if (!normalized) {
+      toast.error('Invalid repository format', {
+        description: "Use 'owner/repo' or 'https://github.com/owner/repo'.",
+      })
+      return
+    }
+    if (form.mcp_repo_allowlist.includes(normalized)) {
+      toast.error('Repository already in MCP allowlist')
+      return
+    }
+    setForm((prev) => ({
+      ...prev,
+      mcp_repo_allowlist: [...prev.mcp_repo_allowlist, normalized],
+    }))
+    setNewMcpRepoInput('')
   }
 
   const addWorkflow = () => {
@@ -419,6 +442,146 @@ export default function AdminControlsForm({
                       : 'Unavailable'
                 }
               />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <FieldGroup label="Policy: fetch_failure_context" field="mcp_tool_policies">
+                <Select
+                  value={form.mcp_tool_policies.fetch_failure_context}
+                  onValueChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      mcp_tool_policies: {
+                        ...prev.mcp_tool_policies,
+                        fetch_failure_context: value as
+                          | 'disabled'
+                          | 'read_only'
+                          | 'write_with_approval'
+                          | 'auto',
+                      },
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="disabled">disabled</SelectItem>
+                    <SelectItem value="read_only">read_only</SelectItem>
+                    <SelectItem value="write_with_approval">write_with_approval</SelectItem>
+                    <SelectItem value="auto">auto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldGroup>
+              <FieldGroup label="Policy: publish_artifact" field="mcp_tool_policies">
+                <Select
+                  value={form.mcp_tool_policies.publish_artifact}
+                  onValueChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      mcp_tool_policies: {
+                        ...prev.mcp_tool_policies,
+                        publish_artifact: value as
+                          | 'disabled'
+                          | 'read_only'
+                          | 'write_with_approval'
+                          | 'auto',
+                      },
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="disabled">disabled</SelectItem>
+                    <SelectItem value="read_only">read_only</SelectItem>
+                    <SelectItem value="write_with_approval">write_with_approval</SelectItem>
+                    <SelectItem value="auto">auto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldGroup>
+              <FieldGroup label="Policy: rerun_pipeline" field="mcp_tool_policies">
+                <Select
+                  value={form.mcp_tool_policies.rerun_pipeline}
+                  onValueChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      mcp_tool_policies: {
+                        ...prev.mcp_tool_policies,
+                        rerun_pipeline: value as
+                          | 'disabled'
+                          | 'read_only'
+                          | 'write_with_approval'
+                          | 'auto',
+                      },
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="disabled">disabled</SelectItem>
+                    <SelectItem value="read_only">read_only</SelectItem>
+                    <SelectItem value="write_with_approval">write_with_approval</SelectItem>
+                    <SelectItem value="auto">auto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldGroup>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-sm">
+                <span className="text-[var(--ph-muted)]">MCP repo allowlist:</span>
+                {form.mcp_repo_allowlist.length > 0 ? (
+                  <span className="font-medium text-[var(--ph-text)]">
+                    {form.mcp_repo_allowlist.length} repo
+                    {form.mcp_repo_allowlist.length !== 1 ? 's' : ''}
+                  </span>
+                ) : (
+                  <Badge variant="outline">Fallback to PH allowlist</Badge>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2 min-h-[2rem]">
+                {form.mcp_repo_allowlist.length === 0 && (
+                  <span className="text-sm text-[var(--ph-muted)] italic py-1">
+                    Empty list means MCP uses PH_ALLOWED_REPOS fallback.
+                  </span>
+                )}
+                {form.mcp_repo_allowlist.map((repo) => (
+                  <Badge key={repo} variant="secondary" className="gap-1 pr-1">
+                    {repo}
+                    <button
+                      type="button"
+                      className="ml-1 rounded-full p-0.5 hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          mcp_repo_allowlist: prev.mcp_repo_allowlist.filter((r) => r !== repo),
+                        }))
+                      }
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="owner/repo or https://github.com/owner/repo"
+                  value={newMcpRepoInput}
+                  onChange={(e) => setNewMcpRepoInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      addMcpAllowedRepo()
+                    }
+                  }}
+                  className="max-w-md"
+                />
+                <Button type="button" variant="secondary" size="sm" onClick={addMcpAllowedRepo}>
+                  Add
+                </Button>
+              </div>
             </div>
             {mcpProviderHealth?.configured_tools?.length ? (
               <div className="space-y-1">

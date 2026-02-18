@@ -87,6 +87,20 @@ class Settings(BaseSettings):
         default=1,
         description="Retry budget for MCP provider calls",
     )
+    mcp_tool_policies: Annotated[dict[str, str], NoDecode] = Field(
+        default_factory=dict,
+        description=(
+            "Per-tool MCP policy map. "
+            "Supported modes: disabled, read_only, write_with_approval, auto."
+        ),
+    )
+    mcp_repo_allowlist: Annotated[list[str], NoDecode] = Field(
+        default_factory=list,
+        description=(
+            "Optional MCP-specific repository allowlist (owner/repo). "
+            "When set, MCP tool calls are blocked for repos not in this list."
+        ),
+    )
 
     # Azure Cosmos DB Configuration
     cosmos_db_endpoint: str = Field(
@@ -342,6 +356,64 @@ class Settings(BaseSettings):
             return [str(repo).strip() for repo in value if str(repo).strip()]
         return value
 
+    @field_validator("mcp_repo_allowlist", mode="before")
+    @classmethod
+    def parse_mcp_repo_allowlist(cls, value: Any) -> Any:
+        """Allow MCP repo allowlist from JSON arrays or comma-separated env values."""
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return []
+            if text.startswith("["):
+                parsed = json.loads(text)
+                return [str(repo).strip() for repo in parsed if str(repo).strip()]
+            return [repo.strip() for repo in text.split(",") if repo.strip()]
+        if isinstance(value, list):
+            return [str(repo).strip() for repo in value if str(repo).strip()]
+        return value
+
+    @field_validator("mcp_tool_policies", mode="before")
+    @classmethod
+    def parse_mcp_tool_policies(cls, value: Any) -> Any:
+        """Allow MCP tool policies from JSON object or CSV key=value pairs."""
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return {}
+            if text.startswith("{"):
+                parsed = json.loads(text)
+                if not isinstance(parsed, dict):
+                    raise ValueError("MCP_TOOL_POLICIES JSON must be an object")
+                return parsed
+            parsed_map: dict[str, str] = {}
+            for item in text.split(","):
+                pair = item.strip()
+                if not pair:
+                    continue
+                if "=" in pair:
+                    tool, policy = pair.split("=", 1)
+                elif ":" in pair:
+                    tool, policy = pair.split(":", 1)
+                else:
+                    raise ValueError(
+                        "MCP_TOOL_POLICIES entries must use tool=policy format"
+                    )
+                tool_name = str(tool).strip()
+                policy_name = str(policy).strip()
+                if not tool_name or not policy_name:
+                    raise ValueError(
+                        "MCP_TOOL_POLICIES entries must use tool=policy format"
+                    )
+                parsed_map[tool_name] = policy_name
+            return parsed_map
+        if isinstance(value, dict):
+            return {
+                str(tool).strip(): str(policy).strip()
+                for tool, policy in value.items()
+                if str(tool).strip()
+            }
+        return value
+
     @field_validator("gh_aw_known_workflows", mode="before")
     @classmethod
     def parse_gh_aw_known_workflows(cls, value: Any) -> Any:
@@ -414,6 +486,25 @@ class Settings(BaseSettings):
             raise ValueError(
                 "MCP_PROVIDER must be one of: disabled, github, azure_monitor, custom"
             )
+        return normalized
+
+    @field_validator("mcp_tool_policies")
+    @classmethod
+    def validate_mcp_tool_policies(cls, value: dict[str, str]) -> dict[str, str]:
+        """Validate MCP tool policy map values."""
+        allowed = {"disabled", "read_only", "write_with_approval", "auto"}
+        normalized: dict[str, str] = {}
+        for raw_tool, raw_policy in value.items():
+            tool = str(raw_tool).strip().lower()
+            policy = str(raw_policy).strip().lower()
+            if not tool:
+                continue
+            if policy not in allowed:
+                raise ValueError(
+                    "MCP_TOOL_POLICIES values must be one of: "
+                    "disabled, read_only, write_with_approval, auto"
+                )
+            normalized[tool] = policy
         return normalized
 
     @field_validator("gh_aw_ingestion_mode")

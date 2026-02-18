@@ -193,6 +193,16 @@ class LLMModelPath(BaseModel):
     error_count: int = 0
 
 
+class MCPActionAuditEntry(BaseModel):
+    """Audit record for one MCP tool-policy decision or invocation."""
+
+    actor: str
+    tool: str
+    payload_hash: str
+    result: str
+    request_id: str
+
+
 class MCPModelPath(BaseModel):
     """Observed MCP execution path and source attribution for one activity."""
 
@@ -205,6 +215,7 @@ class MCPModelPath(BaseModel):
     tool_invocations: dict[str, int] = Field(default_factory=dict)
     source_attribution: dict[str, int] = Field(default_factory=dict)
     error_count: int = 0
+    action_audit: list[MCPActionAuditEntry] = Field(default_factory=list)
 
 
 # =============================================================================
@@ -297,6 +308,8 @@ class AppSettingsView(BaseModel):
     mcp_read_only: bool
     mcp_timeout_seconds: float
     mcp_max_retries: int
+    mcp_tool_policies: dict[str, str]
+    mcp_repo_allowlist: list[str]
     azure_openai_endpoint: str
     azure_openai_deployment_name: str
     azure_openai_api_version: str
@@ -334,6 +347,8 @@ class AdminSettingsUpdateRequest(BaseModel):
     mcp_read_only: bool | None = None
     mcp_timeout_seconds: float | None = Field(default=None, gt=0.0, le=120.0)
     mcp_max_retries: int | None = Field(default=None, ge=0, le=10)
+    mcp_tool_policies: dict[str, str] | None = None
+    mcp_repo_allowlist: list[str] | None = None
     azure_openai_deployment_name: str | None = None
 
 

@@ -704,6 +704,63 @@ async def test_settings_exposes_mcp_provider_health(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_admin_can_patch_mcp_guardrail_settings(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    response = await _patch_settings(
+        {
+            "mcp_enabled": True,
+            "mcp_provider": "github",
+            "mcp_read_only": True,
+            "mcp_tool_policies": {
+                "fetch_failure_context": "read_only",
+                "publish_artifact": "disabled",
+                "rerun_pipeline": "write_with_approval",
+            },
+            "mcp_repo_allowlist": ["Canepro/PipelineHealer", "canepro/pipelinehealer"],
+        },
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mcp_enabled"] is True
+    assert body["mcp_provider"] == "github"
+    assert body["mcp_read_only"] is True
+    assert body["mcp_tool_policies"] == {
+        "fetch_failure_context": "read_only",
+        "publish_artifact": "disabled",
+        "rerun_pipeline": "write_with_approval",
+    }
+    assert body["mcp_repo_allowlist"] == ["canepro/pipelinehealer"]
+
+
+@pytest.mark.asyncio
+async def test_admin_patch_rejects_invalid_mcp_tool_policy(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    response = await _patch_settings(
+        {
+            "mcp_tool_policies": {
+                "fetch_failure_context": "invalid_mode",
+            }
+        },
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 422
+    assert "mcp_tool_policies" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_admin_patch_rejects_empty_azure_openai_deployment_name(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
@@ -776,6 +833,16 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
             "external_diagnostics_wait_seconds": 60,
             "external_diagnostics_poll_interval_seconds": 10,
             "ph_allowed_repos": ["Canepro/PipelineHealer", "canepro/pipelinehealer-demo"],
+            "mcp_enabled": True,
+            "mcp_provider": "github",
+            "mcp_read_only": True,
+            "mcp_timeout_seconds": 12,
+            "mcp_max_retries": 2,
+            "mcp_repo_allowlist": ["Canepro/PipelineHealer"],
+            "mcp_tool_policies": {
+                "fetch_failure_context": "read_only",
+                "publish_artifact": "disabled",
+            },
             "azure_openai_deployment_name": "gpt-5-mini-fast",
         },
         headers={"X-Admin-Key": "admin-secret"},
@@ -793,6 +860,8 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
     assert body["redeploy_started"] is False
     assert "GH_AW_KNOWN_WORKFLOWS" in body["persisted_keys"]
     assert "PH_ALLOWED_REPOS" in body["persisted_keys"]
+    assert "MCP_TOOL_POLICIES" in body["persisted_keys"]
+    assert "MCP_REPO_ALLOWLIST" in body["persisted_keys"]
 
     persisted_text = env_file.read_text(encoding="utf-8")
     assert "HEAL_MODE=demo" in persisted_text
@@ -813,6 +882,16 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
     assert "EXTERNAL_DIAGNOSTICS_WAIT_SECONDS=60.0" in persisted_text
     assert "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS=10.0" in persisted_text
     assert "PH_ALLOWED_REPOS=canepro/pipelinehealer,canepro/pipelinehealer-demo" in persisted_text
+    assert "MCP_ENABLED=true" in persisted_text
+    assert "MCP_PROVIDER=github" in persisted_text
+    assert "MCP_READ_ONLY=true" in persisted_text
+    assert "MCP_TIMEOUT_SECONDS=12.0" in persisted_text
+    assert "MCP_MAX_RETRIES=2" in persisted_text
+    assert "MCP_REPO_ALLOWLIST=canepro/pipelinehealer" in persisted_text
+    assert (
+        "MCP_TOOL_POLICIES=fetch_failure_context=read_only,publish_artifact=disabled"
+        in persisted_text
+    )
     assert "AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-mini-fast" in persisted_text
 
 
@@ -866,6 +945,10 @@ async def test_apply_persisted_runtime_settings_restores_values(monkeypatch) -> 
             "gh_aw_tools_enabled": True,
             "gh_aw_ingestion_mode": "passive",
             "ph_allowed_repos": ["Canepro/PipelineHealer"],
+            "mcp_enabled": True,
+            "mcp_provider": "github",
+            "mcp_tool_policies": {"fetch_failure_context": "read_only"},
+            "mcp_repo_allowlist": ["Canepro/PipelineHealer"],
         },
         headers={"X-Admin-Key": "admin-secret"},
     )
@@ -882,6 +965,10 @@ async def test_apply_persisted_runtime_settings_restores_values(monkeypatch) -> 
     runtime_settings.gh_aw_tools_enabled = False
     runtime_settings.gh_aw_ingestion_mode = "disabled"
     runtime_settings.ph_allowed_repos = []
+    runtime_settings.mcp_enabled = False
+    runtime_settings.mcp_provider = "disabled"
+    runtime_settings.mcp_tool_policies = {}
+    runtime_settings.mcp_repo_allowlist = []
 
     await dashboard.apply_persisted_runtime_settings(storage, workflow)  # type: ignore[arg-type]
 
@@ -889,3 +976,7 @@ async def test_apply_persisted_runtime_settings_restores_values(monkeypatch) -> 
     assert runtime_settings.gh_aw_tools_enabled is True
     assert runtime_settings.gh_aw_ingestion_mode == "passive"
     assert runtime_settings.ph_allowed_repos == ["canepro/pipelinehealer"]
+    assert runtime_settings.mcp_enabled is True
+    assert runtime_settings.mcp_provider == "github"
+    assert runtime_settings.mcp_tool_policies == {"fetch_failure_context": "read_only"}
+    assert runtime_settings.mcp_repo_allowlist == ["canepro/pipelinehealer"]

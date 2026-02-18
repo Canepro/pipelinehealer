@@ -10,10 +10,13 @@ from src.agents.orchestrator import (
 )
 from src.config import reset_settings
 from src.models import (
+    ActivityRecord,
     ExternalDiagnostic,
     ExternalDiagnosticStatus,
     GitHubRepository,
     GitHubWorkflowRun,
+    MCPModelPath,
+    RemediationStatus,
     WorkflowRunEvent,
 )
 from src.storage import InMemoryStorage
@@ -51,6 +54,16 @@ def _event() -> WorkflowRunEvent:
             html_url="https://github.com/Canepro/repo",
         ),
         sender={"login": "github-actions[bot]"},
+    )
+
+
+def _activity() -> ActivityRecord:
+    return ActivityRecord(
+        repositoryId="1",
+        repository_name="Canepro/repo",
+        workflow_run_id=4242,
+        workflow_name="CI",
+        status=RemediationStatus.PENDING,
     )
 
 
@@ -270,7 +283,7 @@ async def test_collect_external_diagnostics_reports_capability_unavailable(monke
     orchestrator = OrchestratorAgent(github_tools=_DummyGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
     orchestrator._gh_aw_adapter = _UnavailableAdapter()  # type: ignore[assignment]
 
-    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event())
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event(), _activity())
     assert len(diagnostics) == 1
     assert diagnostics[0].status == ExternalDiagnosticStatus.UNAVAILABLE
     assert diagnostics[0].metadata.get("reason_code") == "capability_unavailable"
@@ -291,7 +304,7 @@ async def test_collect_external_diagnostics_skips_known_gh_aw_workflow(monkeypat
     event = _event()
     event.workflow_run.name = "Schema Consistency Checker"
 
-    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", event)
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", event, _activity())
     # ci-doctor is the only source; when the skip list triggers,
     # the orchestrator records a skip diagnostic without calling collect.
     skip_diags = [d for d in diagnostics if d.metadata.get("reason_code") == "skip_known_gh_aw_workflow"]
@@ -316,7 +329,7 @@ async def test_collect_external_diagnostics_uses_bounded_polling(monkeypatch) ->
 
     monkeypatch.setattr(asyncio, "sleep", no_sleep)
 
-    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event())
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event(), _activity())
     assert len(diagnostics) == 1
     assert diagnostics[0].status == ExternalDiagnosticStatus.AVAILABLE
     assert adapter.calls == 2
@@ -338,7 +351,7 @@ async def test_collect_external_diagnostics_final_fetch_before_timeout(monkeypat
 
     monkeypatch.setattr(asyncio, "sleep", no_sleep)
 
-    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event())
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event(), _activity())
 
     assert len(diagnostics) == 1
     assert diagnostics[0].status == ExternalDiagnosticStatus.UNAVAILABLE
@@ -369,7 +382,7 @@ async def test_collect_external_diagnostics_uses_configurable_wait_budget(monkey
 
     monkeypatch.setattr(asyncio, "sleep", no_sleep)
 
-    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event())
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event(), _activity())
     assert len(diagnostics) == 1
     assert diagnostics[0].status == ExternalDiagnosticStatus.UNAVAILABLE
     assert diagnostics[0].metadata.get("poll_delays_seconds") == [10.0, 10.0, 10.0]
@@ -397,7 +410,7 @@ async def test_collect_external_diagnostics_wait_zero_is_async_first(monkeypatch
 
     monkeypatch.setattr(asyncio, "sleep", track_sleep)
 
-    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event())
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event(), _activity())
     assert len(diagnostics) == 1
     assert diagnostics[0].status == ExternalDiagnosticStatus.UNAVAILABLE
     assert diagnostics[0].metadata.get("poll_delays_seconds") == []
@@ -422,7 +435,7 @@ async def test_collect_external_diagnostics_retries_after_transient_error(monkey
 
     monkeypatch.setattr(asyncio, "sleep", no_sleep)
 
-    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event())
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event(), _activity())
     assert len(diagnostics) == 1
     assert diagnostics[0].status == ExternalDiagnosticStatus.AVAILABLE
     assert adapter.calls == 2
@@ -440,7 +453,7 @@ async def test_collect_external_diagnostics_uses_github_mcp_without_gh_aw(monkey
     orchestrator = OrchestratorAgent(github_tools=_MCPGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
     orchestrator._gh_aw_adapter = _ShouldNotCallAdapter()  # type: ignore[assignment]
 
-    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event())
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event(), _activity())
     assert len(diagnostics) == 1
     diagnostic = diagnostics[0]
     assert diagnostic.source == "github-mcp"
@@ -450,3 +463,61 @@ async def test_collect_external_diagnostics_uses_github_mcp_without_gh_aw(monkey
     assert diagnostic.metadata.get("failed_jobs_count") == 1
     assert diagnostic.metadata.get("changed_files") == []
     assert isinstance(diagnostic.metadata.get("details"), dict)
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_blocks_github_mcp_for_repo_allowlist(monkeypatch) -> None:
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    monkeypatch.setenv("MCP_PROVIDER", "github")
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "token")
+    monkeypatch.setenv("MCP_REPO_ALLOWLIST", "canepro/another-repo")
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "false")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "disabled")
+    reset_settings()
+
+    orchestrator = OrchestratorAgent(github_tools=_MCPGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
+    activity = _activity()
+    activity.mcp_model_path = MCPModelPath(
+        provider="github",
+        enabled=True,
+        available=True,
+        read_only=True,
+        reason="ok",
+    )
+
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event(), activity)
+    assert len(diagnostics) == 1
+    diagnostic = diagnostics[0]
+    assert diagnostic.source == "github-mcp"
+    assert diagnostic.status == ExternalDiagnosticStatus.UNAVAILABLE
+    assert diagnostic.metadata.get("reason_code") == "repo_not_allowlisted"
+    assert activity.mcp_model_path.action_audit[-1].result == "blocked:repo_not_allowlisted"
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_records_mcp_action_audit(monkeypatch) -> None:
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    monkeypatch.setenv("MCP_PROVIDER", "github")
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "token")
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "false")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "disabled")
+    monkeypatch.setenv("MCP_TIMEOUT_SECONDS", "1")
+    monkeypatch.setenv("MCP_MAX_RETRIES", "0")
+    reset_settings()
+
+    orchestrator = OrchestratorAgent(github_tools=_MCPGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
+    activity = _activity()
+    activity.mcp_model_path = MCPModelPath(
+        provider="github",
+        enabled=True,
+        available=True,
+        read_only=True,
+        reason="ok",
+    )
+
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event(), activity)
+    assert diagnostics[0].status == ExternalDiagnosticStatus.AVAILABLE
+    action_audit = activity.mcp_model_path.action_audit
+    assert action_audit
+    assert action_audit[-1].tool == "fetch_failure_context"
+    assert action_audit[-1].request_id == activity.id

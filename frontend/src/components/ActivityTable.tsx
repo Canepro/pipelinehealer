@@ -26,7 +26,19 @@ interface ActivityTableProps {
 }
 
 function formatSourceLabel(source: string): string {
-  const normalized = source.trim().replace(/[_-]+/g, ' ')
+  const normalizedRaw = source.trim().toLowerCase()
+  const knownLabels: Record<string, string> = {
+    'ci-doctor': 'CI Doctor',
+    'external-diagnostics': 'External Diagnostics',
+    'github-mcp': 'GitHub MCP',
+    github: 'GitHub',
+    gh_aw: 'GitHub Agentic Workflows',
+    azure_monitor: 'Azure Monitor',
+  }
+  if (knownLabels[normalizedRaw]) {
+    return knownLabels[normalizedRaw]
+  }
+  const normalized = normalizedRaw.replace(/[_-]+/g, ' ')
   if (!normalized) {
     return 'External'
   }

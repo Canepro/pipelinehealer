@@ -73,6 +73,13 @@ export interface Activity {
     tool_invocations: Record<string, number>
     source_attribution: Record<string, number>
     error_count: number
+    action_audit: Array<{
+      actor: string
+      tool: string
+      payload_hash: string
+      result: string
+      request_id: string
+    }>
   }
   remediation_result?: RemediationResult
   created_at: string
@@ -137,6 +144,8 @@ export interface AppSettings {
   mcp_read_only: boolean
   mcp_timeout_seconds: number
   mcp_max_retries: number
+  mcp_tool_policies: Record<string, 'disabled' | 'read_only' | 'write_with_approval' | 'auto'>
+  mcp_repo_allowlist: string[]
   azure_openai_endpoint: string
   azure_openai_deployment_name: string
   azure_openai_api_version: string
@@ -199,6 +208,8 @@ export interface AdminSettingsUpdate {
   mcp_read_only?: boolean
   mcp_timeout_seconds?: number
   mcp_max_retries?: number
+  mcp_tool_policies?: Record<string, 'disabled' | 'read_only' | 'write_with_approval' | 'auto'>
+  mcp_repo_allowlist?: string[]
   azure_openai_deployment_name?: string
 }
 

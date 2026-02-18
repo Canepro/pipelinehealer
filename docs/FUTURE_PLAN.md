@@ -20,6 +20,12 @@ The following are already implemented in the current project state:
 - Capability-aware remediation (graceful `SKIP` when target repo has issues/PRs disabled or is read-only)
 - Smart external diagnostics polling (skips ci-doctor polling for failures in known gh-aw workflows)
 - Retry endpoint no longer resets original activity state (triggers GitHub re-run only; new webhook creates fresh record)
+- MCP safety guardrails:
+  - default-safe posture (`mcp_enabled=false`, `mcp_read_only=true`)
+  - repo/tool allowlist enforcement and timeout/retry budgets
+  - per-tool policy model (`disabled|read_only|write_with_approval|auto`)
+  - per-activity MCP action audit (`actor`, `tool`, `payload_hash`, `result`, `request_id`)
+- Dedicated feature documentation set under `docs/features/` for beginner/operator/expert workflows
 
 ## Next Priorities
 

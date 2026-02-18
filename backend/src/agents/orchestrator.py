@@ -1,12 +1,15 @@
 """Orchestrator Agent for coordinating the healing pipeline."""
 
 import asyncio
+import hashlib
+import json
 import logging
 import re
 import time
 from collections import Counter
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
+from functools import partial
 from typing import Any, TypeVar
 
 from azure.identity import DefaultAzureCredential
@@ -22,6 +25,7 @@ from ..models import (
     ActivityRecord,
     ExternalDiagnostic,
     ExternalDiagnosticStatus,
+    MCPActionAuditEntry,
     MCPModelPath,
     RemediationStatus,
     WorkflowRunEvent,
@@ -38,6 +42,13 @@ from .remediation import RemediationAgent
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("pipelinehealer.orchestrator")
 T = TypeVar("T")
+_MCP_TOOL_POLICY_VALUES = {"disabled", "read_only", "write_with_approval", "auto"}
+_MCP_DEFAULT_TOOL_POLICIES = {
+    "fetch_failure_context": "read_only",
+    "publish_artifact": "write_with_approval",
+    "rerun_pipeline": "write_with_approval",
+}
+_MCP_WRITE_TOOLS = {"publish_artifact", "rerun_pipeline"}
 
 
 def _build_external_diagnostics_poll_delays(
@@ -149,6 +160,151 @@ class OrchestratorAgent:
         current = activity.mcp_model_path.tool_invocations.get(tool_name, 0)
         activity.mcp_model_path.tool_invocations[tool_name] = current + increment
 
+    @staticmethod
+    def _normalize_repo_full_name(owner: str, repo: str) -> str:
+        owner_norm = (owner or "").strip().lower()
+        repo_norm = (repo or "").strip().lower()
+        if not owner_norm or not repo_norm:
+            return ""
+        return f"{owner_norm}/{repo_norm}"
+
+    def _effective_mcp_repo_allowlist(self) -> set[str]:
+        """Resolve MCP repo allowlist with PH allowlist as fallback."""
+        raw = self._settings.mcp_repo_allowlist or self._settings.ph_allowed_repos
+        normalized = {
+            str(repo).strip().lower()
+            for repo in raw
+            if str(repo).strip()
+        }
+        return normalized
+
+    def _resolve_mcp_tool_policy(self, tool_name: str) -> str:
+        """Resolve policy mode for an MCP tool with safe defaults."""
+        normalized_tool = (tool_name or "").strip().lower()
+        if not normalized_tool:
+            return "disabled"
+        override = (self._settings.mcp_tool_policies or {}).get(normalized_tool, "")
+        normalized_override = str(override).strip().lower()
+        if normalized_override in _MCP_TOOL_POLICY_VALUES:
+            return normalized_override
+        return _MCP_DEFAULT_TOOL_POLICIES.get(normalized_tool, "disabled")
+
+    @staticmethod
+    def _is_mcp_write_tool(tool_name: str) -> bool:
+        return (tool_name or "").strip().lower() in _MCP_WRITE_TOOLS
+
+    @staticmethod
+    def _payload_hash(payload: dict[str, Any]) -> str:
+        """Build deterministic payload hash for MCP action audit entries."""
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()[:16]
+
+    def _record_mcp_action_audit(
+        self,
+        activity: ActivityRecord,
+        *,
+        tool_name: str,
+        payload: dict[str, Any],
+        result: str,
+    ) -> None:
+        """Attach one MCP action audit entry to activity model-path metadata."""
+        model_path = activity.mcp_model_path
+        if model_path is None:
+            return
+        model_path.action_audit.append(
+            MCPActionAuditEntry(
+                actor=f"orchestrator:{activity.repository_name}",
+                tool=(tool_name or "unknown").strip().lower(),
+                payload_hash=self._payload_hash(payload),
+                result=result,
+                request_id=activity.id,
+            )
+        )
+        if len(model_path.action_audit) > 100:
+            model_path.action_audit = model_path.action_audit[-100:]
+
+    def _check_mcp_tool_policy(
+        self,
+        activity: ActivityRecord,
+        *,
+        owner: str,
+        repo: str,
+        tool_name: str,
+        default_branch: str | None,
+    ) -> tuple[bool, str]:
+        """Apply MCP repo allowlist + policy guardrails for one tool call."""
+        repo_full_name = self._normalize_repo_full_name(owner, repo)
+        if not self._settings.mcp_enabled:
+            return False, "mcp_disabled"
+
+        provider = (self._settings.mcp_provider or "").strip().lower()
+        if provider != "github":
+            return False, "provider_not_github"
+
+        allowlist = self._effective_mcp_repo_allowlist()
+        if allowlist and repo_full_name not in allowlist:
+            return False, "repo_not_allowlisted"
+
+        policy_mode = self._resolve_mcp_tool_policy(tool_name)
+        if policy_mode == "disabled":
+            return False, "tool_policy_disabled"
+
+        is_write_tool = self._is_mcp_write_tool(tool_name)
+        if is_write_tool and self._settings.mcp_read_only:
+            return False, "blocked_by_read_only_mode"
+        if is_write_tool and policy_mode == "read_only":
+            return False, "tool_policy_read_only"
+        if is_write_tool and policy_mode == "write_with_approval":
+            return False, "approval_required"
+        if is_write_tool:
+            # Preserve branch protections by requiring explicit future write-path logic.
+            return False, f"branch_protection_respected:{default_branch or 'unknown'}"
+
+        return True, "ok"
+
+    async def _run_mcp_tool_call(
+        self,
+        activity: ActivityRecord,
+        *,
+        tool_name: str,
+        payload: dict[str, Any],
+        operation_factory: Callable[[], Awaitable[T]],
+    ) -> T:
+        """Execute one MCP tool operation with hard timeout + bounded retries."""
+        timeout_seconds = max(0.1, float(self._settings.mcp_timeout_seconds))
+        max_attempts = max(1, int(self._settings.mcp_max_retries) + 1)
+        last_error: Exception | None = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                result = await asyncio.wait_for(operation_factory(), timeout_seconds)
+                self._record_mcp_action_audit(
+                    activity,
+                    tool_name=tool_name,
+                    payload=payload,
+                    result=f"success:attempt_{attempt}",
+                )
+                return result
+            except TimeoutError as exc:
+                last_error = exc
+                self._record_mcp_action_audit(
+                    activity,
+                    tool_name=tool_name,
+                    payload=payload,
+                    result=f"timeout:attempt_{attempt}",
+                )
+            except Exception as exc:  # pragma: no cover - defensive + provider variability
+                last_error = exc
+                self._record_mcp_action_audit(
+                    activity,
+                    tool_name=tool_name,
+                    payload=payload,
+                    result=f"error:{type(exc).__name__}:attempt_{attempt}",
+                )
+            if attempt < max_attempts:
+                await asyncio.sleep(0)
+        assert last_error is not None
+        raise last_error
+
     def _gh_aw_passive_enabled(self) -> bool:
         """Return whether gh-aw passive diagnostics collection is enabled."""
         return (
@@ -156,16 +312,49 @@ class OrchestratorAgent:
             and self._settings.gh_aw_ingestion_mode == "passive"
         )
 
-    def _github_mcp_collection_enabled(self) -> bool:
+    def _github_mcp_collection_enabled(
+        self,
+        activity: ActivityRecord,
+        *,
+        owner: str,
+        repo: str,
+        default_branch: str | None,
+    ) -> tuple[bool, str]:
         """Return whether direct GitHub MCP context collection can run."""
-        provider = (self._settings.mcp_provider or "").strip().lower()
-        if not self._settings.mcp_enabled or provider != "github":
-            return False
+        allowed, reason = self._check_mcp_tool_policy(
+            activity,
+            owner=owner,
+            repo=repo,
+            tool_name="fetch_failure_context",
+            default_branch=default_branch,
+        )
+        if not allowed:
+            self._record_mcp_action_audit(
+                activity,
+                tool_name="fetch_failure_context",
+                payload={"owner": owner, "repo": repo, "run_id": activity.workflow_run_id},
+                result=f"blocked:{reason}",
+            )
+            return False, reason
         try:
             health = get_mcp_provider(self._settings).health(self._settings)
         except Exception:
-            return False
-        return health.enabled and health.available
+            self._record_mcp_action_audit(
+                activity,
+                tool_name="fetch_failure_context",
+                payload={"owner": owner, "repo": repo, "run_id": activity.workflow_run_id},
+                result="blocked:provider_health_error",
+            )
+            return False, "provider_health_error"
+        if not (health.enabled and health.available):
+            self._record_mcp_action_audit(
+                activity,
+                tool_name="fetch_failure_context",
+                payload={"owner": owner, "repo": repo, "run_id": activity.workflow_run_id},
+                result=f"blocked:{health.reason}",
+            )
+            return False, health.reason
+        return True, "ok"
 
     @staticmethod
     def _has_github_mcp_diagnostic(
@@ -174,6 +363,7 @@ class OrchestratorAgent:
         """Check if diagnostics contain entries from the direct GitHub MCP path."""
         return any(
             (diagnostic.source or "").strip().lower() == "github-mcp"
+            and diagnostic.status in {ExternalDiagnosticStatus.AVAILABLE, ExternalDiagnosticStatus.ERROR}
             for diagnostic in diagnostics
         )
 
@@ -195,15 +385,27 @@ class OrchestratorAgent:
 
     async def _collect_external_diagnostics_from_github_mcp(
         self,
+        activity: ActivityRecord,
         owner: str,
         repo: str,
         event: WorkflowRunEvent,
     ) -> list[ExternalDiagnostic]:
         """Collect baseline run context from GitHub when MCP github provider is enabled."""
         run_id = event.workflow_run.id
+        payload_base = {"owner": owner, "repo": repo, "run_id": run_id}
         try:
-            run_details = await self._github_tools.get_workflow_run(owner, repo, run_id)
-            jobs = await self._github_tools.get_workflow_jobs(owner, repo, run_id)
+            run_details = await self._run_mcp_tool_call(
+                activity,
+                tool_name="fetch_failure_context",
+                payload={**payload_base, "operation": "get_workflow_run"},
+                operation_factory=lambda: self._github_tools.get_workflow_run(owner, repo, run_id),
+            )
+            jobs = await self._run_mcp_tool_call(
+                activity,
+                tool_name="fetch_failure_context",
+                payload={**payload_base, "operation": "get_workflow_jobs"},
+                operation_factory=lambda: self._github_tools.get_workflow_jobs(owner, repo, run_id),
+            )
         except Exception as exc:
             return [
                 ExternalDiagnostic(
@@ -243,8 +445,24 @@ class OrchestratorAgent:
 
         changed_files: list[str] = []
         for pr_number in pull_request_numbers[:3]:
+            pr_number_for_call = pr_number
             try:
-                files = await self._github_tools.get_pull_request_files(owner, repo, pr_number, per_page=100)
+                files = await self._run_mcp_tool_call(
+                    activity,
+                    tool_name="fetch_failure_context",
+                    payload={
+                        **payload_base,
+                        "operation": "get_pull_request_files",
+                        "pull_request": pr_number_for_call,
+                    },
+                    operation_factory=partial(
+                        self._github_tools.get_pull_request_files,
+                        owner,
+                        repo,
+                        pr_number_for_call,
+                        per_page=100,
+                    ),
+                )
             except Exception:
                 logger.debug(
                     "GitHub MCP context: unable to read files for %s/%s PR #%s",
@@ -349,6 +567,7 @@ class OrchestratorAgent:
         owner: str,
         repo: str,
         event: WorkflowRunEvent,
+        activity: ActivityRecord,
     ) -> list[ExternalDiagnostic]:
         """Collect external diagnostics from all available gh-aw sources.
 
@@ -358,12 +577,35 @@ class OrchestratorAgent:
         needs time to publish its issue.
         """
         if not self._gh_aw_passive_enabled():
-            if self._github_mcp_collection_enabled():
+            mcp_enabled, mcp_reason = self._github_mcp_collection_enabled(
+                activity,
+                owner=owner,
+                repo=repo,
+                default_branch=event.repository.default_branch,
+            )
+            if mcp_enabled:
                 return await self._collect_external_diagnostics_from_github_mcp(
+                    activity,
                     owner,
                     repo,
                     event,
                 )
+            if (
+                self._settings.mcp_enabled
+                and (self._settings.mcp_provider or "").strip().lower() == "github"
+            ):
+                return [
+                    ExternalDiagnostic(
+                        source="github-mcp",
+                        status=ExternalDiagnosticStatus.UNAVAILABLE,
+                        summary="GitHub MCP context collection blocked by policy guardrails",
+                        matched_run_id=event.workflow_run.id,
+                        metadata={
+                            "reason_code": mcp_reason,
+                            "provider": "github",
+                        },
+                    )
+                ]
             return []
 
         # --- Discover available diagnostic sources ---
@@ -811,7 +1053,12 @@ class OrchestratorAgent:
             await self._storage.update_activity(activity)
 
             workflow_info = await self._build_workflow_context(event)
-            external_diagnostics = await self._collect_external_diagnostics(owner, repo, event)
+            external_diagnostics = await self._collect_external_diagnostics(
+                owner,
+                repo,
+                event,
+                activity,
+            )
             if external_diagnostics:
                 activity.external_diagnostics = external_diagnostics
             if activity.mcp_model_path is not None:

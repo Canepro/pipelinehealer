@@ -34,7 +34,19 @@ const STRUCTURED_EVIDENCE_OMIT_KEYS = new Set([
 ])
 
 function formatSourceLabel(source: string): string {
-  const normalized = source.trim().replace(/[_-]+/g, ' ')
+  const normalizedRaw = source.trim().toLowerCase()
+  const knownLabels: Record<string, string> = {
+    'ci-doctor': 'CI Doctor',
+    'external-diagnostics': 'External Diagnostics',
+    'github-mcp': 'GitHub MCP',
+    github: 'GitHub',
+    gh_aw: 'GitHub Agentic Workflows',
+    azure_monitor: 'Azure Monitor',
+  }
+  if (knownLabels[normalizedRaw]) {
+    return knownLabels[normalizedRaw]
+  }
+  const normalized = normalizedRaw.replace(/[_-]+/g, ' ')
   if (!normalized) {
     return 'External Tool'
   }
@@ -546,6 +558,7 @@ export default function ActivityDetail() {
     (a, b) => b[1] - a[1],
   )
   const mcpToolUsage = Object.entries(mcpPath?.tool_invocations ?? {}).sort((a, b) => b[1] - a[1])
+  const mcpActionAudit = [...(mcpPath?.action_audit ?? [])].slice(-8).reverse()
 
   return (
     <div className="space-y-6">
@@ -1002,6 +1015,33 @@ export default function ActivityDetail() {
                       ) : (
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                           No MCP tool invocations captured for this activity yet.
+                        </p>
+                      )}
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        Action Audit
+                      </p>
+                      {mcpActionAudit.length > 0 ? (
+                        <ul className="mt-2 space-y-1">
+                          {mcpActionAudit.map((entry, index) => (
+                            <li
+                              key={`${entry.request_id}-${entry.tool}-${entry.payload_hash}-${index}`}
+                              className="rounded border border-gray-200 px-2 py-1 text-xs dark:border-gray-700"
+                            >
+                              <p className="font-mono text-gray-700 dark:text-gray-200">
+                                {entry.tool} • {entry.result}
+                              </p>
+                              <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                                actor: {entry.actor} • request: {entry.request_id} • payload:{' '}
+                                {entry.payload_hash}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                          No MCP action audit entries captured for this activity.
                         </p>
                       )}
                     </div>

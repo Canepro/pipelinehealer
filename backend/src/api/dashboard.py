@@ -130,6 +130,24 @@ def _normalize_workflow_names(raw_workflows: list[Any]) -> list[str]:
     return normalized
 
 
+def _normalize_mcp_tool_policies(raw_policies: dict[Any, Any]) -> dict[str, str]:
+    """Normalize per-tool MCP policy map and validate supported policy values."""
+    allowed_modes = {"disabled", "read_only", "write_with_approval", "auto"}
+    normalized: dict[str, str] = {}
+    for tool, policy in raw_policies.items():
+        tool_name = str(tool).strip().lower()
+        policy_mode = str(policy).strip().lower()
+        if not tool_name:
+            continue
+        if policy_mode not in allowed_modes:
+            raise ValueError(
+                "mcp_tool_policies values must be one of: "
+                "disabled, read_only, write_with_approval, auto"
+            )
+        normalized[tool_name] = policy_mode
+    return normalized
+
+
 def _resolve_github_auth_mode() -> tuple[bool, bool, str]:
     """Return GitHub auth capabilities and active mode description."""
     settings = get_settings()
@@ -196,6 +214,8 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         mcp_read_only=settings.mcp_read_only,
         mcp_timeout_seconds=settings.mcp_timeout_seconds,
         mcp_max_retries=settings.mcp_max_retries,
+        mcp_tool_policies=_normalize_mcp_tool_policies(settings.mcp_tool_policies),
+        mcp_repo_allowlist=_safe_settings_allowlist(settings.mcp_repo_allowlist),
         azure_openai_endpoint=settings.azure_openai_endpoint,
         azure_openai_deployment_name=settings.azure_openai_deployment_name,
         azure_openai_api_version=settings.azure_openai_api_version,
@@ -239,6 +259,8 @@ _MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = (
     ("mcp_read_only", "MCP_READ_ONLY"),
     ("mcp_timeout_seconds", "MCP_TIMEOUT_SECONDS"),
     ("mcp_max_retries", "MCP_MAX_RETRIES"),
+    ("mcp_tool_policies", "MCP_TOOL_POLICIES"),
+    ("mcp_repo_allowlist", "MCP_REPO_ALLOWLIST"),
     ("azure_openai_deployment_name", "AZURE_OPENAI_DEPLOYMENT_NAME"),
 )
 
@@ -275,8 +297,10 @@ def _mutable_runtime_settings_snapshot() -> dict[str, Any]:
     values: dict[str, Any] = {}
     for attr_name, _ in _MUTABLE_SETTINGS_ENV_KEYS:
         raw = getattr(settings, attr_name)
-        if attr_name == "ph_allowed_repos":
+        if attr_name in {"ph_allowed_repos", "mcp_repo_allowlist"}:
             values[attr_name] = _safe_settings_allowlist(raw)
+        elif attr_name == "mcp_tool_policies":
+            values[attr_name] = _normalize_mcp_tool_policies(raw)
         elif attr_name == "gh_aw_known_workflows":
             values[attr_name] = _normalize_workflow_names(raw)
         else:
@@ -289,8 +313,14 @@ def _runtime_settings_to_env_values(runtime_values: dict[str, Any]) -> dict[str,
     values: dict[str, str] = {}
     for attr_name, env_key in _MUTABLE_SETTINGS_ENV_KEYS:
         raw = runtime_values[attr_name]
-        if attr_name in {"ph_allowed_repos", "gh_aw_known_workflows"}:
+        if attr_name in {"ph_allowed_repos", "gh_aw_known_workflows", "mcp_repo_allowlist"}:
             values[env_key] = ",".join(raw)
+        elif attr_name == "mcp_tool_policies":
+            if not raw:
+                values[env_key] = ""
+            else:
+                pairs = [f"{tool}={mode}" for tool, mode in sorted(raw.items())]
+                values[env_key] = ",".join(pairs)
         elif isinstance(raw, bool):
             values[env_key] = _env_bool(raw)
         else:
@@ -400,6 +430,14 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         if not isinstance(value, list):
             raise ValueError("invalid ph_allowed_repos")
         return _normalize_allowed_repo_list(value)
+    if attr_name == "mcp_repo_allowlist":
+        if not isinstance(value, list):
+            raise ValueError("invalid mcp_repo_allowlist")
+        return _normalize_allowed_repo_list(value)
+    if attr_name == "mcp_tool_policies":
+        if not isinstance(value, dict):
+            raise ValueError("invalid mcp_tool_policies")
+        return _normalize_mcp_tool_policies(value)
     if attr_name == "azure_openai_deployment_name":
         normalized = str(value).strip()
         if not normalized:
@@ -637,6 +675,24 @@ async def update_app_settings(
                 detail="mcp_provider must be one of: disabled, github, azure_monitor, custom",
             )
         changes["mcp_provider"] = mcp_provider
+
+    if "mcp_repo_allowlist" in changes:
+        repos = changes["mcp_repo_allowlist"]
+        if not isinstance(repos, list):
+            raise HTTPException(status_code=422, detail="mcp_repo_allowlist must be a list")
+        try:
+            changes["mcp_repo_allowlist"] = _normalize_allowed_repo_list(repos)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    if "mcp_tool_policies" in changes:
+        policies = changes["mcp_tool_policies"]
+        if not isinstance(policies, dict):
+            raise HTTPException(status_code=422, detail="mcp_tool_policies must be an object")
+        try:
+            changes["mcp_tool_policies"] = _normalize_mcp_tool_policies(policies)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     max_chars = int(changes.get("log_prompt_max_chars", settings.log_prompt_max_chars))
     head_chars = int(changes.get("log_prompt_head_chars", settings.log_prompt_head_chars))

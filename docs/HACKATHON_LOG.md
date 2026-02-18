@@ -135,6 +135,17 @@ This is the long-form project tracker for hackathon execution status, submission
 - Added targeted tests for configurable wait budget, async-first mode (`wait=0`), and admin settings validation.
 - Updated operator docs (`README.md`, `docs/API.md`, `docs/CLI.md`, `docs/DEMO_SCRIPT.md`, `docs/LOCAL_DEMO_RUNBOOK.md`) to reflect the fast-path diagnostics behavior.
 - Added proposed-fix governance metadata surfacing in UI (`Includes Proposed Fix`, reason code badges).
+- Added MCP safety guardrail controls and enforcement:
+  - runtime settings for `MCP_TOOL_POLICIES` and `MCP_REPO_ALLOWLIST`
+  - per-tool policy model (`disabled`, `read_only`, `write_with_approval`, `auto`)
+  - orchestrator enforcement + action-audit metadata (`actor`, `tool`, `payload hash`, `result`, `request id`)
+- Extended activity observability contracts:
+  - `mcp_model_path.action_audit` in API + UI details
+  - improved MCP source labels and explainability fallback rendering
+- Expanded `settings:persist` CLI surface with MCP guardrail flags:
+  - `--mcp-enabled`, `--mcp-provider`, `--mcp-read-only`, `--mcp-timeout-seconds`, `--mcp-max-retries`
+  - `--mcp-tool-policies`, `--mcp-repo-allowlist`, `--clear-mcp-repo-allowlist`
+- Published dedicated per-feature docs under `docs/features/` and linked from main documentation entry points.
 - Started shadcn-style frontend migration with reusable primitives and page migrations:
   - settings controls and cards
   - dashboard/activity cards and buttons

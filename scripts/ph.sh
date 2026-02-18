@@ -886,6 +886,45 @@ _persist_parse_args() {
         _sp_gh_aw_known_workflows="$2"
         shift 2
         ;;
+      --mcp-enabled)
+        require_arg "$1" "${2-}"
+        _sp_mcp_enabled="$2"
+        shift 2
+        ;;
+      --mcp-provider)
+        require_arg "$1" "${2-}"
+        _sp_mcp_provider="$2"
+        shift 2
+        ;;
+      --mcp-read-only)
+        require_arg "$1" "${2-}"
+        _sp_mcp_read_only="$2"
+        shift 2
+        ;;
+      --mcp-timeout-seconds)
+        require_arg "$1" "${2-}"
+        _sp_mcp_timeout_seconds="$2"
+        shift 2
+        ;;
+      --mcp-max-retries)
+        require_arg "$1" "${2-}"
+        _sp_mcp_max_retries="$2"
+        shift 2
+        ;;
+      --mcp-tool-policies)
+        require_arg "$1" "${2-}"
+        _sp_mcp_tool_policies="$2"
+        shift 2
+        ;;
+      --mcp-repo-allowlist)
+        require_arg "$1" "${2-}"
+        _sp_mcp_repo_allowlist="$2"
+        shift 2
+        ;;
+      --clear-mcp-repo-allowlist)
+        _sp_clear_mcp_repo_allowlist="1"
+        shift
+        ;;
       --azure-openai-deployment-name)
         require_arg "$1" "${2-}"
         _sp_azure_openai_deployment_name="$2"
@@ -905,7 +944,7 @@ _persist_parse_args() {
 
 _persist_validate() {
   # Check that the flag combination is valid and normalize values.
-  if [[ "$_sp_from_settings" != "1" && "$_sp_clear_repos" != "1" && -z "${_sp_repos_csv:-}" && -z "${_sp_heal_mode:-}" && -z "${_sp_auto_create_pr:-}" && -z "${_sp_max_remediation_attempts:-}" && -z "${_sp_pipeline_step_timeout_seconds:-}" && -z "${_sp_external_diagnostics_wait_seconds:-}" && -z "${_sp_external_diagnostics_poll_interval_seconds:-}" && -z "${_sp_gh_aw_tools_enabled:-}" && -z "${_sp_gh_aw_ingestion_mode:-}" && -z "${_sp_gh_aw_known_workflows:-}" && -z "${_sp_azure_openai_deployment_name:-}" ]]; then
+  if [[ "$_sp_from_settings" != "1" && "$_sp_clear_repos" != "1" && "$_sp_clear_mcp_repo_allowlist" != "1" && -z "${_sp_repos_csv:-}" && -z "${_sp_heal_mode:-}" && -z "${_sp_auto_create_pr:-}" && -z "${_sp_max_remediation_attempts:-}" && -z "${_sp_pipeline_step_timeout_seconds:-}" && -z "${_sp_external_diagnostics_wait_seconds:-}" && -z "${_sp_external_diagnostics_poll_interval_seconds:-}" && -z "${_sp_gh_aw_tools_enabled:-}" && -z "${_sp_gh_aw_ingestion_mode:-}" && -z "${_sp_gh_aw_known_workflows:-}" && -z "${_sp_mcp_enabled:-}" && -z "${_sp_mcp_provider:-}" && -z "${_sp_mcp_read_only:-}" && -z "${_sp_mcp_timeout_seconds:-}" && -z "${_sp_mcp_max_retries:-}" && -z "${_sp_mcp_tool_policies:-}" && -z "${_sp_mcp_repo_allowlist:-}" && -z "${_sp_azure_openai_deployment_name:-}" ]]; then
     echo "Usage: bash scripts/ph.sh settings:persist --from-settings [--skip-redeploy]" >&2
     echo "   or: bash scripts/ph.sh settings:persist <flags...> [--skip-redeploy]" >&2
     echo "" >&2
@@ -914,13 +953,16 @@ _persist_validate() {
     echo "  --pipeline-step-timeout-seconds N  --gh-aw-tools-enabled true|false" >&2
     echo "  --external-diagnostics-wait-seconds N  --external-diagnostics-poll-interval-seconds N" >&2
     echo "  --gh-aw-ingestion-mode disabled|passive  --gh-aw-known-workflows CSV" >&2
+    echo "  --mcp-enabled true|false  --mcp-provider disabled|github|azure_monitor|custom" >&2
+    echo "  --mcp-read-only true|false  --mcp-timeout-seconds N  --mcp-max-retries N" >&2
+    echo "  --mcp-tool-policies \"tool=mode,tool2=mode\"  --mcp-repo-allowlist CSV  --clear-mcp-repo-allowlist" >&2
     echo "  --azure-openai-deployment-name NAME" >&2
     exit 2
   fi
 
   if [[ "$_sp_from_settings" == "1" ]]; then
     local has_direct="0"
-    [[ "$_sp_clear_repos" == "1" || -n "${_sp_repos_csv:-}" || -n "${_sp_gh_aw_tools_enabled:-}" || -n "${_sp_gh_aw_ingestion_mode:-}" || -n "${_sp_gh_aw_known_workflows:-}" || -n "${_sp_external_diagnostics_wait_seconds:-}" || -n "${_sp_external_diagnostics_poll_interval_seconds:-}" || -n "${_sp_azure_openai_deployment_name:-}" || -n "${_sp_heal_mode:-}" || -n "${_sp_auto_create_pr:-}" || -n "${_sp_max_remediation_attempts:-}" || -n "${_sp_pipeline_step_timeout_seconds:-}" ]] && has_direct="1"
+    [[ "$_sp_clear_repos" == "1" || -n "${_sp_repos_csv:-}" || -n "${_sp_gh_aw_tools_enabled:-}" || -n "${_sp_gh_aw_ingestion_mode:-}" || -n "${_sp_gh_aw_known_workflows:-}" || -n "${_sp_external_diagnostics_wait_seconds:-}" || -n "${_sp_external_diagnostics_poll_interval_seconds:-}" || -n "${_sp_mcp_enabled:-}" || -n "${_sp_mcp_provider:-}" || -n "${_sp_mcp_read_only:-}" || -n "${_sp_mcp_timeout_seconds:-}" || -n "${_sp_mcp_max_retries:-}" || -n "${_sp_mcp_tool_policies:-}" || -n "${_sp_mcp_repo_allowlist:-}" || "$_sp_clear_mcp_repo_allowlist" == "1" || -n "${_sp_azure_openai_deployment_name:-}" || -n "${_sp_heal_mode:-}" || -n "${_sp_auto_create_pr:-}" || -n "${_sp_max_remediation_attempts:-}" || -n "${_sp_pipeline_step_timeout_seconds:-}" ]] && has_direct="1"
     if [[ "$has_direct" == "1" ]]; then
       echo "Use --from-settings by itself (optionally with --skip-redeploy)." >&2
       exit 2
@@ -929,6 +971,10 @@ _persist_validate() {
 
   if [[ "$_sp_clear_repos" == "1" && -n "${_sp_repos_csv:-}" ]]; then
     echo "Use either --repos or --clear-repos, not both." >&2
+    exit 2
+  fi
+  if [[ "$_sp_clear_mcp_repo_allowlist" == "1" && -n "${_sp_mcp_repo_allowlist:-}" ]]; then
+    echo "Use either --mcp-repo-allowlist or --clear-mcp-repo-allowlist, not both." >&2
     exit 2
   fi
 
@@ -959,6 +1005,43 @@ _persist_validate() {
       true|false) _sp_auto_create_pr="${_sp_auto_create_pr,,}" ;;
       *) echo "Invalid --auto-create-pr value: $_sp_auto_create_pr (expected true|false)" >&2; exit 2 ;;
     esac
+  fi
+
+  if [[ -n "${_sp_mcp_enabled:-}" ]]; then
+    case "${_sp_mcp_enabled,,}" in
+      true|false) _sp_mcp_enabled="${_sp_mcp_enabled,,}" ;;
+      *) echo "Invalid --mcp-enabled value: $_sp_mcp_enabled (expected true|false)" >&2; exit 2 ;;
+    esac
+  fi
+
+  if [[ -n "${_sp_mcp_read_only:-}" ]]; then
+    case "${_sp_mcp_read_only,,}" in
+      true|false) _sp_mcp_read_only="${_sp_mcp_read_only,,}" ;;
+      *) echo "Invalid --mcp-read-only value: $_sp_mcp_read_only (expected true|false)" >&2; exit 2 ;;
+    esac
+  fi
+
+  if [[ -n "${_sp_mcp_provider:-}" ]]; then
+    case "${_sp_mcp_provider,,}" in
+      disabled|github|azure_monitor|custom) _sp_mcp_provider="${_sp_mcp_provider,,}" ;;
+      *) echo "Invalid --mcp-provider value: $_sp_mcp_provider (expected disabled|github|azure_monitor|custom)" >&2; exit 2 ;;
+    esac
+  fi
+
+  if [[ -n "${_sp_mcp_timeout_seconds:-}" ]]; then
+    if ! [[ "${_sp_mcp_timeout_seconds}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+      echo "Invalid --mcp-timeout-seconds value: $_sp_mcp_timeout_seconds (expected number > 0)" >&2
+      exit 2
+    fi
+    if [[ "${_sp_mcp_timeout_seconds}" == "0" || "${_sp_mcp_timeout_seconds}" == "0.0" ]]; then
+      echo "--mcp-timeout-seconds must be > 0" >&2
+      exit 2
+    fi
+  fi
+
+  if [[ -n "${_sp_mcp_max_retries:-}" && ! "${_sp_mcp_max_retries}" =~ ^[0-9]+$ ]]; then
+    echo "Invalid --mcp-max-retries value: $_sp_mcp_max_retries (expected integer >= 0)" >&2
+    exit 2
   fi
 
   if [[ -n "${_sp_external_diagnostics_wait_seconds:-}" ]]; then
@@ -1003,6 +1086,21 @@ _persist_hydrate_from_live() {
   _sp_log_prompt_tail_chars="$(echo "$settings_json" | jq -r '.log_prompt_tail_chars')"
   _sp_external_diagnostics_wait_seconds="$(echo "$settings_json" | jq -r '.external_diagnostics_wait_seconds')"
   _sp_external_diagnostics_poll_interval_seconds="$(echo "$settings_json" | jq -r '.external_diagnostics_poll_interval_seconds')"
+  _sp_mcp_enabled="$(echo "$settings_json" | jq -r '.mcp_enabled | if . then "true" else "false" end')"
+  _sp_mcp_provider="$(echo "$settings_json" | jq -r '.mcp_provider')"
+  _sp_mcp_read_only="$(echo "$settings_json" | jq -r '.mcp_read_only | if . then "true" else "false" end')"
+  _sp_mcp_timeout_seconds="$(echo "$settings_json" | jq -r '.mcp_timeout_seconds')"
+  _sp_mcp_max_retries="$(echo "$settings_json" | jq -r '.mcp_max_retries')"
+  _sp_mcp_tool_policies="$(
+    echo "$settings_json" | jq -r '
+      .mcp_tool_policies
+      | to_entries
+      | sort_by(.key)
+      | map("\(.key)=\(.value)")
+      | join(",")
+    '
+  )"
+  _sp_mcp_repo_allowlist="$(echo "$settings_json" | jq -r '.mcp_repo_allowlist | join(",")')"
   _sp_azure_openai_deployment_name="$(echo "$settings_json" | jq -r '.azure_openai_deployment_name')"
 }
 
@@ -1014,6 +1112,13 @@ _persist_write_env() {
       normalized_csv="$(echo "$normalized_csv" | tr -d '[:space:]')"
     fi
     upsert_env_key "PH_ALLOWED_REPOS" "$normalized_csv"
+  fi
+  local normalized_mcp_repo_csv="${_sp_mcp_repo_allowlist:-}"
+  if [[ "$_sp_from_settings" == "1" || "$_sp_clear_mcp_repo_allowlist" == "1" || -n "$normalized_mcp_repo_csv" ]]; then
+    if [[ "$_sp_clear_mcp_repo_allowlist" != "1" && -n "$normalized_mcp_repo_csv" ]]; then
+      normalized_mcp_repo_csv="$(echo "$normalized_mcp_repo_csv" | tr -d '[:space:]')"
+    fi
+    upsert_env_key "MCP_REPO_ALLOWLIST" "$normalized_mcp_repo_csv"
   fi
 
   # Helper: write key if value is non-empty.
@@ -1040,6 +1145,12 @@ _persist_write_env() {
   _write_if_set "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS" "${_sp_external_diagnostics_poll_interval_seconds:-}"
   _write_if_set "GH_AW_TOOLS_ENABLED" "${_sp_gh_aw_tools_enabled:-}"
   _write_if_set "GH_AW_INGESTION_MODE" "${_sp_gh_aw_ingestion_mode:-}"
+  _write_if_set "MCP_ENABLED" "${_sp_mcp_enabled:-}"
+  _write_if_set "MCP_PROVIDER" "${_sp_mcp_provider:-}"
+  _write_if_set "MCP_READ_ONLY" "${_sp_mcp_read_only:-}"
+  _write_if_set "MCP_TIMEOUT_SECONDS" "${_sp_mcp_timeout_seconds:-}"
+  _write_if_set "MCP_MAX_RETRIES" "${_sp_mcp_max_retries:-}"
+  _write_if_set "MCP_TOOL_POLICIES" "${_sp_mcp_tool_policies:-}"
 
   local normalized_workflows="${_sp_gh_aw_known_workflows:-}"
   [[ -n "$normalized_workflows" ]] && normalized_workflows="$(echo "$normalized_workflows" | tr -d '[:space:]')"
@@ -1069,6 +1180,13 @@ _persist_print_summary() {
     echo "  GH_AW_TOOLS_ENABLED=${_sp_gh_aw_tools_enabled:-<unchanged>}"
     echo "  GH_AW_INGESTION_MODE=${_sp_gh_aw_ingestion_mode:-<unchanged>}"
     echo "  GH_AW_KNOWN_WORKFLOWS=${_sp_gh_aw_known_workflows:-<unchanged>}"
+    echo "  MCP_ENABLED=${_sp_mcp_enabled:-<unchanged>}"
+    echo "  MCP_PROVIDER=${_sp_mcp_provider:-<unchanged>}"
+    echo "  MCP_READ_ONLY=${_sp_mcp_read_only:-<unchanged>}"
+    echo "  MCP_TIMEOUT_SECONDS=${_sp_mcp_timeout_seconds:-<unchanged>}"
+    echo "  MCP_MAX_RETRIES=${_sp_mcp_max_retries:-<unchanged>}"
+    echo "  MCP_TOOL_POLICIES=${_sp_mcp_tool_policies:-<unchanged>}"
+    echo "  MCP_REPO_ALLOWLIST=${_sp_mcp_repo_allowlist:-<unchanged>}"
     echo "  AZURE_OPENAI_DEPLOYMENT_NAME=${_sp_azure_openai_deployment_name:-<unchanged>}"
   elif [[ "$_sp_clear_repos" == "1" ]]; then
     echo "Persisted PH_ALLOWED_REPOS=<empty> to backend/.env"
@@ -1084,6 +1202,13 @@ _persist_print_summary() {
     [[ -n "${_sp_gh_aw_tools_enabled:-}" ]] && echo "  GH_AW_TOOLS_ENABLED=${_sp_gh_aw_tools_enabled}"
     [[ -n "${_sp_gh_aw_ingestion_mode:-}" ]] && echo "  GH_AW_INGESTION_MODE=${_sp_gh_aw_ingestion_mode}"
     [[ -n "${_sp_gh_aw_known_workflows:-}" ]] && echo "  GH_AW_KNOWN_WORKFLOWS=${_sp_gh_aw_known_workflows}"
+    [[ -n "${_sp_mcp_enabled:-}" ]] && echo "  MCP_ENABLED=${_sp_mcp_enabled}"
+    [[ -n "${_sp_mcp_provider:-}" ]] && echo "  MCP_PROVIDER=${_sp_mcp_provider}"
+    [[ -n "${_sp_mcp_read_only:-}" ]] && echo "  MCP_READ_ONLY=${_sp_mcp_read_only}"
+    [[ -n "${_sp_mcp_timeout_seconds:-}" ]] && echo "  MCP_TIMEOUT_SECONDS=${_sp_mcp_timeout_seconds}"
+    [[ -n "${_sp_mcp_max_retries:-}" ]] && echo "  MCP_MAX_RETRIES=${_sp_mcp_max_retries}"
+    [[ -n "${_sp_mcp_tool_policies:-}" ]] && echo "  MCP_TOOL_POLICIES=${_sp_mcp_tool_policies}"
+    [[ -n "${_sp_mcp_repo_allowlist:-}" ]] && echo "  MCP_REPO_ALLOWLIST=${_sp_mcp_repo_allowlist}"
     [[ -n "${_sp_azure_openai_deployment_name:-}" ]] && echo "  AZURE_OPENAI_DEPLOYMENT_NAME=${_sp_azure_openai_deployment_name}"
   fi
 
@@ -1103,6 +1228,14 @@ cmd_settings_persist() {
   _sp_gh_aw_tools_enabled=""
   _sp_gh_aw_ingestion_mode=""
   _sp_gh_aw_known_workflows=""
+  _sp_mcp_enabled=""
+  _sp_mcp_provider=""
+  _sp_mcp_read_only=""
+  _sp_mcp_timeout_seconds=""
+  _sp_mcp_max_retries=""
+  _sp_mcp_tool_policies=""
+  _sp_mcp_repo_allowlist=""
+  _sp_clear_mcp_repo_allowlist="0"
   _sp_azure_openai_deployment_name=""
   _sp_heal_mode=""
   _sp_auto_create_pr=""

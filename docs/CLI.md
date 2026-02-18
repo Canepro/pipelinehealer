@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 56fec24 -->
+<!-- LAST_VERIFIED: a95ed82 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -151,8 +151,12 @@ bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2
 bash scripts/ph.sh settings:persist --heal-mode safe --auto-create-pr false
 bash scripts/ph.sh settings:persist --gh-aw-tools-enabled true --gh-aw-ingestion-mode passive
 bash scripts/ph.sh settings:persist --external-diagnostics-wait-seconds 60 --external-diagnostics-poll-interval-seconds 15
+bash scripts/ph.sh settings:persist --mcp-enabled true --mcp-provider github --mcp-read-only true
+bash scripts/ph.sh settings:persist --mcp-tool-policies "fetch_failure_context=read_only,publish_artifact=write_with_approval,rerun_pipeline=write_with_approval"
+bash scripts/ph.sh settings:persist --mcp-repo-allowlist owner/repo1,owner/repo2
 bash scripts/ph.sh settings:persist --azure-openai-deployment-name gpt-4o --skip-redeploy
 bash scripts/ph.sh settings:persist --clear-repos
+bash scripts/ph.sh settings:persist --clear-mcp-repo-allowlist
 ```
 
 | Flag | Values | Description |
@@ -169,10 +173,19 @@ bash scripts/ph.sh settings:persist --clear-repos
 | `--gh-aw-tools-enabled` | `true`, `false` | Set `GH_AW_TOOLS_ENABLED` |
 | `--gh-aw-ingestion-mode` | `disabled`, `passive` | Set `GH_AW_INGESTION_MODE` |
 | `--gh-aw-known-workflows` | CSV | Set `GH_AW_KNOWN_WORKFLOWS` |
+| `--mcp-enabled` | `true`, `false` | Set `MCP_ENABLED` |
+| `--mcp-provider` | `disabled`, `github`, `azure_monitor`, `custom` | Set `MCP_PROVIDER` |
+| `--mcp-read-only` | `true`, `false` | Set `MCP_READ_ONLY` |
+| `--mcp-timeout-seconds` | float | Set `MCP_TIMEOUT_SECONDS` (>0) |
+| `--mcp-max-retries` | int | Set `MCP_MAX_RETRIES` (>=0) |
+| `--mcp-tool-policies` | CSV (`tool=mode`) | Set `MCP_TOOL_POLICIES` |
+| `--mcp-repo-allowlist` | CSV | Set `MCP_REPO_ALLOWLIST` |
+| `--clear-mcp-repo-allowlist` | — | Clear `MCP_REPO_ALLOWLIST` |
 | `--azure-openai-deployment-name` | string | Set `AZURE_OPENAI_DEPLOYMENT_NAME` |
 | `--skip-redeploy` | — | Write `.env` only, skip Azure env sync |
 
 Enum values are validated before writing. Invalid values exit with a clear error.
+For `--mcp-tool-policies`, allowed policy modes are `disabled`, `read_only`, `write_with_approval`, and `auto`.
 
 ### Log Inspection
 
@@ -240,7 +253,7 @@ The same action is available in the UI via the "Backfill Diagnostics" button on 
 
 - **Missing flag values**: All `--flag value` arguments are guarded by `require_arg`. Running `--repo` without a value produces `Error: --repo requires a value argument.` (exit 2) instead of a shell crash.
 - **Unknown arguments**: Unrecognized flags produce a clear message and exit 2.
-- **Enum validation**: `--heal-mode`, `--auto-create-pr`, `--gh-aw-tools-enabled`, and `--gh-aw-ingestion-mode` validate against allowed values before proceeding.
+- **Enum validation**: `--heal-mode`, `--auto-create-pr`, `--gh-aw-tools-enabled`, `--gh-aw-ingestion-mode`, and `--mcp-provider` validate against allowed values before proceeding.
 - **Strict mode**: `set -euo pipefail` is enabled throughout. Log grep pipelines use `|| true` to remain tolerant of empty results.
 
 ## Local Mode

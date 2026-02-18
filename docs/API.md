@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 56fec24 -->
+<!-- LAST_VERIFIED: a95ed82 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -254,11 +254,22 @@ Returns activity records with optional filtering and pagination.
       "read_only": true,
       "reason": "ok",
       "configured_tools": ["fetch_failure_context", "publish_artifact", "rerun_pipeline"],
-      "tool_invocations": {},
+      "tool_invocations": {
+        "fetch_failure_context": 1
+      },
       "source_attribution": {
         "ci-doctor": 1
       },
-      "error_count": 0
+      "error_count": 0,
+      "action_audit": [
+        {
+          "actor": "orchestrator:external_diagnostics",
+          "tool": "fetch_failure_context",
+          "payload_hash": "a2cc8f03e1f5",
+          "result": "success",
+          "request_id": "req-019c6882"
+        }
+      ]
     },
     "remediation_result": {
       "success": true,
@@ -453,6 +464,12 @@ Returns the current runtime configuration (non-secret values only).
   "mcp_read_only": true,
   "mcp_timeout_seconds": 15.0,
   "mcp_max_retries": 1,
+  "mcp_tool_policies": {
+    "fetch_failure_context": "read_only",
+    "publish_artifact": "write_with_approval",
+    "rerun_pipeline": "write_with_approval"
+  },
+  "mcp_repo_allowlist": ["Canepro/pipelinehealer-demo"],
   "gh_aw_tools_enabled": false,
   "gh_aw_ingestion_mode": "disabled",
   "gh_aw_known_workflows": ["ci-doctor", "schema-consistency-checker", "breaking-change-checker"],
@@ -527,10 +544,13 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 | `mcp_read_only` | bool | Restrict MCP actions to read-only mode |
 | `mcp_timeout_seconds` | float | 0–120 |
 | `mcp_max_retries` | int | 0–10 |
+| `mcp_tool_policies` | object | `tool -> policy` map; policy is `disabled`, `read_only`, `write_with_approval`, or `auto` |
+| `mcp_repo_allowlist` | list[string] | Optional owner/repo allowlist enforced for MCP actions |
 
 **Validation**:
 - `log_prompt_head_chars + log_prompt_tail_chars` must be `<= log_prompt_max_chars`.
 - `external_diagnostics_poll_interval_seconds` must be `<= external_diagnostics_wait_seconds` when wait budget is enabled (`wait > 0`).
+- `mcp_tool_policies` must use supported policy modes only (`disabled`, `read_only`, `write_with_approval`, `auto`).
 
 **Response** `200 OK`: updated `AppSettingsView` (same shape as GET).
 
@@ -625,6 +645,13 @@ Durably persists current mutable runtime settings so they survive backend restar
     "MAX_REMEDIATION_ATTEMPTS",
     "GH_AW_TOOLS_ENABLED",
     "GH_AW_INGESTION_MODE",
+    "MCP_ENABLED",
+    "MCP_PROVIDER",
+    "MCP_READ_ONLY",
+    "MCP_TIMEOUT_SECONDS",
+    "MCP_MAX_RETRIES",
+    "MCP_TOOL_POLICIES",
+    "MCP_REPO_ALLOWLIST",
     "EXTERNAL_DIAGNOSTICS_WAIT_SECONDS",
     "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS",
     "AZURE_OPENAI_DEPLOYMENT_NAME"
@@ -760,9 +787,20 @@ Observed MCP execution-path metadata for one activity.
 | `read_only` | bool | Whether provider was constrained to read-only actions |
 | `reason` | string | Short provider-health reason code (`ok`, `disabled`, `missing_github_token`, etc.) |
 | `configured_tools` | string[] | Provider-advertised tool names for this runtime |
-| `tool_invocations` | object | Per-tool invocation counts captured for the activity (empty when no MCP tools were called) |
+| `tool_invocations` | object | Per-tool invocation counts captured for the activity (actual successful/attempted calls during the run) |
 | `source_attribution` | object | Count of ingested external diagnostic sources by key (for traceability) |
 | `error_count` | int | Count of MCP tool invocation errors captured for this activity |
+| `action_audit` | MCPActionAuditEntry[] | Audited MCP actions with actor/tool/payload hash/result/request ID |
+
+### MCPActionAuditEntry (object)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `actor` | string | Logical actor that initiated the MCP call (for example orchestrator phase) |
+| `tool` | string | MCP tool name |
+| `payload_hash` | string | Short hash of invocation payload for traceability without storing raw sensitive payloads |
+| `result` | string | Outcome (`success`, `blocked_policy`, `blocked_scope`, `timeout`, `error`, etc.) |
+| `request_id` | string \| null | Request/trace correlation ID when available |
 
 ### ExternalDiagnostic (object)
 

@@ -20,6 +20,7 @@ export default function SettingsPage() {
   const [adminKeyInput, setAdminKeyInput] = useState('')
   const [adminKey, setAdminKey] = useState('')
   const [useSessionAuth, setUseSessionAuth] = useState(false)
+  const [newMcpRepoInput, setNewMcpRepoInput] = useState('')
   const [form, setForm] = useState<SettingsFormState>({
     llm_provider: 'azure_openai',
     openai_compatible_base_url: '',
@@ -29,6 +30,12 @@ export default function SettingsPage() {
     mcp_read_only: true,
     mcp_timeout_seconds: 15,
     mcp_max_retries: 1,
+    mcp_tool_policies: {
+      fetch_failure_context: 'read_only',
+      publish_artifact: 'write_with_approval',
+      rerun_pipeline: 'write_with_approval',
+    },
+    mcp_repo_allowlist: [],
     heal_mode: 'safe',
     auto_create_pr: true,
     auto_create_tracking_issue_for_prs: true,
@@ -127,6 +134,8 @@ export default function SettingsPage() {
         mcp_read_only: form.mcp_read_only,
         mcp_timeout_seconds: form.mcp_timeout_seconds,
         mcp_max_retries: form.mcp_max_retries,
+        mcp_tool_policies: form.mcp_tool_policies,
+        mcp_repo_allowlist: form.mcp_repo_allowlist,
         heal_mode: form.heal_mode,
         auto_create_pr: form.auto_create_pr,
         auto_create_tracking_issue_for_prs: form.auto_create_tracking_issue_for_prs,
@@ -326,10 +335,12 @@ export default function SettingsPage() {
             isLlmHealthLoading={isLlmHealthLoading}
             mcpProviderHealth={mcpProviderHealth}
             isMcpHealthLoading={isMcpHealthLoading}
-            hasUnsavedChanges={hasUnsavedChanges}
-            newRepoInput={newRepoInput}
-            setNewRepoInput={setNewRepoInput}
-            setGhAwWorkflowsInput={setGhAwWorkflowsInput}
+          hasUnsavedChanges={hasUnsavedChanges}
+          newRepoInput={newRepoInput}
+          setNewRepoInput={setNewRepoInput}
+          newMcpRepoInput={newMcpRepoInput}
+          setNewMcpRepoInput={setNewMcpRepoInput}
+          setGhAwWorkflowsInput={setGhAwWorkflowsInput}
             setLastSavedForm={setLastSavedForm}
             savePending={saveMutation.isPending}
             saveError={saveMutation.isError ? (saveMutation.error as Error) : null}

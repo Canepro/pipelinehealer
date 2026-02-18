@@ -1,8 +1,10 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 56fec24 -->
+<!-- LAST_VERIFIED: a95ed82 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
+
+For dedicated feature-by-feature docs, see `docs/features/README.md`.
 
 **What you'll end up with:**
 
@@ -144,6 +146,26 @@ Troubleshooting quick map:
 - `AADSTS50011`: add exact redirect URI shown in error details.
 - `AADSTS90002`: tenant identifier mismatch; verify tenant and use explicit authority with primary domain.
 - `401 Invalid bearer token` after login: sync backend `ENTRA_*` via `deploy:env`; if `VITE_*` changed, run full `deploy`.
+
+### Optional: Enable MCP diagnostics path
+
+Use this for GitHub MCP observability during activity analysis:
+
+```dotenv
+MCP_ENABLED=true
+MCP_PROVIDER=github
+MCP_READ_ONLY=true
+MCP_TIMEOUT_SECONDS=15
+MCP_MAX_RETRIES=1
+MCP_TOOL_POLICIES=fetch_failure_context=read_only,publish_artifact=write_with_approval,rerun_pipeline=write_with_approval
+MCP_REPO_ALLOWLIST=<owner/repo>
+```
+
+Verify runtime values:
+
+```bash
+bash scripts/ph.sh settings:check | jq '.mcp_enabled,.mcp_provider,.mcp_read_only,.mcp_tool_policies,.mcp_repo_allowlist'
+```
 
 #### Issues encountered in this repo rollout (and fixes)
 
