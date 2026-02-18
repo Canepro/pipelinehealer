@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: a95ed82 -->
+<!-- LAST_VERIFIED: 3d446f0 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -97,11 +97,55 @@ Use full command docs for flags and troubleshooting: `docs/CLI.md`.
 
 ```mermaid
 flowchart LR
-  GH["GitHub Actions\nworkflow_run.completed"] --> WH["/webhook/github"] --> OR["Orchestrator"]
-  OR --> LA["Log Analyzer"] --> DG["Diagnosis"] --> RM["Remediation"]
-  RM --> OP["Create PR / Issue / Re-run"]
-  OR --> ST[(Cosmos DB / In-Memory)]
-  UI["Admin UI"] --> API["/api/settings*"] --> OR
+  subgraph CI["CI Sources"]
+    GH["GitHub Actions<br/>workflow_run.completed"]
+    BF["Backfill Sweep<br/>every 10 min"]
+  end
+
+  subgraph PH["PipelineHealer Core"]
+    WH["/webhook/github"]
+    OR["Orchestrator"]
+    LA["Log Analyzer"]
+    DG["Diagnosis<br/>(Pattern -> LLM fallback)"]
+    RM["Remediation<br/>(policy-gated)"]
+    ST[("Cosmos DB / In-Memory")]
+  end
+
+  subgraph EXT["External Diagnostics"]
+    AW["ci-doctor (passive)"]
+    MCP["GitHub MCP Provider"]
+  end
+
+  subgraph GOV["Governance Surface"]
+    UI["Admin Settings UI"]
+    API["/api/settings*"]
+    AUD["Settings Audit Trail"]
+    EXP["Explainability + Model Path"]
+  end
+
+  subgraph OUT["GitHub Outcomes"]
+    PR["Create / Reuse PR"]
+    IS["Create / Reuse Issue"]
+    RR["Re-run Failed Jobs"]
+  end
+
+  GH --> WH --> OR
+  OR --> LA --> DG --> RM
+  RM --> PR
+  RM --> IS
+  RM --> RR
+
+  GH -. run context .-> AW
+  AW -. external findings .-> DG
+  BF --> AW
+  OR -. MCP tool calls .-> MCP
+  MCP -. enrichment .-> DG
+
+  UI --> API --> OR
+  API --> AUD
+  OR --> EXP
+  OR --> ST
+  BF --> ST
 ```
 
 ## Hackathon status
@@ -109,4 +153,3 @@ flowchart LR
 - Public repo + live Azure deployment
 - Multi-agent implementation with explainability and governance
 - Demo flow and operator runbooks documented
-
