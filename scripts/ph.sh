@@ -57,6 +57,7 @@ Commands:
   settings:check    Call backend /api/settings using ADMIN_API_KEY from backend/.env
   settings:audit    Call backend /api/settings/audit using API+ADMIN keys from backend/.env
   settings:persist  Persist selected settings to backend/.env, API-audit when reachable, and redeploy env-only
+  settings:persist:verify  Persist settings (skip redeploy by default) and verify audit entry was recorded
   audit:proof       Create two traceable admin audit entries and print latest audit records
   aoai:check        Verify Azure OpenAI connectivity from local backend container
   backfill          Trigger on-demand backfill sweep for external diagnostics (ci-doctor)
@@ -72,6 +73,7 @@ Examples:
   bash scripts/ph.sh demo:e2e --skip-webhook-sync
   bash scripts/ph.sh demo:proof --repo owner/repo
   bash scripts/ph.sh settings:persist --from-settings
+  bash scripts/ph.sh settings:persist:verify --from-settings
   bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2 --gh-aw-tools-enabled true --gh-aw-ingestion-mode passive
   bash scripts/ph.sh audit:proof --limit 5
   bash scripts/ph.sh logs
@@ -1534,6 +1536,93 @@ cmd_settings_persist() {
   _persist_print_summary
 }
 
+cmd_settings_persist_verify() {
+  local audit_limit="10"
+  local has_skip_redeploy="0"
+  local persist_args=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --audit-limit)
+        require_arg "$1" "${2-}"
+        audit_limit="$2"
+        shift 2
+        ;;
+      --audit-limit=*)
+        audit_limit="${1#*=}"
+        shift
+        ;;
+      *)
+        [[ "$1" == "--skip-redeploy" ]] && has_skip_redeploy="1"
+        persist_args+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  if [[ "$has_skip_redeploy" == "0" ]]; then
+    persist_args+=(--skip-redeploy)
+    echo "No --skip-redeploy provided; defaulting to --skip-redeploy for safe verification."
+  fi
+
+  local persist_output
+  if ! persist_output="$(cmd_settings_persist "${persist_args[@]}" 2>&1)"; then
+    echo "$persist_output"
+    echo "settings:persist failed; cannot verify audit entry." >&2
+    return 1
+  fi
+  echo "$persist_output"
+
+  local expected_request_id
+  expected_request_id="$(printf '%s\n' "$persist_output" | sed -n 's/.*request_id=\([^,)]*\).*/\1/p' | tail -n1)"
+  if [[ -z "$expected_request_id" ]]; then
+    echo "Could not extract request_id from settings:persist output; audit verification failed." >&2
+    return 1
+  fi
+
+  local audit_json
+  if ! audit_json="$(cmd_settings_audit --limit "$audit_limit" 2>/dev/null)"; then
+    echo "Failed to read settings audit after persist." >&2
+    return 1
+  fi
+
+  if EXPECTED_REQUEST_ID="$expected_request_id" AUDIT_JSON="$audit_json" python3 - <<'PY'
+import json
+import os
+
+expected = os.environ["EXPECTED_REQUEST_ID"]
+raw_audit_json = os.environ.get("AUDIT_JSON", "")
+try:
+    data = json.loads(raw_audit_json)
+except Exception:
+    print("settings:audit did not return valid JSON", file=os.sys.stderr)
+    raise SystemExit(1)
+
+if not isinstance(data, list):
+    print("settings:audit response is not a list", file=os.sys.stderr)
+    raise SystemExit(1)
+
+for entry in data:
+    if not isinstance(entry, dict):
+        continue
+    if entry.get("request_id") != expected:
+        continue
+    changed = entry.get("changed_keys") or []
+    if "persist_settings" in changed:
+        print("Audit verification passed: found persist_settings entry for request_id", expected)
+        raise SystemExit(0)
+
+print(f"No matching persist_settings audit entry found for request_id {expected}", file=os.sys.stderr)
+raise SystemExit(1)
+PY
+  then
+    return 0
+  fi
+
+  echo "settings:persist completed but audit verification failed." >&2
+  return 1
+}
+
 # ---------------------------------------------------------------------------
 # Backfill external diagnostics
 # ---------------------------------------------------------------------------
@@ -1694,6 +1783,9 @@ case "$COMMAND" in
     ;;
   settings:persist)
     cmd_settings_persist "$@"
+    ;;
+  settings:persist:verify)
+    cmd_settings_persist_verify "$@"
     ;;
   audit:proof)
     audit_proof "$@"

@@ -255,6 +255,7 @@ echo "Resource group : $AZ_RESOURCE_GROUP"
 echo "Backend app    : $BACKEND_APP"
 echo "Frontend app   : $FRONTEND_APP"
 echo "Mode           : $MODE"
+echo "Image tag      : $IMAGE_TAG"
 
 if [[ "$MODE" == "full" ]]; then
   if ! CONTAINER_ENGINE="$(detect_engine)"; then
