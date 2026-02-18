@@ -246,6 +246,8 @@ class DashboardStats(BaseModel):
     auto_pr_remediations: int = 0
     issue_remediations: int = 0
     safety_blocked_remediations: int = 0
+    mcp_enabled_runs_30d: int = 0
+    llm_fallback_rate_30d: float = 0.0
     by_failure_type: dict[str, int] = Field(default_factory=dict)
     by_repository: dict[str, int] = Field(default_factory=dict)
     average_resolution_time_seconds: float = 0.0

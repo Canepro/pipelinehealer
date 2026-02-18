@@ -120,6 +120,7 @@ export default function Dashboard() {
       ? Math.round((stats.successful_remediations / stats.actioned_remediations) * 100)
       : 0
     : 0
+  const llmFallbackRate30d = stats ? Math.round(stats.llm_fallback_rate_30d) : 0
   const recentActivities = (activities || []).slice(0, 5)
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
 
@@ -226,7 +227,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:min-w-[360px]">
+            <div className="grid grid-cols-2 gap-3 sm:min-w-[360px] lg:grid-cols-3">
               <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
                 <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">Success Rate</p>
                 <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">{successRate}%</p>
@@ -234,6 +235,18 @@ export default function Dashboard() {
               <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
                 <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">External Signals</p>
                 <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">{externalSignalCount}</p>
+              </div>
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
+                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">MCP Runs (30d)</p>
+                <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">
+                  {stats?.mcp_enabled_runs_30d ?? 0}
+                </p>
+              </div>
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
+                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">LLM Fallback (30d)</p>
+                <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">
+                  {llmFallbackRate30d}%
+                </p>
               </div>
               <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
                 <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">Avg Resolution</p>

@@ -18,6 +18,8 @@ export interface DashboardStats {
   auto_pr_remediations: number
   issue_remediations: number
   safety_blocked_remediations: number
+  mcp_enabled_runs_30d: number
+  llm_fallback_rate_30d: number
   by_failure_type: Record<string, number>
   by_repository: Record<string, number>
   average_resolution_time_seconds: number

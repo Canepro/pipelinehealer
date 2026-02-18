@@ -299,6 +299,11 @@ Replace `<owner>/<repo>` with your demo repo (for example `Canepro/pipelineheale
 
 **Dashboard** — open your frontend URL and you should see activities appearing with status badges.
 
+Top-level KPI chips now also include:
+
+- `MCP Runs (30d)` — activities processed with MCP enabled
+- `LLM Fallback (30d)` — percentage of LLM-observed runs that used fallback path
+
 **API** — or check via the command line:
 
 ```bash

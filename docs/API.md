@@ -176,6 +176,8 @@ Returns aggregate statistics for the dashboard.
   "auto_pr_remediations": 5,
   "issue_remediations": 3,
   "safety_blocked_remediations": 2,
+  "mcp_enabled_runs_30d": 6,
+  "llm_fallback_rate_30d": 12.5,
   "by_failure_type": {
     "dependency": 5,
     "lint": 3,

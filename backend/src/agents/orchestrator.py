@@ -74,6 +74,11 @@ def _build_source_attribution(
     return dict(counts)
 
 
+def _count_error_diagnostics(diagnostics: list[ExternalDiagnostic]) -> int:
+    """Count external diagnostic entries that represent collection errors."""
+    return sum(1 for diagnostic in diagnostics if diagnostic.status == ExternalDiagnosticStatus.ERROR)
+
+
 class OrchestratorAgent:
     """Agent for orchestrating the CI/CD healing pipeline.
 
@@ -130,6 +135,19 @@ class OrchestratorAgent:
         self._diagnosis_agent.refresh_runtime_settings()
         self._remediation_agent.refresh_runtime_settings()
         self._agent = None
+
+    @staticmethod
+    def _increment_mcp_tool_invocation(
+        activity: ActivityRecord,
+        *,
+        tool_name: str,
+        increment: int = 1,
+    ) -> None:
+        """Increment MCP tool usage counters for one activity."""
+        if increment <= 0 or activity.mcp_model_path is None:
+            return
+        current = activity.mcp_model_path.tool_invocations.get(tool_name, 0)
+        activity.mcp_model_path.tool_invocations[tool_name] = current + increment
 
     async def _collect_external_diagnostics(
         self,
@@ -598,7 +616,20 @@ class OrchestratorAgent:
             if external_diagnostics:
                 activity.external_diagnostics = external_diagnostics
             if activity.mcp_model_path is not None:
+                if (
+                    activity.mcp_model_path.enabled
+                    and activity.mcp_model_path.provider == "github"
+                    and self._settings.gh_aw_tools_enabled
+                    and self._settings.gh_aw_ingestion_mode == "passive"
+                ):
+                    self._increment_mcp_tool_invocation(
+                        activity,
+                        tool_name="fetch_failure_context",
+                    )
                 activity.mcp_model_path.source_attribution = _build_source_attribution(
+                    external_diagnostics
+                )
+                activity.mcp_model_path.error_count = _count_error_diagnostics(
                     external_diagnostics
                 )
 
@@ -849,6 +880,21 @@ class OrchestratorAgent:
             d for d in activity.external_diagnostics
             if d.metadata.get("reason_code") != "poll_window_exhausted"
         ] + findings
+        if activity.mcp_model_path is not None:
+            if (
+                activity.mcp_model_path.enabled
+                and activity.mcp_model_path.provider == "github"
+            ):
+                self._increment_mcp_tool_invocation(
+                    activity,
+                    tool_name="fetch_failure_context",
+                )
+            activity.mcp_model_path.source_attribution = _build_source_attribution(
+                activity.external_diagnostics
+            )
+            activity.mcp_model_path.error_count = _count_error_diagnostics(
+                activity.external_diagnostics
+            )
         await self._storage.update_activity(activity)
 
         logger.info(

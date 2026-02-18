@@ -309,6 +309,8 @@ async def test_orchestrator_records_mcp_model_path_and_source_attribution(monkey
     monkeypatch.setenv("MCP_ENABLED", "true")
     monkeypatch.setenv("MCP_PROVIDER", "github")
     monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "test-token")
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "true")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "passive")
     reset_settings()
 
     storage = InMemoryStorage()
@@ -367,6 +369,7 @@ async def test_orchestrator_records_mcp_model_path_and_source_attribution(monkey
         assert result.mcp_model_path.enabled is True
         assert result.mcp_model_path.available is True
         assert "fetch_failure_context" in result.mcp_model_path.configured_tools
+        assert result.mcp_model_path.tool_invocations.get("fetch_failure_context") == 1
         assert result.mcp_model_path.source_attribution == {"gh_aw": 1, "ci_doctor": 1}
     finally:
         reset_settings()

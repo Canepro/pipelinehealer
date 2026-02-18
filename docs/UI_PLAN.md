@@ -235,6 +235,8 @@ These are enforceable defaults for all primary product screens.
     - configured MCP tools
     - external source attribution counts
     - tool usage counters (empty until MCP tool invocation paths are wired).
+- Dashboard ops KPI expansion:
+  - added `MCP Runs (30d)` and `LLM Fallback (30d)` chips to the command-center header.
 
 ## Acceptance Checklist (Per Page)
 

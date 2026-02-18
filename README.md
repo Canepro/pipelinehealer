@@ -202,6 +202,7 @@ flowchart LR
 - **Per-Activity Model Path Telemetry**: Captures observed provider/model path (`llm_model_path`) with fallback-used flag, call count, and aggregate latency
 - **MCP Foundation (Preview)**: MCP provider registry + health endpoint + settings controls (`MCP_*`) for phased multi-tool integration
 - **MCP Activity Observability**: Activity Detail surfaces MCP runtime path (`mcp_model_path`) with provider status, configured tools, source attribution, and tool-usage counters (summary-first, details on demand)
+- **Dashboard Reliability KPIs**: Adds `MCP Runs (30d)` and `LLM Fallback (30d)` operational indicators in the command-center header
 - **GitHub Agentic Workflows Integration**: Passive ingestion of external diagnostics (ci-doctor) when available on monitored repos
 - **Fast-Path External Diagnostics Polling**: Passive ingestion uses a short configurable wait budget (default 60s) with bounded polling before marking diagnostics as pending/backfill
 - **Async External Diagnostics Backfill**: Background sweep (every 10 min) enriches completed activities whose ci-doctor findings arrived after the original poll window; manual trigger via `POST /api/backfill-diagnostics`

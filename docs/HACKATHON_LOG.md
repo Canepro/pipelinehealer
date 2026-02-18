@@ -358,9 +358,16 @@ This is the long-form project tracker for hackathon execution status, submission
     - Activity detail now shows `MCP Observability` summary-first with expandable details.
     - Activities table adds compact MCP status badges (e.g., `MCP: Github`, `MCP: Github (degraded)`).
   - API docs updated with `MCPModelPath` schema + activity payload example.
+- Wired first MCP tool-usage counter path:
+  - `tool_invocations.fetch_failure_context` now increments when GitHub MCP-aligned external diagnostics collection runs.
+  - `error_count` now reflects external diagnostic error entries for the activity.
+- Dashboard observability KPIs:
+  - Added `mcp_enabled_runs_30d` and `llm_fallback_rate_30d` to `/api/stats`.
+  - Surfaced in dashboard header as `MCP Runs (30d)` and `LLM Fallback (30d)`.
 - Additional quality gates for this phase:
   - `python3 -m pytest backend/tests/test_phase1_correctness.py::test_orchestrator_records_mcp_model_path_and_source_attribution -q` passed
   - `python3 -m pytest backend/tests/test_mcp_provider.py backend/tests/test_orchestrator_external_diagnostics.py -q` passed
+  - `python3 -m pytest backend/tests/test_dashboard_stats_observability.py -q` passed
   - `python3 -m mypy backend/src` passed
   - `python3 -m ruff check backend/src backend/tests/test_phase1_correctness.py` passed
 

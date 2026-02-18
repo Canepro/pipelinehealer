@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -372,6 +372,10 @@ class ActivityStorage:
         auto_pr_remediations = 0
         issue_remediations = 0
         safety_blocked_remediations = 0
+        thirty_day_cutoff = _as_utc(utcnow() - timedelta(days=30))
+        mcp_enabled_runs_30d = 0
+        llm_observed_runs_30d = 0
+        llm_fallback_runs_30d = 0
 
         async for activity in self._iter_activities():
             status_key = activity.status.value if activity.status else "unknown"
@@ -415,8 +419,22 @@ class ActivityStorage:
                 ):
                     safety_blocked_remediations += 1
 
+            created_at = _as_utc(activity.created_at) if activity.created_at else None
+            if created_at and created_at >= thirty_day_cutoff:
+                if activity.mcp_model_path and activity.mcp_model_path.enabled:
+                    mcp_enabled_runs_30d += 1
+                if activity.llm_model_path and activity.llm_model_path.call_count > 0:
+                    llm_observed_runs_30d += 1
+                    if activity.llm_model_path.fallback_used:
+                        llm_fallback_runs_30d += 1
+
         total = sum(status_counts.values())
         avg_duration = total_duration / completed_with_duration if completed_with_duration > 0 else 0.0
+        llm_fallback_rate_30d = (
+            (llm_fallback_runs_30d / llm_observed_runs_30d) * 100.0
+            if llm_observed_runs_30d > 0
+            else 0.0
+        )
 
         return DashboardStats(
             total_runs_processed=total,
@@ -427,6 +445,8 @@ class ActivityStorage:
             auto_pr_remediations=auto_pr_remediations,
             issue_remediations=issue_remediations,
             safety_blocked_remediations=safety_blocked_remediations,
+            mcp_enabled_runs_30d=mcp_enabled_runs_30d,
+            llm_fallback_rate_30d=round(llm_fallback_rate_30d, 2),
             by_failure_type=failure_counts,
             by_repository=repo_counts,
             average_resolution_time_seconds=avg_duration,
