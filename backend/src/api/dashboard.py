@@ -24,6 +24,7 @@ from ..models import (
     AppSettingsView,
     DashboardStats,
     FailureType,
+    LearningPromotionReadiness,
     LearningQueueDecisionRequest,
     LearningQueueItem,
     LearningQueueRefreshResponse,
@@ -327,6 +328,9 @@ _LEARNING_QUEUE_ALLOWED_ACTIONS = {
     "retire": LearningQueueStatus.RETIRED.value,
     "reset_candidate": LearningQueueStatus.CANDIDATE.value,
 }
+_LEARNING_PROMOTION_MIN_OCCURRENCES = 2
+_LEARNING_PROMOTION_MIN_SUCCESS_RATE = 0.8
+_LEARNING_PROMOTION_MIN_SAMPLE_SIZE = 2
 
 
 def _normalize_reason_code(value: Any) -> str | None:
@@ -360,6 +364,65 @@ def _extract_activity_reason_code(activity: ActivityRecord) -> str | None:
     if activity.failure_context and activity.failure_context.signal:
         return _normalize_reason_code(activity.failure_context.signal)
     return None
+
+
+def _evaluate_learning_promotion_readiness(
+    candidate: LearningQueueItem,
+) -> LearningPromotionReadiness:
+    """Evaluate whether a candidate is safe to activate as a promoted playbook."""
+    occurrence_count = max(int(candidate.occurrence_count), 0)
+    success_count = max(int(candidate.success_count), 0)
+    sample_size = len(candidate.sample_activity_ids)
+    success_rate = (success_count / occurrence_count) if occurrence_count > 0 else 0.0
+
+    status_gate_passed = candidate.status in {
+        LearningQueueStatus.APPROVED,
+        LearningQueueStatus.ACTIVE,
+    }
+    occurrence_gate_passed = occurrence_count >= _LEARNING_PROMOTION_MIN_OCCURRENCES
+    success_rate_gate_passed = success_rate >= _LEARNING_PROMOTION_MIN_SUCCESS_RATE
+    sample_gate_passed = sample_size >= _LEARNING_PROMOTION_MIN_SAMPLE_SIZE
+
+    reasons: list[str] = []
+    if not status_gate_passed:
+        if candidate.status == LearningQueueStatus.CANDIDATE:
+            reasons.append("status_candidate_requires_approval")
+        elif candidate.status == LearningQueueStatus.REJECTED:
+            reasons.append("status_rejected")
+        elif candidate.status == LearningQueueStatus.RETIRED:
+            reasons.append("status_retired")
+        else:
+            reasons.append("status_not_approved")
+    if not occurrence_gate_passed:
+        reasons.append("occurrence_below_threshold")
+    if not success_rate_gate_passed:
+        reasons.append("success_rate_below_threshold")
+    if not sample_gate_passed:
+        reasons.append("sample_size_below_threshold")
+
+    ready = (
+        status_gate_passed
+        and occurrence_gate_passed
+        and success_rate_gate_passed
+        and sample_gate_passed
+    )
+    requires_force_activate = not ready and candidate.status != LearningQueueStatus.ACTIVE
+
+    return LearningPromotionReadiness(
+        ready=ready,
+        status_gate_passed=status_gate_passed,
+        occurrence_gate_passed=occurrence_gate_passed,
+        success_rate_gate_passed=success_rate_gate_passed,
+        sample_gate_passed=sample_gate_passed,
+        requires_force_activate=requires_force_activate,
+        reasons=reasons,
+        min_occurrences=_LEARNING_PROMOTION_MIN_OCCURRENCES,
+        min_success_rate=_LEARNING_PROMOTION_MIN_SUCCESS_RATE,
+        min_sample_size=_LEARNING_PROMOTION_MIN_SAMPLE_SIZE,
+        occurrence_count=occurrence_count,
+        success_rate=round(success_rate, 4),
+        sample_size=sample_size,
+    )
 
 
 def _build_learning_fingerprint(
@@ -488,6 +551,7 @@ def _extract_learning_candidates(
             latest_activity_at=data["latest_activity_at"],
             status=LearningQueueStatus.CANDIDATE,
         )
+        candidate.promotion_readiness = _evaluate_learning_promotion_readiness(candidate)
         candidates.append(candidate)
     epoch = datetime.fromtimestamp(0, tz=utcnow().tzinfo)
     candidates.sort(
@@ -1154,7 +1218,9 @@ async def list_learning_queue(
     output: list[LearningQueueItem] = []
     for item in items:
         try:
-            output.append(LearningQueueItem(**item))
+            parsed = LearningQueueItem(**item)
+            parsed.promotion_readiness = _evaluate_learning_promotion_readiness(parsed)
+            output.append(parsed)
         except Exception as exc:
             logger.warning("Skipping invalid learning queue item: %s", exc)
     return output
@@ -1225,6 +1291,8 @@ async def refresh_learning_queue(
             candidate.status = existing.status
             candidate.decision_reason = existing.decision_reason
             candidate.decision_actor = existing.decision_actor
+            candidate.metadata = dict(existing.metadata or {})
+        candidate.promotion_readiness = _evaluate_learning_promotion_readiness(candidate)
         candidate.updated_at = now
         await storage.upsert_learning_queue_item(candidate.model_dump(mode="json"))
         upserted += 1
@@ -1289,6 +1357,22 @@ async def decide_learning_queue_item(
                 "action must be one of: approve, reject, activate, retire, reset_candidate"
             ),
         )
+    if payload.force_activate and action != "activate":
+        raise HTTPException(
+            status_code=422,
+            detail="force_activate is supported only when action=activate",
+        )
+
+    readiness_before = _evaluate_learning_promotion_readiness(candidate)
+    forced_activation = bool(payload.force_activate and action == "activate")
+    if action == "activate" and not readiness_before.ready and not forced_activation:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Candidate is not promotion-ready for activation. "
+                "Approve first and satisfy readiness thresholds, or retry with force_activate=true."
+            ),
+        )
 
     previous_status = candidate.status.value
     candidate.status = LearningQueueStatus(next_status)
@@ -1298,6 +1382,14 @@ async def decide_learning_queue_item(
         request=request,
         x_admin_key=x_admin_key,
     )
+    if forced_activation:
+        candidate.metadata["forced_activation"] = {
+            "at": candidate.updated_at.isoformat(),
+            "actor": candidate.decision_actor,
+            "reasons": readiness_before.reasons,
+            "request_id": getattr(request.state, "request_id", None),
+        }
+    candidate.promotion_readiness = _evaluate_learning_promotion_readiness(candidate)
     await storage.upsert_learning_queue_item(candidate.model_dump(mode="json"))
 
     decision_audit_entry = AdminSettingsAuditEntry(
@@ -1309,6 +1401,13 @@ async def decide_learning_queue_item(
                     "candidate_id": candidate.id,
                     "fingerprint": candidate.fingerprint,
                     "action": action,
+                    "force_activate": forced_activation,
+                    "promotion_readiness_before": readiness_before.model_dump(mode="json"),
+                    "promotion_readiness_after": (
+                        candidate.promotion_readiness.model_dump(mode="json")
+                        if candidate.promotion_readiness
+                        else None
+                    ),
                     "status": candidate.status.value,
                     "reason": candidate.decision_reason,
                 },

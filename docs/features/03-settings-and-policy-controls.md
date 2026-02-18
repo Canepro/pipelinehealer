@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: e4a9449 -->
+<!-- LAST_VERIFIED: 04ad120 -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -52,6 +52,17 @@ Learning queue posture:
 - **Approved**: human-reviewed and accepted for potential activation
 - **Active**: approved and enabled as a promoted operational pattern
 - **Rejected/Retired**: explicitly blocked from active use
+
+Promotion-readiness gates (for `activate`):
+- approval gate: candidate should be approved first
+- occurrence gate: at least 2 recurring successful occurrences
+- success-rate gate: at least 80% success
+- sample gate: at least 2 sample activity IDs
+
+Force activation:
+- `force_activate=true` is allowed only for `action=activate`
+- bypasses readiness gates intentionally
+- always leaves an explicit audit trail + forced-activation metadata
 
 ## MCP Guardrail Policy Model
 

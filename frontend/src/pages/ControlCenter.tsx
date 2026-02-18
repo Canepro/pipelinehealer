@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../api/client'
-import type { LearningQueueStatus } from '../api/client'
+import type { LearningQueueItem, LearningQueueStatus } from '../api/client'
 import { AuditTrailPanel } from '../components/settings'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -181,6 +181,43 @@ function learningStatusLabel(status: LearningQueueStatus): string {
   }
 }
 
+function learningReadinessReasonLabel(reason: string): string {
+  switch (reason) {
+    case 'status_candidate_requires_approval':
+      return 'Needs approval before activation'
+    case 'status_rejected':
+      return 'Rejected candidate'
+    case 'status_retired':
+      return 'Retired candidate'
+    case 'status_not_approved':
+      return 'Not approved for activation'
+    case 'occurrence_below_threshold':
+      return 'Insufficient recurring occurrences'
+    case 'success_rate_below_threshold':
+      return 'Success rate below threshold'
+    case 'sample_size_below_threshold':
+      return 'Not enough sample runs'
+    default:
+      return reason.replace(/_/g, ' ')
+  }
+}
+
+function learningReadinessTone(item: LearningQueueItem): 'ok' | 'warn' | 'bad' | 'muted' {
+  const readiness = item.promotion_readiness
+  if (!readiness) return 'muted'
+  if (readiness.ready) return 'ok'
+  if (readiness.requires_force_activate) return 'warn'
+  return 'bad'
+}
+
+function learningReadinessLabel(item: LearningQueueItem): string {
+  const readiness = item.promotion_readiness
+  if (!readiness) return 'Readiness unknown'
+  if (readiness.ready) return 'Promotion ready'
+  if (readiness.requires_force_activate) return 'Needs review / force activate'
+  return 'Not ready'
+}
+
 export default function ControlCenterPage() {
   const queryClient = useQueryClient()
   const [adminKeyInput, setAdminKeyInput] = useState('')
@@ -279,9 +316,18 @@ export default function ControlCenterPage() {
     mutationFn: (args: {
       candidateId: string
       action: 'approve' | 'reject' | 'activate' | 'retire' | 'reset_candidate'
-    }) => api.decideLearningQueueItem(effectiveAdminKey, args.candidateId, { action: args.action }),
+      forceActivate?: boolean
+    }) =>
+      api.decideLearningQueueItem(effectiveAdminKey, args.candidateId, {
+        action: args.action,
+        force_activate: args.forceActivate,
+      }),
     onSuccess: (_item, vars) => {
-      toast.success(`Learning item updated: ${vars.action}`)
+      toast.success(
+        vars.forceActivate
+          ? `Learning item updated: ${vars.action} (forced)`
+          : `Learning item updated: ${vars.action}`
+      )
       void queryClient.invalidateQueries({
         queryKey: ['control-center-learning-queue', adminKey, useSessionAuth],
       })
@@ -338,10 +384,14 @@ export default function ControlCenterPage() {
       rejected: 0,
       active: 0,
       retired: 0,
+      ready: 0,
     }
     for (const item of items) {
       if (item.status in counts) {
         counts[item.status] += 1
+      }
+      if (item.promotion_readiness?.ready) {
+        counts.ready += 1
       }
     }
     return counts
@@ -689,6 +739,7 @@ export default function ControlCenterPage() {
                   <Badge variant="outline">Candidate: {learningQueueSummary.candidate}</Badge>
                   <Badge variant="outline">Approved: {learningQueueSummary.approved}</Badge>
                   <Badge variant="outline">Active: {learningQueueSummary.active}</Badge>
+                  <Badge variant="outline">Ready: {learningQueueSummary.ready}</Badge>
                 </div>
 
                 {learningLoading && <p>Loading learning queue...</p>}
@@ -724,12 +775,35 @@ export default function ControlCenterPage() {
                           {learningStatusLabel(item.status)}
                         </Badge>
                       </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className={toneClass(learningReadinessTone(item))}>
+                          {learningReadinessLabel(item)}
+                        </Badge>
+                        {item.promotion_readiness && (
+                          <span className="text-xs text-[var(--ph-muted)]">
+                            {item.promotion_readiness.occurrence_count}/{item.promotion_readiness.min_occurrences}{' '}
+                            runs • {(item.promotion_readiness.success_rate * 100).toFixed(0)}%
+                            /{(item.promotion_readiness.min_success_rate * 100).toFixed(0)}% success
+                          </span>
+                        )}
+                      </div>
                       <p className="mt-2 line-clamp-2 text-xs text-[var(--ph-muted)]">{item.suggested_playbook}</p>
+                      {item.promotion_readiness && item.promotion_readiness.reasons.length > 0 && (
+                        <p className="mt-2 text-xs text-[var(--ph-muted)]">
+                          {item.promotion_readiness.reasons
+                            .map((reason) => learningReadinessReasonLabel(reason))
+                            .join(' · ')}
+                        </p>
+                      )}
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Button
                           size="sm"
                           variant="ghost"
-                          disabled={decideLearningMutation.isPending}
+                          disabled={
+                            decideLearningMutation.isPending ||
+                            item.status === 'approved' ||
+                            item.status === 'active'
+                          }
                           onClick={() =>
                             decideLearningMutation.mutate({ candidateId: item.id, action: 'approve' })
                           }
@@ -739,7 +813,11 @@ export default function ControlCenterPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          disabled={decideLearningMutation.isPending}
+                          disabled={
+                            decideLearningMutation.isPending ||
+                            item.status === 'active' ||
+                            !item.promotion_readiness?.ready
+                          }
                           onClick={() =>
                             decideLearningMutation.mutate({ candidateId: item.id, action: 'activate' })
                           }
@@ -749,7 +827,33 @@ export default function ControlCenterPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          disabled={decideLearningMutation.isPending}
+                          disabled={
+                            decideLearningMutation.isPending ||
+                            item.status === 'active' ||
+                            !item.promotion_readiness?.requires_force_activate
+                          }
+                          onClick={() => {
+                            const ok = window.confirm(
+                              'Force-activate this playbook candidate? This bypasses readiness gates and will be audit logged.'
+                            )
+                            if (!ok) return
+                            decideLearningMutation.mutate({
+                              candidateId: item.id,
+                              action: 'activate',
+                              forceActivate: true,
+                            })
+                          }}
+                        >
+                          Force Activate
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={
+                            decideLearningMutation.isPending ||
+                            item.status === 'rejected' ||
+                            item.status === 'retired'
+                          }
                           onClick={() =>
                             decideLearningMutation.mutate({ candidateId: item.id, action: 'reject' })
                           }
@@ -759,7 +863,7 @@ export default function ControlCenterPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          disabled={decideLearningMutation.isPending}
+                          disabled={decideLearningMutation.isPending || item.status === 'retired'}
                           onClick={() =>
                             decideLearningMutation.mutate({ candidateId: item.id, action: 'retire' })
                           }

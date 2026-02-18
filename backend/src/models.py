@@ -408,6 +408,24 @@ class LearningQueueStatus(StrEnum):
     RETIRED = "retired"
 
 
+class LearningPromotionReadiness(BaseModel):
+    """Promotion-readiness evaluation for activating a learned playbook."""
+
+    ready: bool = False
+    status_gate_passed: bool = False
+    occurrence_gate_passed: bool = False
+    success_rate_gate_passed: bool = False
+    sample_gate_passed: bool = False
+    requires_force_activate: bool = True
+    reasons: list[str] = Field(default_factory=list)
+    min_occurrences: int = 2
+    min_success_rate: float = 0.8
+    min_sample_size: int = 2
+    occurrence_count: int = 0
+    success_rate: float = 0.0
+    sample_size: int = 0
+
+
 class LearningQueueItem(BaseModel):
     """Governance-reviewed remediation learning queue item."""
 
@@ -426,6 +444,7 @@ class LearningQueueItem(BaseModel):
     status: LearningQueueStatus = LearningQueueStatus.CANDIDATE
     decision_reason: str = ""
     decision_actor: str | None = None
+    promotion_readiness: LearningPromotionReadiness | None = None
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -445,6 +464,7 @@ class LearningQueueDecisionRequest(BaseModel):
 
     action: str
     reason: str = ""
+    force_activate: bool = False
 
 
 class AdminSettingsAuditEntry(BaseModel):

@@ -242,6 +242,22 @@ export interface AdminSettingsPersistResponse {
 
 export type LearningQueueStatus = 'candidate' | 'approved' | 'rejected' | 'active' | 'retired'
 
+export interface LearningPromotionReadiness {
+  ready: boolean
+  status_gate_passed: boolean
+  occurrence_gate_passed: boolean
+  success_rate_gate_passed: boolean
+  sample_gate_passed: boolean
+  requires_force_activate: boolean
+  reasons: string[]
+  min_occurrences: number
+  min_success_rate: number
+  min_sample_size: number
+  occurrence_count: number
+  success_rate: number
+  sample_size: number
+}
+
 export interface LearningQueueItem {
   id: string
   fingerprint: string
@@ -258,6 +274,7 @@ export interface LearningQueueItem {
   status: LearningQueueStatus
   decision_reason: string
   decision_actor?: string | null
+  promotion_readiness?: LearningPromotionReadiness | null
   created_at: string
   updated_at: string
   metadata: Record<string, unknown>
@@ -413,7 +430,11 @@ export const api = {
   decideLearningQueueItem: (
     adminKey: string | undefined,
     candidateId: string,
-    payload: { action: 'approve' | 'reject' | 'activate' | 'retire' | 'reset_candidate'; reason?: string }
+    payload: {
+      action: 'approve' | 'reject' | 'activate' | 'retire' | 'reset_candidate'
+      reason?: string
+      force_activate?: boolean
+    }
   ) =>
     fetchJson<LearningQueueItem>(`/api/settings/learning/queue/${candidateId}/decision`, {
       method: 'POST',

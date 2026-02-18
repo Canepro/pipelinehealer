@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 832a2f5 -->
+<!-- LAST_VERIFIED: 04ad120 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -740,6 +740,24 @@ Returns governance learning-queue records (candidate/approved/rejected/active/re
     "status": "candidate",
     "decision_reason": "",
     "decision_actor": null,
+    "promotion_readiness": {
+      "ready": false,
+      "status_gate_passed": false,
+      "occurrence_gate_passed": true,
+      "success_rate_gate_passed": true,
+      "sample_gate_passed": false,
+      "requires_force_activate": true,
+      "reasons": [
+        "status_candidate_requires_approval",
+        "sample_size_below_threshold"
+      ],
+      "min_occurrences": 2,
+      "min_success_rate": 0.8,
+      "min_sample_size": 2,
+      "occurrence_count": 4,
+      "success_rate": 1.0,
+      "sample_size": 1
+    },
     "created_at": "2026-02-18T20:15:00Z",
     "updated_at": "2026-02-18T20:15:00Z",
     "metadata": {}
@@ -788,7 +806,8 @@ Applies a governance decision for one learning candidate.
 ```json
 {
   "action": "approve",
-  "reason": "Validated during operator review"
+  "reason": "Validated during operator review",
+  "force_activate": false
 }
 ```
 
@@ -799,11 +818,25 @@ Allowed actions:
 - `retire`
 - `reset_candidate`
 
+`force_activate` notes:
+- optional boolean, valid only when `action="activate"`
+- bypasses readiness gates and writes forced-activation metadata to the candidate + audit trail
+
+Activation readiness gates:
+- status must be `approved` (or already `active`)
+- `occurrence_count >= 2`
+- `success_rate >= 0.8`
+- `sample_activity_ids >= 2`
+
 **Response** `200 OK`: updated `LearningQueueItem`.
+
+**Response** `409 Conflict`:
+- returned when `action="activate"` and readiness gates are not satisfied without `force_activate=true`
 
 Side effects:
 - Appends admin audit entry with `changed_keys=["learning_queue_decision"]`.
 - Captures decision actor fingerprint and request correlation metadata.
+- Includes readiness snapshot before/after the decision in audit `changes.learning_queue_decision`.
 
 #### `GET /api/settings/audit`
 

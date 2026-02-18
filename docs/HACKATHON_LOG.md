@@ -57,6 +57,7 @@ This is the long-form project tracker for hackathon execution status, submission
   - learning queue API + durable storage
   - Control Center candidate refresh and human decision actions
   - admin audit entries for learning queue refresh/decision events
+  - promotion-readiness gating for activation (approval/status + occurrence + success-rate + sample-size thresholds) with audited `force_activate` override path
 
 ## Phase Overview
 

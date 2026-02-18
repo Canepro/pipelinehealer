@@ -50,13 +50,13 @@ async def _refresh_learning_queue() -> httpx.Response:
         )
 
 
-async def _decide(candidate_id: str, action: str) -> httpx.Response:
+async def _decide(candidate_id: str, action: str, *, force_activate: bool = False) -> httpx.Response:
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         return await client.post(
             f"/api/settings/learning/queue/{candidate_id}/decision",
             headers=_auth_headers(),
-            json={"action": action},
+            json={"action": action, "force_activate": force_activate},
         )
 
 
@@ -109,6 +109,8 @@ async def test_learning_queue_refresh_generates_candidate_for_repeated_success()
     assert first["status"] == "candidate"
     assert first["failure_type"] == "build_config"
     assert first["occurrence_count"] >= 2
+    assert first["promotion_readiness"]["ready"] is False
+    assert "status_candidate_requires_approval" in first["promotion_readiness"]["reasons"]
 
 
 @pytest.mark.asyncio
@@ -146,10 +148,96 @@ async def test_learning_queue_decision_updates_status_and_is_audited() -> None:
     decision = await _decide(candidate_id, "approve")
     assert decision.status_code == 200
     assert decision.json()["status"] == "approved"
+    assert decision.json()["promotion_readiness"]["ready"] is True
+
+    activation = await _decide(candidate_id, "activate")
+    assert activation.status_code == 200
+    assert activation.json()["status"] == "active"
 
     queue_after = await _get_learning_queue()
     assert queue_after.status_code == 200
-    assert queue_after.json()[0]["status"] == "approved"
+    assert queue_after.json()[0]["status"] == "active"
 
     audit = await storage.list_admin_settings_audit_entries(limit=5)
     assert any("learning_queue_decision" in item.get("changed_keys", []) for item in audit)
+
+
+@pytest.mark.asyncio
+async def test_learning_queue_activate_requires_readiness_or_force() -> None:
+    storage = app.state.storage
+    for index in (1, 2):
+        activity = ActivityRecord(
+            repositoryId="repo-1",
+            repository_name="owner/repo",
+            workflow_run_id=300 + index,
+            workflow_name="CI",
+            status=RemediationStatus.COMPLETED,
+            failure_type=FailureType.TIMEOUT,
+            diagnosis=Diagnosis(
+                failure_type=FailureType.TIMEOUT,
+                confidence=0.82,
+                root_cause="timeout",
+                is_auto_fixable=False,
+                suggested_fix="Increase timeout",
+                error_details={"reason_code": "LONG_RUNNING_STEP"},
+            ),
+            remediation_result=RemediationResult(
+                success=True,
+                action_taken=RemediationAction.CREATE_ISSUE,
+                details={"reason_code": "LONG_RUNNING_STEP"},
+            ),
+        )
+        await storage.create_activity(activity)
+
+    refreshed = await _refresh_learning_queue()
+    assert refreshed.status_code == 200
+    queue = await _get_learning_queue()
+    candidate_id = queue.json()[0]["id"]
+
+    blocked = await _decide(candidate_id, "activate")
+    assert blocked.status_code == 409
+    assert "not promotion-ready" in blocked.text
+
+    forced = await _decide(candidate_id, "activate", force_activate=True)
+    assert forced.status_code == 200
+    body = forced.json()
+    assert body["status"] == "active"
+    assert "forced_activation" in body["metadata"]
+    assert body["metadata"]["forced_activation"]["reasons"] != []
+
+
+@pytest.mark.asyncio
+async def test_learning_queue_force_activate_rejected_for_non_activate_action() -> None:
+    storage = app.state.storage
+    for index in (1, 2):
+        activity = ActivityRecord(
+            repositoryId="repo-1",
+            repository_name="owner/repo",
+            workflow_run_id=400 + index,
+            workflow_name="CI",
+            status=RemediationStatus.COMPLETED,
+            failure_type=FailureType.LINT,
+            diagnosis=Diagnosis(
+                failure_type=FailureType.LINT,
+                confidence=0.9,
+                root_cause="Lint config mismatch",
+                is_auto_fixable=True,
+                suggested_fix="Align lint config",
+                error_details={"reason_code": "LINT_RULE_UPDATE"},
+            ),
+            remediation_result=RemediationResult(
+                success=True,
+                action_taken=RemediationAction.CREATE_PR,
+                details={"reason_code": "LINT_RULE_UPDATE"},
+            ),
+        )
+        await storage.create_activity(activity)
+
+    refreshed = await _refresh_learning_queue()
+    assert refreshed.status_code == 200
+    queue = await _get_learning_queue()
+    candidate_id = queue.json()[0]["id"]
+
+    invalid = await _decide(candidate_id, "approve", force_activate=True)
+    assert invalid.status_code == 422
+    assert "force_activate is supported only when action=activate" in invalid.text

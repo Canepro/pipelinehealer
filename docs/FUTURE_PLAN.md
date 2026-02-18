@@ -109,9 +109,9 @@ Initial MCP providers to prioritize:
   - fetch similar historical incidents and inject evidence into agent context
 - Add controlled "playbook promotion":
   - promote repeated successful patterns to deterministic remediation templates
-  - require thresholds (for example N successful outcomes) before promotion
+  - require thresholds before activation (Done: approval/status + occurrence + success-rate + sample-size gates with audited `force_activate` override)
 - Add explicit approval mode:
-  - operator approves/rejects learned playbooks
+  - operator approves/rejects learned playbooks (Done: decision API + Control Center actions)
   - rejected candidates recorded with reason for model feedback
 - Preserve trust controls:
   - no autonomous policy mutation without human approval
