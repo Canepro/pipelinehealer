@@ -19,10 +19,10 @@ Related docs:
 ## Demo Flow (3-4 Minutes)
 
 1. Dashboard story: show `Processed`, `Actioned`, `Safety Gated`, and `Issue-Only`.
-2. Explainability drilldown: open a focused activity and show reason code + evidence context.
+2. Explainability drilldown: open a focused activity and show reason code + the `Evidence Layers` block (`Confidence Impact by Source` + `Structured Context`).
 3. External findings: expand the "External Findings Details" panel to show ci-doctor's structured root cause, recommended actions, and doctor metadata.
 4. Safety boundary: show `Why Safety Gated` microcopy and explain policy-driven issue fallback.
-5. Runtime policy + audit proof: open `/settings`, show the Effective Runtime Policy banner (mode, PR toggle, scope), then run `bash scripts/ph.sh audit:proof --limit 5`.
+5. Runtime policy + audit proof: open `/settings`, use the section tabs (`Runtime Controls`, `AI & Integrations`, `Security & Advanced`), show the Effective Runtime Policy banner (mode, PR toggle, scope), then run `bash scripts/ph.sh audit:proof --limit 5`.
 
 ## 1) Pre-Record Setup (5-10 minutes before)
 
@@ -116,7 +116,7 @@ Expected result pattern:
 - PRs: dependency + lint
 - Issues: test + build_config + timeout
 - Admin audit proof should show latest entries containing `request_id`, actor fingerprint, and old/new change values.
-- Settings page should show runtime scope clearly (`Allowlist (N)` or `Unrestricted`) in the Effective Runtime Policy banner.
+- Settings page should show runtime scope clearly (`Allowlist (N)` or `Unrestricted`) in the Effective Runtime Policy banner and keep controls organized by section tabs.
 
 ### External diagnostics enrichment
 

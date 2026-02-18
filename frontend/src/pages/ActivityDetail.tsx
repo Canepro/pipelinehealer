@@ -16,6 +16,23 @@ import { api } from '../api/client'
 import StatusBadge from '../components/StatusBadge'
 import FailureTypeBadge from '../components/FailureTypeBadge'
 
+const RAW_EVIDENCE_KEYS = new Set([
+  'key_log_lines',
+  'relevant_log_lines',
+  'log_messages',
+  'evidence',
+  'raw_log_lines',
+  'error_lines',
+])
+
+const STRUCTURED_EVIDENCE_OMIT_KEYS = new Set([
+  ...RAW_EVIDENCE_KEYS,
+  'violations',
+  'additional',
+  'message',
+  'raw_logs',
+])
+
 function formatSourceLabel(source: string): string {
   const normalized = source.trim().replace(/[_-]+/g, ' ')
   if (!normalized) {
@@ -93,6 +110,103 @@ function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
       : null
   const reusedExistingPr = details?.reused_existing_pr === true
   return { includesProposedFix: includes, reasonCode: reason, reasonDetail, reusedExistingPr }
+}
+
+function toEvidenceLabel(key: string): string {
+  return key
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function normalizeEvidenceLines(value: unknown): string[] {
+  if (typeof value === 'string') {
+    const line = value.trim()
+    return line ? [line] : []
+  }
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((line): line is string => typeof line === 'string')
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
+function collectRawEvidenceLines(details: Record<string, unknown> | undefined): string[] {
+  if (!details) return []
+  const seen = new Set<string>()
+  const lines: string[] = []
+  for (const key of RAW_EVIDENCE_KEYS) {
+    const entries = normalizeEvidenceLines(details[key])
+    for (const entry of entries) {
+      if (seen.has(entry)) continue
+      seen.add(entry)
+      lines.push(entry)
+      if (lines.length >= 40) return lines
+    }
+  }
+  const fallbackMessage = typeof details.message === 'string' ? details.message.trim() : ''
+  if (fallbackMessage && !seen.has(fallbackMessage)) {
+    lines.push(fallbackMessage)
+  }
+  return lines
+}
+
+function formatStructuredEvidenceValue(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) {
+    const compact = value
+      .map((item) => (typeof item === 'string' ? item : JSON.stringify(item)))
+      .filter((item) => typeof item === 'string' && item.length > 0)
+      .slice(0, 5)
+    if (compact.length === 0) return ''
+    return compact.join(', ')
+  }
+  if (value && typeof value === 'object') {
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return ''
+    }
+  }
+  return ''
+}
+
+function collectStructuredEvidence(
+  details: Record<string, unknown> | undefined,
+): Array<{ key: string; label: string; value: string }> {
+  if (!details) return []
+  const rows: Array<{ key: string; label: string; value: string }> = []
+  for (const [key, rawValue] of Object.entries(details)) {
+    if (STRUCTURED_EVIDENCE_OMIT_KEYS.has(key)) continue
+    const formatted = formatStructuredEvidenceValue(rawValue).trim()
+    if (!formatted) continue
+    rows.push({
+      key,
+      label: toEvidenceLabel(key),
+      value: formatted,
+    })
+    if (rows.length >= 12) break
+  }
+  return rows
+}
+
+function aggregateConfidenceBySource(
+  diagnostics: Array<{ source: string; confidence_delta: number; status: string }>,
+): Array<{ source: string; delta: number; samples: number; available: number }> {
+  const bySource = new Map<string, { delta: number; samples: number; available: number }>()
+  for (const diagnostic of diagnostics) {
+    const source = diagnostic.source || 'unknown'
+    const current = bySource.get(source) ?? { delta: 0, samples: 0, available: 0 }
+    current.delta += diagnostic.confidence_delta
+    current.samples += 1
+    if (diagnostic.status === 'available') {
+      current.available += 1
+    }
+    bySource.set(source, current)
+  }
+  return Array.from(bySource.entries())
+    .map(([source, value]) => ({ source, ...value }))
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
 }
 
 const DETAIL_SECTIONS: Array<{ key: string; label: string }> = [
@@ -330,6 +444,7 @@ function ExternalFindingsPanel({ details, defaultOpen = false }: { details: Reco
 export default function ActivityDetail() {
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
+  const [showRawEvidence, setShowRawEvidence] = useState(false)
 
   const { data: activity, isLoading, error } = useQuery({
     queryKey: ['activity', id],
@@ -377,6 +492,10 @@ export default function ActivityDetail() {
   }
   const remediationMeta = getIssueProposalMeta(activity.remediation_result?.details)
   const externalDiagnostics = activity.external_diagnostics ?? []
+  const diagnosisDetails = activity.diagnosis?.error_details as Record<string, unknown> | undefined
+  const sourceConfidenceImpact = aggregateConfidenceBySource(externalDiagnostics)
+  const structuredEvidence = collectStructuredEvidence(diagnosisDetails)
+  const rawEvidenceLines = collectRawEvidenceLines(diagnosisDetails)
 
   return (
     <div className="space-y-6">
@@ -659,6 +778,108 @@ export default function ActivityDetail() {
                     <p className="text-gray-900 dark:text-white">{activity.llm_model_path.error_count}</p>
                   </div>
                 </div>
+              </div>
+            )}
+            {(sourceConfidenceImpact.length > 0 ||
+              structuredEvidence.length > 0 ||
+              rawEvidenceLines.length > 0) && (
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Evidence Layers
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowRawEvidence((prev) => !prev)}
+                    disabled={rawEvidenceLines.length === 0}
+                    className="text-xs font-medium text-azure-600 hover:text-azure-700 dark:text-azure-400 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {showRawEvidence ? 'Hide raw extracts' : 'Show raw extracts'}
+                  </button>
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Confidence Impact By Source
+                    </p>
+                    {sourceConfidenceImpact.length > 0 ? (
+                      <div className="space-y-2">
+                        {sourceConfidenceImpact.map((item) => (
+                          <div
+                            key={item.source}
+                            className="rounded-md border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-900/40 px-3 py-2"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                {formatSourceLabel(item.source)}
+                              </p>
+                              <span
+                                className={`text-xs font-semibold ${item.delta >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
+                              >
+                                {formatConfidenceDelta(item.delta)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                              Samples: {item.samples} • Available findings: {item.available}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        No external confidence signals recorded.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Structured Context
+                    </p>
+                    {structuredEvidence.length > 0 ? (
+                      <div className="space-y-2">
+                        {structuredEvidence.map((item) => (
+                          <div
+                            key={item.key}
+                            className="rounded-md border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-900/40 px-3 py-2"
+                          >
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{item.label}</p>
+                            <p className="mt-1 text-sm text-gray-900 dark:text-white break-words">
+                              {item.value}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        No additional structured context in this activity.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {showRawEvidence && (
+                  <div className="mt-4 border-t border-gray-200 pt-3 dark:border-gray-700">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Raw Log Extracts
+                    </p>
+                    {rawEvidenceLines.length > 0 ? (
+                      <ul className="mt-2 space-y-1">
+                        {rawEvidenceLines.map((line, index) => (
+                          <li
+                            key={`${line}-${index}`}
+                            className="rounded bg-gray-100 px-2 py-1 text-xs font-mono text-gray-700 dark:bg-gray-900/70 dark:text-gray-200"
+                          >
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        Raw extracts are not present in this diagnosis payload.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {activity.diagnosis.suggested_fix && (

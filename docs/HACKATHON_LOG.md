@@ -327,6 +327,27 @@ This is the long-form project tracker for hackathon execution status, submission
   - Added focused unit/security tests for MCP provider behavior and health endpoint.
 - Backend test count: 121 passing. Frontend lint/build clean.
 
+### Feb 18, 2026
+
+- Shipped Settings IA refinement for operator usability:
+  - Added sectioned navigation tabs in admin settings UI:
+    - `Runtime Controls`
+    - `AI & Integrations`
+    - `Security & Advanced`
+  - Existing controls and validation behavior remain unchanged; only navigation/organization changed.
+- Shipped Activity explainability layering UX:
+  - Added `Evidence Layers` panel in activity detail with:
+    - confidence impact aggregated by external source
+    - structured context rendering from diagnosis payload fields
+    - optional raw log extract toggle (off by default)
+  - Supports “summary first, evidence on demand” demo flow without hiding operator-deep context.
+- Documentation updates:
+  - `docs/DEMO_SCRIPT.md` updated to call out section tabs + evidence-layers walkthrough steps.
+  - `docs/UI_PLAN.md` updated with Week 4 checkpoint notes.
+- Quality gates:
+  - `frontend: bun run lint` passed
+  - `frontend: bun run build` passed
+
 ## Project Tracking Plan (Now -> Mar 15)
 
 This plan is the source of truth for controlled polish work without drift.

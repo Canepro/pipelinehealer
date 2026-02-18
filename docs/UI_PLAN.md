@@ -215,6 +215,21 @@ These are enforceable defaults for all primary product screens.
 - [ ] Final capture run with `docs/DEMO_SCRIPT.md`.
 - [ ] Verify API doc (`docs/API.md`) matches runtime contracts.
 
+### Week 4 Checkpoint (2026-02-18)
+
+- Settings information architecture refinement:
+  - replaced long single-surface admin controls with section tabs:
+    - `Runtime Controls`
+    - `AI & Integrations`
+    - `Security & Advanced`
+  - preserved existing controls/validation; reduced operator scan cost for live demos.
+- Activity explainability layering:
+  - added `Evidence Layers` block in activity detail:
+    - confidence impact per external source
+    - structured context extracted from diagnosis payload
+    - optional raw log extracts toggle (off by default)
+  - keeps default view concise while still enabling trust-building forensic depth.
+
 ## Acceptance Checklist (Per Page)
 
 - [ ] Visual hierarchy is obvious in under 5 seconds.

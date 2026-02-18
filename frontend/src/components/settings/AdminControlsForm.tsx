@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface Props {
@@ -45,6 +46,8 @@ interface Props {
   onSave: () => void
 }
 
+type SettingsSection = 'runtime' | 'intelligence' | 'security'
+
 export default function AdminControlsForm({
   data,
   form,
@@ -65,6 +68,7 @@ export default function AdminControlsForm({
 }: Props) {
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [workflowInput, setWorkflowInput] = useState('')
+  const [activeSection, setActiveSection] = useState<SettingsSection>('runtime')
 
   const addAllowedRepo = () => {
     const normalized = normalizeRepoInput(newRepoInput)
@@ -107,74 +111,99 @@ export default function AdminControlsForm({
   return (
     <TooltipProvider delayDuration={300}>
       <div className="space-y-6">
-        {/* ── Section 1: Healing Behavior ── */}
         <Card>
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-azure-500" />
-              <CardTitle>Healing Behavior</CardTitle>
-            </div>
-            <p className="text-sm text-[var(--ph-muted)]">
-              Controls how PipelineHealer responds to CI failures.
+          <CardContent className="py-4">
+            <Tabs
+              value={activeSection}
+              onValueChange={(value) => setActiveSection(value as SettingsSection)}
+              className="w-full"
+            >
+              <TabsList className="grid h-auto w-full grid-cols-1 sm:grid-cols-3">
+                <TabsTrigger value="runtime">Runtime Controls</TabsTrigger>
+                <TabsTrigger value="intelligence">AI & Integrations</TabsTrigger>
+                <TabsTrigger value="security">Security & Advanced</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <p className="mt-3 text-xs text-[var(--ph-muted)]">
+              Use sections to tune behavior safely: runtime policy first, then provider integrations,
+              then security and advanced controls.
             </p>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <FieldGroup label="Heal Mode" field="heal_mode">
-                <Select
-                  value={form.heal_mode}
-                  onValueChange={(v) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      heal_mode: v as SettingsFormState['heal_mode'],
-                    }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="safe">Safe — Conservative fixes</SelectItem>
-                    <SelectItem value="demo">Demo — Aggressive for demonstrations</SelectItem>
-                    <SelectItem value="debug">Debug — Safe + verbose logging</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FieldGroup>
-
-              <FieldGroup label="Max Remediation Attempts" field="max_remediation_attempts">
-                <Input
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={form.max_remediation_attempts}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, max_remediation_attempts: Number(e.target.value) }))
-                  }
-                />
-              </FieldGroup>
-            </div>
-
-            <Separator />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <SwitchField
-                label="Auto-Create Pull Requests"
-                field="auto_create_pr"
-                checked={form.auto_create_pr}
-                onChange={(v) => setForm((p) => ({ ...p, auto_create_pr: v }))}
-              />
-              <SwitchField
-                label="Auto-Create Tracking Issues"
-                field="auto_create_tracking_issue_for_prs"
-                checked={form.auto_create_tracking_issue_for_prs}
-                onChange={(v) => setForm((p) => ({ ...p, auto_create_tracking_issue_for_prs: v }))}
-              />
-            </div>
           </CardContent>
         </Card>
 
+        {/* ── Section 1: Healing Behavior ── */}
+        {activeSection === 'runtime' && (
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-azure-500" />
+                <CardTitle>Healing Behavior</CardTitle>
+              </div>
+              <p className="text-sm text-[var(--ph-muted)]">
+                Controls how PipelineHealer responds to CI failures.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <FieldGroup label="Heal Mode" field="heal_mode">
+                  <Select
+                    value={form.heal_mode}
+                    onValueChange={(v) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        heal_mode: v as SettingsFormState['heal_mode'],
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="safe">Safe — Conservative fixes</SelectItem>
+                      <SelectItem value="demo">Demo — Aggressive for demonstrations</SelectItem>
+                      <SelectItem value="debug">Debug — Safe + verbose logging</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FieldGroup>
+
+                <FieldGroup label="Max Remediation Attempts" field="max_remediation_attempts">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={form.max_remediation_attempts}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, max_remediation_attempts: Number(e.target.value) }))
+                    }
+                  />
+                </FieldGroup>
+              </div>
+
+              <Separator />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <SwitchField
+                  label="Auto-Create Pull Requests"
+                  field="auto_create_pr"
+                  checked={form.auto_create_pr}
+                  onChange={(v) => setForm((p) => ({ ...p, auto_create_pr: v }))}
+                />
+                <SwitchField
+                  label="Auto-Create Tracking Issues"
+                  field="auto_create_tracking_issue_for_prs"
+                  checked={form.auto_create_tracking_issue_for_prs}
+                  onChange={(v) =>
+                    setForm((p) => ({ ...p, auto_create_tracking_issue_for_prs: v }))
+                  }
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* ── Section 2: AI Configuration ── */}
-        <Card>
+        {activeSection === 'intelligence' && (
+          <Card>
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-azure-500" />
@@ -301,10 +330,12 @@ export default function AdminControlsForm({
               />
             </div>
           </CardContent>
-        </Card>
+          </Card>
+        )}
 
         {/* ── Section 3: MCP Integration (preview) ── */}
-        <Card>
+        {activeSection === 'intelligence' && (
+          <Card>
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Wrench className="h-5 w-5 text-azure-500" />
@@ -402,10 +433,12 @@ export default function AdminControlsForm({
               </div>
             ) : null}
           </CardContent>
-        </Card>
+          </Card>
+        )}
 
         {/* ── Section 4: Repository Scope ── */}
-        <Card>
+        {activeSection === 'runtime' && (
+          <Card>
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-azure-500" />
@@ -470,10 +503,12 @@ export default function AdminControlsForm({
               </Button>
             </div>
           </CardContent>
-        </Card>
+          </Card>
+        )}
 
         {/* ── Section 5: External Diagnostics (gh-aw) ── */}
-        <Card>
+        {activeSection === 'intelligence' && (
+          <Card>
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Wrench className="h-5 w-5 text-azure-500" />
@@ -573,10 +608,12 @@ export default function AdminControlsForm({
               <StatusChip label="gh-aw" value={data.gh_aw_tools_enabled ? 'Active' : 'Off'} ok={data.gh_aw_tools_enabled} />
             </div>
           </CardContent>
-        </Card>
+          </Card>
+        )}
 
         {/* ── Section 6: Security ── */}
-        <Card>
+        {activeSection === 'security' && (
+          <Card>
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-azure-500" />
@@ -623,164 +660,173 @@ export default function AdminControlsForm({
               )}
             </div>
           </CardContent>
-        </Card>
+          </Card>
+        )}
 
         {/* ── Section 7: Advanced (collapsed by default) ── */}
-        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer select-none hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors rounded-t-xl pb-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Settings2 className="h-5 w-5 text-azure-500" />
-                    <CardTitle>Advanced</CardTitle>
+        {activeSection === 'security' && (
+          <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+            <Card>
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer select-none hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors rounded-t-xl pb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Settings2 className="h-5 w-5 text-azure-500" />
+                      <CardTitle>Advanced</CardTitle>
+                    </div>
+                    <ChevronDown
+                      className={`h-5 w-5 text-[var(--ph-muted)] transition-transform duration-200 ${advancedOpen ? 'rotate-180' : ''}`}
+                    />
                   </div>
-                  <ChevronDown
-                    className={`h-5 w-5 text-[var(--ph-muted)] transition-transform duration-200 ${advancedOpen ? 'rotate-180' : ''}`}
-                  />
-                </div>
-                <p className="text-sm text-[var(--ph-muted)]">
-                  Pipeline timeouts, retry policies, and log prompt tuning. Usually safe to leave at defaults.
-                </p>
-              </CardHeader>
-            </CollapsibleTrigger>
-
-            <CollapsibleContent>
-              <CardContent className="space-y-5 pt-0">
-                <Separator />
-
-                <h4 className="text-sm font-medium text-[var(--ph-text)]">Pipeline Timeouts</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <FieldGroup label="Step Timeout (seconds)" field="pipeline_step_timeout_seconds">
-                    <Input
-                      type="number"
-                      min={1}
-                      max={600}
-                      value={form.pipeline_step_timeout_seconds}
-                      onChange={(e) =>
-                        setForm((p) => ({
-                          ...p,
-                          pipeline_step_timeout_seconds: Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </FieldGroup>
-                </div>
-
-                <Separator />
-
-                <h4 className="text-sm font-medium text-[var(--ph-text)]">GitHub API Retry Policy</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <FieldGroup label="Max Retries" field="github_api_max_retries">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={10}
-                      value={form.github_api_max_retries}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, github_api_max_retries: Number(e.target.value) }))
-                      }
-                    />
-                  </FieldGroup>
-                  <FieldGroup label="Retry Base (seconds)" field="github_api_retry_base_seconds">
-                    <Input
-                      type="number"
-                      min={0.1}
-                      max={30}
-                      step={0.1}
-                      value={form.github_api_retry_base_seconds}
-                      onChange={(e) =>
-                        setForm((p) => ({
-                          ...p,
-                          github_api_retry_base_seconds: Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </FieldGroup>
-                  <FieldGroup label="Retry Max (seconds)" field="github_api_retry_max_seconds">
-                    <Input
-                      type="number"
-                      min={0.1}
-                      max={120}
-                      step={0.1}
-                      value={form.github_api_retry_max_seconds}
-                      onChange={(e) =>
-                        setForm((p) => ({
-                          ...p,
-                          github_api_retry_max_seconds: Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </FieldGroup>
-                </div>
-
-                <Separator />
-
-                <h4 className="text-sm font-medium text-[var(--ph-text)]">Log Prompt Tuning</h4>
-                <p className="text-xs text-[var(--ph-muted)]">
-                  Controls how much of the CI log is sent to the AI model. Larger values give more
-                  context but cost more tokens.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <FieldGroup label="Max Total Chars" field="log_prompt_max_chars">
-                    <Input
-                      type="number"
-                      min={1000}
-                      max={200000}
-                      value={form.log_prompt_max_chars}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, log_prompt_max_chars: Number(e.target.value) }))
-                      }
-                    />
-                  </FieldGroup>
-                  <FieldGroup label="Head Chars (start of log)" field="log_prompt_head_chars">
-                    <Input
-                      type="number"
-                      min={100}
-                      max={200000}
-                      value={form.log_prompt_head_chars}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, log_prompt_head_chars: Number(e.target.value) }))
-                      }
-                    />
-                  </FieldGroup>
-                  <FieldGroup label="Tail Chars (end of log)" field="log_prompt_tail_chars">
-                    <Input
-                      type="number"
-                      min={100}
-                      max={200000}
-                      value={form.log_prompt_tail_chars}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, log_prompt_tail_chars: Number(e.target.value) }))
-                      }
-                    />
-                  </FieldGroup>
-                </div>
-
-                {form.log_prompt_head_chars + form.log_prompt_tail_chars >
-                  form.log_prompt_max_chars && (
-                  <p className="text-sm text-rose-500 dark:text-rose-400">
-                    Head + tail chars ({form.log_prompt_head_chars + form.log_prompt_tail_chars})
-                    exceeds max ({form.log_prompt_max_chars}). The log will be over-truncated.
+                  <p className="text-sm text-[var(--ph-muted)]">
+                    Pipeline timeouts, retry policies, and log prompt tuning. Usually safe to leave
+                    at defaults.
                   </p>
-                )}
+                </CardHeader>
+              </CollapsibleTrigger>
 
-                <Separator />
+              <CollapsibleContent>
+                <CardContent className="space-y-5 pt-0">
+                  <Separator />
 
-                <h4 className="text-sm font-medium text-[var(--ph-text)]">Runtime Info</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <StatusChip label="Environment" value={data.environment} />
-                  <StatusChip label="Storage" value={data.storage_backend} />
-                  <StatusChip label="Heal Mode" value={data.heal_mode} />
-                  <StatusChip
-                    label="Max Attempts"
-                    value={String(data.max_remediation_attempts)}
-                  />
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
+                  <h4 className="text-sm font-medium text-[var(--ph-text)]">Pipeline Timeouts</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <FieldGroup label="Step Timeout (seconds)" field="pipeline_step_timeout_seconds">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={600}
+                        value={form.pipeline_step_timeout_seconds}
+                        onChange={(e) =>
+                          setForm((p) => ({
+                            ...p,
+                            pipeline_step_timeout_seconds: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    </FieldGroup>
+                  </div>
+
+                  <Separator />
+
+                  <h4 className="text-sm font-medium text-[var(--ph-text)]">
+                    GitHub API Retry Policy
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <FieldGroup label="Max Retries" field="github_api_max_retries">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={10}
+                        value={form.github_api_max_retries}
+                        onChange={(e) =>
+                          setForm((p) => ({
+                            ...p,
+                            github_api_max_retries: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    </FieldGroup>
+                    <FieldGroup label="Retry Base (seconds)" field="github_api_retry_base_seconds">
+                      <Input
+                        type="number"
+                        min={0.1}
+                        max={30}
+                        step={0.1}
+                        value={form.github_api_retry_base_seconds}
+                        onChange={(e) =>
+                          setForm((p) => ({
+                            ...p,
+                            github_api_retry_base_seconds: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    </FieldGroup>
+                    <FieldGroup label="Retry Max (seconds)" field="github_api_retry_max_seconds">
+                      <Input
+                        type="number"
+                        min={0.1}
+                        max={120}
+                        step={0.1}
+                        value={form.github_api_retry_max_seconds}
+                        onChange={(e) =>
+                          setForm((p) => ({
+                            ...p,
+                            github_api_retry_max_seconds: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    </FieldGroup>
+                  </div>
+
+                  <Separator />
+
+                  <h4 className="text-sm font-medium text-[var(--ph-text)]">Log Prompt Tuning</h4>
+                  <p className="text-xs text-[var(--ph-muted)]">
+                    Controls how much of the CI log is sent to the AI model. Larger values give
+                    more context but cost more tokens.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <FieldGroup label="Max Total Chars" field="log_prompt_max_chars">
+                      <Input
+                        type="number"
+                        min={1000}
+                        max={200000}
+                        value={form.log_prompt_max_chars}
+                        onChange={(e) =>
+                          setForm((p) => ({ ...p, log_prompt_max_chars: Number(e.target.value) }))
+                        }
+                      />
+                    </FieldGroup>
+                    <FieldGroup label="Head Chars (start of log)" field="log_prompt_head_chars">
+                      <Input
+                        type="number"
+                        min={100}
+                        max={200000}
+                        value={form.log_prompt_head_chars}
+                        onChange={(e) =>
+                          setForm((p) => ({ ...p, log_prompt_head_chars: Number(e.target.value) }))
+                        }
+                      />
+                    </FieldGroup>
+                    <FieldGroup label="Tail Chars (end of log)" field="log_prompt_tail_chars">
+                      <Input
+                        type="number"
+                        min={100}
+                        max={200000}
+                        value={form.log_prompt_tail_chars}
+                        onChange={(e) =>
+                          setForm((p) => ({ ...p, log_prompt_tail_chars: Number(e.target.value) }))
+                        }
+                      />
+                    </FieldGroup>
+                  </div>
+
+                  {form.log_prompt_head_chars + form.log_prompt_tail_chars >
+                    form.log_prompt_max_chars && (
+                    <p className="text-sm text-rose-500 dark:text-rose-400">
+                      Head + tail chars ({form.log_prompt_head_chars + form.log_prompt_tail_chars})
+                      exceeds max ({form.log_prompt_max_chars}). The log will be over-truncated.
+                    </p>
+                  )}
+
+                  <Separator />
+
+                  <h4 className="text-sm font-medium text-[var(--ph-text)]">Runtime Info</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <StatusChip label="Environment" value={data.environment} />
+                    <StatusChip label="Storage" value={data.storage_backend} />
+                    <StatusChip label="Heal Mode" value={data.heal_mode} />
+                    <StatusChip
+                      label="Max Attempts"
+                      value={String(data.max_remediation_attempts)}
+                    />
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+        )}
 
         {/* ── Save / Discard Bar ── */}
         <Card>
