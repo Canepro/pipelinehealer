@@ -270,6 +270,39 @@ def clear_admin_settings_audit() -> None:
     _admin_settings_audit.clear()
 
 
+def _build_admin_settings_actor_fingerprint(
+    *,
+    request: Request,
+    x_admin_key: str | None,
+) -> str | None:
+    """Return privacy-safe actor fingerprint for admin settings operations."""
+    settings = get_settings()
+    principal = get_request_principal(request)
+    if principal is not None:
+        return f"entra:{principal.subject[:24]}"
+    if x_admin_key:
+        salted = f"{settings.audit_salt}:{x_admin_key}" if settings.audit_salt else x_admin_key
+        return f"admin_key:sha256:{hashlib.sha256(salted.encode('utf-8')).hexdigest()[:12]}"
+    return None
+
+
+async def _append_admin_settings_audit_entry(
+    *,
+    storage: ActivityStorage,
+    entry: AdminSettingsAuditEntry,
+) -> None:
+    """Append one admin settings audit entry with storage persistence fallback."""
+    _admin_settings_audit.append(entry)
+    try:
+        await storage.append_admin_settings_audit_entry(entry.model_dump(mode="json"))
+    except Exception as exc:
+        logger.warning("Failed to persist admin settings audit entry: %s", exc)
+
+    # Keep memory bounded for long-running pods.
+    if len(_admin_settings_audit) > _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES:
+        del _admin_settings_audit[: len(_admin_settings_audit) - _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES]
+
+
 def _repo_root() -> Path:
     """Resolve repository root for helper command/script execution."""
     override = os.getenv("PIPELINEHEALER_REPO_ROOT", "").strip()
@@ -710,38 +743,25 @@ async def update_app_settings(
 
     workflow.refresh_runtime_settings()
 
-    # Never store raw admin credentials. Keep a short actor fingerprint for traceability.
-    actor_fingerprint: str | None = None
-    principal = get_request_principal(request)
-    if principal is not None:
-        actor_fingerprint = f"entra:{principal.subject[:24]}"
-    elif x_admin_key:
-        salted = f"{settings.audit_salt}:{x_admin_key}" if settings.audit_salt else x_admin_key
-        actor_fingerprint = f"admin_key:sha256:{hashlib.sha256(salted.encode('utf-8')).hexdigest()[:12]}"
-
     audit_entry = AdminSettingsAuditEntry(
         changed_keys=sorted(changes.keys()),
         changes={
             key: {"old": previous_values[key], "new": changes[key]}
             for key in sorted(changes.keys())
         },
-        actor=actor_fingerprint,
+        actor=_build_admin_settings_actor_fingerprint(
+            request=request,
+            x_admin_key=x_admin_key,
+        ),
         # request_id is injected by middleware to correlate audit entries with API logs.
         request_id=getattr(request.state, "request_id", None),
         client_ip=request.client.host if request.client else None,
         user_agent=user_agent,
     )
-    _admin_settings_audit.append(audit_entry)
-    try:
-        await storage.append_admin_settings_audit_entry(
-            audit_entry.model_dump(mode="json")
-        )
-    except Exception as exc:
-        logger.warning("Failed to persist admin settings audit entry: %s", exc)
-
-    # Keep memory bounded for long-running pods.
-    if len(_admin_settings_audit) > _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES:
-        del _admin_settings_audit[: len(_admin_settings_audit) - _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES]
+    await _append_admin_settings_audit_entry(
+        storage=storage,
+        entry=audit_entry,
+    )
 
     logger.info("Admin runtime settings updated; changed_keys=%s", sorted(changes.keys()))
 
@@ -804,8 +824,11 @@ async def get_settings_audit(
     dependencies=[Depends(require_admin_key)],
 )
 async def persist_app_settings(
-    request: AdminSettingsPersistRequest,
+    payload: AdminSettingsPersistRequest,
+    request: Request,
     storage: ActivityStorage = Depends(get_storage),
+    user_agent: str | None = Header(default=None, alias="User-Agent"),
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
 ) -> AdminSettingsPersistResponse:
     """Persist effective mutable runtime settings to durable storage and optionally redeploy."""
     runtime_values = _mutable_runtime_settings_snapshot()
@@ -822,8 +845,8 @@ async def persist_app_settings(
         ) from exc
 
     env_file = _persist_mutable_settings_to_env_file(env_values)
-    if request.skip_redeploy:
-        return AdminSettingsPersistResponse(
+    if payload.skip_redeploy:
+        response = AdminSettingsPersistResponse(
             env_file=env_file or "",
             persisted_keys=persisted_keys,
             redeploy_attempted=False,
@@ -834,9 +857,8 @@ async def persist_app_settings(
                 + " (redeploy skipped by request)"
             ),
         )
-
-    if env_file is None:
-        return AdminSettingsPersistResponse(
+    elif env_file is None:
+        response = AdminSettingsPersistResponse(
             env_file="",
             persisted_keys=persisted_keys,
             redeploy_attempted=False,
@@ -846,20 +868,52 @@ async def persist_app_settings(
                 "Local backend/.env not available in this runtime, so env-only redeploy was skipped."
             ),
         )
-
-    redeploy_started, redeploy_message = await _start_env_only_redeploy_background()
-    if not redeploy_started:
-        logger.warning("Admin settings persisted but env-only redeploy did not start: %s", redeploy_message)
     else:
-        logger.info("Admin settings persisted and env-only redeploy started")
+        redeploy_started, redeploy_message = await _start_env_only_redeploy_background()
+        if not redeploy_started:
+            logger.warning(
+                "Admin settings persisted but env-only redeploy did not start: %s",
+                redeploy_message,
+            )
+        else:
+            logger.info("Admin settings persisted and env-only redeploy started")
 
-    return AdminSettingsPersistResponse(
-        env_file=env_file,
-        persisted_keys=persisted_keys,
-        redeploy_attempted=True,
-        redeploy_started=redeploy_started,
-        redeploy_message=redeploy_message,
+        response = AdminSettingsPersistResponse(
+            env_file=env_file,
+            persisted_keys=persisted_keys,
+            redeploy_attempted=True,
+            redeploy_started=redeploy_started,
+            redeploy_message=redeploy_message,
+        )
+
+    persist_audit_entry = AdminSettingsAuditEntry(
+        changed_keys=["persist_settings"],
+        changes={
+            "persist_settings": {
+                "old": None,
+                "new": {
+                    "skip_redeploy": payload.skip_redeploy,
+                    "persisted_keys": persisted_keys,
+                    "env_file": response.env_file or None,
+                    "redeploy_attempted": response.redeploy_attempted,
+                    "redeploy_started": response.redeploy_started,
+                },
+            }
+        },
+        actor=_build_admin_settings_actor_fingerprint(
+            request=request,
+            x_admin_key=x_admin_key,
+        ),
+        request_id=getattr(request.state, "request_id", None),
+        client_ip=request.client.host if request.client else None,
+        user_agent=user_agent,
     )
+    await _append_admin_settings_audit_entry(
+        storage=storage,
+        entry=persist_audit_entry,
+    )
+
+    return response
 
 
 @router.get("/activities", response_model=list[ActivityRecord])

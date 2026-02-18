@@ -16,7 +16,10 @@ from src.storage import InMemoryStorage
 
 
 @pytest.fixture(autouse=True)
-def clear_settings_cache() -> None:
+def clear_settings_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Keep this module deterministic regardless of local backend/.env auth mode.
+    # Individual tests still override AUTH_MODE when exercising entra/hybrid paths.
+    monkeypatch.setenv("AUTH_MODE", "api_key")
     dashboard.clear_admin_settings_audit()
     reset_settings()
     yield
@@ -851,7 +854,7 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
 
     persist_response = await _post_settings_persist(
         payload={"skip_redeploy": True},
-        headers={"X-Admin-Key": "admin-secret"},
+        headers={"X-Admin-Key": "admin-secret", "X-Request-Id": "req-persist-settings"},
     )
     assert persist_response.status_code == 200
     body = persist_response.json()
@@ -894,6 +897,13 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
     )
     assert "AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-mini-fast" in persisted_text
 
+    audit = await _get_settings_audit(headers={"X-Admin-Key": "admin-secret"})
+    assert audit.status_code == 200
+    entries = audit.json()
+    assert entries
+    assert entries[0]["changed_keys"] == ["persist_settings"]
+    assert entries[0]["request_id"] == "req-persist-settings"
+
 
 @pytest.mark.asyncio
 async def test_admin_persist_succeeds_without_env_file(monkeypatch) -> None:
@@ -917,7 +927,7 @@ async def test_admin_persist_succeeds_without_env_file(monkeypatch) -> None:
 
     persist_response = await _post_settings_persist(
         payload={},
-        headers={"X-Admin-Key": "admin-secret"},
+        headers={"X-Admin-Key": "admin-secret", "X-Request-Id": "req-persist-no-env"},
     )
     assert persist_response.status_code == 200
     body = persist_response.json()
@@ -925,6 +935,12 @@ async def test_admin_persist_succeeds_without_env_file(monkeypatch) -> None:
     assert body["redeploy_attempted"] is False
     assert body["redeploy_started"] is False
     assert "durable storage" in body["redeploy_message"]
+
+    audit = await _get_settings_audit(headers={"X-Admin-Key": "admin-secret"})
+    assert audit.status_code == 200
+    entries = audit.json()
+    assert entries[0]["changed_keys"] == ["persist_settings"]
+    assert entries[0]["request_id"] == "req-persist-no-env"
 
 
 @pytest.mark.asyncio

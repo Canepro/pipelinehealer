@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 4b606f9 -->
+<!-- LAST_VERIFIED: 8525bc9 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -148,7 +148,7 @@ bash scripts/ph.sh status
 |---------|-------------|
 | `settings:check` | GET `/api/settings` using keys from `backend/.env` |
 | `settings:audit` | GET `/api/settings/audit` (admin audit trail) |
-| `settings:persist` | Persist settings to `backend/.env` and optionally redeploy |
+| `settings:persist` | Persist settings to `backend/.env`, API-audit when reachable, optionally redeploy |
 | `audit:proof` | Create two traceable audit entries and print latest records |
 | `aoai:check` | Verify Azure OpenAI connectivity from local backend container |
 
@@ -162,6 +162,12 @@ bash scripts/ph.sh aoai:check
 #### `settings:persist`
 
 Two modes: pull from live backend, or set directly via flags.
+
+Behavior notes:
+- Direct flags are applied to runtime via `PATCH /api/settings` first when backend/API auth is reachable (creates admin audit entries).
+- Command then calls `POST /api/settings/persist` with `skip_redeploy=true` to record durable persistence in backend storage/audit.
+- Local `.env` write + optional `deploy:env` redeploy still run as before.
+- If backend/API auth is unavailable, command falls back to local `.env` persistence only and prints an explicit unaudited warning.
 
 **Pull from live settings** (snapshots all mutable values):
 

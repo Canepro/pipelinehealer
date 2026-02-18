@@ -56,7 +56,7 @@ Commands:
   logs:grep         Grep backend logs for a pattern: --pattern <regex>
   settings:check    Call backend /api/settings using ADMIN_API_KEY from backend/.env
   settings:audit    Call backend /api/settings/audit using API+ADMIN keys from backend/.env
-  settings:persist  Persist selected settings to backend/.env and redeploy env-only
+  settings:persist  Persist selected settings to backend/.env, API-audit when reachable, and redeploy env-only
   audit:proof       Create two traceable admin audit entries and print latest audit records
   aoai:check        Verify Azure OpenAI connectivity from local backend container
   backfill          Trigger on-demand backfill sweep for external diagnostics (ci-doctor)
@@ -1104,6 +1104,253 @@ _persist_hydrate_from_live() {
   _sp_azure_openai_deployment_name="$(echo "$settings_json" | jq -r '.azure_openai_deployment_name')"
 }
 
+_try_read_auth_keys() {
+  local api_key admin_key
+  api_key="$(read_env_key "API_AUTH_KEY")"
+  admin_key="$(read_env_key "ADMIN_API_KEY")"
+  if [[ -z "${api_key:-}" || -z "${admin_key:-}" ]]; then
+    return 1
+  fi
+  if [[ "$api_key" == *"replace_me"* || "$admin_key" == *"replace_me"* ]]; then
+    return 1
+  fi
+  printf '%s\n%s\n' "$api_key" "$admin_key"
+}
+
+_persist_build_patch_payload_json() {
+  SP_REPOS_CSV="${_sp_repos_csv:-}" \
+  SP_CLEAR_REPOS="${_sp_clear_repos:-0}" \
+  SP_HEAL_MODE="${_sp_heal_mode:-}" \
+  SP_AUTO_CREATE_PR="${_sp_auto_create_pr:-}" \
+  SP_MAX_REMEDIATION_ATTEMPTS="${_sp_max_remediation_attempts:-}" \
+  SP_PIPELINE_STEP_TIMEOUT_SECONDS="${_sp_pipeline_step_timeout_seconds:-}" \
+  SP_EXTERNAL_DIAGNOSTICS_WAIT_SECONDS="${_sp_external_diagnostics_wait_seconds:-}" \
+  SP_EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS="${_sp_external_diagnostics_poll_interval_seconds:-}" \
+  SP_GH_AW_TOOLS_ENABLED="${_sp_gh_aw_tools_enabled:-}" \
+  SP_GH_AW_INGESTION_MODE="${_sp_gh_aw_ingestion_mode:-}" \
+  SP_GH_AW_KNOWN_WORKFLOWS="${_sp_gh_aw_known_workflows:-}" \
+  SP_MCP_ENABLED="${_sp_mcp_enabled:-}" \
+  SP_MCP_PROVIDER="${_sp_mcp_provider:-}" \
+  SP_MCP_READ_ONLY="${_sp_mcp_read_only:-}" \
+  SP_MCP_TIMEOUT_SECONDS="${_sp_mcp_timeout_seconds:-}" \
+  SP_MCP_MAX_RETRIES="${_sp_mcp_max_retries:-}" \
+  SP_MCP_TOOL_POLICIES="${_sp_mcp_tool_policies:-}" \
+  SP_MCP_REPO_ALLOWLIST="${_sp_mcp_repo_allowlist:-}" \
+  SP_CLEAR_MCP_REPO_ALLOWLIST="${_sp_clear_mcp_repo_allowlist:-0}" \
+  SP_AZURE_OPENAI_DEPLOYMENT_NAME="${_sp_azure_openai_deployment_name:-}" \
+  python3 - <<'PY'
+import json
+import os
+
+
+def csv_list(raw: str) -> list[str]:
+    values: list[str] = []
+    for item in (raw or "").split(","):
+        token = item.strip().lower()
+        if token:
+            values.append(token)
+    return values
+
+
+def parse_bool(raw: str):
+    value = (raw or "").strip().lower()
+    if value == "":
+        return None
+    return value == "true"
+
+
+def parse_int(raw: str):
+    value = (raw or "").strip()
+    if value == "":
+        return None
+    return int(value)
+
+
+def parse_float(raw: str):
+    value = (raw or "").strip()
+    if value == "":
+        return None
+    return float(value)
+
+
+def parse_mcp_tool_policies(raw: str) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    for part in (raw or "").split(","):
+        token = part.strip()
+        if not token:
+            continue
+        if "=" not in token:
+            continue
+        tool, mode = token.split("=", 1)
+        tool_key = tool.strip().lower()
+        mode_value = mode.strip().lower()
+        if tool_key and mode_value:
+            parsed[tool_key] = mode_value
+    return parsed
+
+
+payload: dict[str, object] = {}
+
+repos_csv = os.getenv("SP_REPOS_CSV", "")
+if os.getenv("SP_CLEAR_REPOS", "0") == "1" or repos_csv.strip():
+    payload["ph_allowed_repos"] = [] if os.getenv("SP_CLEAR_REPOS", "0") == "1" else csv_list(repos_csv)
+
+heal_mode = (os.getenv("SP_HEAL_MODE", "") or "").strip().lower()
+if heal_mode:
+    payload["heal_mode"] = heal_mode
+
+auto_create_pr = parse_bool(os.getenv("SP_AUTO_CREATE_PR", ""))
+if auto_create_pr is not None:
+    payload["auto_create_pr"] = auto_create_pr
+
+max_remediation_attempts = parse_int(os.getenv("SP_MAX_REMEDIATION_ATTEMPTS", ""))
+if max_remediation_attempts is not None:
+    payload["max_remediation_attempts"] = max_remediation_attempts
+
+pipeline_step_timeout_seconds = parse_float(os.getenv("SP_PIPELINE_STEP_TIMEOUT_SECONDS", ""))
+if pipeline_step_timeout_seconds is not None:
+    payload["pipeline_step_timeout_seconds"] = pipeline_step_timeout_seconds
+
+external_diagnostics_wait_seconds = parse_float(os.getenv("SP_EXTERNAL_DIAGNOSTICS_WAIT_SECONDS", ""))
+if external_diagnostics_wait_seconds is not None:
+    payload["external_diagnostics_wait_seconds"] = external_diagnostics_wait_seconds
+
+external_diagnostics_poll_interval_seconds = parse_float(
+    os.getenv("SP_EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS", "")
+)
+if external_diagnostics_poll_interval_seconds is not None:
+    payload["external_diagnostics_poll_interval_seconds"] = external_diagnostics_poll_interval_seconds
+
+gh_aw_tools_enabled = parse_bool(os.getenv("SP_GH_AW_TOOLS_ENABLED", ""))
+if gh_aw_tools_enabled is not None:
+    payload["gh_aw_tools_enabled"] = gh_aw_tools_enabled
+
+gh_aw_ingestion_mode = (os.getenv("SP_GH_AW_INGESTION_MODE", "") or "").strip().lower()
+if gh_aw_ingestion_mode:
+    payload["gh_aw_ingestion_mode"] = gh_aw_ingestion_mode
+
+gh_aw_known_workflows = csv_list(os.getenv("SP_GH_AW_KNOWN_WORKFLOWS", ""))
+if gh_aw_known_workflows:
+    payload["gh_aw_known_workflows"] = gh_aw_known_workflows
+
+mcp_enabled = parse_bool(os.getenv("SP_MCP_ENABLED", ""))
+if mcp_enabled is not None:
+    payload["mcp_enabled"] = mcp_enabled
+
+mcp_provider = (os.getenv("SP_MCP_PROVIDER", "") or "").strip().lower()
+if mcp_provider:
+    payload["mcp_provider"] = mcp_provider
+
+mcp_read_only = parse_bool(os.getenv("SP_MCP_READ_ONLY", ""))
+if mcp_read_only is not None:
+    payload["mcp_read_only"] = mcp_read_only
+
+mcp_timeout_seconds = parse_float(os.getenv("SP_MCP_TIMEOUT_SECONDS", ""))
+if mcp_timeout_seconds is not None:
+    payload["mcp_timeout_seconds"] = mcp_timeout_seconds
+
+mcp_max_retries = parse_int(os.getenv("SP_MCP_MAX_RETRIES", ""))
+if mcp_max_retries is not None:
+    payload["mcp_max_retries"] = mcp_max_retries
+
+mcp_tool_policies = parse_mcp_tool_policies(os.getenv("SP_MCP_TOOL_POLICIES", ""))
+if mcp_tool_policies:
+    payload["mcp_tool_policies"] = mcp_tool_policies
+
+mcp_repo_allowlist_raw = os.getenv("SP_MCP_REPO_ALLOWLIST", "")
+if os.getenv("SP_CLEAR_MCP_REPO_ALLOWLIST", "0") == "1" or mcp_repo_allowlist_raw.strip():
+    payload["mcp_repo_allowlist"] = (
+        [] if os.getenv("SP_CLEAR_MCP_REPO_ALLOWLIST", "0") == "1" else csv_list(mcp_repo_allowlist_raw)
+    )
+
+deployment_name = (os.getenv("SP_AZURE_OPENAI_DEPLOYMENT_NAME", "") or "").strip()
+if deployment_name:
+    payload["azure_openai_deployment_name"] = deployment_name
+
+print(json.dumps(payload, separators=(",", ":")))
+PY
+}
+
+_persist_patch_runtime_via_api() {
+  need_cmd curl
+  need_cmd python3
+  local api_key admin_key
+  local key_blob
+  if ! key_blob="$(_try_read_auth_keys)"; then
+    _sp_api_patch_note="Audit/API patch skipped: API_AUTH_KEY or ADMIN_API_KEY missing (or placeholder)."
+    return 1
+  fi
+  api_key="$(printf '%s\n' "$key_blob" | sed -n '1p')"
+  admin_key="$(printf '%s\n' "$key_blob" | sed -n '2p')"
+
+  local base_url
+  base_url="$(resolve_backend_url 2>/dev/null || true)"
+  if [[ -z "$base_url" ]]; then
+    _sp_api_patch_note="Audit/API patch skipped: unable to resolve backend URL."
+    return 1
+  fi
+
+  local payload_json
+  payload_json="$(_persist_build_patch_payload_json)"
+  if [[ "$payload_json" == "{}" ]]; then
+    _sp_api_patch_note="Audit/API patch not needed: no runtime fields changed."
+    return 0
+  fi
+
+  local rid
+  rid="ph-settings-persist-patch-$(date +%s)-$RANDOM"
+  if curl -fsS -X PATCH \
+    -H "X-API-Key: $api_key" \
+    -H "X-Admin-Key: $admin_key" \
+    -H "Content-Type: application/json" \
+    -H "X-Request-Id: $rid" \
+    -d "$payload_json" \
+    "$base_url/api/settings" >/dev/null; then
+    _sp_api_patch_request_id="$rid"
+    _sp_api_patch_note="Applied runtime settings via API patch (request_id=$rid)."
+    return 0
+  fi
+
+  _sp_api_patch_note="Audit/API patch failed; continuing with local env persistence only (unaudited for runtime patch)."
+  return 1
+}
+
+_persist_record_via_api() {
+  need_cmd curl
+  local api_key admin_key
+  local key_blob
+  if ! key_blob="$(_try_read_auth_keys)"; then
+    _sp_api_persist_note="Audit/API persist skipped: API_AUTH_KEY or ADMIN_API_KEY missing (or placeholder)."
+    return 1
+  fi
+  api_key="$(printf '%s\n' "$key_blob" | sed -n '1p')"
+  admin_key="$(printf '%s\n' "$key_blob" | sed -n '2p')"
+
+  local base_url
+  base_url="$(resolve_backend_url 2>/dev/null || true)"
+  if [[ -z "$base_url" ]]; then
+    _sp_api_persist_note="Audit/API persist skipped: unable to resolve backend URL."
+    return 1
+  fi
+
+  local rid
+  rid="ph-settings-persist-apply-$(date +%s)-$RANDOM"
+  if curl -fsS -X POST \
+    -H "X-API-Key: $api_key" \
+    -H "X-Admin-Key: $admin_key" \
+    -H "Content-Type: application/json" \
+    -H "X-Request-Id: $rid" \
+    -d '{"skip_redeploy":true}' \
+    "$base_url/api/settings/persist" >/dev/null; then
+    _sp_api_persist_request_id="$rid"
+    _sp_api_persist_note="Recorded durable persist via API (request_id=$rid, skip_redeploy=true)."
+    return 0
+  fi
+
+  _sp_api_persist_note="Audit/API persist call failed; local env persistence still applied."
+  return 1
+}
+
 _persist_write_env() {
   # Write populated _sp_ vars to backend/.env.
   local normalized_csv="${_sp_repos_csv:-}"
@@ -1160,6 +1407,9 @@ _persist_write_env() {
 }
 
 _persist_print_summary() {
+  [[ -n "${_sp_api_patch_note:-}" ]] && echo "$_sp_api_patch_note"
+  [[ -n "${_sp_api_persist_note:-}" ]] && echo "$_sp_api_persist_note"
+
   if [[ "$_sp_from_settings" == "1" ]]; then
     echo "Persisted effective live mutable settings to backend/.env:"
     echo "  PH_ALLOWED_REPOS=${_sp_repos_csv:-<empty>}"
@@ -1251,12 +1501,28 @@ cmd_settings_persist() {
   _sp_log_prompt_tail_chars=""
   _sp_external_diagnostics_wait_seconds=""
   _sp_external_diagnostics_poll_interval_seconds=""
+  _sp_api_patch_note=""
+  _sp_api_patch_request_id=""
+  _sp_api_persist_note=""
+  _sp_api_persist_request_id=""
 
   _persist_parse_args "$@"
   _persist_validate
 
+  local patch_succeeded="1"
   if [[ "$_sp_from_settings" == "1" ]]; then
     _persist_hydrate_from_live
+    _sp_api_patch_note="Audit/API patch not needed in --from-settings mode."
+  else
+    if ! _persist_patch_runtime_via_api; then
+      patch_succeeded="0"
+    fi
+  fi
+
+  if [[ "$patch_succeeded" == "1" ]]; then
+    _persist_record_via_api || true
+  else
+    _sp_api_persist_note="Skipped API persist call because runtime API patch failed."
   fi
 
   _persist_write_env

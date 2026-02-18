@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 9cc0ce5 -->
+<!-- LAST_VERIFIED: 8525bc9 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -639,6 +639,7 @@ Durably persists current mutable runtime settings so they survive backend restar
 - Writes all mutable settings to durable storage (Cosmos DB).
 - Optionally writes to `backend/.env` when the file is accessible (local development).
 - On next startup, persisted settings are loaded and re-applied automatically.
+- Appends an admin audit record with `changed_keys=["persist_settings"]` (including `X-Request-Id` when provided).
 
 **Response** `200 OK`:
 
