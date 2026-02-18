@@ -367,8 +367,8 @@ async def test_orchestrator_records_mcp_model_path_and_source_attribution(monkey
         _ = diagnosis, repository_info, workflow_run_id, dry_run
         return RemediationResult(success=True, action_taken=RemediationAction.CREATE_ISSUE)
 
-    async def fake_collect_external(owner: str, repo: str, event: WorkflowRunEvent):
-        _ = owner, repo, event
+    async def fake_collect_external(owner: str, repo: str, event: WorkflowRunEvent, activity: ActivityRecord):
+        _ = owner, repo, event, activity
         return [
             ExternalDiagnostic(
                 source="gh_aw",
