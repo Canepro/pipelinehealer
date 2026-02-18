@@ -559,6 +559,13 @@ export default function ActivityDetail() {
   )
   const mcpToolUsage = Object.entries(mcpPath?.tool_invocations ?? {}).sort((a, b) => b[1] - a[1])
   const mcpActionAudit = [...(mcpPath?.action_audit ?? [])].slice(-8).reverse()
+  const failureContext = activity.failure_context
+  const hasFailureContext = Boolean(
+    failureContext?.failing_job ||
+      failureContext?.failing_step ||
+      failureContext?.failing_command ||
+      failureContext?.signal,
+  )
 
   return (
     <div className="space-y-6">
@@ -770,6 +777,37 @@ export default function ActivityDetail() {
             Diagnosis
           </h2>
           <div className="space-y-4">
+            {hasFailureContext && (
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Failure Context</p>
+                <div className="mt-2 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Failing Job</p>
+                    <p className="text-gray-900 dark:text-white break-words">
+                      {failureContext?.failing_job || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Failing Step</p>
+                    <p className="text-gray-900 dark:text-white break-words">
+                      {failureContext?.failing_step || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Command</p>
+                    <p className="text-gray-900 dark:text-white break-words">
+                      {failureContext?.failing_command || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Signal</p>
+                    <p className="text-gray-900 dark:text-white break-words">
+                      {failureContext?.signal || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Root Cause

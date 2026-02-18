@@ -63,6 +63,18 @@ function getEvidenceLines(activity: ActivityItem | null): string[] {
   if (typeof message === 'string' && message.trim().length > 0) {
     lines.push(message.trim())
   }
+  const context = activity?.failure_context
+  if (context) {
+    if (typeof context.failing_step === 'string' && context.failing_step.trim().length > 0) {
+      lines.push(`Step: ${context.failing_step.trim()}`)
+    }
+    if (typeof context.failing_command === 'string' && context.failing_command.trim().length > 0) {
+      lines.push(`Command: ${context.failing_command.trim()}`)
+    }
+    if (typeof context.signal === 'string' && context.signal.trim().length > 0) {
+      lines.push(`Signal: ${context.signal.trim()}`)
+    }
+  }
   const rootCause = activity?.diagnosis?.root_cause
   if (typeof rootCause === 'string' && rootCause.trim().length > 0) {
     lines.push(rootCause.trim())

@@ -453,6 +453,110 @@ async def test_orchestrator_records_mcp_tool_invocation_without_gh_aw(monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_orchestrator_populates_failure_context_from_diagnosis_details() -> None:
+    storage = InMemoryStorage()
+    gh = FakeGitHubTools()
+    orchestrator = OrchestratorAgent(github_tools=gh, storage=storage)
+
+    async def fake_analyze(owner: str, repo: str, run_id: int):
+        _ = owner, repo, run_id
+        return [
+            LogAnalysis(
+                job_id=1,
+                job_name="unit-tests",
+                raw_logs="FAIL",
+                error_lines=["Command npm test failed"],
+                key_events=["Run npm test -- --watch=false"],
+                summary="failed",
+            )
+        ]
+
+    async def fake_diagnose(log_analyses, workflow_info=None, external_diagnostics=None):
+        _ = log_analyses, workflow_info, external_diagnostics
+        return Diagnosis(
+            failure_type=FailureType.TEST,
+            confidence=0.9,
+            root_cause="unit test failed",
+            is_auto_fixable=False,
+            error_details={
+                "Job Name": "unit-tests",
+                "Step Name": "Run npm test -- --watch=false",
+                "signature": "pytest_command_failed",
+            },
+        )
+
+    async def fake_remediate(diagnosis, repository_info, workflow_run_id, dry_run=False):
+        _ = diagnosis, repository_info, workflow_run_id, dry_run
+        return RemediationResult(success=True, action_taken=RemediationAction.CREATE_ISSUE)
+
+    orchestrator._log_analyzer.analyze = fake_analyze  # type: ignore[method-assign]
+    orchestrator._diagnosis_agent.diagnose = fake_diagnose  # type: ignore[method-assign]
+    orchestrator._remediation_agent.remediate = fake_remediate  # type: ignore[method-assign]
+
+    result = await orchestrator.process_workflow_failure(_make_event())
+    assert result.failure_context is not None
+    assert result.failure_context.failing_job == "unit-tests"
+    assert result.failure_context.failing_step == "Run npm test -- --watch=false"
+    assert result.failure_context.failing_command == "npm test -- --watch=false"
+    assert result.failure_context.signal == "pytest_command_failed"
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_populates_failure_context_signal_from_external_reason() -> None:
+    storage = InMemoryStorage()
+    gh = FakeGitHubTools()
+    orchestrator = OrchestratorAgent(github_tools=gh, storage=storage)
+
+    async def fake_analyze(owner: str, repo: str, run_id: int):
+        _ = owner, repo, run_id
+        return [
+            LogAnalysis(
+                job_id=1,
+                job_name="build",
+                raw_logs="FAIL",
+                error_lines=["npm ERR! command npm run build"],
+                summary="failed",
+            )
+        ]
+
+    async def fake_diagnose(log_analyses, workflow_info=None, external_diagnostics=None):
+        _ = log_analyses, workflow_info, external_diagnostics
+        return Diagnosis(
+            failure_type=FailureType.BUILD_CONFIG,
+            confidence=0.85,
+            root_cause="build failed",
+            is_auto_fixable=False,
+            error_details={},
+        )
+
+    async def fake_remediate(diagnosis, repository_info, workflow_run_id, dry_run=False):
+        _ = diagnosis, repository_info, workflow_run_id, dry_run
+        return RemediationResult(success=True, action_taken=RemediationAction.CREATE_ISSUE)
+
+    async def fake_collect_external(owner: str, repo: str, event: WorkflowRunEvent, activity: ActivityRecord):
+        _ = owner, repo, event, activity
+        return [
+            ExternalDiagnostic(
+                source="external-diagnostics",
+                status=ExternalDiagnosticStatus.UNAVAILABLE,
+                summary="no finding",
+                metadata={"reason_code": "poll_window_exhausted"},
+            )
+        ]
+
+    orchestrator._log_analyzer.analyze = fake_analyze  # type: ignore[method-assign]
+    orchestrator._diagnosis_agent.diagnose = fake_diagnose  # type: ignore[method-assign]
+    orchestrator._remediation_agent.remediate = fake_remediate  # type: ignore[method-assign]
+    orchestrator._collect_external_diagnostics = fake_collect_external  # type: ignore[method-assign]
+
+    result = await orchestrator.process_workflow_failure(_make_event())
+    assert result.failure_context is not None
+    assert result.failure_context.failing_job == "build"
+    assert result.failure_context.failing_command == "npm run build"
+    assert result.failure_context.signal == "poll_window_exhausted"
+
+
+@pytest.mark.asyncio
 async def test_remediation_renders_json_update_into_content() -> None:
     gh = FakeGitHubToolsWithFiles(files={"package.json": '{"dependencies":{"foo":"1.0.0"}}\n'})
     agent = RemediationAgent(github_tools=gh)

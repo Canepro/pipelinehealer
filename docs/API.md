@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: a95ed82 -->
+<!-- LAST_VERIFIED: 9cc0ce5 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -238,6 +238,12 @@ Returns activity records with optional filtering and pagination.
       },
       "suggested_fix": "Update or install the missing dependency",
       "is_auto_fixable": true
+    },
+    "failure_context": {
+      "failing_job": "build",
+      "failing_step": "Run npm run build",
+      "failing_command": "npm run build",
+      "signal": "poll_window_exhausted"
     },
     "llm_model_path": {
       "provider": "azure_openai",
@@ -761,6 +767,17 @@ Returns recent admin settings change records (latest first).
 | `error_details` | object | Additional structured details |
 | `suggested_fix` | string | High-level suggested remediation |
 | `is_auto_fixable` | bool | Whether safe auto-remediation is supported |
+
+### FailureContext (object)
+
+Normalized failure context extracted from diagnosis details, log signals, and external diagnostics reason codes.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `failing_job` | string \| null | Best-effort failing job name |
+| `failing_step` | string \| null | Best-effort failing step label |
+| `failing_command` | string \| null | Best-effort failing command extracted from step/log lines |
+| `signal` | string \| null | Structured signal code (for example `poll_window_exhausted`, signature, trigger, reason code) |
 
 ### LLMModelPath (object)
 

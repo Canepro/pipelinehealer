@@ -23,8 +23,11 @@ from ..llm.telemetry import (
 )
 from ..models import (
     ActivityRecord,
+    Diagnosis,
     ExternalDiagnostic,
     ExternalDiagnosticStatus,
+    FailureContext,
+    LogAnalysis,
     MCPActionAuditEntry,
     MCPModelPath,
     RemediationStatus,
@@ -146,6 +149,130 @@ class OrchestratorAgent:
         self._diagnosis_agent.refresh_runtime_settings()
         self._remediation_agent.refresh_runtime_settings()
         self._agent = None
+
+    @staticmethod
+    def _normalize_failure_context_key(key: str) -> str:
+        """Normalize free-form context keys into stable lookup form."""
+        return re.sub(r"[^a-z0-9]+", "_", key.strip().lower()).strip("_")
+
+    @classmethod
+    def _normalize_failure_context_map(cls, details: dict[str, Any]) -> dict[str, str]:
+        """Normalize diagnosis detail keys/values for failure-context extraction."""
+        normalized: dict[str, str] = {}
+        for raw_key, raw_value in details.items():
+            key = cls._normalize_failure_context_key(str(raw_key))
+            if not key:
+                continue
+            value: str | None = None
+            if isinstance(raw_value, (str, int, float, bool)):
+                value = str(raw_value).strip()
+            elif isinstance(raw_value, list):
+                first_scalar = next(
+                    (
+                        item
+                        for item in raw_value
+                        if isinstance(item, (str, int, float, bool))
+                        and str(item).strip()
+                    ),
+                    None,
+                )
+                if first_scalar is not None:
+                    value = str(first_scalar).strip()
+            if not value:
+                continue
+            normalized[key] = re.sub(r"\s+", " ", value)[:240]
+        return normalized
+
+    @staticmethod
+    def _extract_command_from_line(line: str) -> str | None:
+        """Best-effort command extraction from step/event/error log lines."""
+        text = line.strip()
+        if not text:
+            return None
+        patterns = (
+            r"^Run\s+(.+)$",
+            r"^\$\s+(.+)$",
+            r"^npm ERR!\s+command\s+(.+)$",
+            r"^Command\s+(.+?)\s+failed\b",
+        )
+        for pattern in patterns:
+            match = re.search(pattern, text, flags=re.IGNORECASE)
+            if not match:
+                continue
+            command = match.group(1).strip().strip("`\"'")
+            if command:
+                return command[:240]
+        return None
+
+    def _derive_failure_context(
+        self,
+        *,
+        log_analyses: list[LogAnalysis],
+        diagnosis: Diagnosis | None,
+        external_diagnostics: list[ExternalDiagnostic],
+    ) -> FailureContext | None:
+        """Build normalized failure context for UI/API consumers."""
+        details_raw = diagnosis.error_details if diagnosis and isinstance(diagnosis.error_details, dict) else {}
+        details = self._normalize_failure_context_map(details_raw)
+
+        failing_job = (
+            details.get("failing_job")
+            or details.get("job_name")
+            or details.get("job")
+            or details.get("failed_job")
+        )
+        if not failing_job and log_analyses:
+            first_job = next((analysis.job_name.strip() for analysis in log_analyses if analysis.job_name), "")
+            failing_job = first_job or None
+
+        failing_step = (
+            details.get("failing_step")
+            or details.get("step_name")
+            or details.get("step")
+            or details.get("failed_step")
+        )
+
+        failing_command = (
+            details.get("failing_command")
+            or details.get("command")
+            or details.get("run_command")
+            or details.get("cmd")
+        )
+        if not failing_command and failing_step:
+            failing_command = self._extract_command_from_line(failing_step)
+        if not failing_command:
+            for analysis in log_analyses:
+                for line in [*analysis.key_events, *analysis.error_lines]:
+                    extracted = self._extract_command_from_line(line)
+                    if extracted:
+                        failing_command = extracted
+                        break
+                if failing_command:
+                    break
+
+        signal = (
+            details.get("signal")
+            or details.get("signature")
+            or details.get("trigger")
+            or details.get("reason_code")
+            or details.get("error_code")
+        )
+        if not signal:
+            for diagnostic in external_diagnostics:
+                metadata = diagnostic.metadata if isinstance(diagnostic.metadata, dict) else {}
+                reason_code = metadata.get("reason_code")
+                if isinstance(reason_code, str) and reason_code.strip():
+                    signal = reason_code.strip()[:120]
+                    break
+
+        if not any([failing_job, failing_step, failing_command, signal]):
+            return None
+        return FailureContext(
+            failing_job=failing_job,
+            failing_step=failing_step,
+            failing_command=failing_command,
+            signal=signal,
+        )
 
     @staticmethod
     def _increment_mcp_tool_invocation(
@@ -1092,6 +1219,11 @@ class OrchestratorAgent:
 
             activity.failure_type = diagnosis.failure_type
             activity.diagnosis = diagnosis
+            activity.failure_context = self._derive_failure_context(
+                log_analyses=log_analyses,
+                diagnosis=diagnosis,
+                external_diagnostics=external_diagnostics,
+            )
 
             logger.info(
                 f"Diagnosis: {diagnosis.failure_type.value} "

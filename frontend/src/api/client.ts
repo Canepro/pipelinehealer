@@ -46,6 +46,13 @@ export interface RemediationResult {
   details: Record<string, unknown>
 }
 
+export interface FailureContext {
+  failing_job?: string | null
+  failing_step?: string | null
+  failing_command?: string | null
+  signal?: string | null
+}
+
 export interface Activity {
   id: string
   repositoryId: string
@@ -55,6 +62,7 @@ export interface Activity {
   status: string
   failure_type?: string
   diagnosis?: Diagnosis
+  failure_context?: FailureContext
   llm_model_path?: {
     provider: string
     model: string

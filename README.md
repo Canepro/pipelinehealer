@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 3d446f0 -->
+<!-- LAST_VERIFIED: 9cc0ce5 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -22,6 +22,7 @@ CI failures create repetitive triage work. PipelineHealer shortens time-to-under
 - multi-agent flow (analyze -> diagnose -> remediate)
 - safety-first defaults (`HEAL_MODE=safe`)
 - explainability (`diagnosis_source`, reason codes, evidence)
+- universal failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
 - artifact idempotency (find-or-create PR/issue reuse)
 
 This repository is the hackathon build, but designed for long-term production evolution.
@@ -36,6 +37,7 @@ This repository is the hackathon build, but designed for long-term production ev
 
 ### Additional
 - [Demo Script](docs/DEMO_SCRIPT.md)
+- [Logs & Investigation](docs/LOGS_AND_INVESTIGATION.md)
 - [Future Plan](docs/FUTURE_PLAN.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)

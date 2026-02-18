@@ -139,6 +139,9 @@ This is the long-form project tracker for hackathon execution status, submission
   - runtime settings for `MCP_TOOL_POLICIES` and `MCP_REPO_ALLOWLIST`
   - per-tool policy model (`disabled`, `read_only`, `write_with_approval`, `auto`)
   - orchestrator enforcement + action-audit metadata (`actor`, `tool`, `payload hash`, `result`, `request id`)
+- Added universal structured failure context on activities (no repo hardcoding):
+  - backend extraction pipeline now records `failing_job`, `failing_step`, `failing_command`, and `signal`
+  - Dashboard/Activities/Activity Detail now surface this context for faster operator triage
 - Extended activity observability contracts:
   - `mcp_model_path.action_audit` in API + UI details
   - improved MCP source labels and explainability fallback rendering

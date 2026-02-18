@@ -218,6 +218,15 @@ class MCPModelPath(BaseModel):
     action_audit: list[MCPActionAuditEntry] = Field(default_factory=list)
 
 
+class FailureContext(BaseModel):
+    """Normalized failure context extracted from run evidence."""
+
+    failing_job: str | None = None
+    failing_step: str | None = None
+    failing_command: str | None = None
+    signal: str | None = None
+
+
 # =============================================================================
 # Activity Tracking Models
 # =============================================================================
@@ -234,6 +243,7 @@ class ActivityRecord(BaseModel):
     status: RemediationStatus
     failure_type: FailureType | None = None
     diagnosis: Diagnosis | None = None
+    failure_context: FailureContext | None = None
     llm_model_path: LLMModelPath | None = None
     mcp_model_path: MCPModelPath | None = None
     remediation_result: RemediationResult | None = None

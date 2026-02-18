@@ -156,6 +156,25 @@ function getMcpLabel(activity: Activity): { label: string; variant: 'success' | 
 }
 
 function getFailureContext(activity: Activity): string | null {
+  const structured = activity.failure_context
+  const contextParts: string[] = []
+  if (structured?.failing_job) {
+    contextParts.push(`Job: ${structured.failing_job}`)
+  }
+  if (structured?.failing_step) {
+    contextParts.push(`Step: ${structured.failing_step}`)
+  }
+  if (structured?.failing_command) {
+    contextParts.push(`Cmd: ${structured.failing_command}`)
+  }
+  if (structured?.signal) {
+    contextParts.push(`Signal: ${structured.signal}`)
+  }
+  if (contextParts.length > 0) {
+    const summary = contextParts.join(' | ')
+    return summary.length > 120 ? `${summary.slice(0, 117)}...` : summary
+  }
+
   const rootCause = activity.diagnosis?.root_cause?.trim()
   if (rootCause) {
     return rootCause.length > 80 ? `${rootCause.slice(0, 77)}...` : rootCause

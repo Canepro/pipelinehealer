@@ -1,6 +1,6 @@
 # Feature Guides
 
-<!-- LAST_VERIFIED: a95ed82 -->
+<!-- LAST_VERIFIED: 9cc0ce5 -->
 
 These guides explain PipelineHealer by capability so beginners and experienced operators can quickly find what they need.
 
@@ -23,5 +23,6 @@ These guides explain PipelineHealer by capability so beginners and experienced o
 
 - API reference: `../API.md`
 - CLI reference: `../CLI.md`
+- Logs and investigation: `../LOGS_AND_INVESTIGATION.md`
 - Local + Azure runbook: `../LOCAL_DEMO_RUNBOOK.md`
 - Demo script: `../DEMO_SCRIPT.md`

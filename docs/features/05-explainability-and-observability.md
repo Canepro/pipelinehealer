@@ -1,6 +1,6 @@
 # Feature: Explainability And Observability
 
-<!-- LAST_VERIFIED: a95ed82 -->
+<!-- LAST_VERIFIED: 9cc0ce5 -->
 
 This guide explains where to see evidence, model path telemetry, and confidence attribution for each activity.
 
@@ -8,6 +8,7 @@ This guide explains where to see evidence, model path telemetry, and confidence 
 
 - Explainability snapshot on Dashboard
 - Activity Detail evidence layers
+- Failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
 - LLM model-path telemetry
 - MCP observability and action audit
 
@@ -17,6 +18,7 @@ This guide explains where to see evidence, model path telemetry, and confidence 
 2. Pick a recent activity.
 3. Confirm:
    - failure type
+   - failure context
    - confidence
    - diagnosis source
    - model path

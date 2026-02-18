@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 56fec24 -->
+<!-- LAST_VERIFIED: 9cc0ce5 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -19,7 +19,7 @@ Related docs:
 ## Demo Flow (3-4 Minutes)
 
 1. Dashboard story: show `Processed`, `Actioned`, `Safety Gated`, `Issue-Only`, plus header KPIs `MCP Runs (30d)` and `LLM Fallback (30d)`.
-2. Explainability drilldown: open a focused activity and show reason code + the `Evidence Layers` block (`Confidence Impact by Source` + `Structured Context`).
+2. Explainability drilldown: open a focused activity and show `Failure Context` (job/step/command/signal), reason code, and the `Evidence Layers` block (`Confidence Impact by Source` + `Structured Context`).
 3. External findings: expand the "External Findings Details" panel to show ci-doctor's structured root cause, recommended actions, and doctor metadata.
 4. MCP observability (if enabled): in activity detail, show `MCP Observability` summary (`Provider`, `Status`, `Read Only`, `Reason`) and expand details for `Configured Tools`, `Source Attribution`, and `Tool Usage`.
 5. Safety boundary: show `Why Safety Gated` microcopy and explain policy-driven issue fallback.

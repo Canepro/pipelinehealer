@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: a95ed82 -->
+<!-- LAST_VERIFIED: 9cc0ce5 -->
 
 Use this index to find the right doc quickly.
 
@@ -15,6 +15,7 @@ Use this index to find the right doc quickly.
 ### Tier 2 — Operator (update on infra/config changes)
 
 - `CLI.md` — canonical `scripts/ph.sh` CLI reference: all commands, flags, error handling, env overrides
+- `LOGS_AND_INVESTIGATION.md` — dedicated troubleshooting guide for logs, activity correlation, and incident playbooks
 - `DEMO_SCRIPT.md` — single-file recording checklist and 2-minute narration script
 - `LOCAL_DEMO_RUNBOOK.md` — full local and Azure E2E operator runbook
 - `MODEL_PROVIDER_STRATEGY.md` — Azure-first but provider-portable model backend strategy
