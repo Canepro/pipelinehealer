@@ -1,6 +1,6 @@
 # PipelineHealer Hackathon Log
 
-**Last updated:** February 16, 2026
+**Last updated:** February 18, 2026
 
 This is the long-form project tracker for hackathon execution status, submission readiness, and milestone history.
 
@@ -20,6 +20,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Recording script: single-source runbook in `docs/DEMO_SCRIPT.md`
 - Repo policy docs: `CONTRIBUTING.md` and `SECURITY.md` added
 - GitHub Agentic Workflows Layer 1 (repo hygiene) merged to `main`; Layer 2 planning tracked in `docs/GH_AW_IMPLEMENTATION_TRACKER.md`
+- External diagnostics latency model updated to fast-path defaults (60s wait budget, 15s poll interval) with async backfill-first fallback
 
 ## Phase Overview
 
@@ -118,6 +119,21 @@ This is the long-form project tracker for hackathon execution status, submission
 - Added minimal admin settings audit trail endpoint (`/api/settings/audit`) for change visibility.
 - Added request ID middleware (`X-Request-Id`) and salted admin actor fingerprints for traceability.
 - Added frontend outcome breakdown metrics (`Auto PR Rate`, `Issue Rate`, `Safety-Blocked`) and activities refresh stabilization.
+
+### Feb 18, 2026
+
+- Added configurable external diagnostics timing controls:
+  - `EXTERNAL_DIAGNOSTICS_WAIT_SECONDS` (default `60`)
+  - `EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS` (default `15`)
+- Replaced hardcoded ~8 minute ci-doctor polling with settings-driven bounded polling in orchestrator.
+- Preserved final immediate fetch semantics and explicit reason-code metadata for exhausted polling windows.
+- Extended settings API/runtime persistence model to include new diagnostics timing controls.
+- Extended `settings:persist` CLI with:
+  - `--external-diagnostics-wait-seconds`
+  - `--external-diagnostics-poll-interval-seconds`
+- Synced deploy/env propagation paths (`docker-compose`, `redeploy_azure_containerapps.sh`) for new settings.
+- Added targeted tests for configurable wait budget, async-first mode (`wait=0`), and admin settings validation.
+- Updated operator docs (`README.md`, `docs/API.md`, `docs/CLI.md`, `docs/DEMO_SCRIPT.md`, `docs/LOCAL_DEMO_RUNBOOK.md`) to reflect the fast-path diagnostics behavior.
 - Added proposed-fix governance metadata surfacing in UI (`Includes Proposed Fix`, reason code badges).
 - Started shadcn-style frontend migration with reusable primitives and page migrations:
   - settings controls and cards

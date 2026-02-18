@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: ff06548 -->
+<!-- LAST_VERIFIED: 56fec24 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -79,6 +79,17 @@ HEAL_MODE=safe                              # safe is recommended for getting st
 ```
 
 > **That's it for getting started.** Everything else in `.env` has sensible defaults. You can tune optional settings later — see the full list in `backend/.env.example`.
+
+Optional external diagnostics fast-path tuning:
+
+```dotenv
+# Keep this short so the main pipeline completes quickly.
+EXTERNAL_DIAGNOSTICS_WAIT_SECONDS=60
+# Poll cadence while within the wait budget.
+EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS=15
+```
+
+- Set `EXTERNAL_DIAGNOSTICS_WAIT_SECONDS=0` to skip waiting entirely and rely on async backfill.
 
 ### Optional: Enable Entra login (frontend + backend)
 

@@ -180,6 +180,10 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         gh_aw_tools_enabled=settings.gh_aw_tools_enabled,
         gh_aw_ingestion_mode=settings.gh_aw_ingestion_mode,
         gh_aw_known_workflows=_normalize_workflow_names(settings.gh_aw_known_workflows),
+        external_diagnostics_wait_seconds=settings.external_diagnostics_wait_seconds,
+        external_diagnostics_poll_interval_seconds=(
+            settings.external_diagnostics_poll_interval_seconds
+        ),
         ph_allowed_repos=_safe_settings_allowlist(settings.ph_allowed_repos),
         cors_allowed_origins=settings.cors_allowed_origins,
         cors_allow_origin_regex=settings.cors_allow_origin_regex,
@@ -221,6 +225,11 @@ _MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = (
     ("gh_aw_tools_enabled", "GH_AW_TOOLS_ENABLED"),
     ("gh_aw_ingestion_mode", "GH_AW_INGESTION_MODE"),
     ("gh_aw_known_workflows", "GH_AW_KNOWN_WORKFLOWS"),
+    ("external_diagnostics_wait_seconds", "EXTERNAL_DIAGNOSTICS_WAIT_SECONDS"),
+    (
+        "external_diagnostics_poll_interval_seconds",
+        "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS",
+    ),
     ("ph_allowed_repos", "PH_ALLOWED_REPOS"),
     ("llm_provider", "LLM_PROVIDER"),
     ("openai_compatible_base_url", "OPENAI_COMPATIBLE_BASE_URL"),
@@ -368,6 +377,16 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         "mcp_timeout_seconds",
     }:
         return float(value)
+    if attr_name == "external_diagnostics_wait_seconds":
+        wait_seconds = float(value)
+        if wait_seconds < 0.0 or wait_seconds > 900.0:
+            raise ValueError("invalid external_diagnostics_wait_seconds")
+        return wait_seconds
+    if attr_name == "external_diagnostics_poll_interval_seconds":
+        poll_seconds = float(value)
+        if poll_seconds <= 0.0 or poll_seconds > 120.0:
+            raise ValueError("invalid external_diagnostics_poll_interval_seconds")
+        return poll_seconds
     if attr_name == "gh_aw_ingestion_mode":
         normalized = str(value).strip().lower()
         if normalized not in {"disabled", "passive"}:
@@ -430,6 +449,21 @@ async def apply_persisted_runtime_settings(
             continue
         setattr(settings, attr_name, normalized)
         changed_keys.append(attr_name)
+
+    if (
+        settings.external_diagnostics_wait_seconds > 0
+        and settings.external_diagnostics_poll_interval_seconds
+        > settings.external_diagnostics_wait_seconds
+    ):
+        logger.warning(
+            "Adjusting invalid persisted diagnostics poll interval %.2fs to wait budget %.2fs",
+            settings.external_diagnostics_poll_interval_seconds,
+            settings.external_diagnostics_wait_seconds,
+        )
+        settings.external_diagnostics_poll_interval_seconds = (
+            settings.external_diagnostics_wait_seconds
+        )
+        changed_keys.append("external_diagnostics_poll_interval_seconds")
 
     if changed_keys and workflow is not None:
         workflow.refresh_runtime_settings()
@@ -546,6 +580,30 @@ async def update_app_settings(
         if not isinstance(workflows, list):
             raise HTTPException(status_code=422, detail="gh_aw_known_workflows must be a list")
         changes["gh_aw_known_workflows"] = _normalize_workflow_names(workflows)
+
+    # External diagnostics fast-path settings:
+    # keep waits bounded and ensure poll interval does not exceed wait budget
+    # unless wait is explicitly 0 (fully async mode).
+    wait_budget = float(
+        changes.get(
+            "external_diagnostics_wait_seconds",
+            settings.external_diagnostics_wait_seconds,
+        )
+    )
+    poll_interval = float(
+        changes.get(
+            "external_diagnostics_poll_interval_seconds",
+            settings.external_diagnostics_poll_interval_seconds,
+        )
+    )
+    if wait_budget > 0 and poll_interval > wait_budget:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "external_diagnostics_poll_interval_seconds must be <= "
+                "external_diagnostics_wait_seconds when wait budget is enabled"
+            ),
+        )
 
     if "azure_openai_deployment_name" in changes:
         deployment_name = str(changes["azure_openai_deployment_name"]).strip()

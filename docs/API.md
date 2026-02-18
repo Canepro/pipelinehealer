@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 89caebe -->
+<!-- LAST_VERIFIED: 56fec24 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -441,6 +441,8 @@ Returns the current runtime configuration (non-secret values only).
   "gh_aw_tools_enabled": false,
   "gh_aw_ingestion_mode": "disabled",
   "gh_aw_known_workflows": ["ci-doctor", "schema-consistency-checker", "breaking-change-checker"],
+  "external_diagnostics_wait_seconds": 60.0,
+  "external_diagnostics_poll_interval_seconds": 15.0,
   "cors_allowed_origins": ["http://localhost:3000", "http://localhost:5173"],
   "cors_allow_origin_regex": "https://.*\\.azurecontainerapps\\.io",
   "azure_openai_endpoint": "https://your-resource.cognitiveservices.azure.com/",
@@ -499,6 +501,8 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 | `gh_aw_tools_enabled` | bool | Enable/disable GitHub Agentic Workflows integration |
 | `gh_aw_ingestion_mode` | string | `disabled` or `passive` |
 | `gh_aw_known_workflows` | list[string] | Workflow names to detect (e.g. `ci-doctor`, `schema-consistency-checker`) |
+| `external_diagnostics_wait_seconds` | float | 0–900 (set `0` for fully async diagnostics/backfill) |
+| `external_diagnostics_poll_interval_seconds` | float | >0–120; must be `<= external_diagnostics_wait_seconds` when wait budget is enabled |
 | `azure_openai_deployment_name` | string | Non-empty; switches AI model deployment at runtime |
 | `llm_provider` | string | `azure_openai`, `openai_compatible`, or `custom` |
 | `openai_compatible_base_url` | string | Required when `llm_provider=openai_compatible`; must be `http(s)://...` |
@@ -509,7 +513,9 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 | `mcp_timeout_seconds` | float | 0–120 |
 | `mcp_max_retries` | int | 0–10 |
 
-**Validation**: `log_prompt_head_chars + log_prompt_tail_chars` must be `<= log_prompt_max_chars`.
+**Validation**:
+- `log_prompt_head_chars + log_prompt_tail_chars` must be `<= log_prompt_max_chars`.
+- `external_diagnostics_poll_interval_seconds` must be `<= external_diagnostics_wait_seconds` when wait budget is enabled (`wait > 0`).
 
 **Response** `200 OK`: updated `AppSettingsView` (same shape as GET).
 
@@ -604,6 +610,8 @@ Durably persists current mutable runtime settings so they survive backend restar
     "MAX_REMEDIATION_ATTEMPTS",
     "GH_AW_TOOLS_ENABLED",
     "GH_AW_INGESTION_MODE",
+    "EXTERNAL_DIAGNOSTICS_WAIT_SECONDS",
+    "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS",
     "AZURE_OPENAI_DEPLOYMENT_NAME"
   ],
   "redeploy_attempted": false,

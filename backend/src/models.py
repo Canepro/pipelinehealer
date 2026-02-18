@@ -266,6 +266,8 @@ class AppSettingsView(BaseModel):
     gh_aw_tools_enabled: bool
     gh_aw_ingestion_mode: str
     gh_aw_known_workflows: list[str]
+    external_diagnostics_wait_seconds: float
+    external_diagnostics_poll_interval_seconds: float
     ph_allowed_repos: list[str]
     cors_allowed_origins: list[str]
     cors_allow_origin_regex: str
@@ -302,6 +304,10 @@ class AdminSettingsUpdateRequest(BaseModel):
     gh_aw_tools_enabled: bool | None = None
     gh_aw_ingestion_mode: str | None = None
     gh_aw_known_workflows: list[str] | None = None
+    external_diagnostics_wait_seconds: float | None = Field(default=None, ge=0.0, le=900.0)
+    external_diagnostics_poll_interval_seconds: float | None = Field(
+        default=None, gt=0.0, le=120.0
+    )
     ph_allowed_repos: list[str] | None = None
     llm_provider: str | None = None
     openai_compatible_base_url: str | None = None

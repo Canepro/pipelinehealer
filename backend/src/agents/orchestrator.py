@@ -35,19 +35,22 @@ from .remediation import RemediationAgent
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("pipelinehealer.orchestrator")
 T = TypeVar("T")
-# Bounded backoff (total 480s / 8 minutes) for passive external diagnostics collection.
-# This only runs when gh_aw_tools are enabled, ingestion mode is passive,
-# and ci-doctor capability is detected for the target repository.
-_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS: tuple[float, ...] = (
-    15.0,
-    30.0,
-    45.0,
-    60.0,
-    75.0,
-    90.0,
-    90.0,
-    75.0,
-)
+
+
+def _build_external_diagnostics_poll_delays(
+    wait_budget_seconds: float,
+    poll_interval_seconds: float,
+) -> tuple[float, ...]:
+    """Build bounded polling delays from wait budget + poll interval settings."""
+    if wait_budget_seconds <= 0 or poll_interval_seconds <= 0:
+        return ()
+    remaining = wait_budget_seconds
+    delays: list[float] = []
+    while remaining > 0:
+        step = min(poll_interval_seconds, remaining)
+        delays.append(step)
+        remaining -= step
+    return tuple(delays)
 
 
 def _normalize_workflow_identifier(name: str) -> str:
@@ -287,8 +290,12 @@ class OrchestratorAgent:
         run_number: int | None,
     ) -> list[ExternalDiagnostic]:
         """Poll for ci-doctor findings with bounded backoff."""
+        poll_delays_seconds = _build_external_diagnostics_poll_delays(
+            wait_budget_seconds=self._settings.external_diagnostics_wait_seconds,
+            poll_interval_seconds=self._settings.external_diagnostics_poll_interval_seconds,
+        )
         last_collection_error_type: str | None = None
-        for attempt, delay in enumerate((0.0, *_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS)):
+        for attempt, delay in enumerate((0.0, *poll_delays_seconds)):
             if delay > 0:
                 await asyncio.sleep(delay)
             try:
@@ -336,7 +343,11 @@ class OrchestratorAgent:
                     metadata={
                         "reason_code": "collection_failed",
                         "error_type": last_collection_error_type,
-                        "attempts": len((0.0, *_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS)) + 1,
+                        "attempts": len((0.0, *poll_delays_seconds)) + 1,
+                        "wait_budget_seconds": self._settings.external_diagnostics_wait_seconds,
+                        "poll_interval_seconds": (
+                            self._settings.external_diagnostics_poll_interval_seconds
+                        ),
                     },
                 )
             ]
@@ -349,7 +360,9 @@ class OrchestratorAgent:
                 matched_run_id=run_id,
                 metadata={
                     "reason_code": "poll_window_exhausted",
-                    "poll_delays_seconds": list(_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS),
+                    "poll_delays_seconds": list(poll_delays_seconds),
+                    "wait_budget_seconds": self._settings.external_diagnostics_wait_seconds,
+                    "poll_interval_seconds": self._settings.external_diagnostics_poll_interval_seconds,
                 },
             )
         ]

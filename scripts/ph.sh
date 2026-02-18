@@ -861,6 +861,16 @@ _persist_parse_args() {
         _sp_pipeline_step_timeout_seconds="$2"
         shift 2
         ;;
+      --external-diagnostics-wait-seconds)
+        require_arg "$1" "${2-}"
+        _sp_external_diagnostics_wait_seconds="$2"
+        shift 2
+        ;;
+      --external-diagnostics-poll-interval-seconds)
+        require_arg "$1" "${2-}"
+        _sp_external_diagnostics_poll_interval_seconds="$2"
+        shift 2
+        ;;
       --gh-aw-tools-enabled)
         require_arg "$1" "${2-}"
         _sp_gh_aw_tools_enabled="$2"
@@ -895,13 +905,14 @@ _persist_parse_args() {
 
 _persist_validate() {
   # Check that the flag combination is valid and normalize values.
-  if [[ "$_sp_from_settings" != "1" && "$_sp_clear_repos" != "1" && -z "${_sp_repos_csv:-}" && -z "${_sp_heal_mode:-}" && -z "${_sp_auto_create_pr:-}" && -z "${_sp_max_remediation_attempts:-}" && -z "${_sp_pipeline_step_timeout_seconds:-}" && -z "${_sp_gh_aw_tools_enabled:-}" && -z "${_sp_gh_aw_ingestion_mode:-}" && -z "${_sp_gh_aw_known_workflows:-}" && -z "${_sp_azure_openai_deployment_name:-}" ]]; then
+  if [[ "$_sp_from_settings" != "1" && "$_sp_clear_repos" != "1" && -z "${_sp_repos_csv:-}" && -z "${_sp_heal_mode:-}" && -z "${_sp_auto_create_pr:-}" && -z "${_sp_max_remediation_attempts:-}" && -z "${_sp_pipeline_step_timeout_seconds:-}" && -z "${_sp_external_diagnostics_wait_seconds:-}" && -z "${_sp_external_diagnostics_poll_interval_seconds:-}" && -z "${_sp_gh_aw_tools_enabled:-}" && -z "${_sp_gh_aw_ingestion_mode:-}" && -z "${_sp_gh_aw_known_workflows:-}" && -z "${_sp_azure_openai_deployment_name:-}" ]]; then
     echo "Usage: bash scripts/ph.sh settings:persist --from-settings [--skip-redeploy]" >&2
     echo "   or: bash scripts/ph.sh settings:persist <flags...> [--skip-redeploy]" >&2
     echo "" >&2
     echo "Direct flags: --repos CSV  --clear-repos  --heal-mode MODE" >&2
     echo "  --auto-create-pr true|false  --max-remediation-attempts N" >&2
     echo "  --pipeline-step-timeout-seconds N  --gh-aw-tools-enabled true|false" >&2
+    echo "  --external-diagnostics-wait-seconds N  --external-diagnostics-poll-interval-seconds N" >&2
     echo "  --gh-aw-ingestion-mode disabled|passive  --gh-aw-known-workflows CSV" >&2
     echo "  --azure-openai-deployment-name NAME" >&2
     exit 2
@@ -909,7 +920,7 @@ _persist_validate() {
 
   if [[ "$_sp_from_settings" == "1" ]]; then
     local has_direct="0"
-    [[ "$_sp_clear_repos" == "1" || -n "${_sp_repos_csv:-}" || -n "${_sp_gh_aw_tools_enabled:-}" || -n "${_sp_gh_aw_ingestion_mode:-}" || -n "${_sp_gh_aw_known_workflows:-}" || -n "${_sp_azure_openai_deployment_name:-}" || -n "${_sp_heal_mode:-}" || -n "${_sp_auto_create_pr:-}" || -n "${_sp_max_remediation_attempts:-}" || -n "${_sp_pipeline_step_timeout_seconds:-}" ]] && has_direct="1"
+    [[ "$_sp_clear_repos" == "1" || -n "${_sp_repos_csv:-}" || -n "${_sp_gh_aw_tools_enabled:-}" || -n "${_sp_gh_aw_ingestion_mode:-}" || -n "${_sp_gh_aw_known_workflows:-}" || -n "${_sp_external_diagnostics_wait_seconds:-}" || -n "${_sp_external_diagnostics_poll_interval_seconds:-}" || -n "${_sp_azure_openai_deployment_name:-}" || -n "${_sp_heal_mode:-}" || -n "${_sp_auto_create_pr:-}" || -n "${_sp_max_remediation_attempts:-}" || -n "${_sp_pipeline_step_timeout_seconds:-}" ]] && has_direct="1"
     if [[ "$has_direct" == "1" ]]; then
       echo "Use --from-settings by itself (optionally with --skip-redeploy)." >&2
       exit 2
@@ -949,6 +960,24 @@ _persist_validate() {
       *) echo "Invalid --auto-create-pr value: $_sp_auto_create_pr (expected true|false)" >&2; exit 2 ;;
     esac
   fi
+
+  if [[ -n "${_sp_external_diagnostics_wait_seconds:-}" ]]; then
+    if ! [[ "${_sp_external_diagnostics_wait_seconds}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+      echo "Invalid --external-diagnostics-wait-seconds value: $_sp_external_diagnostics_wait_seconds (expected number >= 0)" >&2
+      exit 2
+    fi
+  fi
+
+  if [[ -n "${_sp_external_diagnostics_poll_interval_seconds:-}" ]]; then
+    if ! [[ "${_sp_external_diagnostics_poll_interval_seconds}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+      echo "Invalid --external-diagnostics-poll-interval-seconds value: $_sp_external_diagnostics_poll_interval_seconds (expected number > 0)" >&2
+      exit 2
+    fi
+    if [[ "${_sp_external_diagnostics_poll_interval_seconds}" == "0" || "${_sp_external_diagnostics_poll_interval_seconds}" == "0.0" ]]; then
+      echo "--external-diagnostics-poll-interval-seconds must be > 0" >&2
+      exit 2
+    fi
+  fi
 }
 
 _persist_hydrate_from_live() {
@@ -972,6 +1001,8 @@ _persist_hydrate_from_live() {
   _sp_log_prompt_max_chars="$(echo "$settings_json" | jq -r '.log_prompt_max_chars')"
   _sp_log_prompt_head_chars="$(echo "$settings_json" | jq -r '.log_prompt_head_chars')"
   _sp_log_prompt_tail_chars="$(echo "$settings_json" | jq -r '.log_prompt_tail_chars')"
+  _sp_external_diagnostics_wait_seconds="$(echo "$settings_json" | jq -r '.external_diagnostics_wait_seconds')"
+  _sp_external_diagnostics_poll_interval_seconds="$(echo "$settings_json" | jq -r '.external_diagnostics_poll_interval_seconds')"
   _sp_azure_openai_deployment_name="$(echo "$settings_json" | jq -r '.azure_openai_deployment_name')"
 }
 
@@ -1005,6 +1036,8 @@ _persist_write_env() {
   _write_if_set "LOG_PROMPT_MAX_CHARS" "${_sp_log_prompt_max_chars:-}"
   _write_if_set "LOG_PROMPT_HEAD_CHARS" "${_sp_log_prompt_head_chars:-}"
   _write_if_set "LOG_PROMPT_TAIL_CHARS" "${_sp_log_prompt_tail_chars:-}"
+  _write_if_set "EXTERNAL_DIAGNOSTICS_WAIT_SECONDS" "${_sp_external_diagnostics_wait_seconds:-}"
+  _write_if_set "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS" "${_sp_external_diagnostics_poll_interval_seconds:-}"
   _write_if_set "GH_AW_TOOLS_ENABLED" "${_sp_gh_aw_tools_enabled:-}"
   _write_if_set "GH_AW_INGESTION_MODE" "${_sp_gh_aw_ingestion_mode:-}"
 
@@ -1031,6 +1064,8 @@ _persist_print_summary() {
     echo "  LOG_PROMPT_MAX_CHARS=${_sp_log_prompt_max_chars:-<unchanged>}"
     echo "  LOG_PROMPT_HEAD_CHARS=${_sp_log_prompt_head_chars:-<unchanged>}"
     echo "  LOG_PROMPT_TAIL_CHARS=${_sp_log_prompt_tail_chars:-<unchanged>}"
+    echo "  EXTERNAL_DIAGNOSTICS_WAIT_SECONDS=${_sp_external_diagnostics_wait_seconds:-<unchanged>}"
+    echo "  EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS=${_sp_external_diagnostics_poll_interval_seconds:-<unchanged>}"
     echo "  GH_AW_TOOLS_ENABLED=${_sp_gh_aw_tools_enabled:-<unchanged>}"
     echo "  GH_AW_INGESTION_MODE=${_sp_gh_aw_ingestion_mode:-<unchanged>}"
     echo "  GH_AW_KNOWN_WORKFLOWS=${_sp_gh_aw_known_workflows:-<unchanged>}"
@@ -1044,6 +1079,8 @@ _persist_print_summary() {
     [[ -n "${_sp_auto_create_pr:-}" ]] && echo "  AUTO_CREATE_PR=${_sp_auto_create_pr}"
     [[ -n "${_sp_max_remediation_attempts:-}" ]] && echo "  MAX_REMEDIATION_ATTEMPTS=${_sp_max_remediation_attempts}"
     [[ -n "${_sp_pipeline_step_timeout_seconds:-}" ]] && echo "  PIPELINE_STEP_TIMEOUT_SECONDS=${_sp_pipeline_step_timeout_seconds}"
+    [[ -n "${_sp_external_diagnostics_wait_seconds:-}" ]] && echo "  EXTERNAL_DIAGNOSTICS_WAIT_SECONDS=${_sp_external_diagnostics_wait_seconds}"
+    [[ -n "${_sp_external_diagnostics_poll_interval_seconds:-}" ]] && echo "  EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS=${_sp_external_diagnostics_poll_interval_seconds}"
     [[ -n "${_sp_gh_aw_tools_enabled:-}" ]] && echo "  GH_AW_TOOLS_ENABLED=${_sp_gh_aw_tools_enabled}"
     [[ -n "${_sp_gh_aw_ingestion_mode:-}" ]] && echo "  GH_AW_INGESTION_MODE=${_sp_gh_aw_ingestion_mode}"
     [[ -n "${_sp_gh_aw_known_workflows:-}" ]] && echo "  GH_AW_KNOWN_WORKFLOWS=${_sp_gh_aw_known_workflows}"
@@ -1079,6 +1116,8 @@ cmd_settings_persist() {
   _sp_log_prompt_max_chars=""
   _sp_log_prompt_head_chars=""
   _sp_log_prompt_tail_chars=""
+  _sp_external_diagnostics_wait_seconds=""
+  _sp_external_diagnostics_poll_interval_seconds=""
 
   _persist_parse_args "$@"
   _persist_validate

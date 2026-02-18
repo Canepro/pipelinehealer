@@ -5,8 +5,8 @@ import asyncio
 import pytest
 
 from src.agents.orchestrator import (
-    _EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS,
     OrchestratorAgent,
+    _build_external_diagnostics_poll_delays,
 )
 from src.config import reset_settings
 from src.models import (
@@ -300,8 +300,67 @@ async def test_collect_external_diagnostics_final_fetch_before_timeout(monkeypat
     assert len(diagnostics) == 1
     assert diagnostics[0].status == ExternalDiagnosticStatus.UNAVAILABLE
     assert diagnostics[0].metadata.get("reason_code") == "poll_window_exhausted"
+    expected_delays = _build_external_diagnostics_poll_delays(
+        wait_budget_seconds=orchestrator._settings.external_diagnostics_wait_seconds,
+        poll_interval_seconds=orchestrator._settings.external_diagnostics_poll_interval_seconds,
+    )
     # Initial attempt + each scheduled delay attempt + final immediate fetch.
-    assert adapter.calls == len((0.0, *_EXTERNAL_DIAGNOSTICS_POLL_DELAYS_SECONDS)) + 1
+    assert adapter.calls == len((0.0, *expected_delays)) + 1
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_uses_configurable_wait_budget(monkeypatch) -> None:
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "true")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "passive")
+    monkeypatch.setenv("EXTERNAL_DIAGNOSTICS_WAIT_SECONDS", "30")
+    monkeypatch.setenv("EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS", "10")
+    reset_settings()
+
+    orchestrator = OrchestratorAgent(github_tools=_DummyGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
+    adapter = _NeverAvailableAdapter()
+    orchestrator._gh_aw_adapter = adapter  # type: ignore[assignment]
+
+    async def no_sleep(delay: float) -> None:
+        _ = delay
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event())
+    assert len(diagnostics) == 1
+    assert diagnostics[0].status == ExternalDiagnosticStatus.UNAVAILABLE
+    assert diagnostics[0].metadata.get("poll_delays_seconds") == [10.0, 10.0, 10.0]
+    # Initial attempt + 3 bounded retries + final immediate read.
+    assert adapter.calls == 5
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_wait_zero_is_async_first(monkeypatch) -> None:
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "true")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "passive")
+    monkeypatch.setenv("EXTERNAL_DIAGNOSTICS_WAIT_SECONDS", "0")
+    monkeypatch.setenv("EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS", "15")
+    reset_settings()
+
+    orchestrator = OrchestratorAgent(github_tools=_DummyGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
+    adapter = _NeverAvailableAdapter()
+    orchestrator._gh_aw_adapter = adapter  # type: ignore[assignment]
+
+    sleep_calls: list[float] = []
+
+    async def track_sleep(delay: float) -> None:
+        sleep_calls.append(delay)
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", track_sleep)
+
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event())
+    assert len(diagnostics) == 1
+    assert diagnostics[0].status == ExternalDiagnosticStatus.UNAVAILABLE
+    assert diagnostics[0].metadata.get("poll_delays_seconds") == []
+    # Initial attempt + final immediate read only.
+    assert adapter.calls == 2
+    assert sleep_calls == []
 
 
 @pytest.mark.asyncio

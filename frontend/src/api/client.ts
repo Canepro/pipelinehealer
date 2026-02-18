@@ -110,6 +110,8 @@ export interface AppSettings {
   gh_aw_tools_enabled: boolean
   gh_aw_ingestion_mode: string
   gh_aw_known_workflows: string[]
+  external_diagnostics_wait_seconds: number
+  external_diagnostics_poll_interval_seconds: number
   ph_allowed_repos: string[]
   cors_allowed_origins: string[]
   cors_allow_origin_regex: string

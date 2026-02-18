@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 89caebe -->
+<!-- LAST_VERIFIED: 56fec24 -->
 
 > Self-Healing CI/CD Agent System powered by Microsoft Agent Framework
 
@@ -202,7 +202,7 @@ flowchart LR
 - **Per-Activity Model Path Telemetry**: Captures observed provider/model path (`llm_model_path`) with fallback-used flag, call count, and aggregate latency
 - **MCP Foundation (Preview)**: MCP provider registry + health endpoint + settings controls (`MCP_*`) for phased multi-tool integration
 - **GitHub Agentic Workflows Integration**: Passive ingestion of external diagnostics (ci-doctor) when available on monitored repos
-- **Bounded External Diagnostics Polling**: Passive ingestion waits up to ~8 minutes and performs a final immediate fetch before timeout classification
+- **Fast-Path External Diagnostics Polling**: Passive ingestion uses a short configurable wait budget (default 60s) with bounded polling before marking diagnostics as pending/backfill
 - **Async External Diagnostics Backfill**: Background sweep (every 10 min) enriches completed activities whose ci-doctor findings arrived after the original poll window; manual trigger via `POST /api/backfill-diagnostics`
 - **Deep Content Enrichment**: Structured extraction of ci-doctor issue bodies — summary, root cause, recommended actions, historical context, doctor engine/model metadata — stored in `external_diagnostics[].metadata.details`
 - **External Findings Panel**: Collapsible UI panel rendering enriched ci-doctor findings with markdown formatting, section truncation, and auto-expand for available diagnostics
@@ -211,7 +211,7 @@ flowchart LR
 
 - **Stale Activity Recovery**: Activities interrupted by container restarts (scale-to-zero, redeploy) are automatically marked failed on startup with a clear explanation instead of remaining stuck forever
 - **Capability-Aware Remediation**: Graceful handling when target repos have issues or PRs disabled — remediation returns a `SKIP` with a user-friendly reason code instead of a confusing HTTP error
-- **Smart External Diagnostics Polling**: Skips ci-doctor polling when the failed workflow is itself a known gh-aw workflow, preventing unnecessary 8-minute wait windows
+- **Smart External Diagnostics Polling**: Skips ci-doctor polling when the failed workflow is itself a known gh-aw workflow, preventing unnecessary waits
 - **Mobile Navigation Reliability**: Route-safe, notch-safe sheet navigation for portrait mobile workflows
 - **Route-Level Code Splitting**: Each page loads as a separate chunk via `React.lazy`, reducing initial bundle size
 - **Enterprise Ready**: Azure-native with full observability and security
@@ -550,6 +550,8 @@ bash scripts/ph.sh lowcost
 | `GH_AW_TOOLS_ENABLED` | Enable GitHub Agentic Workflows integration (`true`/`false`) | Optional |
 | `GH_AW_INGESTION_MODE` | gh-aw ingestion mode: `disabled` or `passive` | Optional |
 | `GH_AW_KNOWN_WORKFLOWS` | Known gh-aw workflow names (CSV, e.g. `ci-doctor,schema-consistency-checker`) | Optional |
+| `EXTERNAL_DIAGNOSTICS_WAIT_SECONDS` | Total wait budget for ci-doctor polling during main pipeline run (set `0` for fully async) | Optional (default: `60`) |
+| `EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS` | Poll cadence within diagnostics wait budget | Optional (default: `15`) |
 | `VITE_AUTH_MODE` | Frontend auth mode: `none` or `entra` | Optional (default: `none`) |
 | `VITE_ENTRA_TENANT_ID` | Frontend Entra tenant ID (or use `VITE_ENTRA_AUTHORITY`) | Required for Entra login |
 | `VITE_ENTRA_CLIENT_ID` | Frontend Entra SPA client ID | Required for Entra login |

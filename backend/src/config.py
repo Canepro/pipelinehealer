@@ -146,6 +146,20 @@ class Settings(BaseSettings):
             "Add others only if you explicitly want to suppress polling for them."
         ),
     )
+    external_diagnostics_wait_seconds: float = Field(
+        default=60.0,
+        description=(
+            "Maximum total wait budget (seconds) for ci-doctor passive diagnostics polling "
+            "during primary pipeline execution. Set to 0 for fully async enrichment."
+        ),
+    )
+    external_diagnostics_poll_interval_seconds: float = Field(
+        default=15.0,
+        description=(
+            "Polling cadence (seconds) for ci-doctor passive diagnostics lookup while within "
+            "the external diagnostics wait budget."
+        ),
+    )
 
     # Application Configuration
     environment: str = Field(
@@ -410,6 +424,26 @@ class Settings(BaseSettings):
         if normalized not in {"disabled", "passive"}:
             raise ValueError("GH_AW_INGESTION_MODE must be one of: disabled, passive")
         return normalized
+
+    @field_validator("external_diagnostics_wait_seconds")
+    @classmethod
+    def validate_external_diagnostics_wait_seconds(cls, value: float) -> float:
+        """Validate bounded wait budget for external diagnostics polling."""
+        if value < 0.0 or value > 900.0:
+            raise ValueError(
+                "EXTERNAL_DIAGNOSTICS_WAIT_SECONDS must be between 0 and 900 seconds"
+            )
+        return value
+
+    @field_validator("external_diagnostics_poll_interval_seconds")
+    @classmethod
+    def validate_external_diagnostics_poll_interval_seconds(cls, value: float) -> float:
+        """Validate polling interval used inside external diagnostics wait budget."""
+        if value <= 0.0 or value > 120.0:
+            raise ValueError(
+                "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS must be > 0 and <= 120 seconds"
+            )
+        return value
 
     @field_validator("azure_openai_endpoint")
     @classmethod

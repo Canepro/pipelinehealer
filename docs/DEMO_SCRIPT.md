@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: eac467e -->
+<!-- LAST_VERIFIED: 56fec24 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -120,7 +120,7 @@ Expected result pattern:
 
 ### External diagnostics enrichment
 
-ci-doctor findings may take up to ~8 minutes (bounded polling plus issue publication latency). If the pipeline finishes before ci-doctor, the backfill sweep runs automatically every 10 minutes and enriches activities when findings arrive.
+ci-doctor findings use a fast-path wait budget (default 60s) during pipeline execution. If findings are not published within that window, the backfill sweep runs automatically every 10 minutes and enriches activities when results arrive.
 
 For immediate results, trigger manually:
 

@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 43798ee -->
+<!-- LAST_VERIFIED: 56fec24 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -150,6 +150,7 @@ bash scripts/ph.sh settings:persist --from-settings --skip-redeploy
 bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2
 bash scripts/ph.sh settings:persist --heal-mode safe --auto-create-pr false
 bash scripts/ph.sh settings:persist --gh-aw-tools-enabled true --gh-aw-ingestion-mode passive
+bash scripts/ph.sh settings:persist --external-diagnostics-wait-seconds 60 --external-diagnostics-poll-interval-seconds 15
 bash scripts/ph.sh settings:persist --azure-openai-deployment-name gpt-4o --skip-redeploy
 bash scripts/ph.sh settings:persist --clear-repos
 ```
@@ -163,6 +164,8 @@ bash scripts/ph.sh settings:persist --clear-repos
 | `--auto-create-pr` | `true`, `false` | Set `AUTO_CREATE_PR` |
 | `--max-remediation-attempts` | int | Set `MAX_REMEDIATION_ATTEMPTS` |
 | `--pipeline-step-timeout-seconds` | float | Set `PIPELINE_STEP_TIMEOUT_SECONDS` |
+| `--external-diagnostics-wait-seconds` | float | Set `EXTERNAL_DIAGNOSTICS_WAIT_SECONDS` |
+| `--external-diagnostics-poll-interval-seconds` | float | Set `EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS` |
 | `--gh-aw-tools-enabled` | `true`, `false` | Set `GH_AW_TOOLS_ENABLED` |
 | `--gh-aw-ingestion-mode` | `disabled`, `passive` | Set `GH_AW_INGESTION_MODE` |
 | `--gh-aw-known-workflows` | CSV | Set `GH_AW_KNOWN_WORKFLOWS` |

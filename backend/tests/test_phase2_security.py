@@ -552,7 +552,10 @@ async def test_settings_endpoint_includes_gh_aw_fields(monkeypatch) -> None:
     monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "true")
     monkeypatch.setenv("GH_AW_INGESTION_MODE", "passive")
     monkeypatch.setenv("GH_AW_KNOWN_WORKFLOWS", "ci-doctor, schema-consistency-checker")
+    monkeypatch.setenv("EXTERNAL_DIAGNOSTICS_WAIT_SECONDS", "75")
+    monkeypatch.setenv("EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS", "15")
     reset_settings()
+    app.state.storage = InMemoryStorage()
 
     response = await _get_settings(headers={"X-Admin-Key": "admin-secret"})
     assert response.status_code == 200
@@ -563,6 +566,8 @@ async def test_settings_endpoint_includes_gh_aw_fields(monkeypatch) -> None:
         "ci-doctor",
         "schema-consistency-checker",
     ]
+    assert data["external_diagnostics_wait_seconds"] == 75.0
+    assert data["external_diagnostics_poll_interval_seconds"] == 15.0
 
 
 @pytest.mark.asyncio
@@ -579,6 +584,8 @@ async def test_admin_can_patch_gh_aw_runtime_settings(monkeypatch) -> None:
             "gh_aw_tools_enabled": True,
             "gh_aw_ingestion_mode": "passive",
             "gh_aw_known_workflows": ["ci-doctor", "ci-doctor", "schema-consistency-checker"],
+            "external_diagnostics_wait_seconds": 45,
+            "external_diagnostics_poll_interval_seconds": 15,
         },
         headers={"X-Admin-Key": "admin-secret"},
     )
@@ -587,6 +594,28 @@ async def test_admin_can_patch_gh_aw_runtime_settings(monkeypatch) -> None:
     assert data["gh_aw_tools_enabled"] is True
     assert data["gh_aw_ingestion_mode"] == "passive"
     assert data["gh_aw_known_workflows"] == ["ci-doctor", "schema-consistency-checker"]
+    assert data["external_diagnostics_wait_seconds"] == 45.0
+    assert data["external_diagnostics_poll_interval_seconds"] == 15.0
+
+
+@pytest.mark.asyncio
+async def test_admin_patch_rejects_poll_interval_above_wait_budget(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    response = await _patch_settings(
+        {
+            "external_diagnostics_wait_seconds": 30,
+            "external_diagnostics_poll_interval_seconds": 45,
+        },
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 422
+    assert "external_diagnostics_poll_interval_seconds" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -744,6 +773,8 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
             "gh_aw_tools_enabled": True,
             "gh_aw_ingestion_mode": "passive",
             "gh_aw_known_workflows": ["ci-doctor", "schema-consistency-checker"],
+            "external_diagnostics_wait_seconds": 60,
+            "external_diagnostics_poll_interval_seconds": 10,
             "ph_allowed_repos": ["Canepro/PipelineHealer", "canepro/pipelinehealer-demo"],
             "azure_openai_deployment_name": "gpt-5-mini-fast",
         },
@@ -779,6 +810,8 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
     assert "GH_AW_TOOLS_ENABLED=true" in persisted_text
     assert "GH_AW_INGESTION_MODE=passive" in persisted_text
     assert "GH_AW_KNOWN_WORKFLOWS=ci-doctor,schema-consistency-checker" in persisted_text
+    assert "EXTERNAL_DIAGNOSTICS_WAIT_SECONDS=60.0" in persisted_text
+    assert "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS=10.0" in persisted_text
     assert "PH_ALLOWED_REPOS=canepro/pipelinehealer,canepro/pipelinehealer-demo" in persisted_text
     assert "AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-mini-fast" in persisted_text
 
