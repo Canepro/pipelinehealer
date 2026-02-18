@@ -25,6 +25,7 @@ CI failures create repetitive triage work. PipelineHealer shortens time-to-under
 - universal failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
 - artifact idempotency (find-or-create PR/issue reuse)
 - task-level model routing (`analysis`, `diagnosis`, `remediation`) with provider-default fallback
+- operator UX for fast triage (Dashboard snapshot, Activity Detail deep evidence, Control Center governance)
 
 This repository is the hackathon build, but designed for long-term production evolution.
 
@@ -44,6 +45,8 @@ Azure is the default deployment path for hackathon requirements, but the runtime
 - [Demo Script](docs/DEMO_SCRIPT.md)
 - [Logs & Investigation](docs/LOGS_AND_INVESTIGATION.md)
 - [Model Provider Strategy](docs/MODEL_PROVIDER_STRATEGY.md)
+- [Settings & Policy Feature Guide](docs/features/03-settings-and-policy-controls.md)
+- [Explainability & Observability Guide](docs/features/05-explainability-and-observability.md)
 - [Future Plan](docs/FUTURE_PLAN.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)

@@ -7,6 +7,7 @@ This guide explains where to see evidence, model path telemetry, and confidence 
 ## What This Feature Covers
 
 - Explainability snapshot on Dashboard
+- Activities table status tagging and desktop top horizontal scroll rail for wide-row usability
 - Activity Detail evidence layers
 - Failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
 - LLM model-path telemetry
@@ -24,6 +25,9 @@ This guide explains where to see evidence, model path telemetry, and confidence 
    - model path
    - proposed action + reason code
 4. Click `View activity` for full detail.
+
+Activities list tip:
+- On desktop, when the table is wider than the viewport, use the top horizontal rail instead of scrolling to the bottom first.
 
 ## Diagnosis Source
 

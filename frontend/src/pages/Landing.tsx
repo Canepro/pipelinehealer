@@ -43,15 +43,15 @@ const processSteps = [
 const operationalSignals = [
   {
     title: 'Deployment Modes',
-    text: 'Local Docker workflow and Azure Container Apps.',
+    text: 'Local Docker workflow plus Azure Container Apps for production demo runs.',
   },
   {
-    title: 'Safety Controls',
-    text: 'Issue-only mode, PR gate controls, and repository allowlisting.',
+    title: 'Model Portability',
+    text: 'Azure OpenAI today, OpenAI-compatible provider path built in, task-level model routing included.',
   },
   {
-    title: 'Diagnostics Depth',
-    text: 'Pattern + LLM diagnosis with optional external diagnostics and MCP context.',
+    title: 'Governance Controls',
+    text: 'Policy gates, repository allowlists, MCP tool policies, and durable settings audit trail.',
   },
 ]
 
@@ -87,7 +87,8 @@ export default function Landing() {
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-[var(--ph-muted)] sm:text-lg">
                 PipelineHealer helps engineering teams detect failures, diagnose root causes,
-                and propose safe corrective actions with full traceability.
+                and propose safe corrective actions with full traceability, provider-aware model
+                telemetry, and policy-first guardrails.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Button asChild size="lg" className="px-6">
@@ -114,6 +115,8 @@ export default function Landing() {
               <div className="mt-6 flex flex-wrap gap-2 text-xs">
                 <Badge variant="secondary">GitHub Actions</Badge>
                 <Badge variant="secondary">Azure OpenAI</Badge>
+                <Badge variant="secondary">Model Routing</Badge>
+                <Badge variant="secondary">MCP Governance</Badge>
                 <Badge variant="secondary">External Diagnostics</Badge>
                 <Badge variant="secondary">Audit Trail</Badge>
               </div>
@@ -137,7 +140,8 @@ export default function Landing() {
               <div className="rounded-lg border border-azure-500/25 bg-azure-500/5 p-3">
                 <p className="font-semibold text-[var(--ph-text)]">Operator Experience</p>
                 <p className="mt-1 text-[var(--ph-muted)]">
-                  Explainability snapshots, evidence layers, and policy-aware remediation traces in one UI.
+                  Dashboard for triage, Activity Detail for root-cause evidence, and Control Center
+                  for policy, audit, and investigation workflows.
                 </p>
               </div>
             </CardContent>

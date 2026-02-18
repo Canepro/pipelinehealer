@@ -26,6 +26,10 @@ This is the long-form project tracker for hackathon execution status, submission
 - Control Center governance route added: `/app/control-center` provides read-only runtime/auth/provider posture, MCP policy-effect matrix, and centralized audit timeline
 - Settings audit UX reworked: audit/trace now lives only in Control Center as a single governance source
 - Investigation access UX added in Control Center: safe logs/runbook links and copy-ready CLI commands (`logs`, `logs:grep`, `settings:check`, `settings:audit`)
+- UI polish pass shipped:
+  - Activities desktop table now includes a top horizontal scroll rail for wide-table navigation without bottom-scroll hunting
+  - Settings page widened with quick posture summary cards (runtime, scope, provider, security) to reduce visual density before editing
+  - landing copy refreshed to reflect model portability, MCP governance controls, and current operator surfaces
 
 ## Phase Overview
 

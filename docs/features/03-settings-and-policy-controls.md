@@ -7,6 +7,7 @@ This guide explains runtime controls, persistence behavior, and governance guard
 ## What This Feature Covers
 
 - Settings page workflow (`/settings`)
+- Settings posture overview cards (runtime/scope/provider/security) for quick read before edits
 - Runtime vs persisted settings
 - Admin audit trail
 - Guardrails for repos, retries, and MCP tool policy
@@ -20,6 +21,7 @@ This guide explains runtime controls, persistence behavior, and governance guard
    - Entra mode: use `Use Login Session`
 3. Change only one policy group at a time.
 4. Use **Save & Persist** to apply and persist in one action.
+5. Re-open Control Center for read-only governance verification after each save.
 
 ## Runtime vs Durable
 

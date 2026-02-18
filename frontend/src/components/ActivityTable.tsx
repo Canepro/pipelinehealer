@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
 import { ExternalLink, GitBranch } from 'lucide-react'
@@ -9,14 +10,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 
 interface ActivityTableProps {
   activities: Activity[]
@@ -224,6 +217,63 @@ export default function ActivityTable({
   focusedActivityId,
   highlightedActivityId,
 }: ActivityTableProps) {
+  const desktopScrollRef = useRef<HTMLDivElement | null>(null)
+  const desktopTopRailRef = useRef<HTMLDivElement | null>(null)
+  const [desktopScrollWidth, setDesktopScrollWidth] = useState(0)
+  const [desktopHasHorizontalOverflow, setDesktopHasHorizontalOverflow] = useState(false)
+
+  useEffect(() => {
+    const viewport = desktopScrollRef.current
+    if (!viewport) return
+
+    const syncDimensions = () => {
+      setDesktopScrollWidth(viewport.scrollWidth)
+      setDesktopHasHorizontalOverflow(viewport.scrollWidth > viewport.clientWidth + 1)
+    }
+
+    syncDimensions()
+    if (typeof ResizeObserver === 'undefined') {
+      return
+    }
+    const resizeObserver = new ResizeObserver(syncDimensions)
+    resizeObserver.observe(viewport)
+    const table = viewport.querySelector('table')
+    if (table) {
+      resizeObserver.observe(table)
+    }
+    return () => resizeObserver.disconnect()
+  }, [activities.length, isLoading])
+
+  useEffect(() => {
+    const topRail = desktopTopRailRef.current
+    const viewport = desktopScrollRef.current
+    if (!topRail || !viewport) return
+
+    let syncingFromTop = false
+    let syncingFromViewport = false
+
+    const onTopScroll = () => {
+      if (syncingFromViewport) return
+      syncingFromTop = true
+      viewport.scrollLeft = topRail.scrollLeft
+      syncingFromTop = false
+    }
+
+    const onViewportScroll = () => {
+      if (syncingFromTop) return
+      syncingFromViewport = true
+      topRail.scrollLeft = viewport.scrollLeft
+      syncingFromViewport = false
+    }
+
+    topRail.addEventListener('scroll', onTopScroll)
+    viewport.addEventListener('scroll', onViewportScroll)
+    return () => {
+      topRail.removeEventListener('scroll', onTopScroll)
+      viewport.removeEventListener('scroll', onViewportScroll)
+    }
+  }, [activities.length, desktopHasHorizontalOverflow])
+
   if (isLoading) {
     return (
       <Card>
@@ -356,141 +406,167 @@ export default function ActivityTable({
       </div>
 
       <div className="hidden lg:block">
-        <Table>
-          <TableHeader className="bg-slate-100/70 dark:bg-slate-800/60">
-            <TableRow>
-              <TableHead className="pl-6">Repository</TableHead>
-              <TableHead>Workflow</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Failure Type</TableHead>
-              <TableHead>Time</TableHead>
-              <TableHead className="pr-6">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {activities.map((activity) => {
-              const externalMeta = getExternalDiagnosticsMeta(activity)
-              const statusTags = getStatusTags(activity)
-              const visibleStatusTags = statusTags.slice(0, MAX_STATUS_TAGS)
-              const hiddenStatusTagCount = Math.max(statusTags.length - visibleStatusTags.length, 0)
-              const failureContext = getFailureContext(activity)
-              return (
-                <TableRow
-                  key={activity.id}
-                  data-activity-id={activity.id}
-                  className={`transition-colors ${
-                    activity.id === highlightedActivityId ? 'bg-azure-500/10' : ''
-                  }`}
-                >
-                  <TableCell className="pl-6 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <GitBranch className="mr-2 h-5 w-5 text-gray-400" />
-                      <div>
-                        <div
-                          className="max-w-[180px] truncate text-sm font-medium text-gray-900 dark:text-white"
-                          title={activity.repository_name.split('/')[1]}
-                        >
-                          {activity.repository_name.split('/')[1]}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {activity.repository_name.split('/')[0]}
-                        </div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <div
-                      className="max-w-[220px] truncate text-sm text-gray-900 dark:text-white"
-                      title={activity.workflow_name}
-                    >
-                      {activity.workflow_name}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Run #{activity.workflow_run_id}
-                    </div>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {activity.id === focusedActivityId && (
-                      <div className="mb-2">
-                        <Badge className="rounded-md text-[11px]" variant="success">
-                          Focused View
-                        </Badge>
-                      </div>
-                    )}
-                    <StatusBadge status={activity.status} size="sm" />
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {visibleStatusTags.map((tag, index) => (
-                        <Badge
-                          key={`${tag.label}-${index}`}
-                          className="max-w-[18rem] truncate rounded-md text-[11px]"
-                          variant={tag.variant}
-                          title={tag.title || tag.label}
-                        >
-                          {tag.label}
-                        </Badge>
-                      ))}
-                      {hiddenStatusTagCount > 0 && (
-                        <Badge className="max-w-full rounded-md text-[11px]" variant="outline">
-                          +{hiddenStatusTagCount} more
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="align-top">
-                    {activity.failure_type ? (
-                      <div className="space-y-1">
-                        <FailureTypeBadge type={activity.failure_type} />
-                        {failureContext && (
-                          <p
-                            className="max-w-[240px] truncate text-xs text-gray-500 dark:text-gray-400"
-                            title={failureContext}
+        {desktopHasHorizontalOverflow && (
+          <div className="border-b border-[var(--ph-border)] bg-slate-800/10 px-6 py-3">
+            <div className="mb-2 flex items-center justify-between gap-3 text-xs text-[var(--ph-muted)]">
+              <span>Horizontal scroll</span>
+              <span>Use this rail instead of scrolling to the bottom of the table.</span>
+            </div>
+            <div ref={desktopTopRailRef} className="overflow-x-auto overflow-y-hidden">
+              <div style={{ width: desktopScrollWidth, height: 1 }} />
+            </div>
+          </div>
+        )}
+
+        <div ref={desktopScrollRef} className="overflow-x-auto">
+          <table className="min-w-[1080px] w-full caption-bottom text-sm">
+            <thead className="bg-slate-100/70 dark:bg-slate-800/60 [&_tr]:border-b [&_tr]:border-[var(--ph-border)]">
+              <tr>
+                <th className="h-12 pl-6 pr-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Repository
+                </th>
+                <th className="h-12 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Workflow
+                </th>
+                <th className="h-12 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Status
+                </th>
+                <th className="h-12 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Failure Type
+                </th>
+                <th className="h-12 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Time
+                </th>
+                <th className="h-12 px-4 pr-6 text-left align-middle text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="[&_tr:last-child]:border-0">
+              {activities.map((activity) => {
+                const externalMeta = getExternalDiagnosticsMeta(activity)
+                const statusTags = getStatusTags(activity)
+                const visibleStatusTags = statusTags.slice(0, MAX_STATUS_TAGS)
+                const hiddenStatusTagCount = Math.max(statusTags.length - visibleStatusTags.length, 0)
+                const failureContext = getFailureContext(activity)
+                return (
+                  <tr
+                    key={activity.id}
+                    data-activity-id={activity.id}
+                    className={`border-b border-[var(--ph-border)] transition-colors hover:bg-slate-100/60 dark:hover:bg-slate-800/40 ${
+                      activity.id === highlightedActivityId ? 'bg-azure-500/10' : ''
+                    }`}
+                  >
+                    <td className="whitespace-nowrap p-4 pl-6 align-middle">
+                      <div className="flex items-center">
+                        <GitBranch className="mr-2 h-5 w-5 text-gray-400" />
+                        <div>
+                          <div
+                            className="max-w-[180px] truncate text-sm font-medium text-gray-900 dark:text-white"
+                            title={activity.repository_name.split('/')[1]}
                           >
-                            {failureContext}
-                          </p>
+                            {activity.repository_name.split('/')[1]}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {activity.repository_name.split('/')[0]}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap p-4 align-middle">
+                      <div
+                        className="max-w-[220px] truncate text-sm text-gray-900 dark:text-white"
+                        title={activity.workflow_name}
+                      >
+                        {activity.workflow_name}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Run #{activity.workflow_run_id}
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap p-4 align-middle">
+                      {activity.id === focusedActivityId && (
+                        <div className="mb-2">
+                          <Badge className="rounded-md text-[11px]" variant="success">
+                            Focused View
+                          </Badge>
+                        </div>
+                      )}
+                      <StatusBadge status={activity.status} size="sm" />
+                      <div className="mt-2 flex max-w-[18rem] flex-wrap gap-1">
+                        {visibleStatusTags.map((tag, index) => (
+                          <Badge
+                            key={`${tag.label}-${index}`}
+                            className="max-w-[18rem] truncate rounded-md text-[11px]"
+                            variant={tag.variant}
+                            title={tag.title || tag.label}
+                          >
+                            {tag.label}
+                          </Badge>
+                        ))}
+                        {hiddenStatusTagCount > 0 && (
+                          <Badge className="max-w-full rounded-md text-[11px]" variant="outline">
+                            +{hiddenStatusTagCount} more
+                          </Badge>
                         )}
                       </div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-sm text-gray-500">
-                    {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
-                  </TableCell>
-                  <TableCell className="pr-6 whitespace-nowrap text-sm">
-                    <div className="flex items-center space-x-2">
-                      <Button asChild variant="ghost" size="sm">
-                        <Link to={`/app/activities/${activity.id}`}>View</Link>
-                      </Button>
-                      {externalMeta?.findingsUrl && (
-                        <Button asChild variant="ghost" size="sm">
-                          <a
-                            href={externalMeta.findingsUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Findings
-                          </a>
-                        </Button>
+                    </td>
+                    <td className="p-4 align-top">
+                      {activity.failure_type ? (
+                        <div className="space-y-1">
+                          <FailureTypeBadge type={activity.failure_type} />
+                          {failureContext && (
+                            <p
+                              className="max-w-[240px] truncate text-xs text-gray-500 dark:text-gray-400"
+                              title={failureContext}
+                            >
+                              {failureContext}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
                       )}
-                      {activity.remediation_result?.pr_url && (
+                    </td>
+                    <td className="whitespace-nowrap p-4 align-middle text-sm text-gray-500">
+                      {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                    </td>
+                    <td className="whitespace-nowrap p-4 pr-6 align-middle text-sm">
+                      <div className="flex items-center space-x-2">
                         <Button asChild variant="ghost" size="sm">
-                          <a
-                            href={activity.remediation_result.pr_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label="Open pull request"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
+                          <Link to={`/app/activities/${activity.id}`}>View</Link>
                         </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
+                        {externalMeta?.findingsUrl && (
+                          <Button asChild variant="ghost" size="sm">
+                            <a
+                              href={externalMeta.findingsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Findings
+                            </a>
+                          </Button>
+                        )}
+                        {activity.remediation_result?.pr_url && (
+                          <Button asChild variant="ghost" size="sm">
+                            <a
+                              href={activity.remediation_result.pr_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label="Open pull request"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </Card>
   )

@@ -192,7 +192,7 @@ export default function SettingsPage() {
   })
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="mx-auto max-w-6xl space-y-6">
       {/* Page header */}
       <div className="flex items-center gap-3">
         <Settings2 className="h-7 w-7 text-azure-500" />
@@ -292,6 +292,49 @@ export default function SettingsPage() {
             data={data}
           />
 
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+            <SettingsSummaryCard
+              title="Runtime Posture"
+              lines={[
+                `Heal mode: ${data.heal_mode}`,
+                `Auto-create PR: ${data.auto_create_pr ? 'Yes' : 'No'}`,
+                `Max attempts: ${data.max_remediation_attempts}`,
+              ]}
+            />
+            <SettingsSummaryCard
+              title="Scope"
+              lines={[
+                data.ph_allowed_repos.length > 0
+                  ? `${data.ph_allowed_repos.length} allowlisted repos`
+                  : 'All repositories',
+                `MCP allowlist: ${
+                  data.mcp_repo_allowlist.length > 0
+                    ? `${data.mcp_repo_allowlist.length} repos`
+                    : 'fallback to PH scope'
+                }`,
+              ]}
+            />
+            <SettingsSummaryCard
+              title="AI Provider"
+              lines={[
+                `Provider: ${data.llm_provider}`,
+                `Default model: ${
+                  data.llm_provider === 'azure_openai'
+                    ? data.azure_openai_deployment_name || 'Not configured'
+                    : data.openai_compatible_model || 'Not configured'
+                }`,
+              ]}
+            />
+            <SettingsSummaryCard
+              title="Security"
+              lines={[
+                `Auth mode: ${data.auth_mode}`,
+                `Admin auth: ${data.admin_api_auth_enabled ? 'Enabled' : 'Disabled'}`,
+                `Webhook signature: ${data.verify_webhook_signature ? 'Required' : 'Off'}`,
+              ]}
+            />
+          </div>
+
           <AdminControlsForm
             data={data}
             form={form}
@@ -315,5 +358,22 @@ export default function SettingsPage() {
         </>
       )}
     </div>
+  )
+}
+
+function SettingsSummaryCard({ title, lines }: { title: string; lines: string[] }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1 text-sm text-[var(--ph-muted)]">
+        {lines.map((line) => (
+          <p key={`${title}-${line}`} className="break-words">
+            {line}
+          </p>
+        ))}
+      </CardContent>
+    </Card>
   )
 }

@@ -279,9 +279,9 @@ export default function AdminControlsForm({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="space-y-6">
+      <div className="space-y-8">
         <Card>
-          <CardContent className="py-4">
+          <CardContent className="py-5">
             <Tabs
               value={activeSection}
               onValueChange={(value) => setActiveSection(value as SettingsSection)}
@@ -290,21 +290,21 @@ export default function AdminControlsForm({
               <TabsList className="grid h-auto w-full grid-cols-1 gap-1 rounded-xl border border-[var(--ph-border)] bg-slate-800/20 p-1 sm:grid-cols-3">
                 <TabsTrigger
                   value="runtime"
-                  className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-azure-300/40"
+                  className="flex items-center justify-center gap-2 py-3 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-azure-300/40"
                 >
                   <Zap className="h-4 w-4" />
                   1. Runtime Controls
                 </TabsTrigger>
                 <TabsTrigger
                   value="intelligence"
-                  className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-azure-300/40"
+                  className="flex items-center justify-center gap-2 py-3 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-azure-300/40"
                 >
                   <Sparkles className="h-4 w-4" />
                   2. AI & Integrations
                 </TabsTrigger>
                 <TabsTrigger
                   value="security"
-                  className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-azure-300/40"
+                  className="flex items-center justify-center gap-2 py-3 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-azure-300/40"
                 >
                   <Shield className="h-4 w-4" />
                   3. Security & Advanced
@@ -334,7 +334,7 @@ export default function AdminControlsForm({
                 Controls how PipelineHealer responds to CI failures.
               </p>
             </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <FieldGroup label="Heal Mode" field="heal_mode">
                   <Select
@@ -404,7 +404,7 @@ export default function AdminControlsForm({
               Configure model provider and deployment for log analysis and diagnosis.
             </p>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <FieldGroup label="LLM Provider" field="llm_provider">
                 <Select
@@ -595,7 +595,7 @@ export default function AdminControlsForm({
               Foundation controls for provider-agnostic MCP tool integration.
             </p>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <SwitchField
                 label="Enable MCP"
@@ -909,7 +909,7 @@ export default function AdminControlsForm({
               {SETTING_DESCRIPTIONS.ph_allowed_repos}
             </p>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             <div className="flex items-center gap-3 text-sm">
               <span className="text-[var(--ph-muted)]">Effective now:</span>
               {data.ph_allowed_repos.length > 0 ? (
@@ -979,7 +979,7 @@ export default function AdminControlsForm({
               GitHub Agentic Workflows integration for enhanced CI failure analysis.
             </p>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <SwitchField
                 label="Enable External Diagnostics"
@@ -1084,7 +1084,7 @@ export default function AdminControlsForm({
               Authentication and webhook verification status.
             </p>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <StatusChip label="API Auth" value={data.api_auth_enabled ? 'Enabled' : 'Disabled'} ok={data.api_auth_enabled} />
               <StatusChip label="Admin Auth" value={data.admin_api_auth_enabled ? 'Enabled' : 'Disabled'} ok={data.admin_api_auth_enabled} />
