@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: e4a9449 -->
+<!-- LAST_VERIFIED: 832a2f5 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -616,6 +616,16 @@ Example when using `llm_provider=openai_compatible` with missing config:
   "message": "OPENAI_COMPATIBLE_BASE_URL is not configured."
 }
 ```
+
+OpenAI-compatible `reason` codes:
+
+- `missing_base_url`, `missing_model`, `missing_api_key`: required config missing
+- `probe_timeout`: probe request timed out
+- `probe_auth_failed`: API key rejected (`401`/`403`)
+- `probe_rate_limited`: provider returned `429`
+- `probe_provider_error`: provider returned `5xx`
+- `probe_http_error`: non-success HTTP status outside the categories above
+- `probe_network_error`: request could not reach provider endpoint
 
 #### `GET /api/settings/mcp/provider-health`
 

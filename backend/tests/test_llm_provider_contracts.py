@@ -182,3 +182,47 @@ async def test_openai_compatible_provider_path_does_not_retry_non_retryable_erro
 
     assert _AuthFailingOpenAICompatibleAgent.run_calls == 1
     assert mock_sleep.call_count == 0
+
+
+@pytest.mark.asyncio
+@patch("src.agents.base.asyncio.sleep", new_callable=AsyncMock)
+async def test_openai_compatible_provider_path_retries_timeout_without_message(
+    mock_sleep: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OpenAI-compatible path should retry bare timeout exceptions (empty error message)."""
+
+    class _TimeoutThenSuccessAgent:
+        run_calls = 0
+
+        def __init__(self, *, base_url: str, api_key: str, model: str, instructions: str):
+            _ = base_url, api_key, model, instructions
+
+        async def run(self, prompt: str) -> str:
+            _ = prompt
+            type(self).run_calls += 1
+            if type(self).run_calls == 1:
+                raise TimeoutError()
+            return "ok"
+
+    monkeypatch.setattr("src.agents.base.OpenAICompatibleAgent", _TimeoutThenSuccessAgent)
+
+    settings = Settings(
+        _env_file=None,
+        llm_provider="openai_compatible",
+        openai_compatible_base_url="https://api.example.com/v1",
+        openai_compatible_api_key="key",
+        openai_compatible_model="gpt-4o-mini",
+    )
+
+    runtime_agent = create_cloud_agent(
+        name="Test",
+        instructions="diag",
+        credential=None,  # type: ignore[arg-type]
+        settings=settings,
+    )
+
+    result = await runtime_agent.run("hello")
+    assert result == "ok"
+    assert _TimeoutThenSuccessAgent.run_calls == 2
+    assert mock_sleep.call_count == 1

@@ -1,3 +1,7 @@
+from unittest.mock import patch
+
+import httpx
+
 from src.config import Settings
 from src.llm.adapters import get_llm_provider_adapter
 
@@ -25,3 +29,91 @@ def test_openai_compatible_adapter_reports_missing_config() -> None:
     assert health["implemented"] is True
     assert health["available"] is False
     assert health["reason"] == "missing_base_url"
+
+
+def test_openai_compatible_adapter_reports_probe_timeout() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="openai_compatible",
+        openai_compatible_base_url="https://api.example.com/v1",
+        openai_compatible_model="gpt-4o-mini",
+        openai_compatible_api_key="key",
+    )
+    adapter = get_llm_provider_adapter(settings)
+
+    class _TimeoutClient:
+        def __enter__(self):  # noqa: D401
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001
+            _ = exc_type, exc, tb
+            return False
+
+        def get(self, *_args, **_kwargs):  # noqa: ANN002
+            raise httpx.ReadTimeout("timed out")
+
+    with patch("src.llm.adapters.httpx.Client", return_value=_TimeoutClient()):
+        health = adapter.health(settings)
+
+    assert health["available"] is False
+    assert health["reason"] == "probe_timeout"
+
+
+def test_openai_compatible_adapter_reports_probe_auth_failed() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="openai_compatible",
+        openai_compatible_base_url="https://api.example.com/v1",
+        openai_compatible_model="gpt-4o-mini",
+        openai_compatible_api_key="key",
+    )
+    adapter = get_llm_provider_adapter(settings)
+
+    class _AuthFailClient:
+        def __enter__(self):  # noqa: D401
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001
+            _ = exc_type, exc, tb
+            return False
+
+        def get(self, *_args, **_kwargs):  # noqa: ANN002
+            request = httpx.Request("GET", "https://api.example.com/v1/models")
+            response = httpx.Response(status_code=401, request=request)
+            raise httpx.HTTPStatusError("401 Unauthorized", request=request, response=response)
+
+    with patch("src.llm.adapters.httpx.Client", return_value=_AuthFailClient()):
+        health = adapter.health(settings)
+
+    assert health["available"] is False
+    assert health["reason"] == "probe_auth_failed"
+
+
+def test_openai_compatible_adapter_reports_probe_rate_limited() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="openai_compatible",
+        openai_compatible_base_url="https://api.example.com/v1",
+        openai_compatible_model="gpt-4o-mini",
+        openai_compatible_api_key="key",
+    )
+    adapter = get_llm_provider_adapter(settings)
+
+    class _RateLimitedClient:
+        def __enter__(self):  # noqa: D401
+            return self
+
+        def __exit__(self, exc_type, exc, tb):  # noqa: ANN001
+            _ = exc_type, exc, tb
+            return False
+
+        def get(self, *_args, **_kwargs):  # noqa: ANN002
+            request = httpx.Request("GET", "https://api.example.com/v1/models")
+            response = httpx.Response(status_code=429, request=request)
+            raise httpx.HTTPStatusError("429 Too Many Requests", request=request, response=response)
+
+    with patch("src.llm.adapters.httpx.Client", return_value=_RateLimitedClient()):
+        health = adapter.health(settings)
+
+    assert health["available"] is False
+    assert health["reason"] == "probe_rate_limited"

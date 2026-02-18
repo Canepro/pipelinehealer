@@ -50,6 +50,18 @@ class NoopAgent:
 
 def _is_retryable_llm_error(exc: Exception) -> bool:
     """Return True if *exc* looks like a transient/rate-limited LLM error worth retrying."""
+    if isinstance(exc, (TimeoutError, ConnectionError, OSError)):
+        return True
+
+    status_code = getattr(exc, "status_code", None)
+    if isinstance(status_code, int) and status_code in _LLM_RETRYABLE_STATUS_CODES:
+        return True
+
+    response = getattr(exc, "response", None)
+    response_status = getattr(response, "status_code", None)
+    if isinstance(response_status, int) and response_status in _LLM_RETRYABLE_STATUS_CODES:
+        return True
+
     message = str(exc).lower()
 
     # Check for HTTP status codes embedded in exception messages.

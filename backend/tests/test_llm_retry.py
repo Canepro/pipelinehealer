@@ -1,6 +1,5 @@
 """Tests for LLM transient-error retry logic in agents/base.py."""
 
-import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -11,13 +10,35 @@ from src.agents.base import (
     _run_with_llm_retry,
 )
 
-
 # ---------------------------------------------------------------------------
 # _is_retryable_llm_error
 # ---------------------------------------------------------------------------
 
 
 class TestIsRetryableLlmError:
+    def test_retryable_builtin_timeout_without_message(self) -> None:
+        assert _is_retryable_llm_error(TimeoutError()) is True
+
+    def test_retryable_status_code_attribute(self) -> None:
+        class _StatusCodeError(Exception):
+            def __init__(self, status_code: int) -> None:
+                super().__init__("status error")
+                self.status_code = status_code
+
+        assert _is_retryable_llm_error(_StatusCodeError(503)) is True
+
+    def test_retryable_response_status_attribute(self) -> None:
+        class _Response:
+            def __init__(self, status_code: int) -> None:
+                self.status_code = status_code
+
+        class _ResponseError(Exception):
+            def __init__(self, status_code: int) -> None:
+                super().__init__("response error")
+                self.response = _Response(status_code)
+
+        assert _is_retryable_llm_error(_ResponseError(429)) is True
+
     def test_429_status_code(self) -> None:
         assert _is_retryable_llm_error(Exception("HTTP 429 Too Many Requests")) is True
 
@@ -101,6 +122,18 @@ class TestRunWithLlmRetry:
         assert result == "recovered"
         assert agent.run.call_count == 3
         assert mock_sleep.call_count == 2
+
+    @pytest.mark.asyncio
+    @patch("src.agents.base.asyncio.sleep", new_callable=AsyncMock)
+    async def test_retries_on_timeout_exception_without_message(self, mock_sleep: AsyncMock) -> None:
+        agent = AsyncMock()
+        agent.run.side_effect = [TimeoutError(), "recovered"]
+
+        result = await _run_with_llm_retry(agent, "hello")
+
+        assert result == "recovered"
+        assert agent.run.call_count == 2
+        assert mock_sleep.call_count == 1
 
     @pytest.mark.asyncio
     @patch("src.agents.base.asyncio.sleep", new_callable=AsyncMock)

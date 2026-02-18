@@ -1,6 +1,6 @@
 # Model Provider Switch Runbook
 
-<!-- LAST_VERIFIED: 647ddde -->
+<!-- LAST_VERIFIED: 832a2f5 -->
 
 This runbook covers safe switching between model providers and fast rollback.
 
@@ -97,3 +97,22 @@ bash scripts/ph.sh settings:check | jq '.llm_provider,.openai_compatible_base_ur
 - New activities show expected model path label.
 - No sustained spike in `Fallback Used` or `LLM Errors`.
 - Audit trail contains your switch request IDs.
+
+## Provider Health Reason Codes
+
+OpenAI-compatible provider health now returns actionable `reason` values:
+
+- `ok`: probe succeeded
+- `missing_base_url`, `missing_model`, `missing_api_key`: missing required config
+- `probe_timeout`: probe request timed out
+- `probe_auth_failed`: API key rejected (`401/403`)
+- `probe_rate_limited`: provider rate-limited probe (`429`)
+- `probe_provider_error`: upstream provider server error (`5xx`)
+- `probe_http_error`: other non-success HTTP status
+- `probe_network_error`: DNS/TCP/connectivity failure
+
+Use these reason codes to choose rollback urgency:
+
+- **Immediate rollback:** `probe_auth_failed`, `probe_provider_error` (persistent), repeated `probe_timeout`
+- **Monitor + retry:** `probe_rate_limited`, occasional `probe_timeout`
+- **Fix config:** `missing_*`

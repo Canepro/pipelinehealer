@@ -94,6 +94,45 @@ class OpenAICompatibleProviderAdapter:
 
     name: LLMProviderName = LLMProviderName.OPENAI_COMPATIBLE
 
+    @staticmethod
+    def _probe_error_payload(exc: Exception) -> dict[str, str]:
+        """Normalize provider probe errors into actionable reason codes."""
+        if isinstance(exc, httpx.TimeoutException):
+            return {
+                "reason": "probe_timeout",
+                "message": "Provider probe timed out while calling /models.",
+            }
+        if isinstance(exc, httpx.HTTPStatusError):
+            status = exc.response.status_code if exc.response is not None else None
+            if status in (401, 403):
+                return {
+                    "reason": "probe_auth_failed",
+                    "message": f"Provider probe auth failed with HTTP {status}.",
+                }
+            if status == 429:
+                return {
+                    "reason": "probe_rate_limited",
+                    "message": "Provider probe was rate limited (HTTP 429).",
+                }
+            if status is not None and status >= 500:
+                return {
+                    "reason": "probe_provider_error",
+                    "message": f"Provider probe failed with server error HTTP {status}.",
+                }
+            return {
+                "reason": "probe_http_error",
+                "message": f"Provider probe failed with HTTP {status}.",
+            }
+        if isinstance(exc, httpx.RequestError):
+            return {
+                "reason": "probe_network_error",
+                "message": f"Provider probe network failure: {exc}",
+            }
+        return {
+            "reason": "connectivity_probe_failed",
+            "message": f"Provider probe failed: {exc}",
+        }
+
     def health(self, settings: Any) -> dict[str, Any]:
         base_url = str(getattr(settings, "openai_compatible_base_url", "") or "").strip()
         model = str(getattr(settings, "openai_compatible_model", "") or "").strip()
@@ -129,12 +168,13 @@ class OpenAICompatibleProviderAdapter:
                 response = client.get(probe_url, headers={"Authorization": f"Bearer {api_key}"})
                 response.raise_for_status()
         except Exception as exc:
+            normalized = self._probe_error_payload(exc)
             return {
                 "provider": self.name.value,
                 "implemented": True,
                 "available": False,
-                "reason": "connectivity_probe_failed",
-                "message": f"Provider probe failed: {exc}",
+                "reason": normalized["reason"],
+                "message": normalized["message"],
             }
 
         return {
