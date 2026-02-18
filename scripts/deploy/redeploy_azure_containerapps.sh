@@ -314,6 +314,21 @@ else
     --set-env-vars "${FRONTEND_SET_ENV_VARS[@]}" >/dev/null
 fi
 
+DEPLOYED_BACKEND_IMAGE="$(
+  az containerapp show \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$BACKEND_APP" \
+    --query properties.template.containers[0].image \
+    -o tsv | tr -d '\r\n'
+)"
+DEPLOYED_FRONTEND_IMAGE="$(
+  az containerapp show \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$FRONTEND_APP" \
+    --query properties.template.containers[0].image \
+    -o tsv | tr -d '\r\n'
+)"
+
 FRONTEND_FQDN="$(
   az containerapp show \
     -g "$AZ_RESOURCE_GROUP" \
@@ -324,6 +339,21 @@ FRONTEND_FQDN="$(
 
 echo "Backend URL : https://$BACKEND_FQDN"
 echo "Frontend URL: https://$FRONTEND_FQDN"
+echo "Backend image : $DEPLOYED_BACKEND_IMAGE"
+echo "Frontend image: $DEPLOYED_FRONTEND_IMAGE"
+
+if [[ "$MODE" == "full" ]]; then
+  expected_backend_image="$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
+  expected_frontend_image="$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
+  if [[ "$DEPLOYED_BACKEND_IMAGE" != "$expected_backend_image" || "$DEPLOYED_FRONTEND_IMAGE" != "$expected_frontend_image" ]]; then
+    echo "Error: deployed image mismatch after full deploy." >&2
+    echo "Expected backend : $expected_backend_image" >&2
+    echo "Actual backend   : $DEPLOYED_BACKEND_IMAGE" >&2
+    echo "Expected frontend: $expected_frontend_image" >&2
+    echo "Actual frontend  : $DEPLOYED_FRONTEND_IMAGE" >&2
+    exit 1
+  fi
+fi
 
 if [[ "$DO_VERIFY" == "1" ]]; then
   curl -fsS "https://$BACKEND_FQDN/health" >/dev/null

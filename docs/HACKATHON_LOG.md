@@ -34,6 +34,9 @@ This is the long-form project tracker for hackathon execution status, submission
   - Control Center logs section now groups commands by execution scope (`Azure` vs `Local/Docker`)
   - copy-ready command rows include usage notes to reduce operator confusion around `Missing required command: az`
   - logs guide now includes a command scope matrix with no-Azure local path examples
+- Deploy reliability hardening:
+  - `deploy` now prints resolved deployed backend/frontend image references from Azure after update
+  - full deploy now fails fast if deployed image refs do not match the requested commit tag
 
 ## Phase Overview
 
