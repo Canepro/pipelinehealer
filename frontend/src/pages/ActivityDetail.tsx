@@ -247,7 +247,7 @@ function parseExternalSignalSources(value: unknown): ExternalSignalSource[] {
 
 function formatMcpStatus(enabled: boolean, available: boolean): string {
   if (!enabled) return 'Disabled'
-  return available ? 'Ready' : 'Degraded'
+  return available ? 'Available' : 'Limited'
 }
 
 const DETAIL_SECTIONS: Array<{ key: string; label: string }> = [

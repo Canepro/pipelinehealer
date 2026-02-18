@@ -25,6 +25,13 @@ interface ActivityTableProps {
   highlightedActivityId?: string | null
 }
 
+type StatusTag = {
+  label: string
+  variant: 'success' | 'destructive' | 'secondary' | 'outline'
+}
+
+const MAX_STATUS_TAGS = 4
+
 function formatSourceLabel(source: string): string {
   const normalizedRaw = source.trim().toLowerCase()
   const knownLabels: Record<string, string> = {
@@ -55,13 +62,22 @@ function getExternalDiagnosticsMeta(activity: Activity): {
     return null
   }
 
+  const nonNoopDiagnostics = diagnostics.filter((item) => {
+    const metadata = (item.metadata ?? {}) as Record<string, unknown>
+    return metadata.noop !== true
+  })
+
   const representative =
-    diagnostics.find((item) => item.status === 'available') ??
-    diagnostics.find((item) => item.status === 'error') ??
-    diagnostics[0]
+    nonNoopDiagnostics.find((item) => item.status === 'available') ??
+    nonNoopDiagnostics.find((item) => item.status === 'error') ??
+    nonNoopDiagnostics[0]
+
+  if (!representative) {
+    return null
+  }
 
   const source = formatSourceLabel(representative.source)
-  const findingsUrl = diagnostics.find((item) => item.url)?.url ?? null
+  const findingsUrl = nonNoopDiagnostics.find((item) => item.url)?.url ?? null
 
   if (representative.status === 'available') {
     return {
@@ -136,7 +152,60 @@ function getMcpLabel(activity: Activity): { label: string; variant: 'success' | 
   if (path.available) {
     return { label: `MCP: ${provider}`, variant: 'success' }
   }
-  return { label: `MCP: ${provider} (degraded)`, variant: 'secondary' }
+  return { label: `MCP: ${provider} (limited)`, variant: 'secondary' }
+}
+
+function getFailureContext(activity: Activity): string | null {
+  const rootCause = activity.diagnosis?.root_cause?.trim()
+  if (rootCause) {
+    return rootCause.length > 80 ? `${rootCause.slice(0, 77)}...` : rootCause
+  }
+  const error = activity.error?.trim()
+  if (error) {
+    return error.length > 80 ? `${error.slice(0, 77)}...` : error
+  }
+  return null
+}
+
+function getStatusTags(activity: Activity): StatusTag[] {
+  const meta = getIssueProposalMeta(activity)
+  const externalMeta = getExternalDiagnosticsMeta(activity)
+  const diagnosisSourceLabel = getDiagnosisSourceLabel(activity)
+  const modelPathLabel = getModelPathLabel(activity)
+  const mcpLabel = getMcpLabel(activity)
+  const tags: StatusTag[] = []
+
+  if (meta.output) {
+    tags.push({ label: `Output: ${meta.output}`, variant: 'secondary' })
+  }
+  if (meta.includesProposedFix) {
+    tags.push({ label: 'Includes Proposed Fix', variant: 'outline' })
+  }
+  if (meta.reasonCode) {
+    tags.push({ label: meta.reasonCode, variant: 'secondary' })
+  }
+  if (externalMeta) {
+    tags.push({ label: externalMeta.label, variant: externalMeta.variant })
+  }
+  // Only highlight diagnosis source when LLM path was used to reduce visual noise.
+  if (diagnosisSourceLabel === 'LLM') {
+    tags.push({ label: `Diagnosis: ${diagnosisSourceLabel}`, variant: 'secondary' })
+  }
+  if (diagnosisSourceLabel === 'LLM' && modelPathLabel) {
+    tags.push({ label: `Model: ${modelPathLabel}`, variant: 'secondary' })
+  }
+  if (activity.llm_model_path?.fallback_used) {
+    tags.push({ label: 'Fallback Used', variant: 'outline' })
+  }
+  // Show MCP tag only when limited to keep status focused.
+  if (mcpLabel?.variant === 'secondary') {
+    tags.push({ label: mcpLabel.label, variant: 'secondary' })
+  }
+  if (meta.reusedExistingPr) {
+    tags.push({ label: 'Reused Existing PR', variant: 'success' })
+  }
+
+  return tags
 }
 
 export default function ActivityTable({
@@ -184,11 +253,10 @@ export default function ActivityTable({
     <Card className="overflow-hidden">
       <div className="lg:hidden divide-y divide-[var(--ph-border)]">
         {activities.map((activity) => {
-          const meta = getIssueProposalMeta(activity)
           const externalMeta = getExternalDiagnosticsMeta(activity)
-          const diagnosisSourceLabel = getDiagnosisSourceLabel(activity)
-          const modelPathLabel = getModelPathLabel(activity)
-          const mcpLabel = getMcpLabel(activity)
+          const statusTags = getStatusTags(activity)
+          const visibleStatusTags = statusTags.slice(0, MAX_STATUS_TAGS)
+          const hiddenStatusTagCount = Math.max(statusTags.length - visibleStatusTags.length, 0)
           return (
             <div
               key={activity.id}
@@ -218,49 +286,18 @@ export default function ActivityTable({
                 ) : (
                   <span className="text-xs text-gray-400">No failure type</span>
                 )}
-                {meta.output && (
-                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant="secondary">
-                    {meta.output}
+                {visibleStatusTags.map((tag, index) => (
+                  <Badge
+                    key={`${tag.label}-${index}`}
+                    className="max-w-full break-all rounded-md text-[11px]"
+                    variant={tag.variant}
+                  >
+                    {tag.label}
                   </Badge>
-                )}
-                {meta.includesProposedFix && (
+                ))}
+                {hiddenStatusTagCount > 0 && (
                   <Badge className="max-w-full break-all rounded-md text-[11px]" variant="outline">
-                    Proposed Fix
-                  </Badge>
-                )}
-                {meta.reasonCode && (
-                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant="secondary">
-                    {meta.reasonCode}
-                  </Badge>
-                )}
-                {externalMeta && (
-                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant={externalMeta.variant}>
-                    {externalMeta.label}
-                  </Badge>
-                )}
-                {diagnosisSourceLabel && (
-                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant="secondary">
-                    Diagnosis: {diagnosisSourceLabel}
-                  </Badge>
-                )}
-                {modelPathLabel && (
-                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant="secondary">
-                    Model: {modelPathLabel}
-                  </Badge>
-                )}
-                {mcpLabel && (
-                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant={mcpLabel.variant}>
-                    {mcpLabel.label}
-                  </Badge>
-                )}
-                {activity.llm_model_path?.fallback_used && (
-                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant="outline">
-                    Fallback Used
-                  </Badge>
-                )}
-                {meta.reusedExistingPr && (
-                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant="success">
-                    Reused Existing PR
+                    +{hiddenStatusTagCount} more
                   </Badge>
                 )}
               </div>
@@ -318,11 +355,11 @@ export default function ActivityTable({
           </TableHeader>
           <TableBody>
             {activities.map((activity) => {
-              const meta = getIssueProposalMeta(activity)
               const externalMeta = getExternalDiagnosticsMeta(activity)
-              const diagnosisSourceLabel = getDiagnosisSourceLabel(activity)
-              const modelPathLabel = getModelPathLabel(activity)
-              const mcpLabel = getMcpLabel(activity)
+              const statusTags = getStatusTags(activity)
+              const visibleStatusTags = statusTags.slice(0, MAX_STATUS_TAGS)
+              const hiddenStatusTagCount = Math.max(statusTags.length - visibleStatusTags.length, 0)
+              const failureContext = getFailureContext(activity)
               return (
                 <TableRow
                   key={activity.id}
@@ -362,68 +399,35 @@ export default function ActivityTable({
                     )}
                     <StatusBadge status={activity.status} size="sm" />
                     <div className="mt-2 flex flex-wrap gap-1">
-                      {meta.output && (
-                        <Badge className="rounded-md text-[11px]" variant="secondary">
-                          Output: {meta.output}
+                      {visibleStatusTags.map((tag, index) => (
+                        <Badge
+                          key={`${tag.label}-${index}`}
+                          className="max-w-full break-all rounded-md text-[11px]"
+                          variant={tag.variant}
+                        >
+                          {tag.label}
+                        </Badge>
+                      ))}
+                      {hiddenStatusTagCount > 0 && (
+                        <Badge className="max-w-full break-all rounded-md text-[11px]" variant="outline">
+                          +{hiddenStatusTagCount} more
                         </Badge>
                       )}
                     </div>
-                    {meta.includesProposedFix && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        <Badge className="rounded-md text-[11px]" variant="outline">
-                          Includes Proposed Fix
-                        </Badge>
-                        {meta.reasonCode && (
-                          <Badge className="rounded-md text-[11px]" variant="secondary">
-                            {meta.reasonCode}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                    {externalMeta && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        <Badge className="rounded-md text-[11px]" variant={externalMeta.variant}>
-                          {externalMeta.label}
-                        </Badge>
-                      </div>
-                    )}
-                    {diagnosisSourceLabel && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        <Badge className="rounded-md text-[11px]" variant="secondary">
-                          Diagnosis: {diagnosisSourceLabel}
-                        </Badge>
-                      </div>
-                    )}
-                    {modelPathLabel && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        <Badge className="rounded-md text-[11px]" variant="secondary">
-                          Model: {modelPathLabel}
-                        </Badge>
-                        {activity.llm_model_path?.fallback_used && (
-                          <Badge className="rounded-md text-[11px]" variant="outline">
-                            Fallback Used
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                    {mcpLabel && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        <Badge className="rounded-md text-[11px]" variant={mcpLabel.variant}>
-                          {mcpLabel.label}
-                        </Badge>
-                      </div>
-                    )}
-                    {meta.reusedExistingPr && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        <Badge className="rounded-md text-[11px]" variant="success">
-                          Reused Existing PR
-                        </Badge>
-                      </div>
-                    )}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className="align-top">
                     {activity.failure_type ? (
-                      <FailureTypeBadge type={activity.failure_type} />
+                      <div className="space-y-1">
+                        <FailureTypeBadge type={activity.failure_type} />
+                        {failureContext && (
+                          <p
+                            className="max-w-[240px] truncate text-xs text-gray-500 dark:text-gray-400"
+                            title={failureContext}
+                          >
+                            {failureContext}
+                          </p>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-gray-400">-</span>
                     )}

@@ -63,6 +63,10 @@ function getEvidenceLines(activity: ActivityItem | null): string[] {
   if (typeof message === 'string' && message.trim().length > 0) {
     lines.push(message.trim())
   }
+  const rootCause = activity?.diagnosis?.root_cause
+  if (typeof rootCause === 'string' && rootCause.trim().length > 0) {
+    lines.push(rootCause.trim())
+  }
   if (lines.length > 0) return lines.slice(0, 2)
 
   const diagnostics = activity?.external_diagnostics ?? []
@@ -85,6 +89,11 @@ function getEvidenceLines(activity: ActivityItem | null): string[] {
     lines.push(representative.summary.trim())
   }
   return lines.slice(0, 2)
+}
+
+function shortActivityId(id: string): string {
+  if (id.length <= 18) return id
+  return `${id.slice(0, 8)}...${id.slice(-6)}`
 }
 
 export default function Dashboard() {
@@ -595,18 +604,20 @@ export default function Dashboard() {
                 </div>
                 <div className="rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Proposed Action</p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedActionTaken}</p>
+                  <p className="mt-1 break-words text-sm font-semibold text-[var(--ph-text)]">{selectedActionTaken}</p>
                 </div>
                 <div className="rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Reason Code</p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedReasonCode || 'N/A'}</p>
+                  <p className="mt-1 break-all text-sm font-semibold text-[var(--ph-text)]">
+                    {selectedReasonCode || 'N/A'}
+                  </p>
                 </div>
               </div>
 
               <div className="rounded-lg border border-[var(--ph-border)] p-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Evidence</p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
                     {selectedRunUrl && (
                       <Button asChild size="sm" variant="ghost">
                         <a href={selectedRunUrl} rel="noopener noreferrer" target="_blank">
@@ -616,8 +627,12 @@ export default function Dashboard() {
                       </Button>
                     )}
                     {selectedActivity?.id && (
-                      <Badge variant="secondary" className="font-mono text-[11px]">
-                        {selectedActivity.id}
+                      <Badge
+                        variant="secondary"
+                        className="max-w-full truncate font-mono text-[11px]"
+                        title={selectedActivity.id}
+                      >
+                        {shortActivityId(selectedActivity.id)}
                       </Badge>
                     )}
                   </div>

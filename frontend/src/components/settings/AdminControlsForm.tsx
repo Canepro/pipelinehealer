@@ -337,7 +337,7 @@ export default function AdminControlsForm({
                   isLlmHealthLoading
                     ? 'Checking...'
                     : llmProviderHealth
-                      ? `${llmProviderHealth.available ? 'Healthy' : 'Degraded'} (${llmProviderHealth.reason})`
+                      ? `${llmProviderHealth.available ? 'Available' : 'Limited'} (${llmProviderHealth.reason})`
                       : 'Unavailable'
                 }
               />
@@ -438,7 +438,7 @@ export default function AdminControlsForm({
                   isMcpHealthLoading
                     ? 'Checking...'
                     : mcpProviderHealth
-                      ? `${mcpProviderHealth.available ? 'Healthy' : 'Degraded'} (${mcpProviderHealth.reason})`
+                      ? `${mcpProviderHealth.available ? 'Available' : 'Limited'} (${mcpProviderHealth.reason})`
                       : 'Unavailable'
                 }
               />
