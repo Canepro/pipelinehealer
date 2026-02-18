@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 9cc0ce5 -->
+<!-- LAST_VERIFIED: 4b606f9 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -27,6 +27,10 @@ CI failures create repetitive triage work. PipelineHealer shortens time-to-under
 
 This repository is the hackathon build, but designed for long-term production evolution.
 
+Azure is the default deployment path for hackathon requirements, but the runtime is portable:
+- backend API commands can target any reachable backend via `PH_BACKEND_URL`
+- model provider can be Azure OpenAI or OpenAI-compatible (`LLM_PROVIDER`)
+
 ## Documentation
 
 ### Start here
@@ -38,6 +42,7 @@ This repository is the hackathon build, but designed for long-term production ev
 ### Additional
 - [Demo Script](docs/DEMO_SCRIPT.md)
 - [Logs & Investigation](docs/LOGS_AND_INVESTIGATION.md)
+- [Model Provider Strategy](docs/MODEL_PROVIDER_STRATEGY.md)
 - [Future Plan](docs/FUTURE_PLAN.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)

@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: a95ed82 -->
+<!-- LAST_VERIFIED: 4b606f9 -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -37,6 +37,43 @@ Diagnostics:
 
 Demo:
 - `demo:e2e`, `demo:proof`, `demo:reset`, `warm`, `lowcost`
+
+## Command Scope (Important)
+
+- Azure-only infra commands:
+  - `deploy*`, `status`, `urls`, `warm`, `lowcost`, `webhook:*`, `rollout:canary`, `demo:e2e`
+- Backend API commands (portable; use `PH_BACKEND_URL`):
+  - `settings:check`, `settings:audit`, `audit:proof`, `backfill`
+- GitHub-only commands:
+  - `demo:proof`, `demo:reset`
+- Local container commands:
+  - `logs*`, `aoai:check` (require local Docker/Podman compose stack)
+
+If you run backend outside Azure (AWS/GCP/DO/Kubernetes), set:
+
+```bash
+export PH_BACKEND_URL=https://your-backend.example.com
+```
+
+Then use backend API commands from `scripts/ph.sh` for day-to-day operations.
+
+## Portability and Customization
+
+PipelineHealer is Azure-first for hackathon delivery, but not Azure-locked.
+
+- LLM provider:
+  - Azure: `LLM_PROVIDER=azure_openai`
+  - OpenAI-compatible: `LLM_PROVIDER=openai_compatible`
+- Storage:
+  - local/dev fallback: in-memory
+  - cloud durability: Cosmos DB when configured
+- Auth:
+  - `api_key`, `entra`, or `hybrid`
+
+See:
+
+- `../LOCAL_DEMO_RUNBOOK.md` for profile setup
+- `../MODEL_PROVIDER_STRATEGY.md` for provider roadmap
 
 ## Choosing `deploy` vs `deploy:env`
 

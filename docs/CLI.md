@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: a95ed82 -->
+<!-- LAST_VERIFIED: 4b606f9 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -11,6 +11,32 @@ bash scripts/ph.sh <command> [options]
 ```
 
 Important: execute with `bash scripts/...`, never `source` or `. scripts/...`.
+
+---
+
+## Command Scope Cheat Sheet
+
+`scripts/ph.sh` supports multiple operating scopes. Pick the right one before running commands.
+
+| Scope | Typical use | Requires `az` | Requires backend URL | Notes |
+|------|-------------|---------------|----------------------|-------|
+| Azure infra | deploy/manage Azure Container Apps | Yes | No | Uses configured resource group/app names |
+| Backend API | read/update runtime via API | No | Yes | Use `PH_BACKEND_URL` for local or non-Azure backend |
+| GitHub-only | inspect/reset demo artifacts | No | No | Uses `gh` only |
+| Local container ops | container logs + AOAI smoke | No | No | Requires local Docker/Podman compose stack |
+
+Quick examples:
+
+```bash
+# Backend API scope (local OR any reachable backend URL)
+PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh settings:check
+
+# Azure infra scope
+bash scripts/ph.sh deploy
+
+# GitHub-only scope
+bash scripts/ph.sh demo:proof --repo owner/repo --limit 10
+```
 
 ---
 
@@ -258,7 +284,7 @@ The same action is available in the UI via the "Backfill Diagnostics" button on 
 
 ## Local Mode
 
-By default, all commands target your Azure deployment. To use `ph.sh` against a local backend, set `PH_BACKEND_URL`:
+By default, all commands target your Azure deployment. To use backend API commands against local or non-Azure deployments, set `PH_BACKEND_URL`:
 
 ```bash
 export PH_BACKEND_URL=http://127.0.0.1:8000
@@ -267,12 +293,20 @@ bash scripts/ph.sh logs --tail 100
 bash scripts/ph.sh backfill
 ```
 
+Use any reachable backend URL, for example:
+
+```bash
+export PH_BACKEND_URL=https://your-backend.example.com
+bash scripts/ph.sh settings:check
+```
+
 ### Commands That Work Locally
 
 | Command | Local behavior |
 |---------|---------------|
 | `settings:check` | Hits local backend API |
 | `settings:audit` | Hits local backend API |
+| `settings:persist --skip-redeploy` | Updates local `backend/.env` only |
 | `audit:proof` | Creates audit entries on local backend |
 | `backfill` | Triggers backfill sweep on local backend |
 | `logs` | Uses `docker compose logs` (filtered) |
@@ -281,6 +315,10 @@ bash scripts/ph.sh backfill
 | `demo:proof` | Lists PRs/issues via GitHub CLI (no backend needed) |
 | `demo:reset` | Resets demo fixtures via GitHub CLI (no backend needed) |
 | `aoai:check` | Runs Azure OpenAI connectivity check inside backend container |
+
+Important:
+- `logs*` and `aoai:check` are local-container commands. They do **not** read logs from a remote `PH_BACKEND_URL`.
+- For host-native backend (no containers), read terminal logs directly from the `uvicorn` process.
 
 ### Azure-Only Commands
 
@@ -293,6 +331,11 @@ These commands manage Azure infrastructure and will print a clear error when `PH
 ```bash
 unset PH_BACKEND_URL
 ```
+
+### `settings:persist` Scope Notes
+
+- Without `--skip-redeploy`, `settings:persist` writes `backend/.env` and runs Azure env redeploy.
+- With `--skip-redeploy`, it updates only local `backend/.env` (useful for non-Azure or local workflows).
 
 ## Environment Overrides
 

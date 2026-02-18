@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: a95ed82 -->
+<!-- LAST_VERIFIED: 4b606f9 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -23,16 +23,34 @@ Before you start, make sure you have:
 - **[Bun](https://bun.sh/)** — `bun --version`
 - **[GitHub CLI](https://cli.github.com/)** — `gh auth status` (must be logged in)
 - **Docker** (for containerized setup) — `docker --version`
-- **An Azure OpenAI resource** with a deployed model — see Step 1 below
+- **An LLM provider credential** (Azure OpenAI or OpenAI-compatible) — see Step 1 below
 - **A GitHub Personal Access Token** with `repo` and `workflow` scopes — [create one here](https://github.com/settings/tokens)
 
 ---
 
-## Step 1 — Set Up Azure OpenAI
+## Choose Your Operating Profile
 
-PipelineHealer uses Azure OpenAI for log analysis, diagnosis, and remediation. **The backend will not process failures without it.**
+Pick one profile before running commands:
 
-If you already have an Azure OpenAI resource and deployment, skip to step 1.3.
+| Profile | Best for | Key commands |
+|--------|----------|--------------|
+| Local-only dev (no Azure infra) | fast iteration, local testing | host-native/Docker steps + `PH_BACKEND_URL=http://127.0.0.1:8000` API commands |
+| Azure managed (hackathon default) | demo + managed deployment | `bash scripts/ph.sh deploy`, `status`, `warm`, `lowcost` |
+| Other cloud backend (AWS/GCP/DO/K8s/etc.) | non-Azure production path | deploy containers with your platform, then use `PH_BACKEND_URL=https://<your-backend>` for API commands |
+
+Important command scope rule:
+
+- `deploy*`, `status`, `urls`, `warm`, `lowcost`, `webhook:*`, `rollout:canary`, `demo:e2e` are Azure-infra commands.
+- `settings:check`, `settings:audit`, `audit:proof`, `backfill` work with any reachable backend URL via `PH_BACKEND_URL`.
+- `demo:proof` and `demo:reset` are GitHub-only (`gh`), backend independent.
+
+---
+
+## Step 1 — Configure an LLM Provider
+
+PipelineHealer needs one working LLM provider for log analysis/diagnosis/remediation.
+
+### Option A (Hackathon default): Azure OpenAI
 
 ### 1.1 Create an Azure OpenAI resource
 
@@ -55,6 +73,24 @@ In the Azure Portal, open your OpenAI resource page → **Keys and Endpoint**:
 
 > **Note:** If your endpoint uses the `cognitiveservices.azure.com` domain, that works too. PipelineHealer auto-detects the endpoint style.
 
+### Option B: OpenAI-compatible provider (portable path)
+
+If you are not using Azure OpenAI, configure:
+
+```dotenv
+LLM_PROVIDER=openai_compatible
+OPENAI_COMPATIBLE_BASE_URL=https://api.openai.com/v1
+OPENAI_COMPATIBLE_MODEL=gpt-5-mini
+OPENAI_COMPATIBLE_API_KEY=sk-...
+```
+
+For this path, Azure-specific smoke command `aoai:check` does not apply.
+Use:
+
+```bash
+bash scripts/ph.sh settings:check | jq '.llm_provider,.openai_compatible_base_url,.openai_compatible_model'
+```
+
 ---
 
 ## Step 2 — Configure Environment
@@ -68,10 +104,15 @@ cp backend/.env.example backend/.env
 Open `backend/.env` in your editor and fill in these values:
 
 ```dotenv
-# Azure OpenAI (from Step 1)
+# LLM provider (pick one path from Step 1)
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
 AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o       # the name you chose in step 1.2
 AZURE_OPENAI_API_KEY=your-key-here         # Key 1 or Key 2 from step 1.3
+# OR
+# LLM_PROVIDER=openai_compatible
+# OPENAI_COMPATIBLE_BASE_URL=https://api.openai.com/v1
+# OPENAI_COMPATIBLE_MODEL=gpt-5-mini
+# OPENAI_COMPATIBLE_API_KEY=sk-...
 
 # GitHub
 GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxxxxxx # your PAT with repo + workflow scopes
@@ -239,7 +280,15 @@ Open the URL printed by Vite (usually `http://127.0.0.1:5173`). You should see a
 
 ---
 
-## Step 5 — Verify Azure OpenAI Connection (Recommended)
+## Step 5 — Verify Model Connection (Recommended)
+
+If you are using `LLM_PROVIDER=openai_compatible`, verify provider values through `settings:check`:
+
+```bash
+bash scripts/ph.sh settings:check | jq '.llm_provider,.openai_compatible_base_url,.openai_compatible_model'
+```
+
+If you are using Azure OpenAI, run the connectivity checks below.
 
 Before triggering failures, confirm your Azure OpenAI credentials work:
 
