@@ -1,0 +1,17 @@
+apiVersion: v2
+name: pipelinehealer
+description: Helm chart for deploying PipelineHealer backend and frontend to Kubernetes
+type: application
+version: 0.1.0
+appVersion: "0.1.1"
+keywords:
+  - cicd
+  - ai
+  - devops
+  - fastapi
+  - react
+home: https://github.com/Canepro/pipelinehealer
+sources:
+  - https://github.com/Canepro/pipelinehealer
+maintainers:
+  - name: PipelineHealer Team

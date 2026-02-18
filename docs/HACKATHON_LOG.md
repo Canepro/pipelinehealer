@@ -43,6 +43,13 @@ This is the long-form project tracker for hackathon execution status, submission
 - Failure-type trust hardening:
   - ambiguous generic `N failing` signatures now require test context before mapping to `test`
   - pattern-based diagnoses now expose classification signal/pattern metadata in activity UIs
+- Model portability hardening (0.4) advanced:
+  - provider contract tests added for consistent diagnosis output shape across provider paths
+  - openai-compatible runtime path now uses shared transient retry policy (timeouts/429/5xx)
+  - provider switching and rollback runbook added (`docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md`)
+- Kubernetes portability added as a secondary target:
+  - Helm chart shipped under `charts/pipelinehealer`
+  - operator runbook added (`docs/KUBERNETES_HELM_RUNBOOK.md`)
 
 ## Phase Overview
 
@@ -88,7 +95,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 - Retry behavior: rerun failed GitHub jobs from dashboard, then process follow-up webhook event.
 - Auth model: API key for user routes and admin key for runtime settings routes.
-- Hosting target: Azure Container Apps only (for demo reliability and operational simplicity).
+- Hosting target: Azure Container Apps as default; Kubernetes Helm as secondary portability target.
 - Submission framing: Azure-hosted runtime is primary; local mode is retained for reproducible evaluation and fallback troubleshooting.
 - Operator UX: prefer script-first workflows (`scripts/ph.sh`) over manual multi-command runbooks.
 

@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 786e214 -->
+<!-- LAST_VERIFIED: 647ddde -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -43,6 +43,7 @@ Important command scope rule:
 - `deploy*`, `status`, `urls`, `warm`, `lowcost`, `webhook:*`, `rollout:canary`, `demo:e2e` are Azure-infra commands.
 - `settings:check`, `settings:audit`, `audit:proof`, `backfill` work with any reachable backend URL via `PH_BACKEND_URL`.
 - `demo:proof` and `demo:reset` are GitHub-only (`gh`), backend independent.
+- For Kubernetes, use the Helm guide: `docs/KUBERNETES_HELM_RUNBOOK.md`.
 
 ---
 

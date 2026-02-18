@@ -146,6 +146,22 @@ class FallbackAgent:
             return result
 
 
+class RetryingAgent:
+    """Wrapper that applies transient-error retry policy to any agent."""
+
+    def __init__(self, agent: Any):
+        self._agent = agent
+        self._last_call_used_fallback = False
+
+    @property
+    def last_call_used_fallback(self) -> bool:
+        return self._last_call_used_fallback
+
+    async def run(self, prompt: str) -> Any:
+        self._last_call_used_fallback = False
+        return await _run_with_llm_retry(self._agent, prompt)
+
+
 class ObservedAgent:
     """Wrapper that emits per-call model-path telemetry for active activities."""
 
@@ -260,11 +276,13 @@ def create_cloud_agent(
             )
             return NoopAgent()
         return ObservedAgent(
-            agent=OpenAICompatibleAgent(
-                base_url=base_url,
-                api_key=api_key,
-                model=model,
-                instructions=instructions,
+            agent=RetryingAgent(
+                OpenAICompatibleAgent(
+                    base_url=base_url,
+                    api_key=api_key,
+                    model=model,
+                    instructions=instructions,
+                ),
             ),
             provider=provider.value,
             model=model,

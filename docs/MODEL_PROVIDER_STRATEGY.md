@@ -1,6 +1,6 @@
 # Model Provider Strategy
 
-<!-- LAST_VERIFIED: 89caebe -->
+<!-- LAST_VERIFIED: 647ddde -->
 
 PipelineHealer is Azure-first today for hackathon delivery and operational simplicity, but is being structured to avoid provider lock-in.
 
@@ -43,10 +43,19 @@ Future provider candidates:
 - Provider health endpoint available at:
   - `GET /api/settings/llm/provider-health`
 - Model-path telemetry is available per activity (`llm_model_path`) and surfaced in UI.
+- 0.4 hardening tests now cover:
+  - provider contract normalization (consistent diagnosis output shape)
+  - transient error retry behavior on openai-compatible runtime path (429, 5xx, timeout)
+  - non-retryable fail-fast behavior (for example 401 auth errors)
 
 ## Next Implementation Steps
 
 1. Add additional concrete providers beyond `openai_compatible` (for example `custom_gateway`).
-2. Expand provider-specific credential/config validation (including proactive auth probes).
+2. Expand provider-specific credential/config validation (including proactive auth probes and redaction-safe diagnostics).
 3. Add token/cost estimation fields to model-path telemetry.
-4. Add contract tests to ensure parity across providers.
+4. Add UI switch safety rails (guided provider change flow + explicit rollback shortcuts).
+
+## Operations
+
+- Provider switching and rollback runbook: `docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md`
+- Kubernetes secondary deploy target: `docs/KUBERNETES_HELM_RUNBOOK.md`

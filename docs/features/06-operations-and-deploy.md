@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: 4b606f9 -->
+<!-- LAST_VERIFIED: 647ddde -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -8,6 +8,7 @@ This guide explains day-to-day operations: local bring-up, Azure deploy, verific
 
 - local run path
 - Azure deploy path
+- Kubernetes Helm deploy path (secondary target)
 - one-command operations via `scripts/ph.sh`
 - post-deploy verification and rollback-safe habits
 
@@ -57,6 +58,12 @@ export PH_BACKEND_URL=https://your-backend.example.com
 
 Then use backend API commands from `scripts/ph.sh` for day-to-day operations.
 
+Kubernetes target:
+- chart path: `charts/pipelinehealer`
+- runbook: `../KUBERNETES_HELM_RUNBOOK.md`
+- install pattern:
+  - `helm upgrade --install pipelinehealer ./charts/pipelinehealer -n pipelinehealer --create-namespace -f values.prod.yaml`
+
 ## Portability and Customization
 
 PipelineHealer is Azure-first for hackathon delivery, but not Azure-locked.
@@ -102,3 +109,5 @@ Use full `deploy` when frontend build-time vars changed:
 
 - `../CLI.md` (canonical command/flag reference)
 - `../LOCAL_DEMO_RUNBOOK.md` (deep step-by-step)
+- `../MODEL_PROVIDER_SWITCH_RUNBOOK.md` (provider switch + rollback)
+- `../KUBERNETES_HELM_RUNBOOK.md` (Helm deployment)

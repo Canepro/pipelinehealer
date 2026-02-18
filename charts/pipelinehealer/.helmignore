@@ -1,0 +1,6 @@
+# Ignore editor and VCS files
+.git/
+.gitignore
+*.swp
+*.tmp
+.DS_Store

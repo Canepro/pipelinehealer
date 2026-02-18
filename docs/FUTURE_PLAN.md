@@ -157,9 +157,13 @@ Keep Azure OpenAI as the default path now, but design for pluggable model provid
   - normalize provider responses into one internal schema
   - keep provider translation logic inside adapters only
 - Add portability quality gates:
-  - provider contract tests (same prompts, consistent structured output)
-  - outage/fallback tests (timeouts, 429, 5xx)
+  - provider contract tests (same prompts, consistent structured output) (Done)
+  - outage/fallback tests (timeouts, 429, 5xx) (Done: openai-compatible runtime path now wrapped with shared retry policy + coverage)
   - regression checks for diagnosis/remediation behavior parity
+- Add provider operations runbook:
+  - switching + rollback playbook with auditable request IDs (Done: `docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md`)
+- Add secondary Kubernetes deployment target:
+  - Helm chart + operator runbook (Done: `charts/pipelinehealer`, `docs/KUBERNETES_HELM_RUNBOOK.md`)
 
 ### Backlog Intake Queue (Non-Active)
 

@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 9317156 -->
+<!-- LAST_VERIFIED: 647ddde -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -21,6 +21,7 @@ Important: execute with `bash scripts/...`, never `source` or `. scripts/...`.
 | Scope | Typical use | Requires `az` | Requires backend URL | Notes |
 |------|-------------|---------------|----------------------|-------|
 | Azure infra | deploy/manage Azure Container Apps | Yes | No | Uses configured resource group/app names |
+| Kubernetes infra | deploy/manage with Helm | No | No | Use `helm` + `kubectl`; see `docs/KUBERNETES_HELM_RUNBOOK.md` |
 | Backend API | read/update runtime via API | No | Yes | Use `PH_BACKEND_URL` for local or non-Azure backend |
 | GitHub-only | inspect/reset demo artifacts | No | No | Uses `gh` only |
 | Local container ops | container logs + AOAI smoke | No | No | Requires local Docker/Podman compose stack |
@@ -41,6 +42,8 @@ bash scripts/ph.sh demo:proof --repo owner/repo --limit 10
 # Repo maintenance scope
 bash scripts/check_version_sync.sh
 ```
+
+Kubernetes deploy path is intentionally kept outside `scripts/ph.sh` right now to avoid cloud-lock assumptions in the CLI. Use Helm runbook commands directly.
 
 ---
 

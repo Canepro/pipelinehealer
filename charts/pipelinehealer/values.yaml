@@ -1,0 +1,114 @@
+nameOverride: ""
+fullnameOverride: ""
+
+imagePullSecrets: []
+
+backend:
+  replicaCount: 1
+  image:
+    repository: caneprophacr01.azurecr.io/pipelinehealer-backend
+    tag: ""
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+  podAnnotations: {}
+  podLabels: {}
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
+
+  env:
+    ENVIRONMENT: production
+    LOG_LEVEL: INFO
+    API_HOST: 0.0.0.0
+    API_PORT: "8000"
+
+    HEAL_MODE: safe
+    AUTO_CREATE_PR: "true"
+    AUTO_CREATE_TRACKING_ISSUE_FOR_PRS: "true"
+    MAX_REMEDIATION_ATTEMPTS: "20"
+
+    AUTH_MODE: api_key
+    ENTRA_ADMIN_ROLES: PipelineHealer.Admin
+
+    LLM_PROVIDER: azure_openai
+    AZURE_OPENAI_ENDPOINT: ""
+    AZURE_OPENAI_DEPLOYMENT_NAME: ""
+    AZURE_OPENAI_API_VERSION: 2025-04-01-preview
+    AZURE_OPENAI_CHAT_API_VERSION: 2024-12-01-preview
+
+    OPENAI_COMPATIBLE_BASE_URL: ""
+    OPENAI_COMPATIBLE_MODEL: ""
+
+    MCP_ENABLED: "false"
+    MCP_PROVIDER: disabled
+    MCP_READ_ONLY: "true"
+    MCP_TIMEOUT_SECONDS: "15"
+    MCP_MAX_RETRIES: "1"
+    MCP_TOOL_POLICIES: ""
+    MCP_REPO_ALLOWLIST: ""
+
+    PH_ALLOWED_REPOS: ""
+    GH_AW_TOOLS_ENABLED: "false"
+    GH_AW_INGESTION_MODE: disabled
+    GH_AW_KNOWN_WORKFLOWS: ci-doctor
+    EXTERNAL_DIAGNOSTICS_WAIT_SECONDS: "60"
+    EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS: "15"
+
+    VERIFY_WEBHOOK_SIGNATURE: "true"
+    VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT: "false"
+    CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
+    CORS_ALLOW_ORIGIN_REGEX: https://.*\\.azurecontainerapps\\.io
+
+  secretEnv:
+    API_AUTH_KEY: ""
+    ADMIN_API_KEY: ""
+    AZURE_OPENAI_API_KEY: ""
+    OPENAI_COMPATIBLE_API_KEY: ""
+    GITHUB_PERSONAL_ACCESS_TOKEN: ""
+    GITHUB_WEBHOOK_SECRET: ""
+
+frontend:
+  replicaCount: 1
+  image:
+    repository: caneprophacr01.azurecr.io/pipelinehealer-frontend
+    tag: ""
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 3000
+  podAnnotations: {}
+  podLabels: {}
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
+
+  env:
+    BACKEND_UPSTREAM: ""
+
+  secretEnv:
+    API_AUTH_KEY: ""
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: pipelinehealer.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []

@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 902125d -->
+<!-- LAST_VERIFIED: 647ddde -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -987,7 +987,9 @@ Keep `head_chars + tail_chars <= max_chars`.
 
 ### 8. LLM Transient Error Handling
 
-Azure OpenAI calls (log summarization, diagnosis fallback) automatically retry on transient errors (HTTP 429, 5xx, connection errors, timeouts) with exponential backoff and jitter. This is separate from `github_api_max_retries` which covers GitHub REST API calls. LLM retries are internal to the agent pipeline and not configurable via settings — they use sensible defaults (3 retries, 1s base delay, 30s max delay).
+Both Azure OpenAI and OpenAI-compatible runtime paths automatically retry on transient errors (HTTP 429, 5xx, connection errors, timeouts) with exponential backoff and jitter. This is separate from `github_api_max_retries` which covers GitHub REST API calls. LLM retries are internal to the agent pipeline and not configurable via settings (defaults: 3 retries, 1s base delay, 16s max delay).
+
+For provider switching and rollback operations, use `docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md`.
 
 ### 9. Storage Considerations
 

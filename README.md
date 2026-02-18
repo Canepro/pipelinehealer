@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 9317156 -->
+<!-- LAST_VERIFIED: 647ddde -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -32,6 +32,7 @@ This repository is the hackathon build, but designed for long-term production ev
 Azure is the default deployment path for hackathon requirements, but the runtime is portable:
 - backend API commands can target any reachable backend via `PH_BACKEND_URL`
 - model provider can be Azure OpenAI or OpenAI-compatible (`LLM_PROVIDER`)
+- Kubernetes is supported via Helm as a secondary deployment target (`charts/pipelinehealer`)
 
 ## Documentation
 
@@ -45,6 +46,8 @@ Azure is the default deployment path for hackathon requirements, but the runtime
 - [Demo Script](docs/DEMO_SCRIPT.md)
 - [Logs & Investigation](docs/LOGS_AND_INVESTIGATION.md)
 - [Model Provider Strategy](docs/MODEL_PROVIDER_STRATEGY.md)
+- [Model Provider Switch Runbook](docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md)
+- [Kubernetes Helm Runbook](docs/KUBERNETES_HELM_RUNBOOK.md)
 - [Changelog](CHANGELOG.md)
 - [Settings & Policy Feature Guide](docs/features/03-settings-and-policy-controls.md)
 - [Explainability & Observability Guide](docs/features/05-explainability-and-observability.md)

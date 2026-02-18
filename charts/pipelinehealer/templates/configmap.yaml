@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pipelinehealer.backend.fullname" . }}-config
+  labels:
+    {{- include "pipelinehealer.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+data:
+{{- range $key, $value := .Values.backend.env }}
+  {{ $key }}: {{ $value | toString | quote }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pipelinehealer.frontend.fullname" . }}-config
+  labels:
+    {{- include "pipelinehealer.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+data:
+{{- range $key, $value := .Values.frontend.env }}
+{{- if ne $key "BACKEND_UPSTREAM" }}
+  {{ $key }}: {{ $value | toString | quote }}
+{{- end }}
+{{- end }}

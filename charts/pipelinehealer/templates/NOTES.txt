@@ -1,0 +1,11 @@
+1. PipelineHealer has been deployed.
+
+2. Get services:
+   kubectl get svc -l app.kubernetes.io/instance={{ .Release.Name }}
+
+3. If ingress is disabled, port-forward frontend:
+   kubectl port-forward svc/{{ include "pipelinehealer.frontend.fullname" . }} 3000:{{ .Values.frontend.service.port }}
+
+4. Backend health check:
+   kubectl port-forward svc/{{ include "pipelinehealer.backend.fullname" . }} 8000:{{ .Values.backend.service.port }}
+   curl http://127.0.0.1:8000/health

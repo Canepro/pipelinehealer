@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: 9cc0ce5 -->
+<!-- LAST_VERIFIED: 647ddde -->
 
 Use this index to find the right doc quickly.
 
@@ -19,6 +19,8 @@ Use this index to find the right doc quickly.
 - `DEMO_SCRIPT.md` — single-file recording checklist and 2-minute narration script
 - `LOCAL_DEMO_RUNBOOK.md` — full local and Azure E2E operator runbook
 - `MODEL_PROVIDER_STRATEGY.md` — Azure-first but provider-portable model backend strategy
+- `MODEL_PROVIDER_SWITCH_RUNBOOK.md` — auditable provider switching and rollback playbook
+- `KUBERNETES_HELM_RUNBOOK.md` — Helm-based Kubernetes deployment target (secondary to Azure)
 - `PREDEPLOY_PLACEHOLDER_AUDIT.md` — pre-deploy stop-ship checklist
 
 ### Tier 3 — Internal/Transient (author discretion; archive post-submission)
