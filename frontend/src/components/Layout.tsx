@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
-import { Activity, LayoutDashboard, Menu, Settings, Zap } from 'lucide-react'
+import { Activity, LayoutDashboard, Menu, Settings, ShieldCheck, Zap } from 'lucide-react'
 import clsx from 'clsx'
 import { useEffect, useState } from 'react'
 
@@ -16,6 +16,7 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/app', icon: LayoutDashboard },
+  { name: 'Control Center', href: '/app/control-center', icon: ShieldCheck },
   { name: 'Activities', href: '/app/activities', icon: Activity },
   { name: 'Settings', href: '/app/settings', icon: Settings },
 ]
@@ -120,7 +121,7 @@ export default function Layout() {
                 <Zap className="h-5 w-5 text-azure-400" />
                 PipelineHealer
               </SheetTitle>
-              <SheetDescription>Navigate between dashboard, activities, and settings.</SheetDescription>
+              <SheetDescription>Navigate between dashboard, control center, activities, and settings.</SheetDescription>
             </SheetHeader>
 
             <nav className="space-y-1.5">

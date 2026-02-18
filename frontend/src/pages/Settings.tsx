@@ -77,7 +77,7 @@ export default function SettingsPage() {
   } = useQuery({
     queryKey: ['settings-audit', adminKey, useSessionAuth],
     queryFn: () => api.getSettingsAudit(effectiveAdminKey, 20),
-    enabled: false,
+    enabled: hasAuthAttempt,
     retry: false,
   })
 
@@ -202,7 +202,7 @@ export default function SettingsPage() {
   const handleLoadAudit = async () => {
     try {
       await refetchAudit()
-      toast.success('Audit log loaded')
+      toast.success('Audit log refreshed')
     } catch (err) {
       toast.error('Failed to load audit log', {
         description: err instanceof Error ? err.message : 'Unknown error',
@@ -311,6 +311,20 @@ export default function SettingsPage() {
             data={data}
           />
 
+          <AuditTrailPanel
+            canLoad={hasAuthAttempt}
+            entries={auditEntries}
+            isLoading={isAuditLoading}
+            isError={isAuditError}
+            error={isAuditError ? (auditError as Error) : null}
+            onLoad={() => void handleLoadAudit()}
+            title="Audit & Trace (Quick View)"
+            description="Recent changes are loaded automatically once admin access is active. Use Control Center for full governance view."
+            maxEntries={5}
+            ctaHref="/app/control-center"
+            ctaLabel="Open Full Audit Timeline"
+          />
+
           <AdminControlsForm
             data={data}
             form={form}
@@ -330,15 +344,6 @@ export default function SettingsPage() {
             saveError={saveMutation.isError ? (saveMutation.error as Error) : null}
             saveSuccess={saveMutation.isSuccess}
             onSave={() => saveMutation.mutate()}
-          />
-
-          <AuditTrailPanel
-            canLoad={hasAuthAttempt}
-            entries={auditEntries}
-            isLoading={isAuditLoading}
-            isError={isAuditError}
-            error={isAuditError ? (auditError as Error) : null}
-            onLoad={() => void handleLoadAudit()}
           />
         </>
       )}

@@ -278,6 +278,9 @@ export default function Dashboard() {
                   </Link>
                 </Button>
                 <Button asChild size="sm" variant="secondary">
+                  <Link to="/app/control-center">Control Center</Link>
+                </Button>
+                <Button asChild size="sm" variant="ghost">
                   <Link to="/app/settings">Runtime Settings</Link>
                 </Button>
               </div>

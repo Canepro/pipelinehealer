@@ -119,11 +119,17 @@ Initial MCP providers to prioritize:
   - MCP/LLM provider health wording normalized to `Available`/`Unavailable`
   - evidence/model-path overflow hardening in dashboard/detail cards
   - landing page hierarchy and operator-facing messaging refresh
+- Completed governance surface pass (Feb 18):
+  - added new read-only `/app/control-center` route for operational oversight
+  - surfaced runtime/auth/provider posture cards in one place
+  - added MCP tool policy effect matrix (configured vs effective behavior)
+  - added logs/investigation quick-access panel with safe links + copy-ready CLI commands
+  - reworked settings audit UX with top-positioned quick view and link to full timeline
 - Add a new **Control Center** page for operational governance:
-  - MCP provider health and permissions
+  - MCP provider health and permissions (Done: initial)
   - learning queue (candidates, approvals, rejects)
   - remediation replay/simulation controls
-  - policy impact preview (what would happen under current settings)
+  - policy impact preview (what would happen under current settings) (Done: initial)
 - Improve professional IA and visual hierarchy:
   - grouped sections: Access, Policy, Integrations, Learning, Persistence
   - sticky change summary panel with unsaved + effective values
@@ -160,6 +166,7 @@ Use this section to capture new requests without breaking the execution lock.
 |---|---|---|---|---|---|---|
 | BI-001 | Release/tag workflow and release notes template | Operator confidence and repeatable deploys | Medium | M | Post 0.4 | Queued |
 | BI-002 | Additional activity classification context labels for ambiguous CI failures | Better failure-type trust for operators | Low | S | 0.3 | Queued |
+| BI-003 | In-app live log tail/search UX (backend-safe streaming + RBAC) | Faster investigations without switching to CLI | Medium | M | Post 0.4 | Queued |
 
 ## ~~0) Layer 2 Foundations (GitHub Agentic Workflows + UX Reliability)~~ — COMPLETE
 

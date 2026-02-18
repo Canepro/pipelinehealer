@@ -8,6 +8,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Activities = lazy(() => import('./pages/Activities'))
 const ActivityDetail = lazy(() => import('./pages/ActivityDetail'))
 const SettingsPage = lazy(() => import('./pages/Settings'))
+const ControlCenterPage = lazy(() => import('./pages/ControlCenter'))
 
 function PageFallback() {
   return (
@@ -31,6 +32,7 @@ function App() {
           }
         >
           <Route index element={<Dashboard />} />
+          <Route path="control-center" element={<ControlCenterPage />} />
           <Route path="activities" element={<Activities />} />
           <Route path="activities/:id" element={<ActivityDetail />} />
           <Route path="settings" element={<SettingsPage />} />
