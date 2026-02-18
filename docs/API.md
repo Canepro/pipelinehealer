@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 04ad120 -->
+<!-- LAST_VERIFIED: 986f833 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -59,7 +59,7 @@ Quick registration checklist (beginner):
 
 ### Admin Key (`X-Admin-Key`) in key/hybrid mode
 
-Admin endpoints (`/api/settings`, `/api/settings/audit`) require **both** `X-API-Key` and `X-Admin-Key` when using key-based authentication.
+Admin endpoints under `/api/settings*` (for example `/api/settings`, `/api/settings/audit`, `/api/settings/persist`, `/api/settings/learning/*`) require **both** `X-API-Key` and `X-Admin-Key` when using key-based authentication.
 
 ```bash
 curl -H "X-API-Key: $API_AUTH_KEY" -H "X-Admin-Key: $ADMIN_API_KEY" "$BACKEND_URL/api/settings"

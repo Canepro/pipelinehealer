@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 647ddde -->
+<!-- LAST_VERIFIED: 986f833 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -41,7 +41,7 @@ Pick one profile before running commands:
 Important command scope rule:
 
 - `deploy*`, `status`, `urls`, `warm`, `lowcost`, `webhook:*`, `rollout:canary`, `demo:e2e` are Azure-infra commands.
-- `settings:check`, `settings:audit`, `audit:proof`, `backfill` work with any reachable backend URL via `PH_BACKEND_URL`.
+- `settings:check`, `settings:audit`, `settings:persist`, `settings:persist:verify`, `audit:proof`, `backfill` work with any reachable backend URL via `PH_BACKEND_URL`.
 - `demo:proof` and `demo:reset` are GitHub-only (`gh`), backend independent.
 - For Kubernetes, use the Helm guide: `docs/KUBERNETES_HELM_RUNBOOK.md`.
 
@@ -427,11 +427,12 @@ export PH_BACKEND_URL=http://127.0.0.1:8000
 
 bash scripts/ph.sh settings:check            # check current settings
 bash scripts/ph.sh settings:audit --limit 10  # view audit trail
+bash scripts/ph.sh settings:persist:verify --from-settings --skip-redeploy
 bash scripts/ph.sh logs --tail 100            # view backend logs (docker compose)
 bash scripts/ph.sh backfill                   # trigger diagnostics backfill
 ```
 
-**Works locally:** `settings:check`, `settings:audit`, `audit:proof`, `backfill`, `logs`, `logs:raw`, `logs:grep`, `demo:proof`, `demo:reset`.
+**Works locally:** `settings:check`, `settings:audit`, `settings:persist` (`--skip-redeploy`), `settings:persist:verify` (`--skip-redeploy`), `audit:proof`, `backfill`, `logs`, `logs:raw`, `logs:grep`, `demo:proof`, `demo:reset`.
 
 **Azure-only** (prints a clear error in local mode): `deploy`, `warm`, `lowcost`, `status`, `urls`, `webhook:*`, `rollout:canary`, `demo:e2e`.
 

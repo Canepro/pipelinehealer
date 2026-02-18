@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 647ddde -->
+<!-- LAST_VERIFIED: 986f833 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -22,7 +22,7 @@ Important: execute with `bash scripts/...`, never `source` or `. scripts/...`.
 |------|-------------|---------------|----------------------|-------|
 | Azure infra | deploy/manage Azure Container Apps | Yes | No | Uses configured resource group/app names |
 | Kubernetes infra | deploy/manage with Helm | No | No | Use `helm` + `kubectl`; see `docs/KUBERNETES_HELM_RUNBOOK.md` |
-| Backend API | read/update runtime via API | No | Yes | Use `PH_BACKEND_URL` for local or non-Azure backend |
+| Backend API | read/update runtime via API | No | No | Defaults to Azure backend; set `PH_BACKEND_URL` for local/non-Azure backend |
 | GitHub-only | inspect/reset demo artifacts | No | No | Uses `gh` only |
 | Local container ops | container logs + AOAI smoke | No | No | Requires local Docker/Podman compose stack |
 | Repo maintenance | version sync + release prep | No | No | Uses `scripts/check_version_sync.sh` and `scripts/release.sh` |
@@ -156,12 +156,14 @@ bash scripts/ph.sh status
 | `settings:check` | GET `/api/settings` using keys from `backend/.env` |
 | `settings:audit` | GET `/api/settings/audit` (admin audit trail) |
 | `settings:persist` | Persist settings to `backend/.env`, API-audit when reachable, optionally redeploy |
+| `settings:persist:verify` | Run persist flow and verify audit entry via request ID (defaults to `--skip-redeploy`) |
 | `audit:proof` | Create two traceable audit entries and print latest records |
 | `aoai:check` | Verify Azure OpenAI connectivity from local backend container |
 
 ```bash
 bash scripts/ph.sh settings:check
 bash scripts/ph.sh settings:audit --limit 20
+bash scripts/ph.sh settings:persist:verify --from-settings
 bash scripts/ph.sh audit:proof --limit 5
 bash scripts/ph.sh aoai:check
 ```
@@ -230,6 +232,23 @@ bash scripts/ph.sh settings:persist --clear-mcp-repo-allowlist
 Enum values are validated before writing. Invalid values exit with a clear error.
 For `--mcp-tool-policies`, allowed policy modes are `disabled`, `read_only`, `write_with_approval`, and `auto`.
 Common MCP tools are `fetch_failure_context`, `fetch_runbook_context`, `publish_artifact`, and `rerun_pipeline`.
+
+#### `settings:persist:verify`
+
+Runs `settings:persist`, extracts the persist request ID, and verifies a matching `persist_settings` record exists in `settings:audit`.
+
+Behavior notes:
+- Defaults to `--skip-redeploy` when not specified (safer for verification-only runs).
+- Fails if persist succeeds but the expected audit entry is not found.
+- Useful before demos/releases to prove persistence was both applied and audited.
+
+Examples:
+
+```bash
+bash scripts/ph.sh settings:persist:verify --from-settings
+bash scripts/ph.sh settings:persist:verify --from-settings --skip-redeploy
+bash scripts/ph.sh settings:persist:verify --heal-mode safe --auto-create-pr false --skip-redeploy
+```
 
 ### Versioning and Release (Repo Maintenance)
 
@@ -345,6 +364,7 @@ bash scripts/ph.sh settings:check
 | `settings:check` | Hits local backend API |
 | `settings:audit` | Hits local backend API |
 | `settings:persist --skip-redeploy` | Updates local `backend/.env` only |
+| `settings:persist:verify --skip-redeploy` | Persists locally and verifies `persist_settings` audit entry |
 | `audit:proof` | Creates audit entries on local backend |
 | `backfill` | Triggers backfill sweep on local backend |
 | `logs` | Uses `docker compose logs` (filtered) |
