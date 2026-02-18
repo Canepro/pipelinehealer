@@ -1,21 +1,14 @@
-import { AlertTriangle, CloudUpload } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import type { AppSettings } from '../../api/client'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface Props {
   data: AppSettings
-  hasUnsavedChanges: boolean
-  isPersisting: boolean
-  onPersist: () => void
 }
 
 export default function RuntimePolicyBanner({
   data,
-  hasUnsavedChanges,
-  isPersisting,
-  onPersist,
 }: Props) {
   return (
     <div className="space-y-4">
@@ -43,38 +36,27 @@ export default function RuntimePolicyBanner({
               <Badge variant={data.gh_aw_tools_enabled ? 'success' : 'outline'}>
                 External Diag: {data.gh_aw_tools_enabled ? 'ON' : 'OFF'}
               </Badge>
+              <Badge
+                variant={
+                  data.mcp_enabled
+                    ? data.mcp_read_only
+                      ? 'success'
+                      : 'destructive'
+                    : 'outline'
+                }
+              >
+                MCP:{' '}
+                {data.mcp_enabled
+                  ? data.mcp_read_only
+                    ? 'ON (Read-only)'
+                    : 'ON (Write-capable)'
+                  : 'OFF'}
+              </Badge>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Persist warning */}
-      <Card className="border-amber-500/20 bg-amber-500/5">
-        <CardContent className="py-4 px-6">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-amber-200">
-                  Runtime-only — changes are lost on redeploy
-                </p>
-                <p className="text-xs text-amber-100/70">
-                  Saved settings update the running process immediately. Use{' '}
-                  <strong>Persist</strong> to write them to durable storage so they survive
-                  restarts.
-                </p>
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={onPersist}
-              disabled={hasUnsavedChanges || isPersisting}
-            >
-              <CloudUpload className="h-4 w-4" />
-              {isPersisting ? 'Persisting...' : 'Persist'}
-            </Button>
+          <div className="mt-3 flex items-center gap-2 text-xs text-[var(--ph-muted)]">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Save Settings applies changes and persists them for restart/redeploy durability.
           </div>
         </CardContent>
       </Card>

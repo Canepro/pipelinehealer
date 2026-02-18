@@ -49,6 +49,116 @@ interface Props {
 }
 
 type SettingsSection = 'runtime' | 'intelligence' | 'security'
+type McpPolicyMode = 'disabled' | 'read_only' | 'write_with_approval' | 'auto'
+type McpEffectiveState = {
+  status: 'allowed' | 'approval' | 'blocked' | 'inactive'
+  summary: string
+  detail: string
+}
+type McpToolDefinition = {
+  key: 'fetch_failure_context' | 'publish_artifact' | 'rerun_pipeline'
+  label: string
+  description: string
+  write: boolean
+}
+
+const MCP_TOOL_DEFINITIONS: McpToolDefinition[] = [
+  {
+    key: 'fetch_failure_context',
+    label: 'fetch_failure_context',
+    description: 'Read failure/job context from provider APIs.',
+    write: false,
+  },
+  {
+    key: 'publish_artifact',
+    label: 'publish_artifact',
+    description: 'Publish issue/PR-like artifacts through provider tools.',
+    write: true,
+  },
+  {
+    key: 'rerun_pipeline',
+    label: 'rerun_pipeline',
+    description: 'Trigger pipeline/job reruns through provider tools.',
+    write: true,
+  },
+]
+
+function formatMcpPolicyLabel(policy: McpPolicyMode): string {
+  switch (policy) {
+    case 'disabled':
+      return 'Disabled'
+    case 'read_only':
+      return 'Read only'
+    case 'write_with_approval':
+      return 'Write with approval'
+    case 'auto':
+      return 'Auto'
+    default:
+      return policy
+  }
+}
+
+function getMcpEffectiveState({
+  mcpEnabled,
+  mcpProvider,
+  readOnly,
+  tool,
+  policy,
+}: {
+  mcpEnabled: boolean
+  mcpProvider: SettingsFormState['mcp_provider']
+  readOnly: boolean
+  tool: McpToolDefinition
+  policy: McpPolicyMode
+}): McpEffectiveState {
+  if (!mcpEnabled || mcpProvider === 'disabled') {
+    return {
+      status: 'inactive',
+      summary: 'Inactive',
+      detail: 'MCP is disabled globally.',
+    }
+  }
+  if (policy === 'disabled') {
+    return {
+      status: 'blocked',
+      summary: 'Blocked',
+      detail: 'Tool policy is disabled.',
+    }
+  }
+  if (!tool.write) {
+    return {
+      status: 'allowed',
+      summary: 'Allowed (Read)',
+      detail: 'Read context fetch is allowed.',
+    }
+  }
+  if (readOnly) {
+    return {
+      status: 'blocked',
+      summary: 'Blocked',
+      detail: 'Global read-only mode blocks write actions.',
+    }
+  }
+  if (policy === 'read_only') {
+    return {
+      status: 'blocked',
+      summary: 'Blocked',
+      detail: 'Tool policy is read_only.',
+    }
+  }
+  if (policy === 'write_with_approval') {
+    return {
+      status: 'approval',
+      summary: 'Approval Required',
+      detail: 'Write action needs explicit approval.',
+    }
+  }
+  return {
+    status: 'allowed',
+    summary: 'Allowed (Auto)',
+    detail: 'Write action may run automatically.',
+  }
+}
 
 export default function AdminControlsForm({
   data,
@@ -73,6 +183,27 @@ export default function AdminControlsForm({
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [workflowInput, setWorkflowInput] = useState('')
   const [activeSection, setActiveSection] = useState<SettingsSection>('runtime')
+  const mcpEffectivePolicies = MCP_TOOL_DEFINITIONS.map((tool) => {
+    const raw = form.mcp_tool_policies[tool.key]
+    const policy: McpPolicyMode =
+      raw === 'disabled' || raw === 'auto' || raw === 'write_with_approval'
+        ? raw
+        : 'read_only'
+    return {
+      tool,
+      policy,
+      effective: getMcpEffectiveState({
+        mcpEnabled: form.mcp_enabled,
+        mcpProvider: form.mcp_provider,
+        readOnly: form.mcp_read_only,
+        tool,
+        policy,
+      }),
+    }
+  })
+  const mcpAllowedCount = mcpEffectivePolicies.filter((row) => row.effective.status === 'allowed').length
+  const mcpApprovalCount = mcpEffectivePolicies.filter((row) => row.effective.status === 'approval').length
+  const mcpBlockedCount = mcpEffectivePolicies.filter((row) => row.effective.status === 'blocked').length
 
   const addAllowedRepo = () => {
     const normalized = normalizeRepoInput(newRepoInput)
@@ -141,15 +272,37 @@ export default function AdminControlsForm({
               onValueChange={(value) => setActiveSection(value as SettingsSection)}
               className="w-full"
             >
-              <TabsList className="grid h-auto w-full grid-cols-1 sm:grid-cols-3">
-                <TabsTrigger value="runtime">Runtime Controls</TabsTrigger>
-                <TabsTrigger value="intelligence">AI & Integrations</TabsTrigger>
-                <TabsTrigger value="security">Security & Advanced</TabsTrigger>
+              <TabsList className="grid h-auto w-full grid-cols-1 gap-1 rounded-lg bg-slate-800/30 p-1 sm:grid-cols-3">
+                <TabsTrigger
+                  value="runtime"
+                  className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+                >
+                  <Zap className="h-4 w-4" />
+                  Runtime Controls
+                </TabsTrigger>
+                <TabsTrigger
+                  value="intelligence"
+                  className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  AI & Integrations
+                </TabsTrigger>
+                <TabsTrigger
+                  value="security"
+                  className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+                >
+                  <Shield className="h-4 w-4" />
+                  Security & Advanced
+                </TabsTrigger>
               </TabsList>
             </Tabs>
-            <p className="mt-3 text-xs text-[var(--ph-muted)]">
-              Use sections to tune behavior safely: runtime policy first, then provider integrations,
-              then security and advanced controls.
+            <p className="mt-3 text-sm text-[var(--ph-muted)]">
+              {activeSection === 'runtime' &&
+                'Runtime Controls: set remediation behavior, repo scope, and operation mode first.'}
+              {activeSection === 'intelligence' &&
+                'AI & Integrations: configure model providers, external diagnostics, and MCP policies.'}
+              {activeSection === 'security' &&
+                'Security & Advanced: adjust auth posture, retries, limits, and low-level safeguards.'}
             </p>
           </CardContent>
         </Card>
@@ -443,6 +596,11 @@ export default function AdminControlsForm({
                 }
               />
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+              <StatusChip label="Allowed Actions" value={String(mcpAllowedCount)} ok={mcpAllowedCount > 0} />
+              <StatusChip label="Approval Needed" value={String(mcpApprovalCount)} ok={mcpApprovalCount > 0} />
+              <StatusChip label="Blocked Actions" value={String(mcpBlockedCount)} ok={mcpBlockedCount === 0 ? true : false} />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <FieldGroup label="Policy: fetch_failure_context" field="mcp_tool_policies">
                 <Select
@@ -528,6 +686,44 @@ export default function AdminControlsForm({
                   </SelectContent>
                 </Select>
               </FieldGroup>
+            </div>
+            <div className="space-y-3">
+              <Label className="text-[var(--ph-text)]">Effective Tool Actions</Label>
+              <p className="text-xs text-[var(--ph-muted)]">
+                This view combines global MCP toggles and per-tool policy to show what will happen at runtime.
+              </p>
+              <div className="space-y-2">
+                {mcpEffectivePolicies.map(({ tool, policy, effective }) => (
+                  <div
+                    key={tool.key}
+                    className="rounded-md border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-900/40 px-3 py-2"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="font-mono text-xs text-[var(--ph-text)]">{tool.label}</p>
+                        <p className="text-xs text-[var(--ph-muted)]">{tool.description}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{formatMcpPolicyLabel(policy)}</Badge>
+                        <Badge
+                          variant={
+                            effective.status === 'allowed'
+                              ? 'success'
+                              : effective.status === 'approval'
+                                ? 'secondary'
+                                : effective.status === 'inactive'
+                                  ? 'outline'
+                                  : 'destructive'
+                          }
+                        >
+                          {effective.summary}
+                        </Badge>
+                      </div>
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--ph-muted)]">{effective.detail}</p>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="space-y-3">
               <div className="flex items-center gap-3 text-sm">
@@ -1035,7 +1231,7 @@ export default function AdminControlsForm({
                   onClick={onSave}
                 >
                   <Save className="h-4 w-4" />
-                  {savePending ? 'Saving...' : 'Save Settings'}
+                  {savePending ? 'Saving...' : 'Save & Persist'}
                 </Button>
               </div>
             </div>

@@ -124,7 +124,7 @@ export default function SettingsPage() {
     })()
 
   const saveMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const payload: Record<string, unknown> = {
         llm_provider: form.llm_provider,
         openai_compatible_base_url: form.openai_compatible_base_url.trim(),
@@ -157,45 +157,42 @@ export default function SettingsPage() {
       if (deploymentName) {
         payload.azure_openai_deployment_name = deploymentName
       }
-      return api.updateSettings(effectiveAdminKey, payload)
+      const updated = await api.updateSettings(effectiveAdminKey, payload)
+      try {
+        const persist = await api.persistSettings(effectiveAdminKey)
+        return { updated, persist, persistError: null as string | null }
+      } catch (error) {
+        const persistError =
+          error instanceof Error ? error.message : 'Persist step failed after runtime save'
+        return { updated, persist: null, persistError }
+      }
     },
-    onSuccess: async (updated) => {
+    onSuccess: async ({ updated, persist, persistError }) => {
       const next = toSettingsForm(updated)
       setForm(next)
       setLastSavedForm(next)
       setGhAwWorkflowsInput(next.gh_aw_known_workflows.join(','))
       queryClient.setQueryData(['app-settings', adminKey, useSessionAuth], updated)
       await queryClient.invalidateQueries({ queryKey: ['app-settings', adminKey, useSessionAuth] })
-      toast.success('Settings saved', {
-        description: 'Runtime settings updated. Changes are active immediately.',
+      if (persistError) {
+        toast.warning('Settings saved but persist step failed', {
+          description: persistError,
+        })
+        return
+      }
+      if (persist && persist.redeploy_attempted && !persist.redeploy_started) {
+        toast.warning('Settings saved and persisted; redeploy did not start', {
+          description: persist.redeploy_message,
+        })
+        return
+      }
+      toast.success('Settings saved and persisted', {
+        description:
+          persist?.redeploy_message || 'Changes are active and durable across restarts/redeploy.',
       })
     },
     onError: (err) => {
       toast.error('Failed to save settings', {
-        description: err instanceof Error ? err.message : 'Unknown error',
-      })
-    },
-  })
-
-  const persistMutation = useMutation({
-    mutationFn: () => api.persistSettings(effectiveAdminKey),
-    onSuccess: async (result) => {
-      await queryClient.invalidateQueries({ queryKey: ['app-settings', adminKey, useSessionAuth] })
-      if (result.redeploy_attempted && !result.redeploy_started) {
-        toast.error('Settings persisted but redeploy did not start', {
-          description: result.redeploy_message,
-        })
-        return
-      }
-      toast.success(
-        result.redeploy_attempted
-          ? 'Settings persisted and redeploy started'
-          : 'Settings persisted',
-        { description: result.redeploy_message }
-      )
-    },
-    onError: (err) => {
-      toast.error('Failed to persist settings', {
         description: err instanceof Error ? err.message : 'Unknown error',
       })
     },
@@ -210,17 +207,6 @@ export default function SettingsPage() {
         description: err instanceof Error ? err.message : 'Unknown error',
       })
     }
-  }
-
-  const handlePersistAndRedeploy = () => {
-    if (!data) return
-    if (hasUnsavedChanges) {
-      toast.error('Save settings first', {
-        description: 'Persist uses effective saved values only.',
-      })
-      return
-    }
-    persistMutation.mutate()
   }
 
   return (
@@ -322,9 +308,6 @@ export default function SettingsPage() {
         <>
           <RuntimePolicyBanner
             data={data}
-            hasUnsavedChanges={hasUnsavedChanges}
-            isPersisting={persistMutation.isPending}
-            onPersist={handlePersistAndRedeploy}
           />
 
           <AdminControlsForm

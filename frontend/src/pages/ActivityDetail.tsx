@@ -250,6 +250,106 @@ function formatMcpStatus(enabled: boolean, available: boolean): string {
   return available ? 'Available' : 'Limited'
 }
 
+function formatMcpReason(reason: string): string {
+  const normalized = reason.trim().toLowerCase()
+  const labels: Record<string, string> = {
+    ok: 'Healthy and available',
+    disabled: 'Disabled by runtime settings',
+    provider_not_github: 'Unsupported provider for this action path',
+    provider_health_error: 'Provider health check failed',
+    missing_github_token: 'Missing GitHub credential/token',
+    repo_not_allowlisted: 'Repository is outside MCP allowlist',
+    tool_policy_disabled: 'Tool is disabled by policy',
+    tool_policy_read_only: 'Tool policy allows read-only actions only',
+    blocked_by_read_only_mode: 'Blocked by global read-only mode',
+    approval_required: 'Blocked pending manual approval',
+    mcp_disabled: 'MCP is disabled',
+  }
+  if (labels[normalized]) return labels[normalized]
+  if (normalized.startsWith('branch_protection_respected')) {
+    return 'Blocked to respect protected branch constraints'
+  }
+  return reason || 'Unknown'
+}
+
+type McpActionOutcome = {
+  kind: 'success' | 'blocked' | 'error' | 'timeout' | 'other'
+  label: string
+  detail: string
+  code: string | null
+}
+
+function mcpOutcomeBadgeClass(kind: McpActionOutcome['kind']): string {
+  switch (kind) {
+    case 'success':
+      return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200'
+    case 'blocked':
+      return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200'
+    case 'error':
+      return 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200'
+    case 'timeout':
+      return 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-200'
+    default:
+      return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200'
+  }
+}
+
+function parseMcpActionResult(rawResult: string): McpActionOutcome {
+  const value = (rawResult || '').trim()
+  if (!value) {
+    return {
+      kind: 'other',
+      label: 'Unknown',
+      detail: 'No result string captured.',
+      code: null,
+    }
+  }
+
+  if (value.startsWith('success:')) {
+    const attempt = value.split(':').slice(1).join(':')
+    return {
+      kind: 'success',
+      label: 'Allowed',
+      detail: attempt ? `Completed (${attempt.replace(/_/g, ' ')})` : 'Completed successfully',
+      code: value,
+    }
+  }
+  if (value.startsWith('blocked:')) {
+    const code = value.slice('blocked:'.length)
+    return {
+      kind: 'blocked',
+      label: 'Blocked',
+      detail: formatMcpReason(code),
+      code,
+    }
+  }
+  if (value.startsWith('timeout:')) {
+    const code = value.slice('timeout:'.length)
+    return {
+      kind: 'timeout',
+      label: 'Timeout',
+      detail: code ? `Timed out (${code.replace(/_/g, ' ')})` : 'Timed out',
+      code,
+    }
+  }
+  if (value.startsWith('error:')) {
+    const rest = value.slice('error:'.length)
+    const [errorType] = rest.split(':')
+    return {
+      kind: 'error',
+      label: 'Error',
+      detail: errorType ? `Execution error (${errorType})` : 'Execution error',
+      code: rest || value,
+    }
+  }
+  return {
+    kind: 'other',
+    label: 'Result',
+    detail: value,
+    code: value,
+  }
+}
+
 const DETAIL_SECTIONS: Array<{ key: string; label: string }> = [
   { key: 'summary', label: 'Summary' },
   { key: 'root_cause', label: 'Root Cause' },
@@ -559,6 +659,8 @@ export default function ActivityDetail() {
   )
   const mcpToolUsage = Object.entries(mcpPath?.tool_invocations ?? {}).sort((a, b) => b[1] - a[1])
   const mcpActionAudit = [...(mcpPath?.action_audit ?? [])].slice(-8).reverse()
+  const mcpReasonCode = (mcpPath?.reason || '').trim()
+  const mcpReasonLabel = formatMcpReason(mcpReasonCode)
   const failureContext = activity.failure_context
   const hasFailureContext = Boolean(
     failureContext?.failing_job ||
@@ -975,7 +1077,15 @@ export default function ActivityDetail() {
                   </div>
                   <div>
                     <p className="text-gray-500 dark:text-gray-400">Reason</p>
-                    <p className="text-gray-900 dark:text-white break-words">{mcpPath.reason}</p>
+                    <p className="text-gray-900 dark:text-white break-words">{mcpReasonLabel}</p>
+                    {mcpReasonCode && (
+                      <p
+                        className="mt-1 break-all font-mono text-[11px] text-gray-500 dark:text-gray-400"
+                        title={mcpReasonCode}
+                      >
+                        raw: {mcpReasonCode}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -1014,8 +1124,13 @@ export default function ActivityDetail() {
                                 key={source}
                                 className="flex items-center justify-between rounded border border-gray-200 px-2 py-1 text-sm dark:border-gray-700"
                               >
-                                <span className="text-gray-700 dark:text-gray-200">
-                                  {formatSourceLabel(source)}
+                                <span className="min-w-0">
+                                  <span className="block text-gray-700 dark:text-gray-200">
+                                    {formatSourceLabel(source)}
+                                  </span>
+                                  <span className="block break-all font-mono text-[11px] text-gray-500 dark:text-gray-400">
+                                    {source}
+                                  </span>
                                 </span>
                                 <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
                                   {count}
@@ -1062,20 +1177,41 @@ export default function ActivityDetail() {
                       </p>
                       {mcpActionAudit.length > 0 ? (
                         <ul className="mt-2 space-y-1">
-                          {mcpActionAudit.map((entry, index) => (
-                            <li
-                              key={`${entry.request_id}-${entry.tool}-${entry.payload_hash}-${index}`}
-                              className="rounded border border-gray-200 px-2 py-1 text-xs dark:border-gray-700"
-                            >
-                              <p className="font-mono text-gray-700 dark:text-gray-200">
-                                {entry.tool} • {entry.result}
-                              </p>
-                              <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
-                                actor: {entry.actor} • request: {entry.request_id} • payload:{' '}
-                                {entry.payload_hash}
-                              </p>
-                            </li>
-                          ))}
+                          {mcpActionAudit.map((entry, index) => {
+                            const outcome = parseMcpActionResult(entry.result)
+                            return (
+                              <li
+                                key={`${entry.request_id}-${entry.tool}-${entry.payload_hash}-${index}`}
+                                className="rounded border border-gray-200 px-2 py-1 text-xs dark:border-gray-700"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <p className="break-all font-mono text-gray-700 dark:text-gray-200">
+                                    {entry.tool}
+                                  </p>
+                                  <span
+                                    className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${mcpOutcomeBadgeClass(outcome.kind)}`}
+                                  >
+                                    {outcome.label}
+                                  </span>
+                                </div>
+                                <p className="mt-1 break-words text-[11px] text-gray-700 dark:text-gray-200">
+                                  {outcome.detail}
+                                </p>
+                                {outcome.code && (
+                                  <p
+                                    className="mt-0.5 break-all font-mono text-[11px] text-gray-500 dark:text-gray-400"
+                                    title={outcome.code}
+                                  >
+                                    raw: {outcome.code}
+                                  </p>
+                                )}
+                                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                  actor: {entry.actor} • request: {entry.request_id} • payload:{' '}
+                                  {entry.payload_hash}
+                                </p>
+                              </li>
+                            )
+                          })}
                         </ul>
                       ) : (
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
