@@ -163,7 +163,7 @@ Keep Azure OpenAI as the default path now, but design for pluggable model provid
 - Add portability quality gates:
   - provider contract tests (same prompts, consistent structured output) (Done)
   - outage/fallback tests (timeouts, 429, 5xx) (Done: openai-compatible runtime path now wrapped with shared retry policy + coverage, including bare-timeout and status-attribute retry cases)
-  - regression checks for diagnosis/remediation behavior parity
+  - regression checks for diagnosis/remediation behavior parity (Done: provider parity tests for diagnosis fallback + remediation dry-run plan consistency)
 - Add provider operations runbook:
   - switching + rollback playbook with auditable request IDs (Done: `docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md`, includes provider-health reason code triage)
 - Add secondary Kubernetes deployment target:

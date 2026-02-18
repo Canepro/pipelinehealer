@@ -49,6 +49,7 @@ This is the long-form project tracker for hackathon execution status, submission
   - provider switching and rollback runbook added (`docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md`)
   - retry classifier hardened for timeout/status-code exceptions even when provider message is empty
   - provider-health probe now emits actionable reason codes (`probe_timeout`, `probe_auth_failed`, `probe_rate_limited`, `probe_provider_error`, `probe_network_error`)
+  - parity regression gates added: diagnosis fallback parity and remediation dry-run parity across `azure_openai` and `openai_compatible`
 - Kubernetes portability added as a secondary target:
   - Helm chart shipped under `charts/pipelinehealer`
   - operator runbook added (`docs/KUBERNETES_HELM_RUNBOOK.md`)
