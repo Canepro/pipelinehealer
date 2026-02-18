@@ -721,7 +721,7 @@ export default function ControlCenterPage() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <div className="space-y-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Learning Queue</CardTitle>
@@ -757,7 +757,7 @@ export default function ControlCenterPage() {
                   </p>
                 )}
 
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
                   {(learningQueue ?? []).slice(0, 8).map((item) => (
                     <div
                       key={item.id}
