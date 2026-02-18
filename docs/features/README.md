@@ -1,6 +1,6 @@
 # Feature Guides
 
-<!-- LAST_VERIFIED: 9cc0ce5 -->
+<!-- LAST_VERIFIED: c8a1c8d -->
 
 These guides explain PipelineHealer by capability so beginners and experienced operators can quickly find what they need.
 
@@ -12,6 +12,7 @@ These guides explain PipelineHealer by capability so beginners and experienced o
 4. Runtime settings and policy: `03-settings-and-policy-controls.md`
 5. External diagnostics and MCP: `04-external-diagnostics-and-mcp.md`
 6. Explainability and telemetry: `05-explainability-and-observability.md`
+7. Learning queue and promotion governance: `../LEARNING_SYSTEM_PLAN.md`
 
 ## Audience Map
 

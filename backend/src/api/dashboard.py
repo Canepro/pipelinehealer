@@ -370,6 +370,8 @@ def _evaluate_learning_promotion_readiness(
     candidate: LearningQueueItem,
 ) -> LearningPromotionReadiness:
     """Evaluate whether a candidate is safe to activate as a promoted playbook."""
+    # Gates are intentionally deterministic so operators can reason about
+    # activation outcomes before clicking any decision action.
     occurrence_count = max(int(candidate.occurrence_count), 0)
     success_count = max(int(candidate.success_count), 0)
     sample_size = len(candidate.sample_activity_ids)
@@ -1365,6 +1367,8 @@ async def decide_learning_queue_item(
 
     readiness_before = _evaluate_learning_promotion_readiness(candidate)
     forced_activation = bool(payload.force_activate and action == "activate")
+    # Block activation by default when gates do not pass; force activation is
+    # an explicit override path and must leave a durable audit trail.
     if action == "activate" and not readiness_before.ready and not forced_activation:
         raise HTTPException(
             status_code=409,
@@ -1383,6 +1387,7 @@ async def decide_learning_queue_item(
         x_admin_key=x_admin_key,
     )
     if forced_activation:
+        # Keep operator intent visible for post-incident traceability.
         candidate.metadata["forced_activation"] = {
             "at": candidate.updated_at.isoformat(),
             "actor": candidate.decision_actor,

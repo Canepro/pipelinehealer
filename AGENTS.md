@@ -64,6 +64,8 @@ bun run build
 - Preserve in-memory fallback (`InMemoryStorage`) for local development.
 - Keep backend lint/type/test healthy (`ruff`, `mypy`, `pytest`).
 - Keep frontend lint/build healthy (`eslint`, `tsc`/`vite build`).
+- Add brief, intent-focused comments for non-obvious logic in code and workflow YAML.
+- Keep comments minimal and current; update or remove stale comments during edits.
 - When presenting options, always include a clearly labeled recommended option based on current best practices.
 
 ## Security and Runtime Defaults

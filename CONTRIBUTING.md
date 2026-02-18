@@ -49,6 +49,8 @@ Always execute scripts with `bash scripts/...`. Do not use `source` or `. script
 
 - Keep changes small and reviewable.
 - Do not commit secrets.
+- Add concise comments for non-obvious logic (focus on intent/why, not line-by-line narration).
+- Update or remove stale comments in files you touch.
 - Update docs when behavior changes:
   1. `README.md`
   2. `docs/API.md`

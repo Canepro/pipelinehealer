@@ -30,144 +30,97 @@ The following are already implemented in the current project state:
   - generic `N failing` signatures now require test context before mapping to `test`
   - pattern-based diagnoses now persist classification transparency metadata (`classification_signal`, `classification_family`, `classification_pattern`)
 
-## Next Priorities
+## Current Roadmap Status (Feb 18, 2026)
 
-### 0.0 Execution Lock and Change Control (Do Not Side-Track)
+| Track | Status | Notes |
+|---|---|---|
+| 0.1 MCP Foundation | Completed | Guardrails, health endpoints, per-tool policy, audit fields, runbook context path |
+| 0.3 Admin UX | Mostly completed | Control Center + audit consolidation shipped; replay/simulation controls still pending |
+| 0.4 Model Portability | Completed (core) | Provider abstraction, fallback/retry tests, parity tests, switch runbook, Helm target |
+| 0.2 Learning System | In progress | Queue + governance + activation gates shipped; retrieval + editable candidates pending |
 
-Current locked implementation sequence (must be completed in order):
+## Immediate Next (Active Execution Track)
 
-1. **0.1 MCP Foundation completion** (remaining items only)
-2. **0.3 Admin UX: Settings + Control Center**
-3. **0.4 Model Platform Portability**
-4. **0.2 Learning System** (after control/governance surfaces are ready)
+1. **Learning retrieval context (0.2)**  
+Add retrieval-before-diagnosis/remediation so active candidates can provide structured context.
+2. **Learning candidate editing (0.2)**  
+Add safe operator edits for candidate fields with full audit metadata.
+3. **Control Center learning UX finish (0.3)**  
+Add clearer edit/review flow and simulation-style preview for promoted playbooks.
+4. **Docs and runbook sync**  
+Keep README/API/feature docs aligned on the same commit.
 
-Execution rules:
+## Execution Rules (Locked)
 
 - Only one active implementation track at a time.
-- New ideas, bugs, and requests discovered during execution are added to this plan under a dedicated backlog section first.
-- Mid-phase scope changes are allowed only for:
+- New requests are queued in backlog unless they are:
   - production break/fix
   - security risk
-  - data loss risk
+  - data-loss risk
   - explicit user-prioritized blocker
-- If none of the above apply, new work is queued and scheduled at the next phase boundary.
+- Definition of done for behavior changes:
+  - feature/tests/docs updated together
+  - runtime verification command documented
+  - rollback path documented
 
-Intake format for new items (required):
+## Engineering Clarity Standards (Always-On)
 
-- Problem statement
-- User impact
-- Risk level (`low|medium|high`)
-- Scope estimate (`S|M|L`)
-- Dependencies
-- Recommended phase placement
-
-Definition of done for each phase:
-
-- Feature/tests/docs updated together
-- Runtime verification command(s) documented
-- Rollback path documented for behavior-changing work
+- Add brief, professional comments for non-obvious logic in code and workflow YAML.
+- Prefer intent-focused comments ("why this exists"), not line-by-line narration.
+- Keep comments minimal and current; remove stale comments during edits.
+- When adding a new feature flag/policy, include:
+  - one inline comment at decision boundary
+  - one docs entry describing default, effect, and safety fallback
 
 ## 0) Platform Extension Track (MCP + Learning + Admin UX)
 
-### 0.1 MCP Foundation (Recommended first)
+### 0.1 MCP Foundation (Completed)
 
-- ~~Add an MCP provider abstraction in backend tools layer:~~ (Done: foundation scaffold)
-  - ~~`MCPToolProvider` interface (connect, list tools, invoke, health check)~~
-  - ~~provider registry and per-provider feature flags~~
-- ~~Add policy controls for MCP in admin settings:~~ (Done: initial controls)
-  - ~~provider enabled/disabled~~
-  - ~~read vs write mode~~ (read-only toggle)
-  - timeout/retry budget per provider
-- ~~Add MCP provider health endpoint for operator visibility.~~ (Done: `GET /api/settings/mcp/provider-health`)
-- Start with read-only MCP actions before write actions:
-  - ~~diagnostics/context retrieval~~ (Done: GitHub MCP read-only run-context evidence path, decoupled from gh-aw toggles)
-  - ~~incident metadata lookup~~ (Done: failing job/timed-out counts + related PR metadata + optional changed-file correlation in `github-mcp` evidence)
-  - ~~knowledge/runbook retrieval~~ (Done: read-only `fetch_runbook_context` path adds repository runbook context as `knowledge-mcp` evidence when available)
-- ~~Add full audit attributes for MCP calls:~~ (Done)
-  - ~~provider, tool name, latency, success/failure, error class, request ID~~
-  - ~~per-activity MCP explainability captures tool usage, source attribution, confidence rationale, and aggregate MCP latency~~
+- Provider abstraction scaffold implemented.
+- Policy controls implemented (`enabled`, `provider`, `read_only`, timeout/retry, per-tool policy, repo allowlist).
+- Provider health endpoint implemented (`GET /api/settings/mcp/provider-health`).
+- Read-only enrichment paths implemented (`fetch_failure_context`, `fetch_runbook_context`).
+- MCP action audit and explainability metadata implemented.
 
-Initial MCP providers to prioritize:
+### 0.2 Learning System (In Progress)
 
-- GitHub MCP (context enrichment and artifact lookup)
-- Azure Monitor/Application Insights MCP (trace/log diagnostics correlation)
-- Ticketing MCP (Jira/ServiceNow/Linear) for enterprise escalation path
-- Knowledge MCP (Confluence/internal docs) for remediation context
+Completed:
+- durable learning queue storage + model
+- Control Center queue with decision actions
+- audited learning queue refresh/decision trail
+- promotion-readiness gating + audited forced activation
 
-### 0.2 Learning System (Policy-safe, human-in-the-loop)
+Remaining:
+- retrieval layer before diagnosis/remediation (active candidates as context)
+- safe operator edit API/UI for candidate fields
+- promoted playbook simulation/preview surface
 
-- Add a durable "remediation memory" store:
-  - incident fingerprint
-  - diagnosis + action taken
-  - outcome (success/failure/rollback)
-  - human feedback signal
-- Initial governance slice delivered:
-  - durable learning queue model and storage records
-  - Control Center queue surface with refresh + human decisions (`approve`, `reject`, `activate`, `retire`)
-  - admin-audited decision trail for learning queue actions
-- Add a retrieval layer before diagnosis/remediation:
-  - fetch similar historical incidents and inject evidence into agent context
-- Add controlled "playbook promotion":
-  - promote repeated successful patterns to deterministic remediation templates
-  - require thresholds before activation (Done: approval/status + occurrence + success-rate + sample-size gates with audited `force_activate` override)
-- Add explicit approval mode:
-  - operator approves/rejects learned playbooks (Done: decision API + Control Center actions)
-  - rejected candidates recorded with reason for model feedback
-- Preserve trust controls:
-  - no autonomous policy mutation without human approval
-  - all learned behavior remains explainable and auditable
+### 0.3 Admin UX (Mostly Completed)
 
-### 0.3 Admin UX: Settings + Control Center
+Completed:
+- read-only Control Center governance route
+- runtime/auth/provider posture cards
+- MCP policy effect matrix
+- logs/investigation quick-actions
+- centralized audit timeline with JSON diffs
+- badge density and readability hardening
 
-- Keep **Settings** focused on static/runtime configuration.
-- Completed UI clarity slice (Feb 18):
-  - status badge density reduced in activities table (`+N more` overflow summary)
-  - human-first safety-gate labels with optional raw-code reveal
-  - MCP/LLM provider health wording normalized to `Available`/`Unavailable`
-  - evidence/model-path overflow hardening in dashboard/detail cards
-  - landing page hierarchy and operator-facing messaging refresh
-- Completed governance surface pass (Feb 18):
-  - added new read-only `/app/control-center` route for operational oversight
-  - surfaced runtime/auth/provider posture cards in one place
-  - added MCP tool policy effect matrix (configured vs effective behavior)
-  - added logs/investigation quick-access panel with safe links + copy-ready CLI commands
-  - reworked audit UX as single-home in Control Center with collapse + load-more behavior and JSON change diffs
-- Add a new **Control Center** page for operational governance:
-  - MCP provider health and permissions (Done: initial)
-  - learning queue (candidates, approvals, rejects)
-  - remediation replay/simulation controls
-  - policy impact preview (what would happen under current settings) (Done: initial)
-- Improve professional IA and visual hierarchy:
-  - grouped sections: Access, Policy, Integrations, Learning, Persistence
-  - sticky change summary panel with unsaved + effective values
-  - environment scope chips (`runtime`, `persisted`, `redeploy pending`)
-  - explicit "safe defaults" and risk labels for advanced toggles
+Remaining:
+- remediation replay/simulation controls
+- deeper IA polish for large datasets
 
-### 0.4 Model Platform Portability (Azure-first, not Azure-locked)
+### 0.4 Model Platform Portability (Completed Core)
 
-Keep Azure OpenAI as the default path now, but design for pluggable model providers early.
+Completed:
+- pluggable provider model (`azure_openai`, `openai_compatible`, `custom`)
+- task-level routing and runtime config
+- fallback/outage contract tests and parity regression tests
+- switching/rollback runbook
+- Kubernetes Helm deployment target
 
-- Add provider abstraction:
-  - `LLMProvider` interface (`analyze`, `diagnose`, `remediate`, `health_check`)
-  - concrete adapters: `azure_openai` (current), `openai_compatible`, `custom_gateway`
-- Separate provider selection from model routing:
-  - task-level model choices (`analysis`, `diagnosis`, `remediation`) (Done: runtime routing + settings UI/control center preview)
-  - fallback chains per task (primary -> cheaper fallback -> deterministic fallback)
-- Add runtime config surface:
-  - `LLM_PROVIDER=azure_openai|openai_compatible|custom` (Done)
-  - provider-specific env groups (endpoint/base_url, auth key, api version/model/deployment) (Done)
-  - optional task overrides for model names (`LLM_MODEL_ANALYSIS`, `LLM_MODEL_DIAGNOSIS`, `LLM_MODEL_REMEDIATION`) (Done)
-- Keep prompts portable:
-  - normalize provider responses into one internal schema
-  - keep provider translation logic inside adapters only
-- Add portability quality gates:
-  - provider contract tests (same prompts, consistent structured output) (Done)
-  - outage/fallback tests (timeouts, 429, 5xx) (Done: openai-compatible runtime path now wrapped with shared retry policy + coverage, including bare-timeout and status-attribute retry cases)
-  - regression checks for diagnosis/remediation behavior parity (Done: provider parity tests for diagnosis fallback + remediation dry-run plan consistency)
-- Add provider operations runbook:
-  - switching + rollback playbook with auditable request IDs (Done: `docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md`, includes provider-health reason code triage)
-- Add secondary Kubernetes deployment target:
-  - Helm chart + operator runbook (Done: `charts/pipelinehealer`, `docs/KUBERNETES_HELM_RUNBOOK.md`)
+Remaining:
+- token/cost telemetry per activity
+- degradation alerting thresholds (fallback spikes, provider timeout/error spikes)
 
 ### Backlog Intake Queue (Non-Active)
 
@@ -282,19 +235,19 @@ All Layer 2 delivery phases (PR 0 through PR G) are implemented and deployed:
   - provider onboarding checklist
   - auth model
   - timeout/retry and blast-radius policy
-- Add `docs/LEARNING_SYSTEM_PLAN.md`:
-  - learning lifecycle (observe -> candidate -> approve -> active -> retire)
-  - safety and governance rules
-  - rollback path for promoted playbooks
-- Add architecture update in `README.md` and `docs/API.md` once contracts are implemented.
+- ~~Add `docs/LEARNING_SYSTEM_PLAN.md`:~~ (Done)
+  - ~~learning lifecycle (observe -> candidate -> approve -> active -> retire)~~
+  - ~~safety and governance rules~~
+  - ~~rollback path for promoted playbooks~~
+- ~~Add architecture update in `README.md` and `docs/API.md` once contracts are implemented.~~ (Done)
 
 ### Model Portability Docs Additions
 
-- Add `docs/MODEL_PROVIDER_STRATEGY.md`:
-  - provider adapter contract
-  - routing and fallback policy
-  - migration plan from Azure-only to multi-provider
-  - cost/latency tradeoff guidance
+- ~~Add `docs/MODEL_PROVIDER_STRATEGY.md`:~~ (Done)
+  - ~~provider adapter contract~~
+  - ~~routing and fallback policy~~
+  - ~~migration plan from Azure-only to multi-provider~~
+  - ~~cost/latency tradeoff guidance~~
 
 ## 7) Demo Experience Hardening
 

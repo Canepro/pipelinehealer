@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: 647ddde -->
+<!-- LAST_VERIFIED: c8a1c8d -->
 
 Use this index to find the right doc quickly.
 
@@ -20,6 +20,7 @@ Use this index to find the right doc quickly.
 - `LOCAL_DEMO_RUNBOOK.md` — full local and Azure E2E operator runbook
 - `MODEL_PROVIDER_STRATEGY.md` — Azure-first but provider-portable model backend strategy
 - `MODEL_PROVIDER_SWITCH_RUNBOOK.md` — auditable provider switching and rollback playbook
+- `LEARNING_SYSTEM_PLAN.md` — learning queue lifecycle, governance model, and activation safety rules
 - `KUBERNETES_HELM_RUNBOOK.md` — Helm-based Kubernetes deployment target (secondary to Azure)
 - `PREDEPLOY_PLACEHOLDER_AUDIT.md` — pre-deploy stop-ship checklist
 

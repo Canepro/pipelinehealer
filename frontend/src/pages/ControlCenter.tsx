@@ -833,6 +833,8 @@ export default function ControlCenterPage() {
                             !item.promotion_readiness?.requires_force_activate
                           }
                           onClick={() => {
+                            // Force activation bypasses readiness gates and should always
+                            // require explicit operator confirmation.
                             const ok = window.confirm(
                               'Force-activate this playbook candidate? This bypasses readiness gates and will be audit logged.'
                             )

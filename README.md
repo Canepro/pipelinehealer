@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 647ddde -->
+<!-- LAST_VERIFIED: c8a1c8d -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -25,6 +25,7 @@ CI failures create repetitive triage work. PipelineHealer shortens time-to-under
 - universal failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
 - artifact idempotency (find-or-create PR/issue reuse)
 - task-level model routing (`analysis`, `diagnosis`, `remediation`) with provider-default fallback
+- learning queue governance with promotion-readiness gates and audited force activation
 - operator UX for fast triage (Dashboard snapshot, Activity Detail deep evidence, Control Center governance)
 
 This repository is the hackathon build, but designed for long-term production evolution.
@@ -47,6 +48,7 @@ Azure is the default deployment path for hackathon requirements, but the runtime
 - [Logs & Investigation](docs/LOGS_AND_INVESTIGATION.md)
 - [Model Provider Strategy](docs/MODEL_PROVIDER_STRATEGY.md)
 - [Model Provider Switch Runbook](docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md)
+- [Learning System Plan](docs/LEARNING_SYSTEM_PLAN.md)
 - [Kubernetes Helm Runbook](docs/KUBERNETES_HELM_RUNBOOK.md)
 - [Changelog](CHANGELOG.md)
 - [Settings & Policy Feature Guide](docs/features/03-settings-and-policy-controls.md)
@@ -148,8 +150,15 @@ flowchart LR
     MCP["GitHub MCP Provider"]
   end
 
+  subgraph LEARN["Learning Governance"]
+    LQ["Learning Queue<br/>candidate/approved/active"]
+    LG["Promotion Readiness Gates<br/>status + occurrence + success-rate + sample-size"]
+    FP["Force Activate<br/>(explicit, audited)"]
+  end
+
   subgraph GOV["Governance Surface"]
     UI["Admin Settings UI"]
+    CC["Control Center"]
     API["/api/settings*"]
     AUD["Settings Audit Trail"]
     EXP["Explainability + Model Path"]
@@ -174,6 +183,11 @@ flowchart LR
   MCP -. enrichment .-> DG
 
   UI --> API --> OR
+  CC --> API
+  OR --> LQ
+  LQ --> LG
+  LG --> RM
+  FP --> RM
   API --> AUD
   OR --> EXP
   OR --> ST

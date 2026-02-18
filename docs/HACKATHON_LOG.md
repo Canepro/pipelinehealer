@@ -58,6 +58,11 @@ This is the long-form project tracker for hackathon execution status, submission
   - Control Center candidate refresh and human decision actions
   - admin audit entries for learning queue refresh/decision events
   - promotion-readiness gating for activation (approval/status + occurrence + success-rate + sample-size thresholds) with audited `force_activate` override path
+- Documentation and maintainability standards synced:
+  - dedicated learning-system plan doc published (`docs/LEARNING_SYSTEM_PLAN.md`)
+  - root README architecture diagram updated to include learning governance flow
+  - roadmap doc reorganized with clear status/next/backlog sections
+  - explicit code-commenting standard added to repo guardrails (`AGENTS.md`, `CONTRIBUTING.md`)
 
 ## Phase Overview
 
