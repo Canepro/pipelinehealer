@@ -29,6 +29,41 @@ The following are already implemented in the current project state:
 
 ## Next Priorities
 
+### 0.0 Execution Lock and Change Control (Do Not Side-Track)
+
+Current locked implementation sequence (must be completed in order):
+
+1. **0.1 MCP Foundation completion** (remaining items only)
+2. **0.3 Admin UX: Settings + Control Center**
+3. **0.4 Model Platform Portability**
+4. **0.2 Learning System** (after control/governance surfaces are ready)
+
+Execution rules:
+
+- Only one active implementation track at a time.
+- New ideas, bugs, and requests discovered during execution are added to this plan under a dedicated backlog section first.
+- Mid-phase scope changes are allowed only for:
+  - production break/fix
+  - security risk
+  - data loss risk
+  - explicit user-prioritized blocker
+- If none of the above apply, new work is queued and scheduled at the next phase boundary.
+
+Intake format for new items (required):
+
+- Problem statement
+- User impact
+- Risk level (`low|medium|high`)
+- Scope estimate (`S|M|L`)
+- Dependencies
+- Recommended phase placement
+
+Definition of done for each phase:
+
+- Feature/tests/docs updated together
+- Runtime verification command(s) documented
+- Rollback path documented for behavior-changing work
+
 ## 0) Platform Extension Track (MCP + Learning + Admin UX)
 
 ### 0.1 MCP Foundation (Recommended first)
@@ -110,6 +145,15 @@ Keep Azure OpenAI as the default path now, but design for pluggable model provid
   - provider contract tests (same prompts, consistent structured output)
   - outage/fallback tests (timeouts, 429, 5xx)
   - regression checks for diagnosis/remediation behavior parity
+
+### Backlog Intake Queue (Non-Active)
+
+Use this section to capture new requests without breaking the execution lock.
+
+| ID | Item | Impact | Risk | Estimate | Recommended phase | Status |
+|---|---|---|---|---|---|---|
+| BI-001 | Release/tag workflow and release notes template | Operator confidence and repeatable deploys | Medium | M | Post 0.4 | Queued |
+| BI-002 | Additional activity classification context labels for ambiguous CI failures | Better failure-type trust for operators | Low | S | 0.3 | Queued |
 
 ## ~~0) Layer 2 Foundations (GitHub Agentic Workflows + UX Reliability)~~ — COMPLETE
 
