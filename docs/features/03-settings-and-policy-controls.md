@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: a95ed82 -->
+<!-- LAST_VERIFIED: 786e214 -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -18,22 +18,25 @@ This guide explains runtime controls, persistence behavior, and governance guard
    - key mode: enter `X-Admin-Key`
    - Entra mode: use `Use Login Session`
 3. Change only one policy group at a time.
-4. Save, then optionally persist:
-   - runtime update: `PATCH /api/settings`
-   - durable save: `POST /api/settings/persist`
+4. Use **Save & Persist** to apply and persist in one action.
 
 ## Runtime vs Durable
 
+- Settings UI `Save & Persist` updates runtime and then performs durable persistence.
 - Runtime settings apply immediately.
 - Persisted settings survive restarts/redeploys.
 - In Azure, persistence is Cosmos DB-backed.
 
-CLI equivalents:
+API and CLI equivalents:
 ```bash
 bash scripts/ph.sh settings:check
 bash scripts/ph.sh settings:audit --limit 10
 bash scripts/ph.sh settings:persist --from-settings
 ```
+
+Backend API calls used by Save & Persist:
+- `PATCH /api/settings`
+- `POST /api/settings/persist`
 
 ## MCP Guardrail Policy Model
 

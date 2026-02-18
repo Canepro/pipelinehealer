@@ -399,6 +399,19 @@ This is the long-form project tracker for hackathon execution status, submission
   - `python3 -m mypy backend/src` passed
   - `python3 -m ruff check backend/src backend/tests/test_phase1_correctness.py` passed
 
+### February 18, 2026
+
+- Settings UX simplification:
+  - Removed separate `Persist` button/banner from settings page.
+  - `Save & Persist` now performs runtime update and durable persistence in one action.
+  - Added explicit partial-success toasts when runtime save succeeds but persist/redeploy has issues.
+- Settings IA clarity:
+  - Strengthened section tab visibility with active-state styling and icons.
+  - Added section-specific helper copy under the tab strip.
+- MCP explainability polish:
+  - Activity detail now shows friendly interpretation + raw code for MCP reason and action audit entries.
+  - Source attribution now shows both display label and raw source key.
+
 ## Project Tracking Plan (Now -> Mar 15)
 
 This plan is the source of truth for controlled polish work without drift.

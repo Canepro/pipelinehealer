@@ -119,7 +119,7 @@ All Layer 2 delivery phases (PR 0 through PR G) are implemented and deployed:
 - ~~Keep PipelineHealer as native-first remediation control plane; use `gh aw` as optional supplemental diagnostics.~~ (Done)
 - ~~Sequence delivery explicitly (PR 0 → PR A → PR B → PR C → PR D → PR E → PR F → PR G).~~ (Done: all merged to `main`)
 - ~~Resolve settings/allowlist reliability before enabling Layer 2 for demo-critical paths.~~ (Done)
-- ~~Add explicit UX semantics for runtime settings (draft vs saved, effective scope, persistence behavior).~~ (Done: Cosmos DB durable persistence with in-memory fallback, runtime-only warning banner, "Persist Settings" action)
+- ~~Add explicit UX semantics for runtime settings (draft vs saved, effective scope, persistence behavior).~~ (Done: Cosmos DB durable persistence with in-memory fallback and one-step "Save & Persist" UX)
 - ~~Prioritize universal diagnosis gains before optional external integrations.~~ (Done: PR B universal diagnosis upgrades)
 - ~~Handle `ci-doctor` timing and repo capability gaps in MVP:~~ (Done)
   - ~~bounded wait/poll before fallback to native diagnosis~~ (Done: 480s polling window)
@@ -158,7 +158,7 @@ All Layer 2 delivery phases (PR 0 through PR G) are implemented and deployed:
 - Add settings state UX hardening:
   - ~~persistent "unsaved changes" indicator~~ (Done: draft vs saved state tracking)
   - post-save "effective policy" confirmation panel
-  - ~~explicit runtime-vs-durable status label on mutable settings~~ (Done: "Persist Settings" button with durable storage feedback)
+  - ~~explicit runtime-vs-durable status label on mutable settings~~ (Done: one-step "Save & Persist" with durable storage feedback)
 
 ## 5) CI Platform Extensibility
 

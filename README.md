@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 4b606f9 -->
+<!-- LAST_VERIFIED: 786e214 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -97,6 +97,7 @@ Use full command docs for flags and troubleshooting: `docs/CLI.md`.
 - `HEAL_MODE=safe`
 - scoped repo allowlists for remediation
 - protected admin settings API with audit trail
+- settings UI uses one-step `Save & Persist` for durable config updates
 - Entra + API key auth modes (`api_key`, `entra`, `hybrid`)
 - MCP defaults are safe (`MCP_ENABLED=false`, `MCP_READ_ONLY=true`)
 

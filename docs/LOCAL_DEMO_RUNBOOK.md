@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 4b606f9 -->
+<!-- LAST_VERIFIED: 786e214 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -395,8 +395,9 @@ To confirm whether AI inference was used for a specific activity, open Activity 
 
 If MCP is enabled, the same Activity Detail now includes `MCP Observability`:
 
-- summary: `Provider`, `Status`, `Read Only`, `Reason`
+- summary: `Provider`, `Status`, `Read Only`, `Reason` (friendly label + raw code)
 - expandable details: `Configured Tools`, `Source Attribution`, `Tool Usage`
+- action audit rows now show both friendly result (`Allowed` / `Blocked` / `Error` / `Timeout`) and raw result codes for audit trust.
 
 ### Idempotency Validation (Recommended for demos/reviews)
 

@@ -105,7 +105,7 @@ Implementation note:
 
 Status: **Resolved**
 
-Decision: Cosmos DB durable persistence with in-memory fallback. Settings are auto-restored on startup. UI includes "Persist Settings" action and runtime-only warning banner.
+Decision: Cosmos DB durable persistence with in-memory fallback. Settings are auto-restored on startup. UI uses one-step "Save & Persist" behavior for durable updates.
 
 #### D3: Preflight gating risks
 
@@ -290,11 +290,11 @@ Acceptance:
   - Added adapter/orchestrator coverage tests for capability, ingestion filtering, and polling behavior.
 - Added settings UX persistence guardrails:
   - runtime-only warning banner ("lost on redeploy")
-  - "Persist Settings" action for durable persistence without manual shell edits
+  - One-step "Save & Persist" action for durable persistence without manual shell edits
   - helper command `bash scripts/ph.sh settings:persist ...` to persist all mutable runtime settings and optionally trigger env-only redeploy.
 - Implemented **PR D** on `main`:
   - Added full settings controls for healing policy and `gh_aw` runtime settings in admin UI.
-  - Added browser-only persistence flow (`Persist Settings`) to write mutable settings without manual shell edits.
+  - Added browser-only persistence flow (now one-step `Save & Persist`) to write mutable settings without manual shell edits.
   - Updated scripts/docs alignment for mutable settings persistence behavior.
 - Implemented **PR E** on `main`:
   - Added patchable `azure_openai_deployment_name` runtime setting.

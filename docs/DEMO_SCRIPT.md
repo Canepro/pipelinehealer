@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 9cc0ce5 -->
+<!-- LAST_VERIFIED: 786e214 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -21,9 +21,9 @@ Related docs:
 1. Dashboard story: show `Processed`, `Actioned`, `Safety Gated`, `Issue-Only`, plus header KPIs `MCP Runs (30d)` and `LLM Fallback (30d)`.
 2. Explainability drilldown: open a focused activity and show `Failure Context` (job/step/command/signal), reason code, and the `Evidence Layers` block (`Confidence Impact by Source` + `Structured Context`).
 3. External findings: expand the "External Findings Details" panel to show ci-doctor's structured root cause, recommended actions, and doctor metadata.
-4. MCP observability (if enabled): in activity detail, show `MCP Observability` summary (`Provider`, `Status`, `Read Only`, `Reason`) and expand details for `Configured Tools`, `Source Attribution`, and `Tool Usage`.
+4. MCP observability (if enabled): in activity detail, show `MCP Observability` summary (`Provider`, `Status`, `Read Only`, `Reason`) where reason includes friendly text plus raw code; expand details for `Configured Tools`, `Source Attribution`, and `Tool Usage`/Action Audit (friendly status + raw codes).
 5. Safety boundary: show `Why Safety Gated` microcopy and explain policy-driven issue fallback.
-6. Runtime policy + audit proof: open `/settings`, use the section tabs (`Runtime Controls`, `AI & Integrations`, `Security & Advanced`), show the Effective Runtime Policy banner (mode, PR toggle, scope), then run `bash scripts/ph.sh audit:proof --limit 5`.
+6. Runtime policy + audit proof: open `/settings`, use the section tabs (`Runtime Controls`, `AI & Integrations`, `Security & Advanced`), show the Active Policy banner, and point out `Save & Persist` as one-step durable save, then run `bash scripts/ph.sh audit:proof --limit 5`.
 
 ## 1) Pre-Record Setup (5-10 minutes before)
 

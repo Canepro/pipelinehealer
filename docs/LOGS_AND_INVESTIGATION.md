@@ -1,6 +1,6 @@
 # Logs And Investigation Guide
 
-<!-- LAST_VERIFIED: 9cc0ce5 -->
+<!-- LAST_VERIFIED: 786e214 -->
 
 Use this guide to debug PipelineHealer behavior quickly in local, Docker, and Azure runs.
 
@@ -109,7 +109,8 @@ Check:
 
 - `mcp_enabled`, `mcp_provider`, `mcp_read_only`
 - allowlist and per-tool policy blocks
-- activity-level `mcp_model_path.reason` and `action_audit`
+- activity-level `mcp_model_path.reason` and `action_audit`:
+  - UI now shows friendly interpretation and raw codes together for both fields.
 
 Checks:
 
