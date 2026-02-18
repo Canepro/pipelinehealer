@@ -234,7 +234,13 @@ These are enforceable defaults for all primary product screens.
   - details-on-demand panel now shows:
     - configured MCP tools
     - external source attribution counts
-    - tool usage counters (empty until MCP tool invocation paths are wired).
+    - tool usage counters (wired for `fetch_failure_context`).
+  - GitHub MCP read-only evidence now appears even when `gh-aw` is disabled (decoupled provider path).
+- Diagnosis confidence attribution surfacing:
+  - added `External Signal Attribution` panel in activity detail:
+    - confidence before/after external signal application
+    - net external delta
+    - per-source rationale chips for confidence adjustments.
 - Dashboard ops KPI expansion:
   - added `MCP Runs (30d)` and `LLM Fallback (30d)` chips to the command-center header.
 

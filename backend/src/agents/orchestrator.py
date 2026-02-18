@@ -149,6 +149,201 @@ class OrchestratorAgent:
         current = activity.mcp_model_path.tool_invocations.get(tool_name, 0)
         activity.mcp_model_path.tool_invocations[tool_name] = current + increment
 
+    def _gh_aw_passive_enabled(self) -> bool:
+        """Return whether gh-aw passive diagnostics collection is enabled."""
+        return (
+            self._settings.gh_aw_tools_enabled
+            and self._settings.gh_aw_ingestion_mode == "passive"
+        )
+
+    def _github_mcp_collection_enabled(self) -> bool:
+        """Return whether direct GitHub MCP context collection can run."""
+        provider = (self._settings.mcp_provider or "").strip().lower()
+        if not self._settings.mcp_enabled or provider != "github":
+            return False
+        try:
+            health = get_mcp_provider(self._settings).health(self._settings)
+        except Exception:
+            return False
+        return health.enabled and health.available
+
+    @staticmethod
+    def _has_github_mcp_diagnostic(
+        diagnostics: list[ExternalDiagnostic],
+    ) -> bool:
+        """Check if diagnostics contain entries from the direct GitHub MCP path."""
+        return any(
+            (diagnostic.source or "").strip().lower() == "github-mcp"
+            for diagnostic in diagnostics
+        )
+
+    def _should_count_fetch_failure_context(
+        self,
+        activity: ActivityRecord,
+        diagnostics: list[ExternalDiagnostic],
+    ) -> bool:
+        """Decide whether fetch_failure_context should be counted for this run."""
+        model_path = activity.mcp_model_path
+        if model_path is None:
+            return False
+        if not model_path.enabled or model_path.provider != "github":
+            return False
+        if self._has_github_mcp_diagnostic(diagnostics):
+            return True
+        # gh-aw passive diagnostics are also a GitHub context fetch path.
+        return self._gh_aw_passive_enabled() and bool(diagnostics)
+
+    async def _collect_external_diagnostics_from_github_mcp(
+        self,
+        owner: str,
+        repo: str,
+        event: WorkflowRunEvent,
+    ) -> list[ExternalDiagnostic]:
+        """Collect baseline run context from GitHub when MCP github provider is enabled."""
+        run_id = event.workflow_run.id
+        try:
+            run_details = await self._github_tools.get_workflow_run(owner, repo, run_id)
+            jobs = await self._github_tools.get_workflow_jobs(owner, repo, run_id)
+        except Exception as exc:
+            return [
+                ExternalDiagnostic(
+                    source="github-mcp",
+                    status=ExternalDiagnosticStatus.ERROR,
+                    summary="Failed to collect GitHub MCP context",
+                    matched_run_id=run_id,
+                    metadata={
+                        "reason_code": "github_mcp_fetch_failed",
+                        "error_type": type(exc).__name__,
+                    },
+                )
+            ]
+
+        failed_jobs = []
+        timed_out_jobs = 0
+        failed_job_lines: list[str] = []
+        for job in jobs:
+            conclusion = str(job.get("conclusion", "")).strip().lower()
+            if conclusion not in {"failure", "timed_out"}:
+                continue
+            failed_jobs.append(job)
+            if conclusion == "timed_out":
+                timed_out_jobs += 1
+            job_name = str(job.get("name", "unknown")).strip() or "unknown"
+            failed_job_lines.append(f"- {job_name} ({conclusion})")
+            if len(failed_job_lines) >= 12:
+                break
+
+        pull_request_numbers: list[int] = []
+        for pull_request in run_details.get("pull_requests", []):
+            if not isinstance(pull_request, dict):
+                continue
+            number = pull_request.get("number")
+            if isinstance(number, int):
+                pull_request_numbers.append(number)
+
+        changed_files: list[str] = []
+        for pr_number in pull_request_numbers[:3]:
+            try:
+                files = await self._github_tools.get_pull_request_files(owner, repo, pr_number, per_page=100)
+            except Exception:
+                logger.debug(
+                    "GitHub MCP context: unable to read files for %s/%s PR #%s",
+                    owner,
+                    repo,
+                    pr_number,
+                    exc_info=True,
+                )
+                continue
+            for file_item in files:
+                filename = file_item.get("filename")
+                if isinstance(filename, str) and filename.strip():
+                    changed_files.append(filename.strip())
+                if len(changed_files) >= 30:
+                    break
+            if len(changed_files) >= 30:
+                break
+
+        unique_changed_files = sorted(set(changed_files))
+        confidence_components: list[tuple[str, float]] = []
+        if failed_jobs:
+            confidence_components.append(("failed_jobs_detected", 0.04))
+        if timed_out_jobs:
+            confidence_components.append(("timed_out_jobs_detected", 0.02))
+        if pull_request_numbers:
+            confidence_components.append(("related_pull_requests", 0.02))
+        if unique_changed_files:
+            confidence_components.append(("changed_files_correlated", 0.03))
+
+        confidence_delta = min(0.12, sum(delta for _, delta in confidence_components))
+        confidence_reason = (
+            "GitHub MCP run context aligned with failing run evidence."
+            if confidence_delta > 0
+            else "GitHub MCP context collected; no additional confidence signal."
+        )
+
+        details: dict[str, str] = {
+            "summary": (
+                f"Collected GitHub MCP run context for run #{run_id}: "
+                f"{len(jobs)} job(s), {len(failed_jobs)} failing/timed-out, "
+                f"{len(pull_request_numbers)} related PR(s)."
+            ),
+            "root_cause": (
+                "This is contextual evidence from GitHub metadata. "
+                "It does not replace root-cause diagnosis from logs."
+            ),
+            "investigation_findings": (
+                f"Head branch: {event.workflow_run.head_branch or 'unknown'}\n"
+                f"Run attempt: {run_details.get('run_attempt', event.workflow_run.run_attempt)}\n"
+                f"Timed-out jobs: {timed_out_jobs}"
+            ),
+            "recommended_actions": (
+                "- Inspect failing jobs first.\n"
+                "- Compare changed files against stack traces.\n"
+                "- Re-run only failed jobs after applying a fix."
+            ),
+        }
+        if failed_job_lines:
+            details["failed_jobs"] = "\n".join(failed_job_lines)
+        if unique_changed_files:
+            details["historical_context"] = (
+                "Changed files linked to this run:\n"
+                + "\n".join(f"- {path}" for path in unique_changed_files[:12])
+            )
+
+        return [
+            ExternalDiagnostic(
+                source="github-mcp",
+                status=ExternalDiagnosticStatus.AVAILABLE,
+                summary=(
+                    "GitHub MCP context captured: "
+                    f"{len(jobs)} job(s), {len(failed_jobs)} failing/timed-out, "
+                    f"{len(pull_request_numbers)} related PR(s)."
+                ),
+                url=(
+                    str(run_details.get("html_url"))
+                    if run_details.get("html_url")
+                    else event.workflow_run.html_url
+                ),
+                matched_run_id=run_id,
+                confidence_delta=confidence_delta,
+                metadata={
+                    "reason_code": "github_mcp_context",
+                    "confidence_reason": confidence_reason,
+                    "confidence_components": [
+                        {"name": name, "delta": delta} for name, delta in confidence_components
+                    ],
+                    "jobs_total": len(jobs),
+                    "failed_jobs_count": len(failed_jobs),
+                    "timed_out_jobs_count": timed_out_jobs,
+                    "failed_jobs": failed_job_lines,
+                    "pull_request_numbers": pull_request_numbers,
+                    "changed_files": unique_changed_files,
+                    "run_attempt": run_details.get("run_attempt", event.workflow_run.run_attempt),
+                    "details": details,
+                },
+            )
+        ]
+
     async def _collect_external_diagnostics(
         self,
         owner: str,
@@ -162,9 +357,13 @@ class OrchestratorAgent:
         backoff because it triggers asynchronously after a CI failure and
         needs time to publish its issue.
         """
-        if not self._settings.gh_aw_tools_enabled:
-            return []
-        if self._settings.gh_aw_ingestion_mode != "passive":
+        if not self._gh_aw_passive_enabled():
+            if self._github_mcp_collection_enabled():
+                return await self._collect_external_diagnostics_from_github_mcp(
+                    owner,
+                    repo,
+                    event,
+                )
             return []
 
         # --- Discover available diagnostic sources ---
@@ -616,12 +815,7 @@ class OrchestratorAgent:
             if external_diagnostics:
                 activity.external_diagnostics = external_diagnostics
             if activity.mcp_model_path is not None:
-                if (
-                    activity.mcp_model_path.enabled
-                    and activity.mcp_model_path.provider == "github"
-                    and self._settings.gh_aw_tools_enabled
-                    and self._settings.gh_aw_ingestion_mode == "passive"
-                ):
+                if self._should_count_fetch_failure_context(activity, external_diagnostics):
                     self._increment_mcp_tool_invocation(
                         activity,
                         tool_name="fetch_failure_context",
@@ -828,9 +1022,7 @@ class OrchestratorAgent:
             return False
         owner, repo = activity.repository_name.split("/", 1)
 
-        if not self._settings.gh_aw_tools_enabled:
-            return False
-        if self._settings.gh_aw_ingestion_mode != "passive":
+        if not self._gh_aw_passive_enabled():
             return False
 
         # Determine head_sha and run_number from stored diagnosis context.
@@ -881,10 +1073,7 @@ class OrchestratorAgent:
             if d.metadata.get("reason_code") != "poll_window_exhausted"
         ] + findings
         if activity.mcp_model_path is not None:
-            if (
-                activity.mcp_model_path.enabled
-                and activity.mcp_model_path.provider == "github"
-            ):
+            if self._should_count_fetch_failure_context(activity, findings):
                 self._increment_mcp_tool_invocation(
                     activity,
                     tool_name="fetch_failure_context",

@@ -209,6 +209,30 @@ function aggregateConfidenceBySource(
     .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
 }
 
+type ExternalSignalSource = {
+  source: string
+  delta: number
+  reason: string
+}
+
+function parseExternalSignalSources(value: unknown): ExternalSignalSource[] {
+  if (!Array.isArray(value)) return []
+  const parsed: ExternalSignalSource[] = []
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+    const source = typeof (item as Record<string, unknown>).source === 'string'
+      ? ((item as Record<string, unknown>).source as string)
+      : 'unknown'
+    const deltaRaw = (item as Record<string, unknown>).delta
+    const delta = typeof deltaRaw === 'number' ? deltaRaw : 0
+    const reason = typeof (item as Record<string, unknown>).reason === 'string'
+      ? ((item as Record<string, unknown>).reason as string)
+      : ''
+    parsed.push({ source, delta, reason })
+  }
+  return parsed
+}
+
 function formatMcpStatus(enabled: boolean, available: boolean): string {
   if (!enabled) return 'Disabled'
   return available ? 'Ready' : 'Degraded'
@@ -502,6 +526,21 @@ export default function ActivityDetail() {
   const sourceConfidenceImpact = aggregateConfidenceBySource(externalDiagnostics)
   const structuredEvidence = collectStructuredEvidence(diagnosisDetails)
   const rawEvidenceLines = collectRawEvidenceLines(diagnosisDetails)
+  const externalSignalBefore =
+    typeof diagnosisDetails?.external_signal_confidence_before === 'number'
+      ? diagnosisDetails.external_signal_confidence_before
+      : null
+  const externalSignalAfter =
+    typeof diagnosisDetails?.external_signal_confidence_after === 'number'
+      ? diagnosisDetails.external_signal_confidence_after
+      : null
+  const externalSignalDelta =
+    typeof diagnosisDetails?.external_signal_confidence_delta === 'number'
+      ? diagnosisDetails.external_signal_confidence_delta
+      : null
+  const externalSignalSources = parseExternalSignalSources(
+    diagnosisDetails?.external_signal_sources,
+  )
   const mcpPath = activity.mcp_model_path
   const mcpSourceAttribution = Object.entries(mcpPath?.source_attribution ?? {}).sort(
     (a, b) => b[1] - a[1],
@@ -675,6 +714,12 @@ export default function ActivityDetail() {
                       {diagnostic.summary}
                     </p>
                   )}
+                  {typeof (diagnostic.metadata as Record<string, unknown>)?.confidence_reason === 'string' && (
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      Signal rationale:{' '}
+                      {(diagnostic.metadata as Record<string, unknown>).confidence_reason as string}
+                    </p>
+                  )}
 
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     {diagnostic.url && (
@@ -756,6 +801,63 @@ export default function ActivityDetail() {
                 </p>
               </div>
             </div>
+            {externalSignalDelta !== null && (
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  External Signal Attribution
+                </p>
+                <div className="mt-2 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Confidence Before</p>
+                    <p className="text-gray-900 dark:text-white">
+                      {externalSignalBefore !== null ? `${Math.round(externalSignalBefore * 100)}%` : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">External Delta</p>
+                    <p
+                      className={
+                        externalSignalDelta >= 0
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-rose-600 dark:text-rose-400'
+                      }
+                    >
+                      {formatConfidenceDelta(externalSignalDelta)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Confidence After</p>
+                    <p className="text-gray-900 dark:text-white">
+                      {externalSignalAfter !== null ? `${Math.round(externalSignalAfter * 100)}%` : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+                {externalSignalSources.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {externalSignalSources.map((signal, idx) => (
+                      <div
+                        key={`${signal.source}-${idx}`}
+                        className="rounded-md border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-900/40 px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {formatSourceLabel(signal.source)}
+                          </p>
+                          <span
+                            className={`text-xs font-semibold ${signal.delta >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
+                          >
+                            {formatConfidenceDelta(signal.delta)}
+                          </span>
+                        </div>
+                        {signal.reason && (
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{signal.reason}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {activity.llm_model_path && (
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Model Path</p>

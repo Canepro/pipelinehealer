@@ -8,7 +8,14 @@ from typing import Any
 from azure.identity import DefaultAzureCredential
 
 from ..config import get_settings
-from ..models import Diagnosis, DiagnosisSource, ExternalDiagnostic, FailureType, LogAnalysis
+from ..models import (
+    Diagnosis,
+    DiagnosisSource,
+    ExternalDiagnostic,
+    ExternalDiagnosticStatus,
+    FailureType,
+    LogAnalysis,
+)
 from ..tools.github_tools import GitHubTools
 from .base import create_cloud_agent, get_agent_prompt
 
@@ -95,6 +102,11 @@ class DiagnosisAgent:
                 pattern_diagnosis,
                 similar_issues[0],
             )
+        if pattern_diagnosis and external_diagnostics:
+            pattern_diagnosis = self._apply_external_diagnostics_signal(
+                pattern_diagnosis,
+                external_diagnostics,
+            )
 
         if pattern_diagnosis and pattern_diagnosis.confidence >= 0.8:
             logger.info(f"Pattern-based diagnosis: {pattern_diagnosis.failure_type}")
@@ -121,12 +133,15 @@ class DiagnosisAgent:
             workflow_info=workflow_info,
             similar_issues=similar_issues,
         )
+        external_summary = self._prepare_external_diagnostics_summary(external_diagnostics)
 
         prompt = f"""Analyze the following CI/CD failure and provide a diagnosis.
 
 {analysis_summary}
 
 {context_summary}
+
+{external_summary}
 
 Provide your diagnosis in the following JSON format:
 {{
@@ -178,8 +193,87 @@ Be specific about:
                 diagnosis_source=DiagnosisSource.LLM,
             )
 
+        if external_diagnostics:
+            diagnosis = self._apply_external_diagnostics_signal(diagnosis, external_diagnostics)
         if diagnosis.diagnosis_source is None:
             diagnosis = self._with_source(diagnosis, DiagnosisSource.LLM)
+        return diagnosis
+
+    def _prepare_external_diagnostics_summary(
+        self,
+        diagnostics: list[ExternalDiagnostic] | None,
+    ) -> str:
+        """Serialize external diagnostics into compact prompt context."""
+        if not diagnostics:
+            return "External diagnostics: none"
+
+        lines: list[str] = []
+        for diagnostic in diagnostics[:8]:
+            status = diagnostic.status.value
+            source = diagnostic.source or "unknown"
+            delta_pct = int(round(diagnostic.confidence_delta * 100))
+            summary = diagnostic.summary.strip() if diagnostic.summary else ""
+            confidence_reason = ""
+            metadata = diagnostic.metadata if isinstance(diagnostic.metadata, dict) else {}
+            if isinstance(metadata.get("confidence_reason"), str):
+                confidence_reason = metadata["confidence_reason"].strip()
+            line = (
+                f"- source={source} status={status} "
+                f"delta={delta_pct:+d}%"
+            )
+            if summary:
+                line += f" summary={summary[:220]}"
+            if confidence_reason:
+                line += f" reason={confidence_reason[:180]}"
+            lines.append(line)
+        return "External diagnostics:\n" + "\n".join(lines)
+
+    def _apply_external_diagnostics_signal(
+        self,
+        diagnosis: Diagnosis,
+        diagnostics: list[ExternalDiagnostic],
+    ) -> Diagnosis:
+        """Apply deterministic confidence adjustments from external diagnostics."""
+        applied: list[dict[str, Any]] = []
+        total_delta = 0.0
+
+        for diagnostic in diagnostics:
+            if diagnostic.status != ExternalDiagnosticStatus.AVAILABLE:
+                continue
+            delta = float(diagnostic.confidence_delta)
+            if delta == 0:
+                continue
+            metadata = diagnostic.metadata if isinstance(diagnostic.metadata, dict) else {}
+            reason = ""
+            if isinstance(metadata.get("confidence_reason"), str):
+                reason = metadata["confidence_reason"].strip()
+            if not reason and diagnostic.summary:
+                reason = diagnostic.summary.strip()[:200]
+
+            total_delta += delta
+            applied.append(
+                {
+                    "source": diagnostic.source or "unknown",
+                    "delta": round(delta, 4),
+                    "reason": reason,
+                    "status": diagnostic.status.value,
+                }
+            )
+
+        if not applied:
+            return diagnosis
+
+        before = float(diagnosis.confidence)
+        after = max(0.0, min(0.95, before + total_delta))
+        applied_delta = round(after - before, 4)
+        diagnosis.confidence = after
+
+        details = diagnosis.error_details if isinstance(diagnosis.error_details, dict) else {}
+        details["external_signal_confidence_before"] = round(before, 4)
+        details["external_signal_confidence_after"] = round(after, 4)
+        details["external_signal_confidence_delta"] = applied_delta
+        details["external_signal_sources"] = applied
+        diagnosis.error_details = details
         return diagnosis
 
     def _pattern_based_diagnosis(

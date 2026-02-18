@@ -1,7 +1,15 @@
 """Tests for the Diagnosis Agent."""
 
+import pytest
+
 from src.agents.diagnosis import DiagnosisAgent
-from src.models import DiagnosisSource, FailureType, LogAnalysis
+from src.models import (
+    DiagnosisSource,
+    ExternalDiagnostic,
+    ExternalDiagnosticStatus,
+    FailureType,
+    LogAnalysis,
+)
 
 
 class TestPatternBasedDiagnosis:
@@ -275,3 +283,78 @@ class TestPatternBasedDiagnosis:
         assert correlated is not None
         assert correlated.confidence > 0.9
         assert "src/utils/validator.ts" in correlated.affected_files
+
+    def test_external_diagnostics_signal_boosts_confidence_with_reason(self) -> None:
+        """Apply available external signal deltas and record provenance in error_details."""
+        diagnosis = self.agent._pattern_based_diagnosis(
+            [
+                LogAnalysis(
+                    job_id=1,
+                    job_name="test",
+                    raw_logs="pytest FAILED test_example.py::test_something",
+                    error_lines=["pytest FAILED test_example.py::test_something"],
+                    summary="Tests failed",
+                )
+            ]
+        )
+        assert diagnosis is not None
+        before = diagnosis.confidence
+
+        boosted = self.agent._apply_external_diagnostics_signal(
+            diagnosis,
+            [
+                ExternalDiagnostic(
+                    source="github-mcp",
+                    status=ExternalDiagnosticStatus.AVAILABLE,
+                    summary="github context",
+                    confidence_delta=0.07,
+                    metadata={"confidence_reason": "failing jobs + changed files"},
+                ),
+                ExternalDiagnostic(
+                    source="gh_aw",
+                    status=ExternalDiagnosticStatus.UNAVAILABLE,
+                    summary="no findings",
+                    confidence_delta=0.09,
+                ),
+            ],
+        )
+
+        assert boosted.confidence > before
+        assert boosted.error_details.get("external_signal_confidence_delta") == pytest.approx(0.07)
+        sources = boosted.error_details.get("external_signal_sources")
+        assert isinstance(sources, list)
+        assert len(sources) == 1
+        assert sources[0]["source"] == "github-mcp"
+        assert sources[0]["reason"] == "failing jobs + changed files"
+
+    @pytest.mark.asyncio
+    async def test_external_signal_can_lift_pattern_to_skip_llm(self, monkeypatch) -> None:
+        """When pattern confidence is near threshold, external signal can avoid LLM call."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="test",
+            raw_logs="test_user_login failed, then passed on retry",
+            error_lines=["Test suite passed on retry after initial failure"],
+            summary="flaky behavior",
+        )
+
+        async def should_not_call_llm() -> None:
+            raise AssertionError("LLM path should not be called for this test")
+
+        monkeypatch.setattr(self.agent, "_get_agent", should_not_call_llm)
+        diagnosis = await self.agent.diagnose(
+            [log_analysis],
+            external_diagnostics=[
+                ExternalDiagnostic(
+                    source="github-mcp",
+                    status=ExternalDiagnosticStatus.AVAILABLE,
+                    summary="failing run metadata aligns with flaky signature",
+                    confidence_delta=0.04,
+                    metadata={"confidence_reason": "run metadata corroborates flaky test pattern"},
+                )
+            ],
+        )
+
+        assert diagnosis.diagnosis_source == DiagnosisSource.PATTERN
+        assert diagnosis.confidence >= 0.8
+        assert diagnosis.error_details.get("external_signal_confidence_delta") == pytest.approx(0.04)

@@ -364,6 +364,20 @@ This is the long-form project tracker for hackathon execution status, submission
 - Dashboard observability KPIs:
   - Added `mcp_enabled_runs_30d` and `llm_fallback_rate_30d` to `/api/stats`.
   - Surfaced in dashboard header as `MCP Runs (30d)` and `LLM Fallback (30d)`.
+- Decoupled GitHub MCP context collection from `gh-aw` toggles:
+  - GitHub MCP read-only diagnostics now run when `MCP_ENABLED=true` + `MCP_PROVIDER=github` + PAT configured, even if `GH_AW_TOOLS_ENABLED=false`.
+  - Added richer `github-mcp` evidence payload (failed/timed-out jobs, related PRs, changed-file context when available).
+  - Added deterministic `confidence_delta` + `confidence_reason` metadata for GitHub MCP context evidence.
+- Added deterministic external-confidence attribution in diagnosis:
+  - Applies available external signal deltas into final diagnosis confidence (clamped, auditable).
+  - Stores attribution fields in `diagnosis.error_details`:
+    - `external_signal_confidence_before`
+    - `external_signal_confidence_after`
+    - `external_signal_confidence_delta`
+    - `external_signal_sources`
+- UI explainability updates:
+  - Activity Detail now surfaces `External Signal Attribution` (before/delta/after confidence + per-source rationale).
+  - External Diagnostics cards now display signal rationale when provided by metadata.
 - Additional quality gates for this phase:
   - `python3 -m pytest backend/tests/test_phase1_correctness.py::test_orchestrator_records_mcp_model_path_and_source_attribution -q` passed
   - `python3 -m pytest backend/tests/test_mcp_provider.py backend/tests/test_orchestrator_external_diagnostics.py -q` passed

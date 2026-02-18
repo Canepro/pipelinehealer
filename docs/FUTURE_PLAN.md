@@ -36,11 +36,12 @@ The following are already implemented in the current project state:
   - timeout/retry budget per provider
 - ~~Add MCP provider health endpoint for operator visibility.~~ (Done: `GET /api/settings/mcp/provider-health`)
 - Start with read-only MCP actions before write actions:
-  - diagnostics/context retrieval
-  - incident metadata lookup
+  - ~~diagnostics/context retrieval~~ (Done: GitHub MCP read-only run-context evidence path, decoupled from gh-aw toggles)
+  - ~~incident metadata lookup~~ (Done: failing job/timed-out counts + related PR metadata + optional changed-file correlation in `github-mcp` evidence)
   - knowledge/runbook retrieval
 - Add full audit attributes for MCP calls:
   - provider, tool name, latency, success/failure, error class, request ID
+  - (In progress) per-activity MCP explainability now captures tool usage, source attribution, and confidence rationale
 
 Initial MCP providers to prioritize:
 

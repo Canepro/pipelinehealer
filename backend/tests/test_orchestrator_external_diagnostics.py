@@ -59,12 +59,36 @@ class _DummyGitHubTools:
         _ = owner, repo, run_id
         return {}
 
+    async def get_workflow_jobs(self, owner: str, repo: str, run_id: int):
+        _ = owner, repo, run_id
+        return []
+
     async def get_recent_commits(self, owner: str, repo: str, since: str | None = None, per_page: int = 10):
         _ = owner, repo, since, per_page
         return []
 
     def refresh_runtime_settings(self) -> None:
         return None
+
+
+class _MCPGitHubTools(_DummyGitHubTools):
+    async def get_workflow_run(self, owner: str, repo: str, run_id: int):
+        _ = owner, repo
+        return {
+            "id": run_id,
+            "html_url": f"https://github.com/Canepro/repo/actions/runs/{run_id}",
+            "run_attempt": 1,
+            "pull_requests": [
+                {"number": 12},
+            ],
+        }
+
+    async def get_workflow_jobs(self, owner: str, repo: str, run_id: int):
+        _ = owner, repo, run_id
+        return [
+            {"id": 1, "name": "test", "conclusion": "failure"},
+            {"id": 2, "name": "lint", "conclusion": "success"},
+        ]
 
 
 class _UnavailableAdapter:
@@ -209,6 +233,25 @@ class _SkipListAdapter:
     ) -> list[ExternalDiagnostic]:
         _ = owner, repo, run_id, head_sha, run_number, sources
         raise AssertionError("collect should not be called for skipped ci-doctor")
+
+
+class _ShouldNotCallAdapter:
+    async def discover_capability(self, owner: str, repo: str) -> GHAWCapability:
+        _ = owner, repo
+        raise AssertionError("gh-aw adapter should not be called in MCP-only mode")
+
+    async def collect_external_diagnostics(
+        self,
+        owner: str,
+        repo: str,
+        run_id: int,
+        head_sha: str,
+        run_number: int | None = None,
+        *,
+        sources: list[DiagnosticSourceConfig] | None = None,
+    ) -> list[ExternalDiagnostic]:
+        _ = owner, repo, run_id, head_sha, run_number, sources
+        raise AssertionError("gh-aw adapter should not be called in MCP-only mode")
 
 
 @pytest.fixture(autouse=True)
@@ -383,3 +426,27 @@ async def test_collect_external_diagnostics_retries_after_transient_error(monkey
     assert len(diagnostics) == 1
     assert diagnostics[0].status == ExternalDiagnosticStatus.AVAILABLE
     assert adapter.calls == 2
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_uses_github_mcp_without_gh_aw(monkeypatch) -> None:
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    monkeypatch.setenv("MCP_PROVIDER", "github")
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "token")
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "false")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "disabled")
+    reset_settings()
+
+    orchestrator = OrchestratorAgent(github_tools=_MCPGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
+    orchestrator._gh_aw_adapter = _ShouldNotCallAdapter()  # type: ignore[assignment]
+
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event())
+    assert len(diagnostics) == 1
+    diagnostic = diagnostics[0]
+    assert diagnostic.source == "github-mcp"
+    assert diagnostic.status == ExternalDiagnosticStatus.AVAILABLE
+    assert diagnostic.confidence_delta > 0
+    assert diagnostic.metadata.get("reason_code") == "github_mcp_context"
+    assert diagnostic.metadata.get("failed_jobs_count") == 1
+    assert diagnostic.metadata.get("changed_files") == []
+    assert isinstance(diagnostic.metadata.get("details"), dict)

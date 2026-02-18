@@ -38,6 +38,31 @@ class FakeGitHubTools:
     async def get_file_contents(self, owner: str, repo: str, path: str, ref: str | None = None):
         raise NotImplementedError
 
+    async def get_workflow_run(self, owner: str, repo: str, run_id: int):
+        _ = owner, repo
+        return {
+            "id": run_id,
+            "html_url": f"https://github.com/Canepro/repo/actions/runs/{run_id}",
+            "run_attempt": 1,
+            "pull_requests": [],
+        }
+
+    async def get_workflow_jobs(self, owner: str, repo: str, run_id: int):
+        _ = owner, repo, run_id
+        return [
+            {"id": 1, "name": "test", "conclusion": "failure"},
+        ]
+
+    async def get_recent_commits(
+        self,
+        owner: str,
+        repo: str,
+        since: str | None = None,
+        per_page: int = 10,
+    ):
+        _ = owner, repo, since, per_page
+        return []
+
     async def list_pull_requests(
         self,
         owner: str,
@@ -371,6 +396,58 @@ async def test_orchestrator_records_mcp_model_path_and_source_attribution(monkey
         assert "fetch_failure_context" in result.mcp_model_path.configured_tools
         assert result.mcp_model_path.tool_invocations.get("fetch_failure_context") == 1
         assert result.mcp_model_path.source_attribution == {"gh_aw": 1, "ci_doctor": 1}
+    finally:
+        reset_settings()
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_records_mcp_tool_invocation_without_gh_aw(monkeypatch) -> None:
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    monkeypatch.setenv("MCP_PROVIDER", "github")
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "test-token")
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "false")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "disabled")
+    reset_settings()
+
+    storage = InMemoryStorage()
+    gh = FakeGitHubTools()
+    orchestrator = OrchestratorAgent(github_tools=gh, storage=storage)
+
+    async def fake_analyze(owner: str, repo: str, run_id: int):
+        _ = owner, repo, run_id
+        return [
+            LogAnalysis(
+                job_id=1,
+                job_name="build",
+                raw_logs="FAIL",
+                error_lines=["FAIL"],
+                summary="failed",
+            )
+        ]
+
+    async def fake_diagnose(log_analyses, workflow_info=None, external_diagnostics=None):
+        _ = log_analyses, workflow_info, external_diagnostics
+        return Diagnosis(
+            failure_type=FailureType.TEST,
+            confidence=0.9,
+            root_cause="unit test failed",
+            is_auto_fixable=False,
+        )
+
+    async def fake_remediate(diagnosis, repository_info, workflow_run_id, dry_run=False):
+        _ = diagnosis, repository_info, workflow_run_id, dry_run
+        return RemediationResult(success=True, action_taken=RemediationAction.CREATE_ISSUE)
+
+    orchestrator._log_analyzer.analyze = fake_analyze  # type: ignore[method-assign]
+    orchestrator._diagnosis_agent.diagnose = fake_diagnose  # type: ignore[method-assign]
+    orchestrator._remediation_agent.remediate = fake_remediate  # type: ignore[method-assign]
+
+    try:
+        result = await orchestrator.process_workflow_failure(_make_event())
+        assert result.mcp_model_path is not None
+        assert result.mcp_model_path.tool_invocations.get("fetch_failure_context") == 1
+        assert result.mcp_model_path.source_attribution == {"github-mcp": 1}
+        assert result.external_diagnostics[0].source == "github-mcp"
     finally:
         reset_settings()
 
