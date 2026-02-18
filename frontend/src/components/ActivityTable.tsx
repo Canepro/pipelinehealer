@@ -28,9 +28,18 @@ interface ActivityTableProps {
 type StatusTag = {
   label: string
   variant: 'success' | 'destructive' | 'secondary' | 'outline'
+  title?: string
 }
 
-const MAX_STATUS_TAGS = 4
+const MAX_STATUS_TAGS = 3
+const REASON_LABELS: Record<string, string> = {
+  OUTSIDE_ALLOWED_FILES: 'Touches files outside safe scope',
+  LOW_CONFIDENCE: 'Confidence below safety threshold',
+  MISSING_CONTEXT: 'Insufficient diagnostic context',
+  REQUIRES_ENV_CONTEXT: 'Needs environment-specific context',
+  SAFETY_BOUND: 'Blocked by active safety policy',
+  OUTPUT_ISSUES_DISABLED: 'Issues are disabled in target repository',
+}
 
 function formatSourceLabel(source: string): string {
   const normalizedRaw = source.trim().toLowerCase()
@@ -114,6 +123,7 @@ function getExternalDiagnosticsMeta(activity: Activity): {
 function getIssueProposalMeta(activity: Activity): {
   includesProposedFix: boolean
   reasonCode: string | null
+  reasonLabel: string | null
   output: string | null
   reusedExistingPr: boolean
 } {
@@ -128,22 +138,8 @@ function getIssueProposalMeta(activity: Activity): {
       ? activity.remediation_result.action_taken.replace('_', ' ').toUpperCase()
       : null
   const reusedExistingPr = details?.reused_existing_pr === true
-  return { includesProposedFix: includes, reasonCode: reason, output, reusedExistingPr }
-}
-
-function getDiagnosisSourceLabel(activity: Activity): string | null {
-  const source = activity.diagnosis?.diagnosis_source
-  if (source === 'llm') return 'LLM'
-  if (source === 'pattern') return 'Pattern'
-  return null
-}
-
-function getModelPathLabel(activity: Activity): string | null {
-  const path = activity.llm_model_path
-  if (!path) return null
-  const provider = path.provider || 'unknown'
-  const model = path.model || 'unknown'
-  return `${provider}:${model}`
+  const reasonLabel = reason ? REASON_LABELS[reason] || 'Manual review required' : null
+  return { includesProposedFix: includes, reasonCode: reason, reasonLabel, output, reusedExistingPr }
 }
 
 function getMcpLabel(activity: Activity): { label: string; variant: 'success' | 'secondary' } | null {
@@ -151,9 +147,9 @@ function getMcpLabel(activity: Activity): { label: string; variant: 'success' | 
   if (!path || !path.enabled) return null
   const provider = formatSourceLabel(path.provider || 'mcp')
   if (path.available) {
-    return { label: `MCP: ${provider}`, variant: 'success' }
+    return null
   }
-  return { label: `MCP: ${provider} (limited)`, variant: 'secondary' }
+  return { label: `MCP ${provider}: unavailable`, variant: 'secondary' }
 }
 
 function getFailureContext(activity: Activity): string | null {
@@ -190,35 +186,29 @@ function getFailureContext(activity: Activity): string | null {
 function getStatusTags(activity: Activity): StatusTag[] {
   const meta = getIssueProposalMeta(activity)
   const externalMeta = getExternalDiagnosticsMeta(activity)
-  const diagnosisSourceLabel = getDiagnosisSourceLabel(activity)
-  const modelPathLabel = getModelPathLabel(activity)
   const mcpLabel = getMcpLabel(activity)
   const tags: StatusTag[] = []
 
   if (meta.output) {
     tags.push({ label: `Output: ${meta.output}`, variant: 'secondary' })
   }
-  if (meta.includesProposedFix) {
-    tags.push({ label: 'Includes Proposed Fix', variant: 'outline' })
-  }
-  if (meta.reasonCode) {
-    tags.push({ label: meta.reasonCode, variant: 'secondary' })
-  }
   if (externalMeta) {
     tags.push({ label: externalMeta.label, variant: externalMeta.variant })
   }
-  // Only highlight diagnosis source when LLM path was used to reduce visual noise.
-  if (diagnosisSourceLabel === 'LLM') {
-    tags.push({ label: `Diagnosis: ${diagnosisSourceLabel}`, variant: 'secondary' })
+  if (meta.reasonCode && meta.reasonLabel) {
+    tags.push({
+      label: `Safety Gate: ${meta.reasonLabel}`,
+      variant: 'outline',
+      title: `raw: ${meta.reasonCode}`,
+    })
   }
-  if (diagnosisSourceLabel === 'LLM' && modelPathLabel) {
-    tags.push({ label: `Model: ${modelPathLabel}`, variant: 'secondary' })
+  if (meta.includesProposedFix) {
+    tags.push({ label: 'Includes Proposed Fix', variant: 'outline' })
   }
   if (activity.llm_model_path?.fallback_used) {
     tags.push({ label: 'Fallback Used', variant: 'outline' })
   }
-  // Show MCP tag only when limited to keep status focused.
-  if (mcpLabel?.variant === 'secondary') {
+  if (mcpLabel) {
     tags.push({ label: mcpLabel.label, variant: 'secondary' })
   }
   if (meta.reusedExistingPr) {
@@ -287,7 +277,10 @@ export default function ActivityTable({
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                  <p
+                    className="truncate text-sm font-medium text-gray-900 dark:text-white"
+                    title={activity.repository_name}
+                  >
                     {activity.repository_name}
                   </p>
                   <p className="text-xs text-gray-500">Run #{activity.workflow_run_id}</p>
@@ -309,14 +302,15 @@ export default function ActivityTable({
                 {visibleStatusTags.map((tag, index) => (
                   <Badge
                     key={`${tag.label}-${index}`}
-                    className="max-w-full break-all rounded-md text-[11px]"
+                    className="max-w-full sm:max-w-[18rem] truncate rounded-md text-[11px]"
                     variant={tag.variant}
+                    title={tag.title || tag.label}
                   >
                     {tag.label}
                   </Badge>
                 ))}
                 {hiddenStatusTagCount > 0 && (
-                  <Badge className="max-w-full break-all rounded-md text-[11px]" variant="outline">
+                  <Badge className="max-w-full rounded-md text-[11px]" variant="outline">
                     +{hiddenStatusTagCount} more
                   </Badge>
                 )}
@@ -392,7 +386,10 @@ export default function ActivityTable({
                     <div className="flex items-center">
                       <GitBranch className="mr-2 h-5 w-5 text-gray-400" />
                       <div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        <div
+                          className="max-w-[180px] truncate text-sm font-medium text-gray-900 dark:text-white"
+                          title={activity.repository_name.split('/')[1]}
+                        >
                           {activity.repository_name.split('/')[1]}
                         </div>
                         <div className="text-xs text-gray-500">
@@ -402,7 +399,10 @@ export default function ActivityTable({
                     </div>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-white">
+                    <div
+                      className="max-w-[220px] truncate text-sm text-gray-900 dark:text-white"
+                      title={activity.workflow_name}
+                    >
                       {activity.workflow_name}
                     </div>
                     <div className="text-xs text-gray-500">
@@ -422,14 +422,15 @@ export default function ActivityTable({
                       {visibleStatusTags.map((tag, index) => (
                         <Badge
                           key={`${tag.label}-${index}`}
-                          className="max-w-full break-all rounded-md text-[11px]"
+                          className="max-w-[18rem] truncate rounded-md text-[11px]"
                           variant={tag.variant}
+                          title={tag.title || tag.label}
                         >
                           {tag.label}
                         </Badge>
                       ))}
                       {hiddenStatusTagCount > 0 && (
-                        <Badge className="max-w-full break-all rounded-md text-[11px]" variant="outline">
+                        <Badge className="max-w-full rounded-md text-[11px]" variant="outline">
                           +{hiddenStatusTagCount} more
                         </Badge>
                       )}

@@ -44,6 +44,15 @@ const REASON_LABELS: Record<string, string> = {
   SAFETY_BOUND: 'Blocked by configured safety policy.',
 }
 
+function formatReasonLabel(code: string | null): string {
+  if (!code) return 'N/A'
+  if (REASON_LABELS[code]) return REASON_LABELS[code]
+  return code
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
 function getEvidenceLines(activity: ActivityItem | null): string[] {
   const lines: string[] = []
   const details = (activity?.diagnosis?.error_details ?? {}) as Record<string, unknown>
@@ -168,6 +177,7 @@ export default function Dashboard() {
   const llmFallbackRate30d = stats ? Math.round(stats.llm_fallback_rate_30d) : 0
   const recentActivities = (activities || []).slice(0, 5)
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
+  const [showRawReasonCode, setShowRawReasonCode] = useState(false)
 
   useEffect(() => {
     if (!selectedActivityId && recentActivities.length > 0) {
@@ -187,6 +197,7 @@ export default function Dashboard() {
     typeof selectedActivity?.remediation_result?.details?.not_auto_reason_code === 'string'
       ? selectedActivity.remediation_result.details.not_auto_reason_code
       : null
+  const selectedReasonLabel = formatReasonLabel(selectedReasonCode)
   const selectedActionTaken =
     typeof selectedActivity?.remediation_result?.action_taken === 'string'
       ? selectedActivity.remediation_result.action_taken.replace('_', ' ').toUpperCase()
@@ -368,15 +379,13 @@ export default function Dashboard() {
           {safetyGateReasonCounts.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {safetyGateReasonCounts.map((item) => (
-                <div
-                  key={item.code}
-                  className="rounded-md border border-[var(--ph-border)] bg-slate-800/40 px-3 py-2 text-xs text-slate-200"
-                >
-                  <div className="font-semibold">
-                    {item.code} ({item.count})
-                  </div>
+                  <div
+                    key={item.code}
+                    className="rounded-md border border-[var(--ph-border)] bg-slate-800/40 px-3 py-2 text-xs text-slate-200"
+                  >
+                  <div className="font-semibold">{formatReasonLabel(item.code)} ({item.count})</div>
                   <div className="mt-1 text-gray-400">
-                    {REASON_LABELS[item.code] || 'Manual review required.'}
+                    <span className="font-mono">{item.code}</span>
                   </div>
                 </div>
               ))}
@@ -592,37 +601,58 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-7">
-                <div className="rounded-lg border border-[var(--ph-border)] p-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+                <div className="min-w-0 rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Failure Type</p>
                   <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedFailureType}</p>
                 </div>
-                <div className="rounded-lg border border-[var(--ph-border)] p-3">
+                <div className="min-w-0 rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Confidence</p>
                   <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedConfidence}</p>
                 </div>
-                <div className="rounded-lg border border-[var(--ph-border)] p-3">
+                <div className="min-w-0 rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Diagnosis Source</p>
                   <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedDiagnosisSource}</p>
                 </div>
-                <div className="rounded-lg border border-[var(--ph-border)] p-3 lg:col-span-2">
+                <div className="min-w-0 rounded-lg border border-[var(--ph-border)] p-3 md:col-span-2 xl:col-span-2">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Model Path</p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)] break-all">{selectedModelPath}</p>
+                  <p
+                    className="mt-1 truncate text-sm font-semibold text-[var(--ph-text)]"
+                    title={selectedModelPath}
+                  >
+                    {selectedModelPath}
+                  </p>
                   {selectedActivity?.llm_model_path && (
                     <p className="mt-1 text-xs text-gray-400">
                       Calls: {selectedLlmCalls} • Fallback used: {selectedFallbackUsed}
                     </p>
                   )}
                 </div>
-                <div className="rounded-lg border border-[var(--ph-border)] p-3">
+                <div className="min-w-0 rounded-lg border border-[var(--ph-border)] p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Proposed Action</p>
                   <p className="mt-1 break-words text-sm font-semibold text-[var(--ph-text)]">{selectedActionTaken}</p>
                 </div>
-                <div className="rounded-lg border border-[var(--ph-border)] p-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-400">Reason Code</p>
-                  <p className="mt-1 break-all text-sm font-semibold text-[var(--ph-text)]">
-                    {selectedReasonCode || 'N/A'}
+                <div className="min-w-0 rounded-lg border border-[var(--ph-border)] p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs uppercase tracking-wide text-gray-400">Safety Gate</p>
+                    {selectedReasonCode && (
+                      <button
+                        type="button"
+                        onClick={() => setShowRawReasonCode((prev) => !prev)}
+                        className="text-[11px] font-medium text-azure-600 hover:text-azure-700 dark:text-azure-400"
+                      >
+                        {showRawReasonCode ? 'Hide raw code' : 'Show raw code'}
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-1 break-words text-sm font-semibold text-[var(--ph-text)]">
+                    {selectedReasonLabel}
                   </p>
+                  {selectedReasonCode && showRawReasonCode && (
+                    <p className="mt-1 break-all font-mono text-[11px] text-gray-500" title={selectedReasonCode}>
+                      raw: {selectedReasonCode}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -652,7 +682,7 @@ export default function Dashboard() {
                 {evidenceLines.length > 0 ? (
                   <ul className="space-y-1 text-sm text-[var(--ph-text)]">
                     {evidenceLines.map((line, index) => (
-                      <li key={index} className="truncate">
+                      <li key={index} className="line-clamp-2 break-words" title={line}>
                         {line}
                       </li>
                     ))}

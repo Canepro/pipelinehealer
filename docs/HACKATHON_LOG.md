@@ -187,6 +187,12 @@ This is the long-form project tracker for hackathon execution status, submission
 - Fixed one-command parser consistency:
   - `settings:audit`, `audit:proof`, and `demo:proof` accept both `--limit N` and `--limit=N`
   - `audit:proof` correctly forwards `--limit` to `settings:audit`
+- Completed admin/operator UI clarity pass:
+  - reduced badge clutter in Activities with high-signal tags + overflow summary (`+N more`)
+  - made safety reason display human-first with optional raw-code reveal
+  - normalized provider health wording to `Available`/`Unavailable` (removed ambiguous "Limited")
+  - hardened overflow handling in Explainability Snapshot and Activity Detail evidence/model cards
+  - refreshed landing page hierarchy with clearer operator-facing action paths
 
 ### Feb 14, 2026
 

@@ -278,27 +278,27 @@ export default function AdminControlsForm({
               onValueChange={(value) => setActiveSection(value as SettingsSection)}
               className="w-full"
             >
-              <TabsList className="grid h-auto w-full grid-cols-1 gap-1 rounded-lg bg-slate-800/30 p-1 sm:grid-cols-3">
+              <TabsList className="grid h-auto w-full grid-cols-1 gap-1 rounded-xl border border-[var(--ph-border)] bg-slate-800/20 p-1 sm:grid-cols-3">
                 <TabsTrigger
                   value="runtime"
-                  className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+                  className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-azure-300/40"
                 >
                   <Zap className="h-4 w-4" />
-                  Runtime Controls
+                  1. Runtime Controls
                 </TabsTrigger>
                 <TabsTrigger
                   value="intelligence"
-                  className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+                  className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-azure-300/40"
                 >
                   <Sparkles className="h-4 w-4" />
-                  AI & Integrations
+                  2. AI & Integrations
                 </TabsTrigger>
                 <TabsTrigger
                   value="security"
-                  className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+                  className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-azure-300/40"
                 >
                   <Shield className="h-4 w-4" />
-                  Security & Advanced
+                  3. Security & Advanced
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -496,7 +496,7 @@ export default function AdminControlsForm({
                   isLlmHealthLoading
                     ? 'Checking...'
                     : llmProviderHealth
-                      ? `${llmProviderHealth.available ? 'Available' : 'Limited'} (${llmProviderHealth.reason})`
+                      ? `${llmProviderHealth.available ? 'Available' : 'Unavailable'} (${llmProviderHealth.reason})`
                       : 'Unavailable'
                 }
               />
@@ -597,7 +597,7 @@ export default function AdminControlsForm({
                   isMcpHealthLoading
                     ? 'Checking...'
                     : mcpProviderHealth
-                      ? `${mcpProviderHealth.available ? 'Available' : 'Limited'} (${mcpProviderHealth.reason})`
+                      ? `${mcpProviderHealth.available ? 'Available' : 'Unavailable'} (${mcpProviderHealth.reason})`
                       : 'Unavailable'
                 }
               />

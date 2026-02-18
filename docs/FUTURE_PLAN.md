@@ -113,6 +113,12 @@ Initial MCP providers to prioritize:
 ### 0.3 Admin UX: Settings + Control Center
 
 - Keep **Settings** focused on static/runtime configuration.
+- Completed UI clarity slice (Feb 18):
+  - status badge density reduced in activities table (`+N more` overflow summary)
+  - human-first safety-gate labels with optional raw-code reveal
+  - MCP/LLM provider health wording normalized to `Available`/`Unavailable`
+  - evidence/model-path overflow hardening in dashboard/detail cards
+  - landing page hierarchy and operator-facing messaging refresh
 - Add a new **Control Center** page for operational governance:
   - MCP provider health and permissions
   - learning queue (candidates, approvals, rejects)

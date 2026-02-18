@@ -248,7 +248,7 @@ function parseExternalSignalSources(value: unknown): ExternalSignalSource[] {
 
 function formatMcpStatus(enabled: boolean, available: boolean): string {
   if (!enabled) return 'Disabled'
-  return available ? 'Available' : 'Limited'
+  return available ? 'Available' : 'Unavailable'
 }
 
 function formatMcpReason(reason: string): string {
@@ -588,6 +588,7 @@ export default function ActivityDetail() {
   const queryClient = useQueryClient()
   const [showRawEvidence, setShowRawEvidence] = useState(false)
   const [showMcpDetails, setShowMcpDetails] = useState(false)
+  const [showRawMcpCodes, setShowRawMcpCodes] = useState(false)
 
   const { data: activity, isLoading, error } = useQuery({
     queryKey: ['activity', id],
@@ -1078,9 +1079,20 @@ export default function ActivityDetail() {
                     <p className="text-gray-900 dark:text-white">{mcpPath.read_only ? 'Yes' : 'No'}</p>
                   </div>
                   <div>
-                    <p className="text-gray-500 dark:text-gray-400">Reason</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-gray-500 dark:text-gray-400">Reason</p>
+                      {mcpReasonCode && (
+                        <button
+                          type="button"
+                          onClick={() => setShowRawMcpCodes((prev) => !prev)}
+                          className="text-[11px] font-medium text-azure-600 hover:text-azure-700 dark:text-azure-400"
+                        >
+                          {showRawMcpCodes ? 'Hide raw code' : 'Show raw code'}
+                        </button>
+                      )}
+                    </div>
                     <p className="text-gray-900 dark:text-white break-words">{mcpReasonLabel}</p>
-                    {mcpReasonCode && (
+                    {mcpReasonCode && showRawMcpCodes && (
                       <p
                         className="mt-1 break-all font-mono text-[11px] text-gray-500 dark:text-gray-400"
                         title={mcpReasonCode}
@@ -1209,7 +1221,7 @@ export default function ActivityDetail() {
                                 <p className="mt-1 break-words text-[11px] text-gray-700 dark:text-gray-200">
                                   {outcome.detail}
                                 </p>
-                                {outcome.code && (
+                                {outcome.code && showRawMcpCodes && (
                                   <p
                                     className="mt-0.5 break-all font-mono text-[11px] text-gray-500 dark:text-gray-400"
                                     title={outcome.code}

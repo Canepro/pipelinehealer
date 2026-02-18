@@ -40,6 +40,21 @@ const processSteps = [
   },
 ]
 
+const operationalSignals = [
+  {
+    title: 'Deployment Modes',
+    text: 'Local Docker workflow and Azure Container Apps.',
+  },
+  {
+    title: 'Safety Controls',
+    text: 'Issue-only mode, PR gate controls, and repository allowlisting.',
+  },
+  {
+    title: 'Diagnostics Depth',
+    text: 'Pattern + LLM diagnosis with optional external diagnostics and MCP context.',
+  },
+]
+
 export default function Landing() {
   return (
     <div className="min-h-screen bg-[radial-gradient(1200px_500px_at_20%_-10%,rgba(53,111,174,0.18),transparent_55%),radial-gradient(1000px_420px_at_90%_0%,rgba(53,111,174,0.14),transparent_50%)]">
@@ -51,7 +66,7 @@ export default function Landing() {
           </Link>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="hidden md:inline-flex">
-              Enterprise Preview
+              Hackathon Preview
             </Badge>
             <Button asChild size="sm" variant="secondary">
               <Link to="/app">Open App</Link>
@@ -86,6 +101,15 @@ export default function Landing() {
                     View Source
                   </a>
                 </Button>
+                <Button asChild size="lg" variant="secondary">
+                  <a
+                    href="https://github.com/Canepro/pipelinehealer/blob/main/docs/LOCAL_DEMO_RUNBOOK.md"
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    View Runbook
+                  </a>
+                </Button>
               </div>
               <div className="mt-6 flex flex-wrap gap-2 text-xs">
                 <Badge variant="secondary">GitHub Actions</Badge>
@@ -101,17 +125,20 @@ export default function Landing() {
               <CardTitle className="text-base">Operational Snapshot</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
-              <div className="rounded-lg border border-[var(--ph-border)] bg-slate-800/10 p-3">
-                <p className="font-semibold text-[var(--ph-text)]">Deployment Modes</p>
-                <p className="mt-1 text-[var(--ph-muted)]">Local Docker workflow and Azure Container Apps.</p>
-              </div>
-              <div className="rounded-lg border border-[var(--ph-border)] bg-slate-800/10 p-3">
-                <p className="font-semibold text-[var(--ph-text)]">Safety Controls</p>
-                <p className="mt-1 text-[var(--ph-muted)]">Issue-only mode, PR gate controls, repository allowlisting.</p>
-              </div>
-              <div className="rounded-lg border border-[var(--ph-border)] bg-slate-800/10 p-3">
-                <p className="font-semibold text-[var(--ph-text)]">Diagnostics Depth</p>
-                <p className="mt-1 text-[var(--ph-muted)]">Primary diagnosis + optional gh-aw enrichment + no-op signals.</p>
+              {operationalSignals.map((signal) => (
+                <div
+                  key={signal.title}
+                  className="rounded-lg border border-[var(--ph-border)] bg-slate-800/10 p-3"
+                >
+                  <p className="font-semibold text-[var(--ph-text)]">{signal.title}</p>
+                  <p className="mt-1 text-[var(--ph-muted)]">{signal.text}</p>
+                </div>
+              ))}
+              <div className="rounded-lg border border-azure-500/25 bg-azure-500/5 p-3">
+                <p className="font-semibold text-[var(--ph-text)]">Operator Experience</p>
+                <p className="mt-1 text-[var(--ph-muted)]">
+                  Explainability snapshots, evidence layers, and policy-aware remediation traces in one UI.
+                </p>
               </div>
             </CardContent>
           </Card>
