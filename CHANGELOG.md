@@ -6,7 +6,13 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Added
+
+- `75c3871` Added `deploy:release` Azure deployment path to promote existing ACR release images by immutable digest (no local build/push required).
+
+### Changed
+
+- `75c3871` Updated operator docs/runbooks to recommend release-driven Azure deploys (`deploy:release --release-version vX.Y.Z`) as the default production path.
 
 ## [v0.2.6] - 2026-02-19
 
