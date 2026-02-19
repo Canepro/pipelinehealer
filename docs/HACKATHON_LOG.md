@@ -45,7 +45,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Warning-debt fast follow progress (2026-02-19):
   - frontend chunk split policy added in `frontend/vite.config.ts`; local production build no longer emits the `>500kB` warning
   - auth SDK compatibility aligned for React 18 by pinning `@azure/msal-react=3.0.26` and `@azure/msal-browser=4.28.2`; local `bun install --frozen-lockfile` no peer warning
-  - backend `agent-framework-core[all]` warning remains tracked as index/upstream constrained (`BL-011`) after validation attempt
+  - backend `agent-framework-core[all]` warning remains tracked as index/upstream constrained (`BL-011`) after validation attempt; issue opened for closure tracking: [#17](https://github.com/Canepro/pipelinehealer/issues/17)
 - Release hygiene automation:
   - semver sync guard added for `VERSION`, backend, and frontend manifests
   - tag-driven GitHub release workflow added (`vX.Y.Z` + changelog section validation)
