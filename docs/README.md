@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: f1bae20 -->
+<!-- LAST_VERIFIED: b015020 -->
 
 Use this index to find the right doc quickly.
 
@@ -28,7 +28,7 @@ Use this index to find the right doc quickly.
 ### Tier 3 — Internal/Transient (author discretion; archive post-submission)
 
 - `HACKATHON_LOG.md` — current phase status, submission checklist, and milestone history
-- `FUTURE_PLAN.md` — post-demo roadmap and next-priority backlog
+- `FUTURE_PLAN.md` — version-targeted roadmap (SemVer-aligned planning and release-mapped backlog)
 - `UI_PLAN.md` — UI maturity plan, principles, and weekly tracking through submission
 - `GH_AW_IMPLEMENTATION_TRACKER.md` — gh-aw research summary, Layer 1/2 checklists, decision log, and evidence
 - `case-studies/` — real incident writeups showing detection, classification, and remediation outcomes
