@@ -8,6 +8,21 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - _No unreleased entries yet._
 
+## [v0.2.1] - 2026-02-19
+
+### Added
+
+- Release runbook (`docs/RELEASE_RUNBOOK.md`) with end-to-end prep, publish verification, and rollback guidance.
+- Release checklist helper (`scripts/release_checklist.sh`) for copy-paste, ordered release execution.
+
+### Changed
+
+- README and CLI release sections now point to the dedicated release runbook/checklist flow.
+
+### Fixed
+
+- Release process guidance now explicitly prevents repeating tag/version mismatch incidents like run `#22163136636`.
+
 ## [v0.2.0] - 2026-02-19
 
 ### Added
