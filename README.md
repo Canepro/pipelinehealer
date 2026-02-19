@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: a80c271 -->
+<!-- LAST_VERIFIED: 308b862 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -156,7 +156,6 @@ Recommended Azure promotion command after release: `bash scripts/ph.sh deploy:re
 flowchart LR
   subgraph CI["CI Sources"]
     GH["GitHub Actions<br/>workflow_run.completed"]
-    BF["Backfill Sweep<br/>every 10 min"]
   end
 
   subgraph PH["PipelineHealer Core"]
@@ -165,12 +164,13 @@ flowchart LR
     LA["Log Analyzer"]
     DG["Diagnosis<br/>(Pattern -> LLM fallback)"]
     RM["Remediation<br/>(policy-gated)"]
+    BF["Background Diagnostics Backfill<br/>every 10 min"]
     ST[("Cosmos DB / In-Memory")]
   end
 
   subgraph EXT["External Diagnostics"]
-    AW["ci-doctor (passive)"]
-    MCP["GitHub MCP Provider"]
+    AW["GH-AW findings<br/>(ci-doctor + breaking-change-checker)"]
+    MCP["GitHub MCP Provider<br/>(optional, read-only default)"]
   end
 
   subgraph LEARN["Learning Governance"]
@@ -201,12 +201,15 @@ flowchart LR
 
   GH -. run context .-> AW
   AW -. external findings .-> DG
-  BF --> AW
+  BF --> OR
+  BF --> ST
+  OR -. poll/enrich .-> AW
   OR -. MCP tool calls .-> MCP
   MCP -. enrichment .-> DG
 
   UI --> API --> OR
   CC --> API
+  API --> BF
   OR --> LQ
   LQ --> LG
   LG --> RM
@@ -214,7 +217,6 @@ flowchart LR
   API --> AUD
   OR --> EXP
   OR --> ST
-  BF --> ST
 ```
 
 ## Hackathon status
