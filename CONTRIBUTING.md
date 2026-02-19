@@ -51,6 +51,7 @@ Always execute scripts with `bash scripts/...`. Do not use `source` or `. script
 - Do not commit secrets.
 - Add concise comments for non-obvious logic (focus on intent/why, not line-by-line narration).
 - Update or remove stale comments in files you touch.
+- Add/update `CHANGELOG.md` `## [Unreleased]` entries for user-visible changes and include short commit hash references.
 - Update docs when behavior changes:
   1. `README.md`
   2. `docs/API.md`
@@ -64,4 +65,5 @@ Before opening a PR, run:
 ```bash
 cd backend && pytest -q && mypy src
 cd ../frontend && bun run lint && bun run build
+bash scripts/release_scope_check.sh
 ```

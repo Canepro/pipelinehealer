@@ -94,6 +94,7 @@ echo
 echo "1) Preflight"
 echo "git status --short"
 echo "bash scripts/check_version_sync.sh"
+echo "bash scripts/release_scope_check.sh"
 echo
 echo "2) Update CHANGELOG.md under [Unreleased]"
 echo

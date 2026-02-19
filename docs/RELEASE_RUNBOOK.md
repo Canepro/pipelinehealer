@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: b191408 -->
+<!-- LAST_VERIFIED: 1ad62ce -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -36,11 +36,13 @@ Run from repo root:
 ```bash
 git status --short
 bash scripts/check_version_sync.sh
+bash scripts/release_scope_check.sh
 ```
 
 Requirements:
 - working tree is clean
 - version sync passes
+- release scope check passes (all commits since last tag are referenced in `CHANGELOG.md` `## [Unreleased]`)
 - you are on the intended branch (usually `main`)
 
 If there are pending commits for release notes, finish and push them first.
