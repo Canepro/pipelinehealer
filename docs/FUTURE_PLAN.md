@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 4b540b9 -->
+<!-- LAST_VERIFIED: f1bce38 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -93,7 +93,7 @@ Theme: remove operator ambiguity before submission by clarifying diagnostics-sou
 
 ## Active Target: `v0.3.0` (Minor)
 
-Theme: complete learning-system operator workflow from candidate signal to safe activation.
+Theme: complete learning-system operator workflow from candidate signal to safe activation, including lower-friction verification capture.
 
 ### Must-Have Scope
 
@@ -106,7 +106,11 @@ Theme: complete learning-system operator workflow from candidate signal to safe 
 3. Learning simulation/preview
    - Add "simulate before activate" operator flow in Control Center.
    - Show predicted policy impact and safety gates before activation.
-4. Documentation and runbook sync
+4. Verification capture bridge (GitHub issue comment -> feedback payload)
+   - Define a safe parser for structured "PipelineHealer Accuracy Assessment" comment blocks.
+   - Add explicit API/CLI path to ingest parsed outcomes as `learning/feedback` with traceability metadata.
+   - Keep manual feedback path as fallback when comments are missing or malformed.
+5. Documentation and runbook sync
    - Update feature docs and operator runbooks for new learning workflow.
 
 ### Exit Criteria
@@ -114,7 +118,8 @@ Theme: complete learning-system operator workflow from candidate signal to safe 
 1. Contract tests for retrieval + fallback path pass.
 2. Audit coverage for learning edits/actions is visible in UI and API.
 3. Control Center can run simulation without changing live policy.
-4. Docs updated:
+4. Structured issue-comment verification can be ingested with clear success/fallback behavior.
+5. Docs updated:
    - `README.md` (concise user-facing summary)
    - `docs/API.md`
    - `docs/LOCAL_DEMO_RUNBOOK.md`
@@ -178,6 +183,7 @@ Theme: provider and platform extensibility.
 | `BL-022` | Demo verification output clarity (`mcp_tool_calls_total` vs passive-only counters) | `v0.2.7` | patch | High | Completed (in `main`) |
 | `BL-023` | Docs/runbook MCP interpretation hardening for non-expert operators | `v0.2.7` | patch | High | Completed (in `main`) |
 | `BL-024` | Release baseline alignment (`v0.2.7`) across README/CLI/runbooks | `v0.2.7` | patch | Medium | Completed (in `main`) |
+| `BL-025` | Accuracy-assessment bridge: ingest structured GitHub issue verification comments into `learning/feedback` with audit traceability | `v0.3.0` | minor | High | Planned |
 
 ## Definition of Done (Per Version)
 

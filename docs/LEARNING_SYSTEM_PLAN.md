@@ -1,6 +1,6 @@
 # Learning System Plan
 
-<!-- LAST_VERIFIED: 5ef9d80 -->
+<!-- LAST_VERIFIED: f1bce38 -->
 
 This document explains the learning/governance subsystem, how to use it today, and what is planned next.
 
@@ -98,7 +98,11 @@ Quick verification checklist:
    - safe `PATCH` endpoint + audited edits for candidate text fields.
 3. Promotion execution preview:
    - show what an active playbook would change before action.
-4. Evaluation:
+4. Verification capture bridge:
+   - add a structured parser path for "PipelineHealer Accuracy Assessment" issue comments.
+   - map parsed values into `POST /api/settings/learning/feedback` payload shape with audit metadata.
+   - keep manual API/UI submission as fallback.
+5. Evaluation:
    - track learning impact metrics (reuse rate, false-positive rate, manual override rate).
 
 ## Safety Rules
