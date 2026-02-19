@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: 69c7e51 -->
+<!-- LAST_VERIFIED: 3a2d955 -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -17,9 +17,10 @@ Use this runbook when you want to publish a new version tag (`vX.Y.Z`) and trigg
 
 Current release automation:
 - version source of truth: `VERSION`
-- synced manifests: `backend/pyproject.toml`, `frontend/package.json`
+- synced manifests: `backend/pyproject.toml`, `frontend/package.json`, `charts/pipelinehealer/Chart.yaml` (`version` + `appVersion`)
 - changelog source: `CHANGELOG.md`
 - release workflow trigger: git tag `vX.Y.Z`
+- release workflow output: GitHub release + ACR images for both tags (`vX.Y.Z` and `X.Y.Z`) + digest references
 
 ## Choose Release Type
 
@@ -28,6 +29,27 @@ Current release automation:
 | `patch` | bug fixes, docs-only updates, no meaningful feature expansion |
 | `minor` | new features/capabilities, backward-compatible behavior additions |
 | `major` | breaking changes, removed/changed contracts |
+
+## GitHub/Azure Prerequisites (Required)
+
+Configure these repository secrets for `.github/workflows/release.yml`:
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+
+Service principal requirements:
+
+- Federated credential for this GitHub repo/environment workflow (OIDC)
+- `AcrPush` role on your target ACR
+
+GitHub requirements:
+
+- Environment named `release` (used by `.github/workflows/release.yml`)
+
+Optional repository variable:
+
+- `ACR_NAME` (defaults to `caneprophacr01`)
 
 ## 1) Preflight (Required)
 
@@ -86,6 +108,7 @@ This updates:
 - `VERSION`
 - `backend/pyproject.toml`
 - `frontend/package.json`
+- `charts/pipelinehealer/Chart.yaml` (`version` + `appVersion`)
 - `CHANGELOG.md` (moves Unreleased notes into new `## [vX.Y.Z] - YYYY-MM-DD` section)
 
 ## 4) Validate Generated State
@@ -118,7 +141,7 @@ bash scripts/ph.sh deploy
 ## 5) Commit, Tag, Push
 
 ```bash
-git add VERSION backend/pyproject.toml frontend/package.json CHANGELOG.md
+git add VERSION backend/pyproject.toml frontend/package.json charts/pipelinehealer/Chart.yaml CHANGELOG.md
 git commit -m "chore(release): vX.Y.Z"
 git tag -a vX.Y.Z -m "Release vX.Y.Z"
 git push origin main --follow-tags
@@ -135,7 +158,14 @@ git ls-remote --tags origin | grep "refs/tags/vX.Y.Z"
 ```
 
 2. Confirm GitHub Actions release workflow succeeded for that tag.
-3. Confirm GitHub Release notes match `CHANGELOG.md` release section.
+3. Confirm GitHub Release notes match `CHANGELOG.md` release section and include `Container Images`.
+4. Confirm release asset `release_images.md` exists on the GitHub Release page.
+5. Confirm ACR has both semver tags for backend/frontend:
+
+```bash
+az acr repository show-tags -n <acr-name> --repository pipelinehealer-backend --orderby time_desc -o tsv | head
+az acr repository show-tags -n <acr-name> --repository pipelinehealer-frontend --orderby time_desc -o tsv | head
+```
 
 ## 7) Post-Release
 

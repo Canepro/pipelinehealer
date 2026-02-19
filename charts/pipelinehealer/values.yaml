@@ -7,6 +7,7 @@ backend:
   replicaCount: 1
   image:
     repository: caneprophacr01.azurecr.io/pipelinehealer-backend
+    digest: ""
     tag: ""
     pullPolicy: IfNotPresent
   service:
@@ -79,6 +80,7 @@ frontend:
   replicaCount: 1
   image:
     repository: caneprophacr01.azurecr.io/pipelinehealer-frontend
+    digest: ""
     tag: ""
     pullPolicy: IfNotPresent
   service:

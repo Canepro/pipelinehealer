@@ -25,8 +25,8 @@ ENV VITE_AUTH_MODE=$VITE_AUTH_MODE \
     VITE_API_AUTH_KEY=$VITE_API_AUTH_KEY \
     VITE_API_TIMEOUT_MS=$VITE_API_TIMEOUT_MS
 
-# Copy package files
-COPY package.json bun.lockb* ./
+# Copy package files (supports Bun v1 text lockfile and legacy binary lockfile).
+COPY package.json bun.lock* ./
 
 # Install dependencies
 RUN bun install --frozen-lockfile

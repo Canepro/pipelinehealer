@@ -7,11 +7,16 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+
+env:
+  ACR_NAME: ${{ vars.ACR_NAME || 'caneprophacr01' }}
 
 jobs:
   publish:
-    name: Publish GitHub Release
+    name: Publish GitHub Release + ACR Images
     runs-on: ubuntu-latest
+    environment: release
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,6 +27,7 @@ jobs:
         run: bash scripts/check_version_sync.sh
 
       - name: Validate tag matches VERSION
+        id: meta
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
@@ -34,6 +40,82 @@ jobs:
             echo "  expected: $expected" >&2
             exit 1
           fi
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+          echo "release_tag=$TAG_NAME" >>"$GITHUB_OUTPUT"
+
+      - name: Validate Azure OIDC secrets
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for key in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [[ -z "${!key:-}" ]]; then
+              echo "::error::Missing required repository secret: ${key}"
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        id: acr
+        run: |
+          set -euo pipefail
+          login_server="$(az acr show -n "$ACR_NAME" --query loginServer -o tsv | tr -d '\r\n')"
+          token="$(az acr login -n "$ACR_NAME" --expose-token --query accessToken -o tsv | tr -d '\r\n')"
+          echo "$token" | docker login "$login_server" --username 00000000-0000-0000-0000-000000000000 --password-stdin
+          echo "login_server=$login_server" >>"$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push backend image
+        id: backend_image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.acr.outputs.login_server }}/pipelinehealer-backend:${{ steps.meta.outputs.release_tag }}
+            ${{ steps.acr.outputs.login_server }}/pipelinehealer-backend:${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push frontend image
+        id: frontend_image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.acr.outputs.login_server }}/pipelinehealer-frontend:${{ steps.meta.outputs.release_tag }}
+            ${{ steps.acr.outputs.login_server }}/pipelinehealer-frontend:${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate release image references
+        run: |
+          {
+            echo "- Backend tag (\`${{ steps.meta.outputs.release_tag }}\`): \`${{ steps.acr.outputs.login_server }}/pipelinehealer-backend:${{ steps.meta.outputs.release_tag }}\`"
+            echo "- Backend tag (\`${{ steps.meta.outputs.version }}\`): \`${{ steps.acr.outputs.login_server }}/pipelinehealer-backend:${{ steps.meta.outputs.version }}\`"
+            echo "- Backend digest: \`${{ steps.acr.outputs.login_server }}/pipelinehealer-backend@${{ steps.backend_image.outputs.digest }}\`"
+            echo "- Frontend tag (\`${{ steps.meta.outputs.release_tag }}\`): \`${{ steps.acr.outputs.login_server }}/pipelinehealer-frontend:${{ steps.meta.outputs.release_tag }}\`"
+            echo "- Frontend tag (\`${{ steps.meta.outputs.version }}\`): \`${{ steps.acr.outputs.login_server }}/pipelinehealer-frontend:${{ steps.meta.outputs.version }}\`"
+            echo "- Frontend digest: \`${{ steps.acr.outputs.login_server }}/pipelinehealer-frontend@${{ steps.frontend_image.outputs.digest }}\`"
+          } > release_images.md
 
       - name: Extract release notes from CHANGELOG
         env:
@@ -56,9 +138,19 @@ jobs:
           Path("release_notes.md").write_text(notes + "\n", encoding="utf-8")
           PY
 
+      - name: Append container image references to release notes
+        run: |
+          {
+            echo
+            echo "## Container Images"
+            echo
+            cat release_images.md
+          } >> release_notes.md
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           name: Release ${{ github.ref_name }}
           body_path: release_notes.md
           generate_release_notes: false
+          files: release_images.md

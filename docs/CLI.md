@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: b191408 -->
+<!-- LAST_VERIFIED: 3a2d955 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -69,12 +69,20 @@ bash scripts/ph.sh deploy:status
 # Use a specific container engine (default: auto-detect)
 bash scripts/ph.sh deploy --engine docker
 bash scripts/ph.sh deploy --engine podman
+
+# Retention controls (full deploy only)
+bash scripts/ph.sh deploy --acr-retain-tags 50
+bash scripts/ph.sh deploy --skip-acr-prune
+bash scripts/ph.sh deploy --skip-local-image-prune
 ```
 
 Important:
 
 - Use `deploy:env` when changing backend runtime values (for example `AUTH_MODE`, `ENTRA_*`, policy settings).
 - Use full `deploy` when changing frontend `VITE_*` values, because those are build-time inputs.
+- Full `deploy` prunes old local ACR-tagged images and old ACR tags/manifests by default.
+- Protected from pruning: `latest`, current deploy tag, and semver-like tags (for example `v0.2.3`).
+- `--acr-retain-tags <n>` keeps the newest `n` tags per repo (`0` disables ACR pruning).
 
 Background deploy state files are namespaced under `/tmp/ph-deploy-<resource-group>/` to prevent collisions between concurrent runs.
 
@@ -256,7 +264,7 @@ These helper scripts are intentionally separate from `scripts/ph.sh`.
 
 | Command | Description |
 |---------|-------------|
-| `bash scripts/check_version_sync.sh` | Verifies `VERSION`, backend, and frontend versions match |
+| `bash scripts/check_version_sync.sh` | Verifies `VERSION`, backend, frontend, and Helm chart versions match |
 | `bash scripts/release_checklist.sh [bump]` | Prints ordered release commands (dry-run, no file changes) |
 | `bash scripts/release.sh <patch|minor|major|x.y.z>` | Bumps versions and prepares `CHANGELOG.md` release section |
 
@@ -270,7 +278,8 @@ Suggested release flow:
 1. Confirm working tree is clean and CI is green.
 2. Run `bash scripts/release.sh patch` (or `minor`/`major`).
 3. Edit release notes in `CHANGELOG.md` under the new `vX.Y.Z` section.
-4. Commit release files, tag `vX.Y.Z`, then push with `--follow-tags`.
+4. Commit release files (including `charts/pipelinehealer/Chart.yaml`), tag `vX.Y.Z`, then push with `--follow-tags`.
+5. Verify release includes `Container Images` notes and `release_images.md` asset with digest references.
 
 For full release prep through post-release verification, use `docs/RELEASE_RUNBOOK.md`.
 

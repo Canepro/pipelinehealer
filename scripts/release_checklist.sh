@@ -111,7 +111,7 @@ echo "python3 -m pytest backend/tests/test_phase2_security.py::test_api_routes_a
 echo "cd frontend && bun run build && cd .."
 echo
 echo "5) Commit + tag + push"
-echo "git add VERSION backend/pyproject.toml frontend/package.json CHANGELOG.md"
+echo "git add VERSION backend/pyproject.toml frontend/package.json charts/pipelinehealer/Chart.yaml CHANGELOG.md"
 echo "git commit -m \"chore(release): ${release_tag}\""
 echo "git tag -a ${release_tag} -m \"Release ${release_tag}\""
 echo "git push origin main --follow-tags"

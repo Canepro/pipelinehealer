@@ -26,6 +26,7 @@ What it updates:
   - VERSION
   - backend/pyproject.toml (project.version)
   - frontend/package.json (version)
+  - charts/pipelinehealer/Chart.yaml (version + appVersion)
   - CHANGELOG.md (adds new release section under Unreleased)
 
 This script does NOT commit or tag automatically.
@@ -127,6 +128,26 @@ pkg_path = repo_root / "frontend" / "package.json"
 pkg = json.loads(pkg_path.read_text(encoding="utf-8"))
 pkg["version"] = next_version
 pkg_path.write_text(json.dumps(pkg, indent=2) + "\n", encoding="utf-8")
+
+chart_path = repo_root / "charts" / "pipelinehealer" / "Chart.yaml"
+chart_raw = chart_path.read_text(encoding="utf-8")
+updated_chart = re.sub(
+    r"^version\s*:\s*.*$",
+    f"version: {next_version}",
+    chart_raw,
+    flags=re.MULTILINE,
+    count=1,
+)
+updated_chart = re.sub(
+    r'^appVersion\s*:\s*.*$',
+    f'appVersion: "{next_version}"',
+    updated_chart,
+    flags=re.MULTILINE,
+    count=1,
+)
+if updated_chart == chart_raw:
+    raise SystemExit("Failed to update charts/pipelinehealer/Chart.yaml version fields.")
+chart_path.write_text(updated_chart, encoding="utf-8")
 PY
 
 if [[ ! -f CHANGELOG.md ]]; then
@@ -193,7 +214,7 @@ echo "  Date    : $release_date"
 echo
 echo "Next steps:"
 echo "  1) Edit CHANGELOG.md release notes under [$release_tag]"
-echo "  2) git add VERSION backend/pyproject.toml frontend/package.json CHANGELOG.md"
+echo "  2) git add VERSION backend/pyproject.toml frontend/package.json charts/pipelinehealer/Chart.yaml CHANGELOG.md"
 echo "  3) git commit -m \"chore(release): $release_tag\""
 echo "  4) git tag -a $release_tag -m \"Release $release_tag\""
 echo "  5) git push origin main --follow-tags"

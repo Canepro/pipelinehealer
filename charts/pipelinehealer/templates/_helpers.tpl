@@ -41,11 +41,21 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{- define "pipelinehealer.backend.image" -}}
+{{- $digest := .Values.backend.image.digest | default "" -}}
+{{- if $digest -}}
+{{- printf "%s@%s" .Values.backend.image.repository $digest -}}
+{{- else -}}
 {{- $tag := .Values.backend.image.tag | default .Chart.AppVersion -}}
 {{- printf "%s:%s" .Values.backend.image.repository $tag -}}
 {{- end -}}
+{{- end -}}
 
 {{- define "pipelinehealer.frontend.image" -}}
+{{- $digest := .Values.frontend.image.digest | default "" -}}
+{{- if $digest -}}
+{{- printf "%s@%s" .Values.frontend.image.repository $digest -}}
+{{- else -}}
 {{- $tag := .Values.frontend.image.tag | default .Chart.AppVersion -}}
 {{- printf "%s:%s" .Values.frontend.image.repository $tag -}}
+{{- end -}}
 {{- end -}}

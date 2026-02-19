@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 986f833 -->
+<!-- LAST_VERIFIED: 3a2d955 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -484,6 +484,16 @@ bash scripts/ph.sh deploy
 ```
 
 This builds and pushes images, updates both Container Apps, syncs env vars, and verifies health.
+It also prunes old local ACR-tagged images and old ACR tags/manifests by default.
+Protected from pruning: `latest`, current deploy tag, and semver-like tags (for example `v0.2.3`).
+
+Tune retention or disable pruning when needed:
+
+```bash
+bash scripts/ph.sh deploy --acr-retain-tags 50
+bash scripts/ph.sh deploy --skip-acr-prune
+bash scripts/ph.sh deploy --skip-local-image-prune
+```
 
 Sync env vars only (no image rebuild):
 

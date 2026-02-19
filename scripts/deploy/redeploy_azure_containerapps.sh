@@ -29,6 +29,9 @@ Options:
   --api-key <value>         Override API_AUTH_KEY (otherwise read from env file)
   --admin-key <value>       Override ADMIN_API_KEY (otherwise read from env file)
   --env-only                Update env vars only; do not build/push or change image
+  --acr-retain-tags <n>     Keep newest n tags in ACR per repo after full deploy (default: 25, 0 disables)
+  --skip-acr-prune          Disable post-deploy ACR pruning
+  --skip-local-image-prune  Keep old local ACR tags after full deploy
   --no-verify               Skip post-deploy health/settings curl checks
   -h, --help                Show this help
 EOF
@@ -50,6 +53,9 @@ API_AUTH_KEY=""
 ADMIN_API_KEY=""
 MODE="full"
 DO_VERIFY="1"
+PRUNE_ACR_IMAGES="1"
+ACR_RETAIN_TAGS="25"
+PRUNE_LOCAL_IMAGES="1"
 
 BACKEND_RUNTIME_ENV_KEYS=(
   "AUTH_MODE"
@@ -137,6 +143,18 @@ while [[ $# -gt 0 ]]; do
       MODE="env_only"
       shift
       ;;
+    --acr-retain-tags)
+      ACR_RETAIN_TAGS="$2"
+      shift 2
+      ;;
+    --skip-acr-prune)
+      PRUNE_ACR_IMAGES="0"
+      shift
+      ;;
+    --skip-local-image-prune)
+      PRUNE_LOCAL_IMAGES="0"
+      shift
+      ;;
     --no-verify)
       DO_VERIFY="0"
       shift
@@ -169,6 +187,11 @@ if [[ "$MODE" != "env_only" ]]; then
     echo "Missing required command for full deploy: git" >&2
     exit 1
   fi
+fi
+
+if ! [[ "$ACR_RETAIN_TAGS" =~ ^[0-9]+$ ]]; then
+  echo "Invalid value for --acr-retain-tags: '$ACR_RETAIN_TAGS' (expected non-negative integer)." >&2
+  exit 2
 fi
 
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -249,6 +272,133 @@ detect_engine() {
   fi
 
   return 1
+}
+
+prune_local_repo_tags() {
+  local engine="$1"
+  local repo="$2"
+  local keep_tag="$3"
+  local refs removed kept
+  removed=0
+  kept=0
+  refs="$(
+    "$engine" image ls \
+      --filter "reference=${repo}:*" \
+      --format '{{.Repository}}:{{.Tag}}' 2>/dev/null || true
+  )"
+
+  if [[ -z "${refs:-}" ]]; then
+    echo "Local image cleanup: no local tags found for $repo"
+    return 0
+  fi
+
+  while IFS= read -r ref; do
+    [[ -z "$ref" || "$ref" == "<none>:<none>" ]] && continue
+    if [[ "$ref" == "$repo:$keep_tag" || "$ref" == "$repo:latest" ]]; then
+      kept=$((kept + 1))
+      continue
+    fi
+    if "$engine" image rm "$ref" >/dev/null 2>&1; then
+      removed=$((removed + 1))
+    fi
+  done <<< "$refs"
+
+  echo "Local image cleanup ($repo): removed $removed old tag(s), kept $kept."
+}
+
+prune_local_images() {
+  local engine="$1"
+  local acr_login="$2"
+  local image_tag="$3"
+  prune_local_repo_tags "$engine" "$acr_login/pipelinehealer-backend" "$image_tag"
+  prune_local_repo_tags "$engine" "$acr_login/pipelinehealer-frontend" "$image_tag"
+  "$engine" image prune -f >/dev/null 2>&1 || true
+}
+
+prune_acr_repository() {
+  local acr_name="$1"
+  local repo="$2"
+  local keep_tag="$3"
+  local retain_count="$4"
+  local rows
+  rows="$(
+    az acr repository show-tags \
+      -n "$acr_name" \
+      --repository "$repo" \
+      --detail \
+      --orderby time_desc \
+      --query "[].{name:name,digest:digest}" \
+      -o tsv 2>/dev/null || true
+  )"
+
+  if [[ -z "${rows:-}" ]]; then
+    echo "ACR cleanup: no tags found for $repo"
+    return 0
+  fi
+
+  local index=0
+  local keep_count=0
+  local candidate_count=0
+  local tag digest
+  local -A keep_digests=()
+  local -A delete_digests=()
+  local -a delete_pairs=()
+
+  while IFS=$'\t' read -r tag digest; do
+    [[ -z "$tag" || -z "$digest" ]] && continue
+    if [[ "$index" -lt "$retain_count" || "$tag" == "latest" || "$tag" == "$keep_tag" || "$tag" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+      keep_digests["$digest"]=1
+      keep_count=$((keep_count + 1))
+    else
+      delete_pairs+=("${tag}"$'\t'"${digest}")
+      candidate_count=$((candidate_count + 1))
+    fi
+    index=$((index + 1))
+  done <<< "$rows"
+
+  if [[ "$candidate_count" -eq 0 ]]; then
+    echo "ACR cleanup ($repo): nothing to prune (kept $keep_count tag(s))."
+    return 0
+  fi
+
+  local removed_tag_refs=0
+  local removed_manifests=0
+  local failures=0
+  local pair
+  for pair in "${delete_pairs[@]}"; do
+    tag="${pair%%$'\t'*}"
+    digest="${pair#*$'\t'}"
+    if [[ -n "${keep_digests[$digest]:-}" ]]; then
+      if az acr repository untag -n "$acr_name" --image "$repo:$tag" >/dev/null 2>&1; then
+        removed_tag_refs=$((removed_tag_refs + 1))
+      else
+        failures=$((failures + 1))
+      fi
+      continue
+    fi
+    if [[ -n "${delete_digests[$digest]:-}" ]]; then
+      continue
+    fi
+    if az acr repository delete -n "$acr_name" --image "$repo@$digest" --yes >/dev/null 2>&1; then
+      removed_manifests=$((removed_manifests + 1))
+      delete_digests["$digest"]=1
+    else
+      failures=$((failures + 1))
+    fi
+  done
+
+  echo "ACR cleanup ($repo): removed $removed_tag_refs old tag ref(s), deleted $removed_manifests manifest(s), kept $keep_count tag(s)."
+  if [[ "$failures" -gt 0 ]]; then
+    echo "ACR cleanup ($repo): $failures operation(s) failed." >&2
+  fi
+}
+
+prune_acr_images() {
+  local acr_name="$1"
+  local keep_tag="$2"
+  local retain_count="$3"
+  prune_acr_repository "$acr_name" "pipelinehealer-backend" "$keep_tag" "$retain_count"
+  prune_acr_repository "$acr_name" "pipelinehealer-frontend" "$keep_tag" "$retain_count"
 }
 
 echo "Resource group : $AZ_RESOURCE_GROUP"
@@ -362,6 +512,14 @@ if [[ "$DO_VERIFY" == "1" ]]; then
     -H "X-Admin-Key: $ADMIN_API_KEY" \
     "https://$BACKEND_FQDN/api/settings" >/dev/null
   echo "Verification passed: backend health + admin settings endpoint."
+fi
+
+if [[ "$MODE" == "full" && "$PRUNE_LOCAL_IMAGES" == "1" ]]; then
+  prune_local_images "$CONTAINER_ENGINE" "$ACR_LOGIN" "$IMAGE_TAG"
+fi
+
+if [[ "$MODE" == "full" && "$PRUNE_ACR_IMAGES" == "1" && "$ACR_RETAIN_TAGS" -gt 0 ]]; then
+  prune_acr_images "$ACR_NAME" "$IMAGE_TAG" "$ACR_RETAIN_TAGS"
 fi
 
 echo "Done."

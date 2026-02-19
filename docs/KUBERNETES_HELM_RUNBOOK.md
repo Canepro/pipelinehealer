@@ -1,6 +1,6 @@
 # Kubernetes Helm Runbook
 
-<!-- LAST_VERIFIED: 647ddde -->
+<!-- LAST_VERIFIED: 3a2d955 -->
 
 This runbook adds Kubernetes as a secondary deployment target while keeping Azure Container Apps as the default path.
 
@@ -24,6 +24,7 @@ This runbook adds Kubernetes as a secondary deployment target while keeping Azur
 ## Quick Start
 
 1. Build and push images (or reuse existing tagged images).
+   For tagged releases, prefer immutable release images from GitHub Release notes/asset (`release_images.md`).
 2. Create a values override file (example below).
 3. Install/upgrade:
 
@@ -48,7 +49,8 @@ kubectl -n pipelinehealer rollout status deploy/pipelinehealer-frontend
 backend:
   image:
     repository: caneprophacr01.azurecr.io/pipelinehealer-backend
-    tag: "0.1.1"
+    tag: "v0.2.3"
+    digest: ""
   env:
     ENVIRONMENT: production
     HEAL_MODE: safe
@@ -67,7 +69,8 @@ backend:
 frontend:
   image:
     repository: caneprophacr01.azurecr.io/pipelinehealer-frontend
-    tag: "0.1.1"
+    tag: "v0.2.3"
+    digest: ""
 
 ingress:
   enabled: true
@@ -77,6 +80,35 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
+```
+
+If `digest` is set, the chart uses `repository@digest` and ignores `tag`.
+
+## Version Pinning (Recommended)
+
+Use release digests for reproducible installs:
+
+```yaml
+backend:
+  image:
+    repository: caneprophacr01.azurecr.io/pipelinehealer-backend
+    digest: "sha256:<backend-digest-from-release_images.md>"
+
+frontend:
+  image:
+    repository: caneprophacr01.azurecr.io/pipelinehealer-frontend
+    digest: "sha256:<frontend-digest-from-release_images.md>"
+```
+
+Or pin by semver tag:
+
+```bash
+helm upgrade --install pipelinehealer ./charts/pipelinehealer \
+  --namespace pipelinehealer \
+  --create-namespace \
+  --set backend.image.tag=v0.2.3 \
+  --set frontend.image.tag=v0.2.3 \
+  -f values.prod.yaml
 ```
 
 ## Port-Forward Validation (No Ingress)
