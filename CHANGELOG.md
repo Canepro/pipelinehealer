@@ -6,7 +6,17 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Added
+
+- `d3cbf8a` Added verification feedback capture API (`POST /api/settings/learning/feedback`) with durable per-activity verification metadata/history and audit entries.
+- `d3cbf8a` Added verification-aware learning readiness gates (minimum verified sample + verification pass-rate) and surfaced verification metrics in learning queue payloads.
+- `d3cbf8a` Added diagnostics source-selection transparency metadata (`source_selection_path`, `source_selection_reason`) and surfaced this in Activity Detail.
+
+### Changed
+
+- `534c216` Added operator-focused inline comments across Helm values/templates to improve first-time deploy clarity without changing chart behavior.
+- `157ef45` Added operator-focused inline comments to `docker-compose.yml`, `azure.yaml`, and CI workflow YAML for clearer local/ops intent.
+- `7206832` Synced `v0.2.6` roadmap/backlog tracking status, linked/closed BL issues (`#25`-`#28`), and refreshed stale `LAST_VERIFIED` markers in edited docs.
 
 ## [v0.2.5] - 2026-02-19
 
