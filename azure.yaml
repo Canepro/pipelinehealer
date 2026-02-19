@@ -1,12 +1,15 @@
 # Azure Developer CLI (azd) configuration
+# Keep this aligned with `infra/` and container app names used by deploy scripts.
 name: pipelinehealer
 metadata:
   template: pipelinehealer@0.1.0
 
 services:
   backend:
+    # Source folder azd builds/deploys for this service.
     project: ./backend
     language: python
+    # Deploy as Azure Container App.
     host: containerapp
 
   frontend:
@@ -15,6 +18,7 @@ services:
     host: containerapp
 
 infra:
+  # Infrastructure is defined in Bicep under infra/.
   provider: bicep
   path: ./infra
 
@@ -27,6 +31,7 @@ hooks:
   postprovision:
     shell: sh
     run: |
+      # URLs are emitted by azd after provisioning and are useful for smoke checks.
       echo "Azure resources provisioned successfully!"
       echo "Backend URL: ${AZURE_BACKEND_URL}"
       echo "Frontend URL: ${AZURE_FRONTEND_URL}"

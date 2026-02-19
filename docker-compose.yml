@@ -1,4 +1,5 @@
 # Docker Compose for local development
+# This stack is optimized for local/dev loops, not production hardening.
 
 services:
   backend:
@@ -8,23 +9,32 @@ services:
     ports:
       - "8000:8000"
     environment:
+      # Core runtime
       - ENVIRONMENT=${ENVIRONMENT:-development}
       - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
       - API_HOST=${API_HOST:-0.0.0.0}
       - API_PORT=${API_PORT:-8000}
+
+      # Model/provider configuration
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
       - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME:-gpt-4o}
       - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION:-2025-04-01-preview}
       - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+
+      # External integrations and API auth
       - COSMOS_DB_ENDPOINT=${COSMOS_DB_ENDPOINT:-}
       - GITHUB_PERSONAL_ACCESS_TOKEN=${GITHUB_PERSONAL_ACCESS_TOKEN:-}
       - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET:-}
       - API_AUTH_KEY=${API_AUTH_KEY:-}
       - ADMIN_API_KEY=${ADMIN_API_KEY:-}
+
+      # Browser access controls
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
       - CORS_ALLOW_ORIGIN_REGEX=${CORS_ALLOW_ORIGIN_REGEX:-https://.*\\.azurecontainerapps\\.io}
       - VERIFY_WEBHOOK_SIGNATURE=${VERIFY_WEBHOOK_SIGNATURE:-true}
       - VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT=${VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT:-false}
+
+      # Healing and retry policy
       - HEAL_MODE=${HEAL_MODE:-safe}
       - MAX_REMEDIATION_ATTEMPTS=${MAX_REMEDIATION_ATTEMPTS:-3}
       - AUTO_CREATE_PR=${AUTO_CREATE_PR:-true}
@@ -36,12 +46,15 @@ services:
       - LOG_PROMPT_MAX_CHARS=${LOG_PROMPT_MAX_CHARS:-18000}
       - LOG_PROMPT_HEAD_CHARS=${LOG_PROMPT_HEAD_CHARS:-9000}
       - LOG_PROMPT_TAIL_CHARS=${LOG_PROMPT_TAIL_CHARS:-9000}
+
+      # Optional external diagnostics (GitHub Agentic Workflows)
       - GH_AW_TOOLS_ENABLED=${GH_AW_TOOLS_ENABLED:-false}
       - GH_AW_INGESTION_MODE=${GH_AW_INGESTION_MODE:-disabled}
       - GH_AW_KNOWN_WORKFLOWS=${GH_AW_KNOWN_WORKFLOWS:-ci-doctor}
       - EXTERNAL_DIAGNOSTICS_WAIT_SECONDS=${EXTERNAL_DIAGNOSTICS_WAIT_SECONDS:-60}
       - EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS=${EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS:-15}
     volumes:
+      # Mount source read-only so local code changes are visible in containerized dev runs.
       - ./backend/src:/app/src:ro
     depends_on:
       - cosmos-emulator
@@ -53,6 +66,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
+        # Build-time Vite values are baked into the frontend bundle.
         - VITE_AUTH_MODE=${VITE_AUTH_MODE:-none}
         - VITE_ENTRA_TENANT_ID=${VITE_ENTRA_TENANT_ID:-}
         - VITE_ENTRA_CLIENT_ID=${VITE_ENTRA_CLIENT_ID:-}
@@ -66,6 +80,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      # Runtime reverse-proxy target used by Nginx in the frontend container.
       - BACKEND_UPSTREAM=${FRONTEND_BACKEND_UPSTREAM:-http://backend:8000}
       - API_AUTH_KEY=${API_AUTH_KEY:-}
     depends_on:
