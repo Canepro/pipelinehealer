@@ -13,6 +13,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ### Changed
 
 - `75c3871` Updated operator docs/runbooks to recommend release-driven Azure deploys (`deploy:release --release-version vX.Y.Z`) as the default production path.
+- `4d801e0` Refreshed submission freeze tracking and the video demo runbook (`docs/HACKATHON_LOG.md`, `docs/DEMO_SCRIPT.md`) for the `v0.2.6` baseline, including release-driven pre-record deploy guidance.
 
 ## [v0.2.6] - 2026-02-19
 
