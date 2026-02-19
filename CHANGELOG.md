@@ -8,6 +8,12 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - _No unreleased entries yet._
 
+## [v0.2.5] - 2026-02-19
+
+### Fixed
+
+- `1c6e6d7` Hardened release workflow ACR login to auto-discover the subscription containing the target registry when the configured subscription does not match.
+
 ## [v0.2.4] - 2026-02-19
 
 ### Added
