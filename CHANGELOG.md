@@ -6,6 +6,10 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
+- _No unreleased entries yet._
+
+## [v0.2.3] - 2026-02-19
+
 ### Changed
 
 - `69c7e51` Linked BL-011 backend warning tracking issue (`#17`) into roadmap/log docs to keep warning-debt traceability release-aligned.
