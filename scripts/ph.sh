@@ -37,6 +37,7 @@ Usage:
 
 Commands:
   deploy            Full Azure redeploy (build/push/update/verify)
+  deploy:release    Azure redeploy from existing ACR release images (no local build)
   deploy:env        Update runtime env vars only (no image rebuild)
   deploy:bg         Run redeploy in background and write log to /tmp/ph-deploy-<rg>/
   deploy:logs       Follow detached redeploy logs
@@ -65,6 +66,7 @@ Commands:
 
 Examples:
   bash scripts/ph.sh deploy
+  bash scripts/ph.sh deploy:release --release-version v0.2.6
   bash scripts/ph.sh deploy:bg
   bash scripts/ph.sh deploy:logs
   bash scripts/ph.sh urls
@@ -91,7 +93,7 @@ Local mode:
   Commands that work locally: settings:check, settings:audit, audit:proof,
   aoai:check, backfill, logs, logs:raw, logs:grep, demo:proof, demo:reset, help.
 
-  Azure-only commands (deploy, warm, lowcost, status, urls, webhook:*,
+  Azure-only commands (deploy, deploy:release, warm, lowcost, status, urls, webhook:*,
   rollout:canary, demo:e2e) print a clear error when PH_BACKEND_URL is set.
 EOF
 }
@@ -1769,6 +1771,23 @@ case "$COMMAND" in
     ;;
   deploy)
     require_azure "deploy"
+    bash "$SCRIPT_DIR/deploy/redeploy_azure_containerapps.sh" "$@"
+    ;;
+  deploy:release)
+    require_azure "deploy:release"
+    if [[ "$*" == *"--help"* || "$*" == *"-h"* ]]; then
+      bash "$SCRIPT_DIR/deploy/redeploy_azure_containerapps.sh" --help
+      exit 0
+    fi
+    if [[ $# -eq 0 ]]; then
+      echo "Missing required args for deploy:release." >&2
+      echo "Usage: bash scripts/ph.sh deploy:release --release-version <vX.Y.Z|X.Y.Z>" >&2
+      exit 2
+    fi
+    if [[ "$*" != *"--release-version"* ]]; then
+      echo "deploy:release requires --release-version <vX.Y.Z|X.Y.Z>." >&2
+      exit 2
+    fi
     bash "$SCRIPT_DIR/deploy/redeploy_azure_containerapps.sh" "$@"
     ;;
   deploy:env)

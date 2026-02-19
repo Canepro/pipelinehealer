@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 3a2d955 -->
+<!-- LAST_VERIFIED: 74e2d09 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -35,7 +35,7 @@ Pick one profile before running commands:
 | Profile | Best for | Key commands |
 |--------|----------|--------------|
 | Local-only dev (no Azure infra) | fast iteration, local testing | host-native/Docker steps + `PH_BACKEND_URL=http://127.0.0.1:8000` API commands |
-| Azure managed (hackathon default) | demo + managed deployment | `bash scripts/ph.sh deploy`, `status`, `warm`, `lowcost` |
+| Azure managed (hackathon default) | demo + managed deployment | `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`, `status`, `warm`, `lowcost` |
 | Other cloud backend (AWS/GCP/DO/K8s/etc.) | non-Azure production path | deploy containers with your platform, then use `PH_BACKEND_URL=https://<your-backend>` for API commands |
 
 Important command scope rule:
@@ -160,7 +160,7 @@ VITE_ENTRA_AUTHORITY=https://login.microsoftonline.com/<tenant-or-primary-domain
 For Entra config changes:
 
 - backend-only auth changes: `bash scripts/ph.sh deploy:env`
-- frontend `VITE_*` changes: `bash scripts/ph.sh deploy` (full rebuild required)
+- frontend `VITE_*` changes: publish a new release, then run `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`
 
 #### Beginner-friendly Entra portal checklist
 
@@ -191,7 +191,7 @@ Troubleshooting quick map:
 
 - `AADSTS50011`: add exact redirect URI shown in error details.
 - `AADSTS90002`: tenant identifier mismatch; verify tenant and use explicit authority with primary domain.
-- `401 Invalid bearer token` after login: sync backend `ENTRA_*` via `deploy:env`; if `VITE_*` changed, run full `deploy`.
+- `401 Invalid bearer token` after login: sync backend `ENTRA_*` via `deploy:env`; if `VITE_*` changed, publish and deploy a new release image.
 
 ### Optional: Enable MCP diagnostics path
 
@@ -223,7 +223,7 @@ bash scripts/ph.sh settings:check | jq '.mcp_enabled,.mcp_provider,.mcp_read_onl
   - Fix: add both `https://<frontend-fqdn>` and `https://<frontend-fqdn>/app` in SPA redirect URIs.
 - Frontend `VITE_*` values changed but only env-sync deploy was used:
   - Symptom: old login behavior/config remains in browser app
-  - Fix: run full `bash scripts/ph.sh deploy` (frontend rebuild required).
+  - Fix: publish a new release, then run `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`.
 - Backend still on key mode during migration:
   - Symptom: bearer login succeeds but API acts like key-only
   - Fix: set `AUTH_MODE=hybrid` (or `entra`) and run `bash scripts/ph.sh deploy:env`.
@@ -477,17 +477,25 @@ bash scripts/ph.sh status
 bash scripts/ph.sh urls
 ```
 
-### Redeploy After Code Changes
+### Deploy Published Release (Recommended)
+
+```bash
+bash scripts/ph.sh deploy:release --release-version v0.2.6
+```
+
+This promotes already-published release images from ACR by digest, updates both Container Apps, syncs env vars, and verifies health.
+
+### Full Redeploy From Local Build (Development/Hotfix Path)
 
 ```bash
 bash scripts/ph.sh deploy
 ```
 
-This builds and pushes images, updates both Container Apps, syncs env vars, and verifies health.
+This path builds and pushes from your local machine before updating Container Apps.
 It also prunes old local ACR-tagged images and old ACR tags/manifests by default.
 Protected from pruning: `latest`, current deploy tag, and semver-like tags (for example `v0.2.3`).
 
-Tune retention or disable pruning when needed:
+Tune retention or disable pruning for the full deploy path:
 
 ```bash
 bash scripts/ph.sh deploy --acr-retain-tags 50

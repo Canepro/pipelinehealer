@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 3a2d955 -->
+<!-- LAST_VERIFIED: 74e2d09 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -106,7 +106,7 @@ From repo root:
 bash scripts/ph.sh help
 bash scripts/ph.sh settings:check
 bash scripts/ph.sh settings:persist:verify --from-settings --skip-redeploy
-bash scripts/ph.sh deploy
+bash scripts/ph.sh deploy:release --release-version v0.2.6
 bash scripts/ph.sh deploy:env
 bash scripts/ph.sh status
 bash scripts/ph.sh logs
@@ -133,6 +133,7 @@ bash scripts/release.sh patch
 
 Tag-based release publishing is automated by `.github/workflows/release.yml` on `vX.Y.Z` tags.
 Each release tag publishes immutable ACR images for backend/frontend using both `vX.Y.Z` and `X.Y.Z` tags, plus digest references in release notes.
+Recommended Azure promotion command after release: `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`.
 
 ## Security and governance defaults
 

@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: 647ddde -->
+<!-- LAST_VERIFIED: 74e2d09 -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -19,7 +19,7 @@ This guide explains day-to-day operations: local bring-up, Azure deploy, verific
    - `bash scripts/ph.sh aoai:check`
    - `bash scripts/ph.sh settings:check`
 3. Deploy to Azure:
-   - full deploy: `bash scripts/ph.sh deploy`
+   - recommended release deploy: `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`
    - env-only changes: `bash scripts/ph.sh deploy:env`
 4. Verify:
    - `bash scripts/ph.sh status`
@@ -28,7 +28,7 @@ This guide explains day-to-day operations: local bring-up, Azure deploy, verific
 ## Command Groups
 
 Deploy:
-- `deploy`, `deploy:env`, `deploy:bg`, `deploy:logs`, `deploy:status`
+- `deploy:release`, `deploy`, `deploy:env`, `deploy:bg`, `deploy:logs`, `deploy:status`
 
 Runtime/admin:
 - `settings:check`, `settings:audit`, `settings:persist`, `audit:proof`
@@ -84,12 +84,17 @@ See:
 
 ## Choosing `deploy` vs `deploy:env`
 
+Use `deploy:release` for Azure production/staging promotion:
+- deploys already-published ACR release images by digest
+- no local container build dependency
+- best match for release-driven operations
+
 Use `deploy:env` when only backend runtime env changed:
 - auth mode and Entra backend vars
 - policy values
 - MCP/backend controls
 
-Use full `deploy` when frontend build-time vars changed:
+Use full `deploy` for development/hotfix iterations when frontend build-time vars changed:
 - any `VITE_*` auth/config values
 
 ## Safe Rollout Tips

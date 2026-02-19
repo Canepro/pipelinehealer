@@ -26,6 +26,7 @@ Options:
   --engine <podman|docker>  Force container engine (default: auto-detect)
   --env-file <path>         Backend env file (default: <repo>/backend/.env)
   --image-tag <tag>         Image tag (default: current git short SHA)
+  --release-version <ver>   Deploy existing ACR release images (vX.Y.Z or X.Y.Z) by digest
   --api-key <value>         Override API_AUTH_KEY (otherwise read from env file)
   --admin-key <value>       Override ADMIN_API_KEY (otherwise read from env file)
   --env-only                Update env vars only; do not build/push or change image
@@ -52,6 +53,7 @@ COMPOSE_ENV_FILE=""
 API_AUTH_KEY=""
 ADMIN_API_KEY=""
 MODE="full"
+RELEASE_VERSION=""
 DO_VERIFY="1"
 PRUNE_ACR_IMAGES="1"
 ACR_RETAIN_TAGS="25"
@@ -131,6 +133,11 @@ while [[ $# -gt 0 ]]; do
       IMAGE_TAG="$2"
       shift 2
       ;;
+    --release-version)
+      RELEASE_VERSION="$2"
+      MODE="release"
+      shift 2
+      ;;
     --api-key)
       API_AUTH_KEY="$2"
       shift 2
@@ -182,11 +189,16 @@ for cmd in az curl tr grep cut; do
   fi
 done
 
-if [[ "$MODE" != "env_only" ]]; then
+if [[ "$MODE" == "full" ]]; then
   if ! command -v git >/dev/null 2>&1; then
     echo "Missing required command for full deploy: git" >&2
     exit 1
   fi
+fi
+
+if [[ "$MODE" == "release" && -z "${RELEASE_VERSION:-}" ]]; then
+  echo "Missing required value: --release-version <vX.Y.Z|X.Y.Z>" >&2
+  exit 2
 fi
 
 if ! [[ "$ACR_RETAIN_TAGS" =~ ^[0-9]+$ ]]; then
@@ -401,11 +413,59 @@ prune_acr_images() {
   prune_acr_repository "$acr_name" "pipelinehealer-frontend" "$keep_tag" "$retain_count"
 }
 
+resolve_release_digest() {
+  local repo="$1"
+  local release_ref="$2"
+  local digest
+  local candidate
+  local candidates=()
+
+  release_ref="$(printf '%s' "$release_ref" | tr -d '\r\n')"
+  candidates+=("$release_ref")
+  if [[ "$release_ref" == v* ]]; then
+    candidates+=("${release_ref#v}")
+  else
+    candidates+=("v$release_ref")
+  fi
+
+  for candidate in "${candidates[@]}"; do
+    [[ -z "$candidate" ]] && continue
+    digest="$(
+      az acr repository show \
+        -n "$ACR_NAME" \
+        --image "$repo:$candidate" \
+        --query digest \
+        -o tsv 2>/dev/null | tr -d '\r\n' || true
+    )"
+    if [[ -n "$digest" ]]; then
+      printf '%s\n' "$digest"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 echo "Resource group : $AZ_RESOURCE_GROUP"
 echo "Backend app    : $BACKEND_APP"
 echo "Frontend app   : $FRONTEND_APP"
 echo "Mode           : $MODE"
 echo "Image tag      : $IMAGE_TAG"
+if [[ "$MODE" == "release" ]]; then
+  echo "Release version: $RELEASE_VERSION"
+fi
+
+ACR_LOGIN=""
+if [[ "$MODE" == "full" || "$MODE" == "release" ]]; then
+  ACR_LOGIN="$(az acr show -n "$ACR_NAME" --query loginServer -o tsv | tr -d '\r\n')"
+  if [[ -z "$ACR_LOGIN" ]]; then
+    echo "Failed to resolve ACR login server for '$ACR_NAME'." >&2
+    exit 1
+  fi
+fi
+
+expected_backend_image=""
+expected_frontend_image=""
 
 if [[ "$MODE" == "full" ]]; then
   if ! CONTAINER_ENGINE="$(detect_engine)"; then
@@ -419,7 +479,6 @@ if [[ "$MODE" == "full" ]]; then
   fi
   echo "Container engine: $CONTAINER_ENGINE"
 
-  ACR_LOGIN="$(az acr show -n "$ACR_NAME" --query loginServer -o tsv | tr -d '\r\n')"
   ACR_TOKEN="$(az acr login -n "$ACR_NAME" --expose-token --query accessToken -o tsv | tr -d '\r\n')"
   "$CONTAINER_ENGINE" login "$ACR_LOGIN" -u 00000000-0000-0000-0000-000000000000 -p "$ACR_TOKEN"
 
@@ -451,6 +510,35 @@ if [[ "$MODE" == "full" ]]; then
     -g "$AZ_RESOURCE_GROUP" \
     -n "$FRONTEND_APP" \
     --image "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG" \
+    --set-env-vars "${FRONTEND_SET_ENV_VARS[@]}" >/dev/null
+  expected_backend_image="$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
+  expected_frontend_image="$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
+elif [[ "$MODE" == "release" ]]; then
+  backend_digest="$(resolve_release_digest "pipelinehealer-backend" "$RELEASE_VERSION" || true)"
+  frontend_digest="$(resolve_release_digest "pipelinehealer-frontend" "$RELEASE_VERSION" || true)"
+
+  if [[ -z "$backend_digest" || -z "$frontend_digest" ]]; then
+    echo "Unable to resolve release image digests for version '$RELEASE_VERSION' from ACR '$ACR_NAME'." >&2
+    echo "Ensure release images exist (tags vX.Y.Z and/or X.Y.Z)." >&2
+    exit 1
+  fi
+
+  expected_backend_image="$ACR_LOGIN/pipelinehealer-backend@$backend_digest"
+  expected_frontend_image="$ACR_LOGIN/pipelinehealer-frontend@$frontend_digest"
+
+  echo "Resolved backend digest : $backend_digest"
+  echo "Resolved frontend digest: $frontend_digest"
+
+  az containerapp update \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$BACKEND_APP" \
+    --image "$expected_backend_image" \
+    --set-env-vars "${BACKEND_SET_ENV_VARS[@]}" >/dev/null
+
+  az containerapp update \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$FRONTEND_APP" \
+    --image "$expected_frontend_image" \
     --set-env-vars "${FRONTEND_SET_ENV_VARS[@]}" >/dev/null
 else
   az containerapp update \
@@ -492,11 +580,9 @@ echo "Frontend URL: https://$FRONTEND_FQDN"
 echo "Backend image : $DEPLOYED_BACKEND_IMAGE"
 echo "Frontend image: $DEPLOYED_FRONTEND_IMAGE"
 
-if [[ "$MODE" == "full" ]]; then
-  expected_backend_image="$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
-  expected_frontend_image="$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
+if [[ "$MODE" == "full" || "$MODE" == "release" ]]; then
   if [[ "$DEPLOYED_BACKEND_IMAGE" != "$expected_backend_image" || "$DEPLOYED_FRONTEND_IMAGE" != "$expected_frontend_image" ]]; then
-    echo "Error: deployed image mismatch after full deploy." >&2
+    echo "Error: deployed image mismatch after $MODE deploy." >&2
     echo "Expected backend : $expected_backend_image" >&2
     echo "Actual backend   : $DEPLOYED_BACKEND_IMAGE" >&2
     echo "Expected frontend: $expected_frontend_image" >&2

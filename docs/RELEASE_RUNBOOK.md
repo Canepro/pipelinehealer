@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: 3a2d955 -->
+<!-- LAST_VERIFIED: 74e2d09 -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -165,6 +165,13 @@ git ls-remote --tags origin | grep "refs/tags/vX.Y.Z"
 ```bash
 az acr repository show-tags -n <acr-name> --repository pipelinehealer-backend --orderby time_desc -o tsv | head
 az acr repository show-tags -n <acr-name> --repository pipelinehealer-frontend --orderby time_desc -o tsv | head
+```
+
+6. Promote the released images to Azure Container Apps (recommended deploy path):
+
+```bash
+bash scripts/ph.sh deploy:release --release-version vX.Y.Z
+bash scripts/ph.sh status
 ```
 
 ## 7) Post-Release

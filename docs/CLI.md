@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 3a2d955 -->
+<!-- LAST_VERIFIED: 74e2d09 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -33,8 +33,8 @@ Quick examples:
 # Backend API scope (local OR any reachable backend URL)
 PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh settings:check
 
-# Azure infra scope
-bash scripts/ph.sh deploy
+# Azure infra scope (recommended release promotion path)
+bash scripts/ph.sh deploy:release --release-version v0.2.6
 
 # GitHub-only scope
 bash scripts/ph.sh demo:proof --repo owner/repo --limit 10
@@ -54,6 +54,7 @@ Kubernetes deploy path is intentionally kept outside `scripts/ph.sh` right now t
 | Command | Description |
 |---------|-------------|
 | `deploy` | Full Azure redeploy (build, push, update, verify) |
+| `deploy:release` | Azure redeploy from existing ACR release images by digest (no local build) |
 | `deploy:env` | Sync backend runtime env vars only (no image rebuild) |
 | `deploy:bg` | Run redeploy in background |
 | `deploy:logs` | Follow detached redeploy logs |
@@ -61,6 +62,7 @@ Kubernetes deploy path is intentionally kept outside `scripts/ph.sh` right now t
 
 ```bash
 bash scripts/ph.sh deploy
+bash scripts/ph.sh deploy:release --release-version v0.2.6
 bash scripts/ph.sh deploy:env
 bash scripts/ph.sh deploy:bg
 bash scripts/ph.sh deploy:logs
@@ -78,8 +80,10 @@ bash scripts/ph.sh deploy --skip-local-image-prune
 
 Important:
 
+- Recommended for Azure production/staging: `deploy:release --release-version vX.Y.Z`.
+- `deploy:release` resolves ACR digests and deploys immutable image references (`repository@sha256:...`).
 - Use `deploy:env` when changing backend runtime values (for example `AUTH_MODE`, `ENTRA_*`, policy settings).
-- Use full `deploy` when changing frontend `VITE_*` values, because those are build-time inputs.
+- Use full `deploy` for local iteration when frontend `VITE_*` values changed, because those are build-time inputs.
 - Full `deploy` prunes old local ACR-tagged images and old ACR tags/manifests by default.
 - Protected from pruning: `latest`, current deploy tag, and semver-like tags (for example `v0.2.3`).
 - `--acr-retain-tags <n>` keeps the newest `n` tags per repo (`0` disables ACR pruning).
