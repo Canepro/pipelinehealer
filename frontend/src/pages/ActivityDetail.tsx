@@ -113,6 +113,13 @@ function formatConfidenceDelta(delta: number): string {
   return `${sign}${pct}% confidence`
 }
 
+function formatActionTaken(actionTaken: string): string {
+  return actionTaken
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\bPr\b/, 'PR')
+}
+
 function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
   includesProposedFix: boolean
   reasonCode: string | null
@@ -806,6 +813,136 @@ export default function ActivityDetail() {
         </div>
       </div>
 
+      {(activity.diagnosis || activity.remediation_result) && (
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            PipelineHealer Decision
+          </h2>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Primary diagnosis and remediation outcome, presented in execution order.
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {activity.diagnosis && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Diagnosis
+                </p>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  Root Cause
+                </p>
+                <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                  {activity.diagnosis.root_cause}
+                </p>
+                {activity.diagnosis.suggested_fix && (
+                  <>
+                    <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                      Suggested Fix
+                    </p>
+                    <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                      {activity.diagnosis.suggested_fix}
+                    </p>
+                  </>
+                )}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                    Confidence: {Math.round(activity.diagnosis.confidence * 100)}%
+                  </span>
+                  <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                    Auto-fixable: {activity.diagnosis.is_auto_fixable ? 'Yes' : 'No'}
+                  </span>
+                  <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                    Source: {(activity.diagnosis.diagnosis_source || 'unknown').replace(/_/g, ' ')}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {activity.remediation_result && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Remediation Result
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Action Taken</p>
+                    <p className="text-gray-900 dark:text-white">
+                      {formatActionTaken(activity.remediation_result.action_taken)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 dark:text-gray-400">Success</p>
+                    <p className={activity.remediation_result.success ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                      {activity.remediation_result.success ? 'Yes' : 'No'}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {activity.remediation_result.pr_url && (
+                    <a
+                      href={activity.remediation_result.pr_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-sm text-azure-600 hover:text-azure-700 dark:text-azure-400"
+                    >
+                      Open Pull Request
+                      <ExternalLink className="ml-1 h-4 w-4" />
+                    </a>
+                  )}
+                  {activity.remediation_result.issue_url && (
+                    <a
+                      href={activity.remediation_result.issue_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-sm text-azure-600 hover:text-azure-700 dark:text-azure-400"
+                    >
+                      Open Issue
+                      <ExternalLink className="ml-1 h-4 w-4" />
+                    </a>
+                  )}
+                </div>
+                {(remediationMeta.includesProposedFix ||
+                  remediationMeta.reusedExistingPr ||
+                  remediationMeta.reasonCode ||
+                  remediationMeta.reasonDetail) && (
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Result Metadata
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {remediationMeta.includesProposedFix && (
+                        <span className="inline-flex items-center rounded-md bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">
+                          Includes Proposed Fix
+                        </span>
+                      )}
+                      {remediationMeta.reusedExistingPr && (
+                        <span className="inline-flex items-center rounded-md bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                          Reused Existing PR
+                        </span>
+                      )}
+                      {remediationMeta.reasonCode && (
+                        <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
+                          {remediationMeta.reasonCode}
+                        </span>
+                      )}
+                    </div>
+                    {remediationMeta.reasonDetail && (
+                      <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                        {remediationMeta.reasonDetail}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {activity.remediation_result.error_message && (
+                  <p className="mt-3 text-sm text-red-600">
+                    {activity.remediation_result.error_message}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* External Diagnostics Card */}
       <div className="card p-6">
         <div className="flex items-center justify-between mb-4">
@@ -913,7 +1050,7 @@ export default function ActivityDetail() {
       {activity.diagnosis && (
         <div className="card p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Diagnosis
+            Technical Analysis & Enrichment
           </h2>
           <div className="space-y-4">
             {hasFailureContext && (
@@ -947,14 +1084,6 @@ export default function ActivityDetail() {
                 </div>
               </div>
             )}
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Root Cause
-              </p>
-              <p className="mt-1 text-gray-900 dark:text-white">
-                {activity.diagnosis.root_cause}
-              </p>
-            </div>
             {classificationSignal && (
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -1409,16 +1538,6 @@ export default function ActivityDetail() {
                 )}
               </div>
             )}
-            {activity.diagnosis.suggested_fix && (
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Suggested Fix
-                </p>
-                <p className="mt-1 text-gray-900 dark:text-white">
-                  {activity.diagnosis.suggested_fix}
-                </p>
-              </div>
-            )}
             {activity.diagnosis.affected_files.length > 0 && (
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -1437,116 +1556,6 @@ export default function ActivityDetail() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Remediation Result Card */}
-      {activity.remediation_result && (
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Remediation Result
-          </h2>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Action Taken
-                </p>
-                <p className="mt-1 text-gray-900 dark:text-white">
-                  {activity.remediation_result.action_taken
-                    .replace(/_/g, ' ')
-                    .replace(/\b\w/g, (c) => c.toUpperCase())
-                    .replace(/\bPr\b/, 'PR')}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Success
-                </p>
-                <p className="mt-1">
-                  {activity.remediation_result.success ? (
-                    <span className="text-green-600 font-medium">Yes</span>
-                  ) : (
-                    <span className="text-red-600 font-medium">No</span>
-                  )}
-                </p>
-              </div>
-            </div>
-            {activity.remediation_result.pr_url && (
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Pull Request
-                </p>
-                <a
-                  href={activity.remediation_result.pr_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-1 text-azure-600 hover:text-azure-700 dark:text-azure-400 flex items-center"
-                >
-                  {activity.remediation_result.pr_url}
-                  <ExternalLink className="h-4 w-4 ml-1" />
-                </a>
-              </div>
-            )}
-            {activity.remediation_result.issue_url && (
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Issue Created
-                </p>
-                <a
-                  href={activity.remediation_result.issue_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-1 text-azure-600 hover:text-azure-700 dark:text-azure-400 flex items-center"
-                >
-                  {activity.remediation_result.issue_url}
-                  <ExternalLink className="h-4 w-4 ml-1" />
-                </a>
-              </div>
-            )}
-            {(remediationMeta.includesProposedFix ||
-              remediationMeta.reusedExistingPr ||
-              remediationMeta.reasonCode ||
-              remediationMeta.reasonDetail) && (
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Result Metadata
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {remediationMeta.includesProposedFix && (
-                    <span className="inline-flex items-center rounded-md bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">
-                      Includes Proposed Fix
-                    </span>
-                  )}
-                  {remediationMeta.reusedExistingPr && (
-                    <span className="inline-flex items-center rounded-md bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
-                      Reused Existing PR
-                    </span>
-                  )}
-                  {remediationMeta.reasonCode && (
-                    <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
-                      {remediationMeta.reasonCode}
-                    </span>
-                  )}
-                </div>
-                {remediationMeta.reasonDetail && (
-                  <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
-                    {remediationMeta.reasonDetail}
-                  </p>
-                )}
-              </div>
-            )}
-            {activity.remediation_result.error_message && (
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Error
-                </p>
-                <p className="mt-1 text-red-600">
-                  {activity.remediation_result.error_message}
-                </p>
               </div>
             )}
           </div>
