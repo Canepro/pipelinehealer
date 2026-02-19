@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 986f833 -->
+<!-- LAST_VERIFIED: 62cab2b -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -736,6 +736,11 @@ Returns governance learning-queue records (candidate/approved/rejected/active/re
     "occurrence_count": 4,
     "success_count": 4,
     "sample_activity_ids": ["..."],
+    "verification_sample_count": 2,
+    "verification_pass_count": 2,
+    "verification_partial_count": 0,
+    "verification_fail_count": 0,
+    "verification_pass_rate": 1.0,
     "latest_activity_at": "2026-02-18T20:14:00Z",
     "status": "candidate",
     "decision_reason": "",
@@ -746,6 +751,8 @@ Returns governance learning-queue records (candidate/approved/rejected/active/re
       "occurrence_gate_passed": true,
       "success_rate_gate_passed": true,
       "sample_gate_passed": false,
+      "verification_sample_gate_passed": true,
+      "verification_gate_passed": true,
       "requires_force_activate": true,
       "reasons": [
         "status_candidate_requires_approval",
@@ -754,9 +761,13 @@ Returns governance learning-queue records (candidate/approved/rejected/active/re
       "min_occurrences": 2,
       "min_success_rate": 0.8,
       "min_sample_size": 2,
+      "min_verification_sample_size": 1,
+      "min_verification_pass_rate": 0.8,
       "occurrence_count": 4,
       "success_rate": 1.0,
-      "sample_size": 1
+      "sample_size": 1,
+      "verification_sample_count": 2,
+      "verification_pass_rate": 1.0
     },
     "created_at": "2026-02-18T20:15:00Z",
     "updated_at": "2026-02-18T20:15:00Z",
@@ -827,6 +838,8 @@ Activation readiness gates:
 - `occurrence_count >= 2`
 - `success_rate >= 0.8`
 - `sample_activity_ids >= 2`
+- verified feedback samples `>= 1`
+- verification pass rate `>= 0.8`
 
 **Response** `200 OK`: updated `LearningQueueItem`.
 
@@ -837,6 +850,49 @@ Side effects:
 - Appends admin audit entry with `changed_keys=["learning_queue_decision"]`.
 - Captures decision actor fingerprint and request correlation metadata.
 - Includes readiness snapshot before/after the decision in audit `changes.learning_queue_decision`.
+
+#### `POST /api/settings/learning/feedback`
+
+Captures operator verification outcomes for one activity and links that evidence into learning readiness.
+
+**Auth**: `X-API-Key` + `X-Admin-Key`
+
+**Request Body**:
+
+```json
+{
+  "activity_id": "36f67f2f-62f9-4a5a-8c5b-ff6f11f98591",
+  "identification": "pass",
+  "diagnosis": "partial",
+  "remediation": "pass",
+  "notes": "Diagnosis needed minor correction after rerun.",
+  "issue_number": 25,
+  "target_version": "v0.2.6"
+}
+```
+
+Outcomes are `pass|partial|fail`.
+
+`overall` is derived server-side:
+- if any dimension is `fail` -> `fail`
+- if all dimensions are `pass` -> `pass`
+- otherwise -> `partial`
+
+**Response** `200 OK`:
+
+```json
+{
+  "status": "ok",
+  "activity_id": "36f67f2f-62f9-4a5a-8c5b-ff6f11f98591",
+  "verification_overall": "partial",
+  "updated_candidate_ids": ["learning-f6f9f8a2f30ebf72a81a"]
+}
+```
+
+Side effects:
+- Updates `remediation_result.details.verification` and appends `verification_history`.
+- Recomputes verification counters/readiness for affected learning candidates.
+- Appends admin audit entry with `changed_keys=["learning_verification_feedback"]`.
 
 #### `GET /api/settings/audit`
 
@@ -1007,6 +1063,8 @@ Represents findings from an external diagnostic tool (e.g. GitHub Agentic Workfl
 | `url` | string \| null | Link to external findings (issue, discussion, etc.) |
 | `matched_run_id` | int \| null | GitHub workflow run ID the findings relate to |
 | `metadata` | object | Structured diagnostic metadata (reason codes, issue numbers, etc.) |
+| `metadata.source_selection_path` | string \| null | Collection strategy selected by orchestrator (`gh_aw_passive`, `github_mcp_direct`, `github_mcp_blocked`) |
+| `metadata.source_selection_reason` | string \| null | Why that strategy/path was selected |
 | `metadata.details` | object \| null | Deep content enrichment extracted from the ci-doctor issue body (see below) |
 | `collected_at` | string (ISO datetime) | Timestamp when the external finding was collected |
 

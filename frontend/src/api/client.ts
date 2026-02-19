@@ -241,6 +241,7 @@ export interface AdminSettingsPersistResponse {
 }
 
 export type LearningQueueStatus = 'candidate' | 'approved' | 'rejected' | 'active' | 'retired'
+export type LearningVerificationOutcome = 'pass' | 'partial' | 'fail'
 
 export interface LearningPromotionReadiness {
   ready: boolean
@@ -248,14 +249,20 @@ export interface LearningPromotionReadiness {
   occurrence_gate_passed: boolean
   success_rate_gate_passed: boolean
   sample_gate_passed: boolean
+  verification_sample_gate_passed: boolean
+  verification_gate_passed: boolean
   requires_force_activate: boolean
   reasons: string[]
   min_occurrences: number
   min_success_rate: number
   min_sample_size: number
+  min_verification_sample_size: number
+  min_verification_pass_rate: number
   occurrence_count: number
   success_rate: number
   sample_size: number
+  verification_sample_count: number
+  verification_pass_rate: number
 }
 
 export interface LearningQueueItem {
@@ -270,6 +277,11 @@ export interface LearningQueueItem {
   occurrence_count: number
   success_count: number
   sample_activity_ids: string[]
+  verification_sample_count: number
+  verification_pass_count: number
+  verification_partial_count: number
+  verification_fail_count: number
+  verification_pass_rate: number
   latest_activity_at?: string | null
   status: LearningQueueStatus
   decision_reason: string
@@ -285,6 +297,24 @@ export interface LearningQueueRefreshResponse {
   considered_activities: number
   generated_candidates: number
   upserted_candidates: number
+}
+
+export interface LearningVerificationFeedbackPayload {
+  activity_id: string
+  identification: LearningVerificationOutcome
+  diagnosis: LearningVerificationOutcome
+  remediation: LearningVerificationOutcome
+  notes?: string
+  issue_number?: number
+  issue_url?: string
+  target_version?: string
+}
+
+export interface LearningVerificationFeedbackResponse {
+  status: string
+  activity_id: string
+  verification_overall: LearningVerificationOutcome
+  updated_candidate_ids: string[]
 }
 
 type ApiRequestOptions = RequestInit & {
@@ -437,6 +467,15 @@ export const api = {
     }
   ) =>
     fetchJson<LearningQueueItem>(`/api/settings/learning/queue/${candidateId}/decision`, {
+      method: 'POST',
+      adminKey,
+      body: JSON.stringify(payload),
+    }),
+  submitLearningFeedback: (
+    adminKey: string | undefined,
+    payload: LearningVerificationFeedbackPayload
+  ) =>
+    fetchJson<LearningVerificationFeedbackResponse>('/api/settings/learning/feedback', {
       method: 'POST',
       adminKey,
       body: JSON.stringify(payload),

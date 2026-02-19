@@ -1,6 +1,6 @@
 # Logs And Investigation Guide
 
-<!-- LAST_VERIFIED: 69c7e51 -->
+<!-- LAST_VERIFIED: 62cab2b -->
 
 Use this guide to debug PipelineHealer behavior quickly in local, Docker, and Azure runs.
 
@@ -16,6 +16,24 @@ Use this guide to debug PipelineHealer behavior quickly in local, Docker, and Az
 bash scripts/ph.sh status
 bash scripts/ph.sh settings:check | jq
 bash scripts/ph.sh logs
+```
+
+## Issue Quality Gate (Required)
+
+When PipelineHealer creates or updates a remediation issue, record an explicit accuracy check before closure:
+
+- Identification: was the failure type/scope correct?
+- Diagnosis: did root cause match workflow/job logs?
+- Remediation: did proposed action resolve the failure (or was defer reason valid)?
+- Target version: set a milestone/version label before closing.
+
+Recommended issue section heading:
+
+```markdown
+### PipelineHealer Accuracy Assessment
+- Identification: ✅ / ⚠️ / ❌
+- Diagnosis: ✅ / ⚠️ / ❌
+- Remediation: ✅ / ⚠️ / ❌
 ```
 
 ## Deploy Warning Triage (Release QA)

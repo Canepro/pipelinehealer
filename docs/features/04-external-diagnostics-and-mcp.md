@@ -1,6 +1,6 @@
 # Feature: External Diagnostics And MCP
 
-<!-- LAST_VERIFIED: a95ed82 -->
+<!-- LAST_VERIFIED: 62cab2b -->
 
 This guide explains how PipelineHealer ingests external findings and how GitHub MCP is used safely.
 
@@ -31,6 +31,13 @@ This guide explains how PipelineHealer ingests external findings and how GitHub 
 2. Passive collector checks for external findings.
 3. If findings are not ready in the bounded wait window, activity completes without blocking.
 4. Background backfill later enriches activity when findings appear.
+
+Source-selection behavior:
+- If `GH_AW_TOOLS_ENABLED=true` and `GH_AW_INGESTION_MODE=passive`, PipelineHealer prioritizes passive `gh_aw` diagnostics collection.
+- If passive mode is disabled and GitHub MCP is enabled/healthy, PipelineHealer uses direct GitHub MCP context collection.
+- Activity metadata now includes:
+  - `metadata.source_selection_path`
+  - `metadata.source_selection_reason`
 
 Tuning keys:
 - `EXTERNAL_DIAGNOSTICS_WAIT_SECONDS` (default `60`)
@@ -68,6 +75,7 @@ Write-capable policies (`write_with_approval` / `auto`):
   - source attribution
   - tool usage counts
   - action audit entries
+- Activity Detail -> External Diagnostics cards show source path selection metadata when available.
 
 ## Common Mistakes
 

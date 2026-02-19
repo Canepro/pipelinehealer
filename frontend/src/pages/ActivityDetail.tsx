@@ -54,6 +54,18 @@ function formatSourceLabel(source: string): string {
   return normalized.replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
+function formatSourceSelectionPath(path: string): string {
+  const known: Record<string, string> = {
+    gh_aw_passive: 'GitHub Agentic Workflows (passive)',
+    github_mcp_direct: 'GitHub MCP (direct)',
+    github_mcp_blocked: 'GitHub MCP blocked by policy/provider',
+  }
+  const normalized = path.trim().toLowerCase()
+  if (known[normalized]) return known[normalized]
+  if (!normalized) return 'Unknown'
+  return normalized.replace(/[_-]+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
 function getExternalDiagnosticStatusMeta(status: string): {
   label: string
   className: string
@@ -822,6 +834,14 @@ export default function ActivityDetail() {
           <div className="space-y-4">
             {externalDiagnostics.map((diagnostic, index) => {
               const statusMeta = getExternalDiagnosticStatusMeta(diagnostic.status)
+              const sourceSelectionPath =
+                typeof (diagnostic.metadata as Record<string, unknown>)?.source_selection_path === 'string'
+                  ? ((diagnostic.metadata as Record<string, unknown>).source_selection_path as string)
+                  : ''
+              const sourceSelectionReason =
+                typeof (diagnostic.metadata as Record<string, unknown>)?.source_selection_reason === 'string'
+                  ? ((diagnostic.metadata as Record<string, unknown>).source_selection_reason as string)
+                  : ''
               return (
                 <div
                   key={`${diagnostic.source}-${diagnostic.collected_at}-${index}`}
@@ -851,6 +871,12 @@ export default function ActivityDetail() {
                     <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                       Signal rationale:{' '}
                       {(diagnostic.metadata as Record<string, unknown>).confidence_reason as string}
+                    </p>
+                  )}
+                  {sourceSelectionPath && (
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      Source path: {formatSourceSelectionPath(sourceSelectionPath)}
+                      {sourceSelectionReason ? ` (${sourceSelectionReason})` : ''}
                     </p>
                   )}
 

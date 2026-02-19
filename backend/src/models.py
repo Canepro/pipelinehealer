@@ -408,6 +408,14 @@ class LearningQueueStatus(StrEnum):
     RETIRED = "retired"
 
 
+class LearningVerificationOutcome(StrEnum):
+    """Allowed operator verification outcomes for learning feedback."""
+
+    PASS = "pass"
+    PARTIAL = "partial"
+    FAIL = "fail"
+
+
 class LearningPromotionReadiness(BaseModel):
     """Promotion-readiness evaluation for activating a learned playbook."""
 
@@ -416,14 +424,20 @@ class LearningPromotionReadiness(BaseModel):
     occurrence_gate_passed: bool = False
     success_rate_gate_passed: bool = False
     sample_gate_passed: bool = False
+    verification_sample_gate_passed: bool = False
+    verification_gate_passed: bool = False
     requires_force_activate: bool = True
     reasons: list[str] = Field(default_factory=list)
     min_occurrences: int = 2
     min_success_rate: float = 0.8
     min_sample_size: int = 2
+    min_verification_sample_size: int = 1
+    min_verification_pass_rate: float = 0.8
     occurrence_count: int = 0
     success_rate: float = 0.0
     sample_size: int = 0
+    verification_sample_count: int = 0
+    verification_pass_rate: float = 0.0
 
 
 class LearningQueueItem(BaseModel):
@@ -440,6 +454,11 @@ class LearningQueueItem(BaseModel):
     occurrence_count: int = 0
     success_count: int = 0
     sample_activity_ids: list[str] = Field(default_factory=list)
+    verification_sample_count: int = 0
+    verification_pass_count: int = 0
+    verification_partial_count: int = 0
+    verification_fail_count: int = 0
+    verification_pass_rate: float = 0.0
     latest_activity_at: datetime | None = None
     status: LearningQueueStatus = LearningQueueStatus.CANDIDATE
     decision_reason: str = ""
@@ -465,6 +484,28 @@ class LearningQueueDecisionRequest(BaseModel):
     action: str
     reason: str = ""
     force_activate: bool = False
+
+
+class LearningVerificationFeedbackRequest(BaseModel):
+    """Operator verification payload for one completed activity."""
+
+    activity_id: str
+    identification: LearningVerificationOutcome
+    diagnosis: LearningVerificationOutcome
+    remediation: LearningVerificationOutcome
+    notes: str = ""
+    issue_number: int | None = Field(default=None, ge=1)
+    issue_url: str | None = None
+    target_version: str | None = None
+
+
+class LearningVerificationFeedbackResponse(BaseModel):
+    """Result payload for verification feedback writes."""
+
+    status: str = "ok"
+    activity_id: str
+    verification_overall: LearningVerificationOutcome
+    updated_candidate_ids: list[str] = Field(default_factory=list)
 
 
 class AdminSettingsAuditEntry(BaseModel):

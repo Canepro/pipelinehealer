@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: 2dc9251 -->
+<!-- LAST_VERIFIED: 62cab2b -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -51,6 +51,7 @@ Learning queue API calls (Control Center):
 - `GET /api/settings/learning/queue`
 - `POST /api/settings/learning/queue/refresh`
 - `POST /api/settings/learning/queue/{candidate_id}/decision`
+- `POST /api/settings/learning/feedback`
 
 Learning queue posture:
 - **Candidate**: recurring successful pattern detected; not active
@@ -63,6 +64,8 @@ Promotion-readiness gates (for `activate`):
 - occurrence gate: at least 2 recurring successful occurrences
 - success-rate gate: at least 80% success
 - sample gate: at least 2 sample activity IDs
+- verification-sample gate: at least 1 verified activity
+- verification quality gate: at least 80% verification pass rate
 
 Force activation:
 - `force_activate=true` is allowed only for `action=activate`

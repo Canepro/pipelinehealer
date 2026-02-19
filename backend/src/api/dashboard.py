@@ -25,6 +25,9 @@ from ..models import (
     DashboardStats,
     FailureType,
     LearningPromotionReadiness,
+    LearningVerificationFeedbackRequest,
+    LearningVerificationFeedbackResponse,
+    LearningVerificationOutcome,
     LearningQueueDecisionRequest,
     LearningQueueItem,
     LearningQueueRefreshResponse,
@@ -331,11 +334,69 @@ _LEARNING_QUEUE_ALLOWED_ACTIONS = {
 _LEARNING_PROMOTION_MIN_OCCURRENCES = 2
 _LEARNING_PROMOTION_MIN_SUCCESS_RATE = 0.8
 _LEARNING_PROMOTION_MIN_SAMPLE_SIZE = 2
+_LEARNING_PROMOTION_MIN_VERIFICATION_SAMPLE_SIZE = 1
+_LEARNING_PROMOTION_MIN_VERIFICATION_PASS_RATE = 0.8
 
 
 def _normalize_reason_code(value: Any) -> str | None:
     text = str(value or "").strip()
     return text or None
+
+
+def _normalize_verification_outcome(value: Any) -> str | None:
+    normalized = str(value or "").strip().lower()
+    if normalized in {
+        LearningVerificationOutcome.PASS.value,
+        LearningVerificationOutcome.PARTIAL.value,
+        LearningVerificationOutcome.FAIL.value,
+    }:
+        return normalized
+    return None
+
+
+def _derive_verification_overall(
+    *,
+    identification: str,
+    diagnosis: str,
+    remediation: str,
+) -> str:
+    outcomes = {identification, diagnosis, remediation}
+    if LearningVerificationOutcome.FAIL.value in outcomes:
+        return LearningVerificationOutcome.FAIL.value
+    if outcomes == {LearningVerificationOutcome.PASS.value}:
+        return LearningVerificationOutcome.PASS.value
+    return LearningVerificationOutcome.PARTIAL.value
+
+
+def _extract_activity_verification(activity: ActivityRecord) -> dict[str, Any] | None:
+    """Extract normalized verification feedback from one activity result."""
+    remediation = activity.remediation_result
+    if remediation is None or not isinstance(remediation.details, dict):
+        return None
+
+    payload = remediation.details.get("verification")
+    if not isinstance(payload, dict):
+        return None
+
+    identification = _normalize_verification_outcome(payload.get("identification"))
+    diagnosis = _normalize_verification_outcome(payload.get("diagnosis"))
+    remediation_outcome = _normalize_verification_outcome(payload.get("remediation"))
+    if not identification or not diagnosis or not remediation_outcome:
+        return None
+
+    overall = _normalize_verification_outcome(payload.get("overall")) or _derive_verification_overall(
+        identification=identification,
+        diagnosis=diagnosis,
+        remediation=remediation_outcome,
+    )
+    return {
+        "identification": identification,
+        "diagnosis": diagnosis,
+        "remediation": remediation_outcome,
+        "overall": overall,
+        "recorded_at": payload.get("recorded_at"),
+        "issue_number": payload.get("issue_number"),
+    }
 
 
 def _extract_activity_reason_code(activity: ActivityRecord) -> str | None:
@@ -384,6 +445,17 @@ def _evaluate_learning_promotion_readiness(
     occurrence_gate_passed = occurrence_count >= _LEARNING_PROMOTION_MIN_OCCURRENCES
     success_rate_gate_passed = success_rate >= _LEARNING_PROMOTION_MIN_SUCCESS_RATE
     sample_gate_passed = sample_size >= _LEARNING_PROMOTION_MIN_SAMPLE_SIZE
+    verification_sample_count = max(int(candidate.verification_sample_count), 0)
+    verification_pass_rate = (
+        max(float(candidate.verification_pass_rate), 0.0) if verification_sample_count > 0 else 0.0
+    )
+    verification_sample_gate_passed = (
+        verification_sample_count >= _LEARNING_PROMOTION_MIN_VERIFICATION_SAMPLE_SIZE
+    )
+    verification_gate_passed = (
+        verification_sample_gate_passed
+        and verification_pass_rate >= _LEARNING_PROMOTION_MIN_VERIFICATION_PASS_RATE
+    )
 
     reasons: list[str] = []
     if not status_gate_passed:
@@ -401,12 +473,17 @@ def _evaluate_learning_promotion_readiness(
         reasons.append("success_rate_below_threshold")
     if not sample_gate_passed:
         reasons.append("sample_size_below_threshold")
+    if not verification_sample_gate_passed:
+        reasons.append("verification_sample_below_threshold")
+    elif not verification_gate_passed:
+        reasons.append("verification_pass_rate_below_threshold")
 
     ready = (
         status_gate_passed
         and occurrence_gate_passed
         and success_rate_gate_passed
         and sample_gate_passed
+        and verification_gate_passed
     )
     requires_force_activate = not ready and candidate.status != LearningQueueStatus.ACTIVE
 
@@ -416,14 +493,20 @@ def _evaluate_learning_promotion_readiness(
         occurrence_gate_passed=occurrence_gate_passed,
         success_rate_gate_passed=success_rate_gate_passed,
         sample_gate_passed=sample_gate_passed,
+        verification_sample_gate_passed=verification_sample_gate_passed,
+        verification_gate_passed=verification_gate_passed,
         requires_force_activate=requires_force_activate,
         reasons=reasons,
         min_occurrences=_LEARNING_PROMOTION_MIN_OCCURRENCES,
         min_success_rate=_LEARNING_PROMOTION_MIN_SUCCESS_RATE,
         min_sample_size=_LEARNING_PROMOTION_MIN_SAMPLE_SIZE,
+        min_verification_sample_size=_LEARNING_PROMOTION_MIN_VERIFICATION_SAMPLE_SIZE,
+        min_verification_pass_rate=_LEARNING_PROMOTION_MIN_VERIFICATION_PASS_RATE,
         occurrence_count=occurrence_count,
         success_rate=round(success_rate, 4),
         sample_size=sample_size,
+        verification_sample_count=verification_sample_count,
+        verification_pass_rate=round(verification_pass_rate, 4),
     )
 
 
@@ -521,6 +604,10 @@ def _extract_learning_candidates(
                 "occurrence_count": 0,
                 "success_count": 0,
                 "sample_activity_ids": [],
+                "verification_sample_count": 0,
+                "verification_pass_count": 0,
+                "verification_partial_count": 0,
+                "verification_fail_count": 0,
                 "latest_activity_at": None,
             },
         )
@@ -529,6 +616,16 @@ def _extract_learning_candidates(
         bucket["success_count"] += 1
         if len(bucket["sample_activity_ids"]) < 5:
             bucket["sample_activity_ids"].append(activity.id)
+        verification = _extract_activity_verification(activity)
+        if verification:
+            bucket["verification_sample_count"] += 1
+            overall = str(verification.get("overall") or "")
+            if overall == LearningVerificationOutcome.PASS.value:
+                bucket["verification_pass_count"] += 1
+            elif overall == LearningVerificationOutcome.PARTIAL.value:
+                bucket["verification_partial_count"] += 1
+            else:
+                bucket["verification_fail_count"] += 1
         latest = bucket["latest_activity_at"]
         if latest is None or (activity.updated_at and activity.updated_at > latest):
             bucket["latest_activity_at"] = activity.updated_at
@@ -538,6 +635,15 @@ def _extract_learning_candidates(
         if int(data["occurrence_count"]) < min_occurrences:
             continue
         fingerprint = str(data["fingerprint"])
+        verification_sample_count = int(data["verification_sample_count"])
+        verification_pass_count = int(data["verification_pass_count"])
+        verification_partial_count = int(data["verification_partial_count"])
+        verification_fail_count = int(data["verification_fail_count"])
+        verification_pass_rate = (
+            verification_pass_count / verification_sample_count
+            if verification_sample_count > 0
+            else 0.0
+        )
         candidate = LearningQueueItem(
             id=f"learning-{fingerprint[:20]}",
             fingerprint=fingerprint,
@@ -550,6 +656,11 @@ def _extract_learning_candidates(
             occurrence_count=int(data["occurrence_count"]),
             success_count=int(data["success_count"]),
             sample_activity_ids=list(data["sample_activity_ids"]),
+            verification_sample_count=verification_sample_count,
+            verification_pass_count=verification_pass_count,
+            verification_partial_count=verification_partial_count,
+            verification_fail_count=verification_fail_count,
+            verification_pass_rate=round(verification_pass_rate, 4),
             latest_activity_at=data["latest_activity_at"],
             status=LearningQueueStatus.CANDIDATE,
         )
@@ -1429,6 +1540,132 @@ async def decide_learning_queue_item(
     )
 
     return candidate
+
+
+@router.post(
+    "/settings/learning/feedback",
+    response_model=LearningVerificationFeedbackResponse,
+    dependencies=[Depends(require_admin_key)],
+)
+async def record_learning_feedback(
+    payload: LearningVerificationFeedbackRequest,
+    request: Request,
+    storage: ActivityStorage = Depends(get_storage),
+    user_agent: str | None = Header(default=None, alias="User-Agent"),
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
+) -> LearningVerificationFeedbackResponse:
+    """Capture operator verification outcomes for one remediation activity."""
+    activity = await storage.get_activity(payload.activity_id)
+    if activity is None:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    if activity.remediation_result is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Activity has no remediation result to verify",
+        )
+
+    details = (
+        dict(activity.remediation_result.details)
+        if isinstance(activity.remediation_result.details, dict)
+        else {}
+    )
+    actor = _build_admin_settings_actor_fingerprint(
+        request=request,
+        x_admin_key=x_admin_key,
+    )
+    recorded_at = utcnow()
+    verification_overall = _derive_verification_overall(
+        identification=payload.identification.value,
+        diagnosis=payload.diagnosis.value,
+        remediation=payload.remediation.value,
+    )
+    verification_payload = {
+        "identification": payload.identification.value,
+        "diagnosis": payload.diagnosis.value,
+        "remediation": payload.remediation.value,
+        "overall": verification_overall,
+        "notes": payload.notes.strip(),
+        "issue_number": payload.issue_number,
+        "issue_url": (payload.issue_url or "").strip() or None,
+        "target_version": (payload.target_version or "").strip() or None,
+        "recorded_at": recorded_at.isoformat(),
+        "actor": actor,
+        "request_id": getattr(request.state, "request_id", None),
+    }
+    history_raw = details.get("verification_history")
+    history = history_raw if isinstance(history_raw, list) else []
+    history.append(verification_payload)
+    details["verification"] = verification_payload
+    details["verification_history"] = history[-20:]
+    activity.remediation_result.details = details
+    await storage.update_activity(activity)
+
+    updated_candidate_ids: list[str] = []
+    existing_items = await storage.list_learning_queue_items(limit=300)
+    for row in existing_items:
+        try:
+            candidate = LearningQueueItem(**row)
+        except Exception:
+            continue
+        if activity.id not in candidate.sample_activity_ids:
+            continue
+        pass_count = 0
+        partial_count = 0
+        fail_count = 0
+        sample_count = 0
+        for sample_id in candidate.sample_activity_ids:
+            sample_activity = await storage.get_activity(sample_id)
+            if sample_activity is None:
+                continue
+            verification = _extract_activity_verification(sample_activity)
+            if verification is None:
+                continue
+            sample_count += 1
+            overall = str(verification.get("overall") or "")
+            if overall == LearningVerificationOutcome.PASS.value:
+                pass_count += 1
+            elif overall == LearningVerificationOutcome.PARTIAL.value:
+                partial_count += 1
+            else:
+                fail_count += 1
+        candidate.verification_sample_count = sample_count
+        candidate.verification_pass_count = pass_count
+        candidate.verification_partial_count = partial_count
+        candidate.verification_fail_count = fail_count
+        candidate.verification_pass_rate = round((pass_count / sample_count), 4) if sample_count > 0 else 0.0
+        candidate.updated_at = recorded_at
+        candidate.promotion_readiness = _evaluate_learning_promotion_readiness(candidate)
+        await storage.upsert_learning_queue_item(candidate.model_dump(mode="json"))
+        updated_candidate_ids.append(candidate.id)
+
+    feedback_audit_entry = AdminSettingsAuditEntry(
+        changed_keys=["learning_verification_feedback"],
+        changes={
+            "learning_verification_feedback": {
+                "old": None,
+                "new": {
+                    "activity_id": activity.id,
+                    "verification": verification_payload,
+                    "updated_candidate_ids": updated_candidate_ids,
+                },
+            }
+        },
+        actor=actor,
+        request_id=getattr(request.state, "request_id", None),
+        client_ip=request.client.host if request.client else None,
+        user_agent=user_agent,
+    )
+    await _append_admin_settings_audit_entry(
+        storage=storage,
+        entry=feedback_audit_entry,
+    )
+
+    return LearningVerificationFeedbackResponse(
+        activity_id=activity.id,
+        verification_overall=LearningVerificationOutcome(verification_overall),
+        updated_candidate_ids=updated_candidate_ids,
+    )
 
 
 @router.get("/activities", response_model=list[ActivityRecord])

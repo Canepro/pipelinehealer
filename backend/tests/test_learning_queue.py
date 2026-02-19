@@ -60,6 +60,33 @@ async def _decide(candidate_id: str, action: str, *, force_activate: bool = Fals
         )
 
 
+async def _post_feedback(
+    *,
+    activity_id: str,
+    identification: str,
+    diagnosis: str,
+    remediation: str,
+    notes: str = "",
+    issue_number: int | None = None,
+) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    payload: dict[str, object] = {
+        "activity_id": activity_id,
+        "identification": identification,
+        "diagnosis": diagnosis,
+        "remediation": remediation,
+        "notes": notes,
+    }
+    if issue_number is not None:
+        payload["issue_number"] = issue_number
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.post(
+            "/api/settings/learning/feedback",
+            headers=_auth_headers(),
+            json=payload,
+        )
+
+
 @pytest.mark.asyncio
 async def test_learning_queue_empty_by_default() -> None:
     response = await _get_learning_queue()
@@ -135,7 +162,15 @@ async def test_learning_queue_decision_updates_status_and_is_audited() -> None:
             remediation_result=RemediationResult(
                 success=True,
                 action_taken=RemediationAction.CREATE_PR,
-                details={"reason_code": "LINT_RULE_UPDATE"},
+                details={
+                    "reason_code": "LINT_RULE_UPDATE",
+                    "verification": {
+                        "identification": "pass",
+                        "diagnosis": "pass",
+                        "remediation": "pass",
+                        "overall": "pass",
+                    },
+                },
             ),
         )
         await storage.create_activity(activity)
@@ -241,3 +276,103 @@ async def test_learning_queue_force_activate_rejected_for_non_activate_action() 
     invalid = await _decide(candidate_id, "approve", force_activate=True)
     assert invalid.status_code == 422
     assert "force_activate is supported only when action=activate" in invalid.text
+
+
+@pytest.mark.asyncio
+async def test_learning_feedback_updates_candidate_verification_and_readiness() -> None:
+    storage = app.state.storage
+    activity_ids: list[str] = []
+    for index in (1, 2):
+        activity = ActivityRecord(
+            repositoryId="repo-1",
+            repository_name="owner/repo",
+            workflow_run_id=500 + index,
+            workflow_name="CI",
+            status=RemediationStatus.COMPLETED,
+            failure_type=FailureType.BUILD_CONFIG,
+            diagnosis=Diagnosis(
+                failure_type=FailureType.BUILD_CONFIG,
+                confidence=0.9,
+                root_cause="Missing required environment variable",
+                is_auto_fixable=False,
+                suggested_fix="Add missing env var to workflow.",
+                error_details={"reason_code": "REQUIRES_ENV_CONTEXT"},
+            ),
+            remediation_result=RemediationResult(
+                success=True,
+                action_taken=RemediationAction.CREATE_ISSUE,
+                details={"reason_code": "REQUIRES_ENV_CONTEXT"},
+            ),
+        )
+        activity_ids.append(await storage.create_activity(activity))
+
+    refreshed = await _refresh_learning_queue()
+    assert refreshed.status_code == 200
+    queue = await _get_learning_queue()
+    candidate_id = queue.json()[0]["id"]
+
+    approved = await _decide(candidate_id, "approve")
+    assert approved.status_code == 200
+    assert approved.json()["promotion_readiness"]["ready"] is False
+    assert "verification_sample_below_threshold" in approved.json()["promotion_readiness"]["reasons"]
+
+    first_feedback = await _post_feedback(
+        activity_id=activity_ids[0],
+        identification="pass",
+        diagnosis="pass",
+        remediation="pass",
+        notes="validated manually from logs",
+        issue_number=25,
+    )
+    assert first_feedback.status_code == 200
+    first_payload = first_feedback.json()
+    assert first_payload["verification_overall"] == "pass"
+    assert candidate_id in first_payload["updated_candidate_ids"]
+
+    second_feedback = await _post_feedback(
+        activity_id=activity_ids[1],
+        identification="pass",
+        diagnosis="partial",
+        remediation="pass",
+        notes="diagnosis needed minor correction",
+    )
+    assert second_feedback.status_code == 200
+    second_payload = second_feedback.json()
+    assert second_payload["verification_overall"] == "partial"
+
+    queue_after_partial = await _get_learning_queue()
+    candidate_partial = queue_after_partial.json()[0]
+    assert candidate_partial["verification_sample_count"] == 2
+    assert candidate_partial["verification_pass_count"] == 1
+    assert candidate_partial["verification_partial_count"] == 1
+    assert candidate_partial["verification_pass_rate"] == 0.5
+    assert candidate_partial["promotion_readiness"]["ready"] is False
+    assert "verification_pass_rate_below_threshold" in candidate_partial["promotion_readiness"]["reasons"]
+
+    second_feedback_pass = await _post_feedback(
+        activity_id=activity_ids[1],
+        identification="pass",
+        diagnosis="pass",
+        remediation="pass",
+        notes="updated after rerun",
+    )
+    assert second_feedback_pass.status_code == 200
+
+    queue_after_pass = await _get_learning_queue()
+    candidate_ready = queue_after_pass.json()[0]
+    assert candidate_ready["verification_sample_count"] == 2
+    assert candidate_ready["verification_pass_count"] == 2
+    assert candidate_ready["verification_pass_rate"] == 1.0
+    assert candidate_ready["promotion_readiness"]["ready"] is True
+
+    activation = await _decide(candidate_id, "activate")
+    assert activation.status_code == 200
+    assert activation.json()["status"] == "active"
+
+    updated_activity = await storage.get_activity(activity_ids[1])
+    assert updated_activity is not None
+    details = updated_activity.remediation_result.details if updated_activity.remediation_result else {}
+    assert isinstance(details, dict)
+    history = details.get("verification_history")
+    assert isinstance(history, list)
+    assert len(history) >= 2

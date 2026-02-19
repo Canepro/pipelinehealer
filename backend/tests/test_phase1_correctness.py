@@ -28,6 +28,19 @@ from src.storage import InMemoryStorage
 from src.tools.fix_generators import NotAutoApplyReason
 
 
+@pytest.fixture(autouse=True)
+def _reset_runtime_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PH_ALLOWED_REPOS", raising=False)
+    monkeypatch.delenv("MCP_REPO_ALLOWLIST", raising=False)
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AUTH_MODE", "api_key")
+    monkeypatch.delenv("API_AUTH_KEY", raising=False)
+    monkeypatch.delenv("ADMIN_API_KEY", raising=False)
+    reset_settings()
+    yield
+    reset_settings()
+
+
 class FakeGitHubTools:
     """Minimal fake GitHubTools for unit testing."""
 
@@ -425,6 +438,7 @@ async def test_orchestrator_records_mcp_tool_invocation_without_gh_aw(monkeypatc
     monkeypatch.setenv("MCP_ENABLED", "true")
     monkeypatch.setenv("MCP_PROVIDER", "github")
     monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "test-token")
+    monkeypatch.setenv("MCP_REPO_ALLOWLIST", "octo/demo")
     monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "false")
     monkeypatch.setenv("GH_AW_INGESTION_MODE", "disabled")
     reset_settings()
@@ -485,6 +499,7 @@ async def test_orchestrator_collects_runbook_context_from_github_mcp(monkeypatch
     monkeypatch.setenv("MCP_ENABLED", "true")
     monkeypatch.setenv("MCP_PROVIDER", "github")
     monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "test-token")
+    monkeypatch.setenv("MCP_REPO_ALLOWLIST", "octo/demo")
     monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "false")
     monkeypatch.setenv("GH_AW_INGESTION_MODE", "disabled")
     reset_settings()
@@ -738,6 +753,8 @@ async def test_remediation_low_confidence_creates_review_issue() -> None:
     assert "### Proposed Fix (For Review Only)" in body
     assert "### Why Not Auto-Applied" in body
     assert "### How to Validate" in body
+    assert "### PipelineHealer Assessment" in body
+    assert "### Operator Verification Checklist" in body
     assert f"Reason Code: {NotAutoApplyReason.LOW_CONFIDENCE.value}" in body
 
 

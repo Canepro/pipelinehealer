@@ -113,6 +113,8 @@ async def test_issue_plan_contains_review_only_proposed_fix_section() -> None:
     assert "### Proposed Fix (For Review Only)" in plan.issue_body
     assert "### Why Not Auto-Applied" in plan.issue_body
     assert "### How to Validate" in plan.issue_body
+    assert "### PipelineHealer Assessment" in plan.issue_body
+    assert "### Operator Verification Checklist" in plan.issue_body
     assert "UNVERIFIED AI SUGGESTION" in plan.issue_body
     assert f"Reason Code: {NotAutoApplyReason.LOW_CONFIDENCE.value}" in plan.issue_body
 

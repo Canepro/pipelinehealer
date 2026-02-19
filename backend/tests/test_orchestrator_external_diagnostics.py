@@ -268,7 +268,9 @@ class _ShouldNotCallAdapter:
 
 
 @pytest.fixture(autouse=True)
-def _clear_settings_cache() -> None:
+def _clear_settings_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PH_ALLOWED_REPOS", raising=False)
+    monkeypatch.delenv("MCP_REPO_ALLOWLIST", raising=False)
     reset_settings()
     yield
     reset_settings()
@@ -287,6 +289,8 @@ async def test_collect_external_diagnostics_reports_capability_unavailable(monke
     assert len(diagnostics) == 1
     assert diagnostics[0].status == ExternalDiagnosticStatus.UNAVAILABLE
     assert diagnostics[0].metadata.get("reason_code") == "capability_unavailable"
+    assert diagnostics[0].metadata.get("source_selection_path") == "gh_aw_passive"
+    assert diagnostics[0].metadata.get("source_selection_reason") == "capability_unavailable"
 
 
 @pytest.mark.asyncio
@@ -311,6 +315,7 @@ async def test_collect_external_diagnostics_skips_known_gh_aw_workflow(monkeypat
     assert len(skip_diags) == 1
     assert skip_diags[0].status == ExternalDiagnosticStatus.UNAVAILABLE
     assert skip_diags[0].metadata.get("workflow_identifier") == "schema-consistency-checker"
+    assert skip_diags[0].metadata.get("source_selection_path") == "gh_aw_passive"
 
 
 @pytest.mark.asyncio
@@ -446,6 +451,7 @@ async def test_collect_external_diagnostics_uses_github_mcp_without_gh_aw(monkey
     monkeypatch.setenv("MCP_ENABLED", "true")
     monkeypatch.setenv("MCP_PROVIDER", "github")
     monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "token")
+    monkeypatch.setenv("MCP_REPO_ALLOWLIST", "canepro/repo")
     monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "false")
     monkeypatch.setenv("GH_AW_INGESTION_MODE", "disabled")
     reset_settings()
@@ -460,6 +466,8 @@ async def test_collect_external_diagnostics_uses_github_mcp_without_gh_aw(monkey
     assert diagnostic.status == ExternalDiagnosticStatus.AVAILABLE
     assert diagnostic.confidence_delta > 0
     assert diagnostic.metadata.get("reason_code") == "github_mcp_context"
+    assert diagnostic.metadata.get("source_selection_path") == "github_mcp_direct"
+    assert diagnostic.metadata.get("source_selection_reason") == "gh_aw_passive_disabled"
     assert diagnostic.metadata.get("failed_jobs_count") == 1
     assert diagnostic.metadata.get("changed_files") == []
     assert isinstance(diagnostic.metadata.get("details"), dict)
@@ -491,6 +499,7 @@ async def test_collect_external_diagnostics_blocks_github_mcp_for_repo_allowlist
     assert diagnostic.source == "github-mcp"
     assert diagnostic.status == ExternalDiagnosticStatus.UNAVAILABLE
     assert diagnostic.metadata.get("reason_code") == "repo_not_allowlisted"
+    assert diagnostic.metadata.get("source_selection_path") == "github_mcp_blocked"
     assert activity.mcp_model_path.action_audit[-1].result == "blocked:repo_not_allowlisted"
 
 
@@ -499,6 +508,7 @@ async def test_collect_external_diagnostics_records_mcp_action_audit(monkeypatch
     monkeypatch.setenv("MCP_ENABLED", "true")
     monkeypatch.setenv("MCP_PROVIDER", "github")
     monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "token")
+    monkeypatch.setenv("MCP_REPO_ALLOWLIST", "canepro/repo")
     monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "false")
     monkeypatch.setenv("GH_AW_INGESTION_MODE", "disabled")
     monkeypatch.setenv("MCP_TIMEOUT_SECONDS", "1")

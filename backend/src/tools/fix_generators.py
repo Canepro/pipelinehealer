@@ -223,6 +223,38 @@ class FixGenerators:
             lines.append("5. Confirm the original failing step now passes and no new failures are introduced.")
         return "\n".join(lines)
 
+    def _build_pipelinehealer_assessment(
+        self,
+        diagnosis: Diagnosis,
+        reason_code: NotAutoApplyReason,
+    ) -> str:
+        """Build a structured accuracy review section for operator validation."""
+        if diagnosis.failure_type == FailureType.UNKNOWN or diagnosis.confidence < 0.5:
+            identification_status = "needs operator confirmation"
+        elif diagnosis.confidence >= 0.8:
+            identification_status = "high-confidence signal"
+        else:
+            identification_status = "moderate-confidence signal"
+
+        if diagnosis.confidence >= 0.8:
+            diagnosis_status = "likely correct from available evidence"
+        elif diagnosis.confidence >= 0.5:
+            diagnosis_status = "plausible but requires log verification"
+        else:
+            diagnosis_status = "low-confidence and must be treated as a hypothesis"
+
+        return (
+            f"- Identification: `{diagnosis.failure_type.value}` at `{diagnosis.confidence:.0%}` confidence "
+            f"({identification_status}).\n"
+            f"- Diagnosis: {diagnosis_status}.\n"
+            f"- Remediation: review-only proposal path (`{reason_code.value}`), not auto-applied.\n"
+            "- Target Version: assign milestone/version label before closure.\n\n"
+            "### Operator Verification Checklist\n"
+            "- [ ] Identification is correct (failure type and scope match failing logs).\n"
+            "- [ ] Diagnosis is correct (root cause validated against workflow/job logs).\n"
+            "- [ ] Remediation is correct (proposal validated by branch + rerun, or deferred with reason).\n"
+        )
+
     def _build_proposed_fix_text(self, diagnosis: Diagnosis) -> str:
         """Build a review-only proposed fix snippet for issue bodies."""
         details = diagnosis.error_details or {}
@@ -328,6 +360,7 @@ class FixGenerators:
         else:
             proposal = self._sanitize_proposed_fix_text(self._build_proposed_fix_text(diagnosis))
         validate = self._build_validation_steps(diagnosis)
+        assessment = self._build_pipelinehealer_assessment(diagnosis, final_code)
         return (
             issue_body.rstrip()
             + "\n\n### Proposed Fix (For Review Only)\n"
@@ -340,6 +373,8 @@ class FixGenerators:
             + f"- Detail: {final_reason}\n\n"
             + "### How to Validate\n"
             + validate
+            + "\n\n### PipelineHealer Assessment\n"
+            + assessment
             + "\n"
         )
 

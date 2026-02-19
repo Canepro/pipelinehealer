@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 9169bf3 -->
+<!-- LAST_VERIFIED: 62cab2b -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -27,44 +27,45 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.2.0` | Released | Learning governance, portability core, Helm target |
 | `v0.2.1` | Released | Release-process corrective hardening |
 | `v0.2.2` | Released | Case-study/readme/docs consistency + release cleanup |
-| `v0.2.3` | Candidate in `main` | Release QA freeze scope implemented; release tag validation pending |
+| `v0.2.3` | Released | Release QA freeze scope completed and tagged |
+| `v0.2.4` | Released | Immutable release images + retention guardrails |
+| `v0.2.5` | Released | Release publish/RBAC hardening follow-up |
 
-## Active Target: `v0.2.4` (Release Artifact Immutability + Cost Guardrails)
+## Active Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
-Theme: ensure versioned installs are reproducible and affordable by publishing immutable release images and enforcing retention guardrails.
+Theme: close the loop between operator verification and PipelineHealer learning, and make diagnostics source behavior explicit (especially MCP vs `gh_aw` passive mode).
 
 ### Must-Have Scope
 
-1. Immutable release image publishing
-   - On each `vX.Y.Z` tag, build and push backend/frontend images to ACR.
-   - Publish both tag forms (`vX.Y.Z` and `X.Y.Z`) and record digests in release output.
-2. Helm reproducibility controls
-   - Add digest-based image pinning support (`repository@sha256:...`) with tag fallback.
-   - Keep Helm chart versions synced with repository versioning during release prep.
-3. Retention and cost controls
-   - Prune old local ACR-tagged images after full deploy.
-   - Prune old ACR tags/manifests with semver-tag preservation to avoid breaking versioned installs.
-4. Operator docs and runbook sync
-   - Document OIDC + ACR release requirements.
-   - Document digest-first Helm install guidance and release verification steps.
-5. Workflow compatibility hardening
-   - Ensure release build paths work with current lockfile format and existing CI/runtime constraints.
+1. Verification feedback capture for learning
+   - Add explicit verification payload for `identification`, `diagnosis`, `remediation` outcomes (`pass|partial|fail`).
+   - Persist verification metadata alongside activity/learning records with audit trail.
+2. Learning-queue quality gates using verification outcomes
+   - Weight candidate readiness by verified pass rate and verified sample size.
+   - Prevent activation when verification quality gates fail (unless force path).
+3. Diagnostics source-selection transparency
+   - Expose why direct GitHub MCP was/was not used for an activity (policy/gating/source mode).
+   - Make `gh_aw` passive vs MCP direct-path selection visible in issue/activity metadata.
+4. Operator docs and triage workflow sync
+   - Standardize issue-close quality gate requiring PipelineHealer accuracy assessment + target version assignment.
+   - Update API/operator docs for verification feedback and readiness impact.
 
 ### Exit Criteria
 
-1. `vX.Y.Z` GitHub release publishes immutable ACR references for backend/frontend (tags + digests).
-2. Helm chart supports both semver tag pinning and digest pinning without template changes.
-3. Full deploy includes retention controls; semver-like tags are preserved from ACR prune.
-4. Release docs and runbooks describe required GitHub/Azure OIDC configuration and verification commands.
-5. `bash scripts/check_version_sync.sh` validates `VERSION`, backend/frontend package versions, and Helm chart version/appVersion.
+1. Verification outcomes are captured through a supported API path and stored durably.
+2. Learning queue readiness reflects verification quality gates (and remains auditable).
+3. Activity/issue evidence clearly explains diagnostics source path (`gh_aw` passive vs GitHub MCP direct vs blocked).
+4. Docs cover verification workflow and target-version tracking standards.
+5. Existing remediation/learning tests remain green with new verification logic.
 
-### Initial `v0.2.4` Implementation Snapshot
+### Prior `v0.2.4/v0.2.5` Implementation Snapshot
 
 - Release workflow publishes ACR release images + `release_images.md` digest artifact.
 - Helm chart supports `digest` fields for backend/frontend images.
 - Deploy path includes local + ACR retention pruning controls with semver preservation.
 - Release helpers now synchronize `charts/pipelinehealer/Chart.yaml`.
 - GitHub OIDC release environment wiring documented and configured.
+- Release publish path validated for `v0.2.4` and `v0.2.5` after subscription/RBAC hardening.
 
 ## Next Target: `v0.3.0` (Minor)
 
@@ -144,6 +145,9 @@ Theme: provider and platform extensibility.
 | `BL-013` | Immutable ACR release image publish + digest artifact | `v0.2.4` | patch | High | Completed (in `main`) |
 | `BL-014` | Helm digest pinning + chart version sync in release tooling | `v0.2.4` | patch | High | Completed (in `main`) |
 | `BL-015` | Deploy retention controls (local + ACR) with semver preservation | `v0.2.4` | patch | Medium | Completed (in `main`) |
+| `BL-016` | Verification feedback API + durable storage (`identification/diagnosis/remediation`) | `v0.2.6` | patch | High | Planned |
+| `BL-017` | Verification-aware learning readiness gates + metrics | `v0.2.6` | patch | High | Planned |
+| `BL-018` | Diagnostics source transparency (`gh_aw` passive vs MCP direct path reasons) | `v0.2.6` | patch | Medium | Planned |
 
 ## Definition of Done (Per Version)
 

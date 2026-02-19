@@ -1,6 +1,6 @@
 # Learning System Plan
 
-<!-- LAST_VERIFIED: c8a1c8d -->
+<!-- LAST_VERIFIED: 62cab2b -->
 
 This document explains the learning/governance subsystem, how to use it today, and what is planned next.
 
@@ -31,6 +31,13 @@ Readiness gates for activation:
 - occurrence count gate (default >= 2)
 - success-rate gate (default >= 80%)
 - sample-size gate (default >= 2)
+- verification-sample gate (default >= 1)
+- verification-pass-rate gate (default >= 80%)
+
+Verification feedback loop:
+- operator feedback API (`identification`, `diagnosis`, `remediation` outcomes)
+- per-activity durable verification payload + history
+- candidate verification counters (`pass|partial|fail`) + pass rate
 
 Observability and audit:
 - per-candidate `promotion_readiness` payload
@@ -55,6 +62,7 @@ API:
 - `GET /api/settings/learning/queue`
 - `POST /api/settings/learning/queue/refresh`
 - `POST /api/settings/learning/queue/{candidate_id}/decision`
+- `POST /api/settings/learning/feedback`
 
 ## Current Constraints
 
@@ -79,4 +87,3 @@ API:
 - no hidden state transitions
 - all force paths must be explicit, deliberate, and audited
 - keep deterministic fallback path available when learning context is unavailable
-

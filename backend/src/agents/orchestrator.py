@@ -554,6 +554,21 @@ class OrchestratorAgent:
             and self._settings.gh_aw_ingestion_mode == "passive"
         )
 
+    @staticmethod
+    def _annotate_source_selection(
+        diagnostics: list[ExternalDiagnostic],
+        *,
+        path: str,
+        reason: str,
+    ) -> list[ExternalDiagnostic]:
+        """Attach source-selection metadata to diagnostics for operator clarity."""
+        for diagnostic in diagnostics:
+            metadata = dict(diagnostic.metadata or {})
+            metadata["source_selection_path"] = path
+            metadata["source_selection_reason"] = reason
+            diagnostic.metadata = metadata
+        return diagnostics
+
     def _github_mcp_collection_enabled(
         self,
         activity: ActivityRecord,
@@ -912,17 +927,19 @@ class OrchestratorAgent:
                 default_branch=event.repository.default_branch,
             )
             if mcp_enabled:
-                return await self._collect_external_diagnostics_from_github_mcp(
-                    activity,
-                    owner,
-                    repo,
-                    event,
+                diagnostics = await self._collect_external_diagnostics_from_github_mcp(
+                    activity, owner, repo, event
+                )
+                return self._annotate_source_selection(
+                    diagnostics,
+                    path="github_mcp_direct",
+                    reason="gh_aw_passive_disabled",
                 )
             if (
                 self._settings.mcp_enabled
                 and (self._settings.mcp_provider or "").strip().lower() == "github"
             ):
-                return [
+                diagnostics = [
                     ExternalDiagnostic(
                         source="github-mcp",
                         status=ExternalDiagnosticStatus.UNAVAILABLE,
@@ -934,13 +951,18 @@ class OrchestratorAgent:
                         },
                     )
                 ]
+                return self._annotate_source_selection(
+                    diagnostics,
+                    path="github_mcp_blocked",
+                    reason=f"policy_or_provider:{mcp_reason}",
+                )
             return []
 
         # --- Discover available diagnostic sources ---
         try:
             capability = await self._gh_aw_adapter.discover_capability(owner, repo)
         except Exception as exc:
-            return [
+            diagnostics = [
                 ExternalDiagnostic(
                     source="external-diagnostics",
                     status=ExternalDiagnosticStatus.ERROR,
@@ -952,6 +974,11 @@ class OrchestratorAgent:
                     },
                 )
             ]
+            return self._annotate_source_selection(
+                diagnostics,
+                path="gh_aw_passive",
+                reason="capability_discovery_failed",
+            )
         if not capability.is_available:
             logger.info(
                 "External diagnostics unavailable for %s/%s: %s",
@@ -959,7 +986,7 @@ class OrchestratorAgent:
                 repo,
                 capability.reason or "unknown",
             )
-            return [
+            diagnostics = [
                 ExternalDiagnostic(
                     source="external-diagnostics",
                     status=ExternalDiagnosticStatus.UNAVAILABLE,
@@ -972,6 +999,11 @@ class OrchestratorAgent:
                     },
                 )
             ]
+            return self._annotate_source_selection(
+                diagnostics,
+                path="gh_aw_passive",
+                reason="capability_unavailable",
+            )
 
         # --- Determine skip list (only affects ci-doctor self-diagnosis) ---
         workflow_name = event.workflow_run.name or ""
@@ -1081,7 +1113,11 @@ class OrchestratorAgent:
                 owner, repo, exc,
             )
 
-        return all_diagnostics
+        return self._annotate_source_selection(
+            all_diagnostics,
+            path="gh_aw_passive",
+            reason="gh_aw_passive_enabled",
+        )
 
     async def _poll_ci_doctor(
         self,
@@ -1641,6 +1677,11 @@ class OrchestratorAgent:
 
         if not findings:
             return False
+        findings = self._annotate_source_selection(
+            findings,
+            path="gh_aw_passive",
+            reason="backfill_sweep",
+        )
 
         # Replace the stale poll_window_exhausted entries with real findings.
         activity.external_diagnostics = [
