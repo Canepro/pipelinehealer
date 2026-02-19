@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: f041ad6 -->
+<!-- LAST_VERIFIED: 9f40326 -->
 
 Use this as the only doc during recording day. It includes:
 
