@@ -14,6 +14,9 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - `75c3871` Updated operator docs/runbooks to recommend release-driven Azure deploys (`deploy:release --release-version vX.Y.Z`) as the default production path.
 - `4d801e0` Refreshed submission freeze tracking and the video demo runbook (`docs/HACKATHON_LOG.md`, `docs/DEMO_SCRIPT.md`) for the `v0.2.6` baseline, including release-driven pre-record deploy guidance.
+- `a80c271` Refreshed `docs/DEMO_SCRIPT.md` verification marker after submission-runbook updates.
+- `308b862` Polished README submission-phase positioning, clarified remediation language, and added an explicit `v0.2.6` baseline section.
+- `9e74863` Updated README architecture Mermaid diagram to match current runtime behavior (background diagnostics backfill, GH-AW sources, optional MCP enrichment).
 
 ## [v0.2.6] - 2026-02-19
 
