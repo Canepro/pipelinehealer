@@ -10,23 +10,29 @@ If this repo is checked out under `pipelinehealer/demo-repo`, run:
 
 ```bash
 cd <repo-root>/pipelinehealer
-bash scripts/ph.sh demo:e2e --wait-seconds 40
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180
 ```
 
 This handles webhook sync, fixture reset, workflow dispatch (for the default set: `dependency,lint,test,build_config,timeout`), and verification output.
+
+For rehearsal/submission gating (fails fast if activity/CI-signal criteria are not met):
+
+```bash
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 300 --strict
+```
 
 ### Run a single failure type
 
 To trigger just one scenario, use `--triggers` with a single value:
 
 ```bash
-bash scripts/ph.sh demo:e2e --triggers dependency --wait-seconds 40
-bash scripts/ph.sh demo:e2e --triggers lint --wait-seconds 40
-bash scripts/ph.sh demo:e2e --triggers prettier --wait-seconds 40
-bash scripts/ph.sh demo:e2e --triggers permissions --wait-seconds 40
-bash scripts/ph.sh demo:e2e --triggers test --wait-seconds 40
-bash scripts/ph.sh demo:e2e --triggers build_config --wait-seconds 40
-bash scripts/ph.sh demo:e2e --triggers timeout --wait-seconds 60
+bash scripts/ph.sh demo:e2e --triggers dependency --wait-seconds 180
+bash scripts/ph.sh demo:e2e --triggers lint --wait-seconds 180
+bash scripts/ph.sh demo:e2e --triggers prettier --wait-seconds 180
+bash scripts/ph.sh demo:e2e --triggers permissions --wait-seconds 180
+bash scripts/ph.sh demo:e2e --triggers test --wait-seconds 180
+bash scripts/ph.sh demo:e2e --triggers build_config --wait-seconds 180
+bash scripts/ph.sh demo:e2e --triggers timeout --wait-seconds 180
 ```
 
 ### Run a custom subset
@@ -34,7 +40,7 @@ bash scripts/ph.sh demo:e2e --triggers timeout --wait-seconds 60
 Combine any failure types as a comma-separated list:
 
 ```bash
-bash scripts/ph.sh demo:e2e --triggers dependency,lint,prettier --wait-seconds 40
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,prettier --wait-seconds 180
 ```
 
 ### Trigger via GitHub UI (no CLI)
@@ -67,7 +73,35 @@ When a failure occurs, PipelineHealer will:
 
 ## CI Doctor (GitHub Agentic Workflows)
 
-This repo also includes a **ci-doctor** agentic workflow (`.github/workflows/ci-doctor.md`) that runs independently via GitHub's Agentic Workflows platform. When the CI workflow fails, ci-doctor performs its own investigation and opens a `[CI Failure Doctor]` issue. PipelineHealer can passively ingest these findings for richer diagnostics.
+This repo also includes a **ci-doctor** agentic workflow source (`.github/workflows/ci-doctor.md`, compiled to `.github/workflows/ci-doctor.lock.yml`) that runs independently via GitHub's Agentic Workflows platform. When the CI workflow fails, ci-doctor performs its own investigation and opens a `[CI Failure Doctor]` issue. PipelineHealer can passively ingest these findings for richer diagnostics.
+
+If you are validating MCP behavior:
+- `MCP Tool Calls > 0` means direct MCP tools were invoked.
+- `MCP Tool Calls = 0` can still be valid when diagnostics came from passive `gh_aw` ingestion.
+
+## Housekeeping
+
+Demo runs intentionally create PRs/issues. Keep this repo tidy between demo sessions:
+
+```bash
+# Quick proof snapshot
+bash scripts/ph.sh demo:proof --repo Canepro/pipelinehealer-demo --limit 10
+
+# Optional fixture reset (local checkout)
+bash scripts/ph.sh demo:reset
+```
+
+Manual cleanup helpers:
+
+```bash
+# Open artifacts
+gh pr list -R Canepro/pipelinehealer-demo --state open
+gh issue list -R Canepro/pipelinehealer-demo --state open
+
+# Close one demo PR/issue when no longer needed
+gh pr close <number> -R Canepro/pipelinehealer-demo --delete-branch
+gh issue close <number> -R Canepro/pipelinehealer-demo
+```
 
 ## Tooling Note
 
