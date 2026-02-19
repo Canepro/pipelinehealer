@@ -8,6 +8,19 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - _No unreleased entries yet._
 
+## [v0.2.4] - 2026-02-19
+
+### Added
+
+- `9169bf3` Release workflow now publishes immutable backend/frontend ACR images on `vX.Y.Z` tags, including semver tags and digest references (`release_images.md`) for reproducible installs.
+- `9169bf3` Helm chart now supports digest pinning (`repository@sha256:...`) for backend and frontend images, with tag fallback.
+
+### Changed
+
+- `9169bf3` Full deploy now includes local + ACR image retention controls, preserving semver-style tags while pruning older non-release tags.
+- `9169bf3` Version sync/release tooling now includes Helm chart version/appVersion synchronization in `charts/pipelinehealer/Chart.yaml`.
+- `ed44e99` Initialized `v0.2.4` roadmap target in `docs/FUTURE_PLAN.md` with release-artifact immutability and cost-guardrail scope/exit criteria.
+
 ## [v0.2.3] - 2026-02-19
 
 ### Changed
