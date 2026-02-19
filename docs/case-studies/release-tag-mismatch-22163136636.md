@@ -1,6 +1,6 @@
 # Case Study: Release Tag/Version Mismatch (`run #22163136636`)
 
-<!-- LAST_VERIFIED: f1bae20 -->
+<!-- LAST_VERIFIED: a13de38 -->
 
 ## Summary
 
@@ -55,6 +55,24 @@ Applied in this repository:
 - Release published: `v0.2.1`
 - Release commit: `b69a9ec`
 - Purpose: supersede the mis-tagged release event with a correct tag/version-aligned publish flow.
+
+## Learning Candidate Follow-up (Self-Learning Path)
+
+This incident is a good candidate for the learning system.
+
+- Candidate type: `build_config` release validation mismatch.
+- Candidate signature cues:
+  - workflow context includes release/tag validation
+  - evidence contains `Validate tag matches VERSION`
+  - mismatch pattern between `TAG_NAME` and `VERSION`
+- Candidate draft remediation:
+  - run `bash scripts/check_version_sync.sh`
+  - align `VERSION` with intended tag via release flow
+  - publish corrected tag/release (patch follow-up when required)
+
+If a similar incident first appears as `unknown` or low-confidence, it should stay in `candidate` state until recurrence + operator review confirm the pattern. After approval, the playbook can be activated to improve future classification and guidance quality.
+
+Important safety rule: even with an active candidate, guarded-file policies still apply. For this class, remediation should continue to prefer issue-first guidance when proposed edits touch protected release/version paths.
 
 ## Related Artifacts
 
