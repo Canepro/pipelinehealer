@@ -16,6 +16,10 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - `030fc39` Refreshed documentation `LAST_VERIFIED` markers after roadmap synchronization.
 - `a13de38` Added capability highlights across historical changelog versions for clearer release archaeology.
 - `2dc9251` Extended case-study documentation with learning-candidate follow-up details.
+- `dfc6efc` Added release-scope guardrail tooling so commits since the last tag must be represented in `CHANGELOG` `Unreleased`.
+- Split frontend chart/auth vendors in Vite build output to remove the chunk-size warning from local production builds.
+- Pinned MSAL packages to a React 18-compatible line (`@azure/msal-react=3.0.26`, `@azure/msal-browser=4.28.2`) to eliminate Bun peer warning noise.
+- Hardened release scope guardrail to validate all non-HEAD commits since last tag against `CHANGELOG` `Unreleased` references.
 
 ## [v0.2.2] - 2026-02-19
 

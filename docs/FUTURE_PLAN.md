@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 69331ac -->
+<!-- LAST_VERIFIED: dfc6efc -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -123,9 +123,9 @@ Theme: provider and platform extensibility.
 | `BL-006` | In-app investigation/log viewer (bounded) | `v0.4.x` | patch/minor | Medium | Queued |
 | `BL-007` | Multi-provider parity hardening and rollback automation | `v0.5.0` | minor | Medium | Queued |
 | `BL-008` | Non-GitHub CI adapter readiness | `v0.5.x` | minor | Medium | Queued |
-| `BL-009` | Vite chunk-size warning reduction (`>500kB`) | `v0.2.3` | patch | High | Planned |
-| `BL-010` | Bun peer-dependency warning cleanup (`react@18.3.1`) | `v0.2.3` | patch | High | Planned |
-| `BL-011` | Backend build warning cleanup (`agent-framework-core[all]`) | `v0.2.3` | patch | Medium | Planned |
+| `BL-009` | Vite chunk-size warning reduction (`>500kB`) | `v0.2.3` | patch | High | In Progress |
+| `BL-010` | Bun peer-dependency warning cleanup (`react@18.3.1`) | `v0.2.3` | patch | High | In Progress |
+| `BL-011` | Backend build warning cleanup (`agent-framework-core[all]`) | `v0.2.3` | patch | Medium | Blocked (upstream/index) |
 | `BL-012` | Deploy warning gate + triage runbook updates | `v0.2.3` | patch | Medium | Planned |
 
 ## Definition of Done (Per Version)

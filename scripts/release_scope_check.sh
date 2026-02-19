@@ -39,6 +39,15 @@ if [[ ${#commit_rows[@]} -eq 0 ]]; then
   exit 0
 fi
 
+# A commit cannot reference its own hash in CHANGELOG prior to being created.
+# We validate all commits except current HEAD; HEAD is expected to be captured by
+# a subsequent changelog update/commit before cutting a release.
+commit_rows=("${commit_rows[@]:1}")
+if [[ ${#commit_rows[@]} -eq 0 ]]; then
+  echo "Release scope OK: only current HEAD is ahead of ${latest_tag}."
+  exit 0
+fi
+
 unreleased_body="$(
 python3 - <<'PY'
 from pathlib import Path
@@ -82,4 +91,4 @@ if [[ ${#missing[@]} -gt 0 ]]; then
   exit 1
 fi
 
-echo "Release scope OK: all ${#commit_rows[@]} commits since ${latest_tag} are referenced in CHANGELOG [Unreleased]."
+echo "Release scope OK: all ${#commit_rows[@]} non-HEAD commits since ${latest_tag} are referenced in CHANGELOG [Unreleased]."
