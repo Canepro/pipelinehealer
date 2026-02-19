@@ -6,6 +6,10 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
+- _No unreleased entries yet._
+
+## [v0.2.7] - 2026-02-19
+
 ### Added
 
 - `75c3871` Added `deploy:release` Azure deployment path to promote existing ACR release images by immutable digest (no local build/push required).
@@ -20,6 +24,9 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - `695834f` Hardened `demo:e2e` verification with configurable CI-signal waits, optional strict gating, on-demand diagnostics backfill, and clearer passive-vs-direct MCP summary output.
 - `695834f` Clarified Activity Detail MCP observability copy so passive GH-AW attribution and direct MCP tool-call telemetry are clearly differentiated.
 - `6608f3a` Reworked Activity Detail information hierarchy with a top-level `PipelineHealer Decision` summary that combines diagnosis and remediation outcome, and moved deep model/evidence panels under a dedicated technical enrichment section.
+- `HEAD` Promoted `v0.2.7` submission baseline references across `README`, `CLI`, demo/runbook docs, and `ph.sh` operator help examples.
+- `HEAD` Added explicit MCP interpretation guidance for non-expert operators (enabled vs selected path vs direct tool invocation) across README, feature docs, and runbooks.
+- `HEAD` Updated roadmap/index tracking to close `v0.2.7` as submission-readiness/operator-clarity scope and return active planning to `v0.3.0`.
 
 ## [v0.2.6] - 2026-02-19
 

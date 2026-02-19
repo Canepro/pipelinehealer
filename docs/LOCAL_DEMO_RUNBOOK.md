@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 74e2d09 -->
+<!-- LAST_VERIFIED: 4b540b9 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -404,6 +404,11 @@ If MCP is enabled, the same Activity Detail now includes `MCP Observability`:
 - expandable details: `Configured Tools`, `Source Attribution`, `Tool Usage`
 - action audit rows now show both friendly result (`Allowed` / `Blocked` / `Error` / `Timeout`) and raw result codes for audit trust.
 
+How to read this without guessing:
+- `MCP Tool Calls > 0` means direct MCP tools were used.
+- `MCP Tool Calls = 0` can still be healthy if `Source Attribution` shows passive `gh_aw` diagnostics.
+- If MCP was expected but blocked, check `source_selection_path=github_mcp_blocked` and the reason code.
+
 ### Idempotency Validation (Recommended for demos/reviews)
 
 Validate remediation deduplication with a repeated trigger:
@@ -434,7 +439,7 @@ bash scripts/ph.sh backfill                   # trigger diagnostics backfill
 
 **Works locally:** `settings:check`, `settings:audit`, `settings:persist` (`--skip-redeploy`), `settings:persist:verify` (`--skip-redeploy`), `audit:proof`, `backfill`, `logs`, `logs:raw`, `logs:grep`, `demo:proof`, `demo:reset`.
 
-**Azure-only** (prints a clear error in local mode): `deploy`, `warm`, `lowcost`, `status`, `urls`, `webhook:*`, `rollout:canary`, `demo:e2e`.
+**Azure-only** (prints a clear error in local mode): `deploy`, `deploy:release`, `warm`, `lowcost`, `status`, `urls`, `webhook:*`, `rollout:canary`, `demo:e2e`.
 
 To switch back to Azure mode:
 
@@ -480,7 +485,7 @@ bash scripts/ph.sh urls
 ### Deploy Published Release (Recommended)
 
 ```bash
-bash scripts/ph.sh deploy:release --release-version v0.2.6
+bash scripts/ph.sh deploy:release --release-version v0.2.7
 ```
 
 This promotes already-published release images from ACR by digest, updates both Container Apps, syncs env vars, and verifies health.
@@ -523,10 +528,10 @@ bash scripts/ph.sh lowcost  # re-enable scale-to-zero (after demos)
 If you have Azure set up, this command runs the full demo automatically:
 
 ```bash
-bash scripts/ph.sh demo:e2e
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180
 ```
 
-What it does: syncs webhooks, resets fixtures, triggers all failure types, and verifies results.
+What it does: syncs webhooks, resets fixtures, triggers all failure types, verifies terminal activities, performs best-effort backfill before summary, and checks CI doctor signal presence.
 
 ---
 

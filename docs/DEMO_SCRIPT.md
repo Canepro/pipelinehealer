@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 6b98ef2 -->
+<!-- LAST_VERIFIED: 4b540b9 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -19,9 +19,9 @@ Related docs:
 ## Demo Flow (3-4 Minutes)
 
 1. Dashboard story: show `Processed`, `Actioned`, `Safety Gated`, `Issue-Only`, plus header KPIs `MCP Runs (30d)` and `LLM Fallback (30d)`.
-2. Explainability drilldown: open a focused activity and show `Failure Context` (job/step/command/signal), reason code, and the `Evidence Layers` block (`Confidence Impact by Source` + `Structured Context`).
+2. Explainability drilldown: open a focused activity and show `PipelineHealer Decision` first (root cause + remediation result), then `Failure Context` (job/step/command/signal), reason code, and the `Evidence Layers` block (`Confidence Impact by Source` + `Structured Context`).
 3. External findings: expand the "External Findings Details" panel to show ci-doctor's structured root cause, recommended actions, and doctor metadata.
-4. MCP observability (if enabled): in activity detail, show `MCP Observability` summary (`Provider`, `Status`, `Read Only`, `Reason`) where reason includes friendly text plus raw code; expand details for `Configured Tools`, `Source Attribution`, and `Tool Usage`/Action Audit (friendly status + raw codes).
+4. MCP observability (if enabled): in activity detail, show `MCP Observability` summary (`Provider`, `Status`, `Read Only`, `Reason`) where reason includes friendly text plus raw code; expand details for `Configured Tools`, `Source Attribution`, and `Tool Usage`/Action Audit (friendly status + raw codes). Clarify that `Tool Calls = 0` can still be valid when passive `gh_aw` diagnostics were used.
 5. Safety boundary: show `Why Safety Gated` microcopy and explain policy-driven issue fallback.
 6. Runtime policy + audit proof: open `/settings`, use the section tabs (`Runtime Controls`, `AI & Integrations`, `Security & Advanced`), show the Active Policy banner, and point out `Save & Persist` as one-step durable save, then run `bash scripts/ph.sh audit:proof --limit 5`.
 
@@ -32,7 +32,7 @@ Run from repo root:
 ```bash
 cd /mnt/d/repos/pipelinehealer
 git pull --ff-only origin main
-bash scripts/ph.sh deploy:release --release-version v0.2.6
+bash scripts/ph.sh deploy:release --release-version v0.2.7
 bash scripts/ph.sh warm
 bash scripts/ph.sh status
 bash scripts/ph.sh settings:check
@@ -56,7 +56,7 @@ If `deploy:release` fails due Azure auth/session context:
 ```bash
 az account show
 az login
-bash scripts/ph.sh deploy:release --release-version v0.2.6
+bash scripts/ph.sh deploy:release --release-version v0.2.7
 ```
 
 ## 2) Optional Clean Slate for Demo Repo
@@ -83,6 +83,7 @@ What this command does:
 - polls activity states to terminal (`completed` / `failed`) and prints runs, PRs, issues, and backend activity output
 - triggers an on-demand backfill sweep before final summary so late external diagnostics can be attached without waiting for the 10-minute background sweep
 - waits for a CI doctor workflow signal (`CI Failure Doctor` / `ci-doctor`) and prints whether that signal was observed
+- prints MCP verification counters so you can quickly separate passive diagnostics from direct MCP tool usage
 
 Pass checks in output:
 
@@ -90,6 +91,9 @@ Pass checks in output:
 - at least one dependency/lint remediation shows PR creation
 - test/build_config/timeout produce issues (or structured failure records)
 - `CI doctor signal detected` appears (best effort; if delayed, run `bash scripts/ph.sh backfill` and verify in Activity Detail)
+- MCP interpretation:
+  - `mcp_tool_calls_total > 0` = direct MCP invocation observed
+  - `mcp_tool_calls_total = 0` + passive diagnostics/source attribution = passive mode worked as designed
 
 Rehearsal-only strict gate:
 

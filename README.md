@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 308b862 -->
+<!-- LAST_VERIFIED: 4b540b9 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -30,9 +30,9 @@ CI failures create repetitive triage work. PipelineHealer shortens time-to-under
 
 This repository is the hackathon submission baseline, designed for continued production-grade evolution.
 
-## Submission baseline (v0.2.6)
+## Submission baseline (v0.2.7)
 
-- Release baseline: [`v0.2.6`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.2.6)
+- Release baseline: [`v0.2.7`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.2.7)
 - Deployment model: Azure-first, using immutable release images (`bash scripts/ph.sh deploy:release --release-version vX.Y.Z`)
 - Operator docs: `docs/DEMO_SCRIPT.md`, `docs/LOCAL_DEMO_RUNBOOK.md`, `docs/RELEASE_RUNBOOK.md`
 
@@ -112,7 +112,7 @@ From repo root:
 bash scripts/ph.sh help
 bash scripts/ph.sh settings:check
 bash scripts/ph.sh settings:persist:verify --from-settings --skip-redeploy
-bash scripts/ph.sh deploy:release --release-version v0.2.6
+bash scripts/ph.sh deploy:release --release-version v0.2.7
 bash scripts/ph.sh deploy:env
 bash scripts/ph.sh status
 bash scripts/ph.sh logs
@@ -120,6 +120,14 @@ bash scripts/ph.sh demo:e2e
 ```
 
 Use full command docs for flags and troubleshooting: `docs/CLI.md`.
+
+## MCP clarity (quick check)
+
+If you are asking "is MCP actually working?", use this rule:
+- `MCP Tool Calls > 0` in Activity Detail means direct MCP tools were invoked for that activity.
+- `MCP Tool Calls = 0` does not automatically mean broken MCP. In passive `gh_aw` mode, diagnostics can still be ingested without direct MCP tool calls.
+- Check `Source Attribution` + `source_selection_path` to see the actual path used (`gh_aw_passive`, `github_mcp_direct`, or `github_mcp_blocked`).
+- For a terminal proof run from CLI, use `bash scripts/ph.sh demo:e2e --strict` and review the printed MCP summary counters.
 
 ## Versioning and release
 

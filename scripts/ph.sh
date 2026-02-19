@@ -46,7 +46,7 @@ Commands:
   webhook:add       Add/update Azure webhook for one repo and disable stale smee hook
   webhook:disable   Disable Azure webhook for one repo
   rollout:canary    Configure issue-only canary mode for selected repos and attach webhooks
-  demo:e2e          Run scripted Azure E2E demo flow
+  demo:e2e          Run scripted Azure E2E demo flow with CI-signal verification
   demo:proof        Show latest CI runs, PRs, and issues for a repo (default demo repo)
   demo:reset        Reset demo fixture repo for dependency/lint failures
   warm              Set backend/frontend min-replicas to 1
@@ -66,13 +66,14 @@ Commands:
 
 Examples:
   bash scripts/ph.sh deploy
-  bash scripts/ph.sh deploy:release --release-version v0.2.6
+  bash scripts/ph.sh deploy:release --release-version v0.2.7
   bash scripts/ph.sh deploy:bg
   bash scripts/ph.sh deploy:logs
   bash scripts/ph.sh urls
   bash scripts/ph.sh webhook:add --repo owner/repo
   bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
   bash scripts/ph.sh demo:e2e --skip-webhook-sync
+  bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180 --strict
   bash scripts/ph.sh demo:proof --repo owner/repo
   bash scripts/ph.sh settings:persist --from-settings
   bash scripts/ph.sh settings:persist:verify --from-settings

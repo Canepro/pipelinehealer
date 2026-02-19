@@ -22,7 +22,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - GitHub Agentic Workflows Layer 1 (repo hygiene) merged to `main`; Layer 2 planning tracked in `docs/GH_AW_IMPLEMENTATION_TRACKER.md`
 - External diagnostics latency model updated to fast-path defaults (60s wait budget, 15s poll interval) with async backfill-first fallback
 - Plan discipline lock active: implement remaining platform-extension work in this order `0.1 MCP completion -> 0.3 Control Center UX -> 0.4 model portability -> 0.2 learning system`; new items are queued in `docs/FUTURE_PLAN.md` backlog unless break/fix or security-critical
-- Release `v0.2.6` is published and deployed; submission freeze is now active (bugfix/docs/housekeeping only)
+- Release `v0.2.7` is the current submission baseline; submission freeze remains active (bugfix/docs/housekeeping only)
 - MCP observability upgraded: real per-call tool invocation counting, aggregate MCP latency, and enriched action-audit fields (`provider`, `latency_ms`, `success`, `error_class`); read-only runbook context retrieval (`fetch_runbook_context`) now adds `knowledge-mcp` evidence when available
 - Control Center governance route added: `/app/control-center` provides read-only runtime/auth/provider posture, MCP policy-effect matrix, and centralized audit timeline
 - Settings audit UX reworked: audit/trace now lives only in Control Center as a single governance source
@@ -33,7 +33,7 @@ This is the long-form project tracker for hackathon execution status, submission
   - landing copy refreshed to reflect model portability, MCP governance controls, and current operator surfaces
 - Azure deploy operations hardened:
   - release-driven deployment path added: `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`
-  - live Azure Container Apps now run immutable digest-pinned `v0.2.6` images from ACR
+  - live Azure Container Apps should be promoted using immutable digest-pinned release images from ACR
 - Submission housekeeping:
   - `Schema Consistency Checker` workflow intentionally disabled (`disabled_manually`) because Anthropic secrets are not provisioned for demo/submission scope
   - tracking issue [#19](https://github.com/Canepro/pipelinehealer/issues/19) closed as addressed for current scope
@@ -111,7 +111,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 - Recommended healing mode: `HEAL_MODE=safe`
 - Demo trigger command:
-  - `bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 120`
+  - `bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180`
 - Demo scale toggle:
   - pre-demo: `bash scripts/ph.sh warm`
   - post-demo: `bash scripts/ph.sh lowcost`

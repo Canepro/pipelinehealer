@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 74e2d09 -->
+<!-- LAST_VERIFIED: 4b540b9 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -30,8 +30,10 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.2.3` | Released | Release QA freeze scope completed and tagged |
 | `v0.2.4` | Released | Immutable release images + retention guardrails |
 | `v0.2.5` | Released | Release publish/RBAC hardening follow-up |
+| `v0.2.6` | Released | Verification-learning loop + diagnostics source-selection transparency |
+| `v0.2.7` | Released | Submission-readiness/operator-clarity pass (MCP explanation, demo/runbook clarity, docs alignment) |
 
-## Active Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
+## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
 Theme: close the loop between operator verification and PipelineHealer learning, and make diagnostics source behavior explicit (especially MCP vs `gh_aw` passive mode).
 
@@ -67,7 +69,29 @@ Theme: close the loop between operator verification and PipelineHealer learning,
 - GitHub OIDC release environment wiring documented and configured.
 - Release publish path validated for `v0.2.4` and `v0.2.5` after subscription/RBAC hardening.
 
-## Next Target: `v0.3.0` (Minor)
+## Released Target: `v0.2.7` (Submission Readiness + Operator Clarity)
+
+Theme: remove operator ambiguity before submission by clarifying diagnostics-source behavior (passive `gh_aw` vs direct MCP), tightening demo verification signals, and aligning runbooks/CLI/docs to release-first Azure operations.
+
+### Must-Have Scope
+
+1. Submission-phase docs clarity
+   - Update README/runbooks/CLI with release-first deploy guidance and current baseline references.
+   - Add beginner-readable MCP interpretation rules so "enabled" vs "used" is explicit.
+2. Demo verification hardening
+   - Ensure demo flow checks CI doctor signal and prints source clarity counters.
+   - Keep strict-mode path for rehearsal/submission gates.
+3. Activity UX/readability alignment
+   - Keep decision summary (`PipelineHealer Decision`) first.
+   - Keep deep enrichment panels secondary (`Technical Analysis & Enrichment`).
+
+### Exit Criteria
+
+1. Operator can determine diagnostics path from one activity without log digging.
+2. Demo CLI output explicitly distinguishes passive-only signal runs from direct MCP tool calls.
+3. Core docs (`README`, `CLI`, `DEMO_SCRIPT`, `LOCAL_DEMO_RUNBOOK`, feature guides) are version-aligned and non-contradictory.
+
+## Active Target: `v0.3.0` (Minor)
 
 Theme: complete learning-system operator workflow from candidate signal to safe activation.
 
@@ -151,6 +175,9 @@ Theme: provider and platform extensibility.
 | `BL-019` | Operator-oriented inline comments for Helm/compose/workflows ([#28](https://github.com/Canepro/pipelinehealer/issues/28)) | `v0.2.6` | patch | Low | Completed (in `main`) |
 | `BL-020` | Activities desktop UX: remove horizontal rail dependency and keep actions reachable ([#29](https://github.com/Canepro/pipelinehealer/issues/29)) | `v0.2.6` | patch | High | Completed (in `main`) |
 | `BL-021` | Azure deploy from immutable ACR release images (no local build) ([#30](https://github.com/Canepro/pipelinehealer/issues/30)) | `v0.2.6` | patch | High | Completed (in `main`) |
+| `BL-022` | Demo verification output clarity (`mcp_tool_calls_total` vs passive-only counters) | `v0.2.7` | patch | High | Completed (in `main`) |
+| `BL-023` | Docs/runbook MCP interpretation hardening for non-expert operators | `v0.2.7` | patch | High | Completed (in `main`) |
+| `BL-024` | Release baseline alignment (`v0.2.7`) across README/CLI/runbooks | `v0.2.7` | patch | Medium | Completed (in `main`) |
 
 ## Definition of Done (Per Version)
 

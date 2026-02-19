@@ -1,13 +1,14 @@
 # Feature: Explainability And Observability
 
-<!-- LAST_VERIFIED: 9cc0ce5 -->
+<!-- LAST_VERIFIED: 4b540b9 -->
 
 This guide explains where to see evidence, model path telemetry, and confidence attribution for each activity.
 
 ## What This Feature Covers
 
 - Explainability snapshot on Dashboard
-- Activities table status tagging and desktop top horizontal scroll rail for wide-row usability
+- Activities table status tagging with row actions reachable without horizontal-rail dependency
+- Activity Detail information hierarchy (`PipelineHealer Decision` first, deep technical panels second)
 - Activity Detail evidence layers
 - Failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
 - LLM model-path telemetry
@@ -18,6 +19,7 @@ This guide explains where to see evidence, model path telemetry, and confidence 
 1. Open Dashboard -> `Explainability Snapshot`.
 2. Pick a recent activity.
 3. Confirm:
+   - `PipelineHealer Decision` summary (root cause + remediation result)
    - failure type
    - failure context
    - confidence
@@ -27,7 +29,7 @@ This guide explains where to see evidence, model path telemetry, and confidence 
 4. Click `View activity` for full detail.
 
 Activities list tip:
-- On desktop, when the table is wider than the viewport, use the top horizontal rail instead of scrolling to the bottom first.
+- Desktop layout keeps row actions reachable while scanning long activity histories, so you can review older rows without horizontal-rail juggling.
 
 ## Diagnosis Source
 

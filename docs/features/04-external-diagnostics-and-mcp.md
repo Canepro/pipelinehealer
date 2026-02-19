@@ -1,29 +1,32 @@
 # Feature: External Diagnostics And MCP
 
-<!-- LAST_VERIFIED: 157ef45 -->
+<!-- LAST_VERIFIED: 4b540b9 -->
 
-This guide explains how PipelineHealer ingests external findings and how GitHub MCP is used safely.
+This guide explains how PipelineHealer ingests external findings and how GitHub MCP is selected, gated, and verified in real runs.
 
 ## What This Feature Covers
 
 - `ci-doctor` passive diagnostics ingestion
 - async backfill behavior
 - GitHub MCP integration path
+- source-selection behavior (`gh_aw` passive vs direct MCP)
 - MCP safety boundaries and policy checks
 
 ## Quick Start
 
-1. Keep external diagnostics enabled:
-   - `GH_AW_TOOLS_ENABLED=true`
-   - `GH_AW_INGESTION_MODE=passive`
-2. Enable MCP (optional):
+1. Choose your diagnostics path:
+   - Passive `gh_aw`: `GH_AW_TOOLS_ENABLED=true` + `GH_AW_INGESTION_MODE=passive`
+   - Direct MCP: disable passive mode first (`GH_AW_TOOLS_ENABLED=false` or `GH_AW_INGESTION_MODE=disabled`), then enable MCP.
+2. Enable MCP (if you want direct MCP collection):
    - `MCP_ENABLED=true`
    - `MCP_PROVIDER=github`
-3. Verify health:
+   - ensure repo allowlist/tool policy allows `fetch_failure_context`
+3. Verify provider health:
    - `GET /api/settings/mcp/provider-health`
-4. Check Activity Detail:
+4. Validate in Activity Detail:
    - `MCP Observability`
-   - external findings panel
+   - `Source Attribution`
+   - `metadata.source_selection_path` + `metadata.source_selection_reason`
 
 ## External Diagnostics Flow
 
@@ -34,7 +37,8 @@ This guide explains how PipelineHealer ingests external findings and how GitHub 
 
 Source-selection behavior:
 - If `GH_AW_TOOLS_ENABLED=true` and `GH_AW_INGESTION_MODE=passive`, PipelineHealer prioritizes passive `gh_aw` diagnostics collection.
-- If passive mode is disabled and GitHub MCP is enabled/healthy, PipelineHealer uses direct GitHub MCP context collection.
+- If passive mode is disabled and GitHub MCP is enabled/healthy/policy-allowed, PipelineHealer uses direct GitHub MCP context collection.
+- If passive mode is enabled but a repo has no `gh_aw` workflows, PipelineHealer records passive-path unavailability (`capability_unavailable`) and does not auto-switch to direct MCP in that same path.
 - Activity metadata now includes:
   - `metadata.source_selection_path`
   - `metadata.source_selection_reason`
@@ -56,6 +60,29 @@ When enabled, MCP calls are still bounded by:
 - repo allowlist checks
 - read-only/write restrictions
 
+## How To Verify MCP Is Working (No Guesswork)
+
+Use this interpretation model:
+- `source_selection_path=gh_aw_passive`:
+  - expected when passive mode is enabled.
+  - `MCP Tool Calls` can be `0` and still be healthy.
+- `source_selection_path=github_mcp_direct`:
+  - direct MCP path selected.
+  - `MCP Tool Calls` should be `> 0` for successful context fetches.
+- `source_selection_path=github_mcp_blocked`:
+  - MCP was configured but blocked by policy/health/provider state.
+  - use the reason code to fix config.
+
+Fast proof command:
+
+```bash
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180 --strict
+```
+
+Then read the printed counters:
+- `mcp_tool_calls_total`
+- `passive_only_signal_activities`
+
 ## Read-Only vs Write Policy
 
 Read-only mode:
@@ -75,6 +102,7 @@ Write-capable policies (`write_with_approval` / `auto`):
   - source attribution
   - tool usage counts
   - action audit entries
+- Activity Detail starts with `PipelineHealer Decision`; deep MCP/evidence details are under `Technical Analysis & Enrichment`.
 - Activity Detail -> External Diagnostics cards show source path selection metadata when available.
 
 ## Common Mistakes

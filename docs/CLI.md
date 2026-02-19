@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 6b98ef2 -->
+<!-- LAST_VERIFIED: 4b540b9 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -34,7 +34,7 @@ Quick examples:
 PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh settings:check
 
 # Azure infra scope (recommended release promotion path)
-bash scripts/ph.sh deploy:release --release-version v0.2.6
+bash scripts/ph.sh deploy:release --release-version v0.2.7
 
 # GitHub-only scope
 bash scripts/ph.sh demo:proof --repo owner/repo --limit 10
@@ -62,7 +62,7 @@ Kubernetes deploy path is intentionally kept outside `scripts/ph.sh` right now t
 
 ```bash
 bash scripts/ph.sh deploy
-bash scripts/ph.sh deploy:release --release-version v0.2.6
+bash scripts/ph.sh deploy:release --release-version v0.2.7
 bash scripts/ph.sh deploy:env
 bash scripts/ph.sh deploy:bg
 bash scripts/ph.sh deploy:logs
@@ -132,7 +132,7 @@ bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2 --skip-env-syn
 ```bash
 bash scripts/ph.sh demo:e2e
 bash scripts/ph.sh demo:e2e --skip-webhook-sync
-bash scripts/ph.sh demo:e2e --triggers dependency,lint,test --wait-seconds 120
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,test --wait-seconds 180
 bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180 --strict
 bash scripts/ph.sh demo:proof --repo owner/repo --limit 10
 bash scripts/ph.sh demo:reset
@@ -143,6 +143,11 @@ bash scripts/ph.sh demo:reset
 - It performs a best-effort on-demand diagnostics backfill before final activity summary (disable with `--skip-backfill`).
 - It checks for at least one CI doctor-style workflow signal after dispatch (`CI Failure Doctor`/`ci-doctor`) using `--ci-signal-wait-seconds <n>`; queued/in-progress/completed runs all count as signal observed.
 - Use `--strict` for rehearsal/submission gating. Strict mode exits non-zero if dispatched activities do not reach terminal status within wait budget or if no CI doctor signal is observed.
+
+`demo:e2e` MCP interpretation:
+- `mcp_tool_calls_total > 0`: direct MCP tools were invoked.
+- `mcp_tool_calls_total = 0` with `passive_only_signal_activities > 0`: passive `gh_aw` ingestion was used successfully (expected in passive mode).
+- If MCP is enabled but blocked/unavailable, activity metadata shows `source_selection_path=github_mcp_blocked` and a reason code.
 
 ### Scale Management
 
