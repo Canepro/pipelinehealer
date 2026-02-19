@@ -19,8 +19,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 type ToolPolicy = 'disabled' | 'read_only' | 'write_with_approval' | 'auto'
+type ControlCenterSection = 'overview' | 'learning_ops' | 'audit'
+type PostureItem = { label: string; value: string | number }
 
 const LOGS_RUNBOOK_URL =
   'https://github.com/Canepro/pipelinehealer/blob/main/docs/LOGS_AND_INVESTIGATION.md'
@@ -218,11 +221,30 @@ function learningReadinessLabel(item: LearningQueueItem): string {
   return 'Not ready'
 }
 
+function PostureCard({ title, items }: { title: string; items: PostureItem[] }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1.5 text-sm">
+        {items.map((item) => (
+          <div key={`${title}-${item.label}`} className="flex items-center justify-between gap-3">
+            <span className="text-[var(--ph-muted)]">{item.label}</span>
+            <span className="font-medium text-[var(--ph-text)]">{item.value}</span>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function ControlCenterPage() {
   const queryClient = useQueryClient()
   const [adminKeyInput, setAdminKeyInput] = useState('')
   const [adminKey, setAdminKey] = useState('')
   const [useSessionAuth, setUseSessionAuth] = useState(false)
+  const [activeSection, setActiveSection] = useState<ControlCenterSection>('overview')
   const hasAuthAttempt = useSessionAuth || adminKey.length > 0
   const effectiveAdminKey = useSessionAuth ? undefined : adminKey
 
@@ -562,426 +584,462 @@ export default function ControlCenterPage() {
 
       {settings && (
         <>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Runtime Posture</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1 text-sm text-[var(--ph-muted)]">
-                <p>
-                  Heal mode: <span className="font-medium text-[var(--ph-text)]">{settings.heal_mode}</span>
-                </p>
-                <p>
-                  Auto-create PR: <span className="font-medium text-[var(--ph-text)]">{settings.auto_create_pr ? 'Yes' : 'No'}</span>
-                </p>
-                <p>
-                  Max attempts:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">{settings.max_remediation_attempts}</span>
-                </p>
-                <p>
-                  Repo allowlist:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">{settings.ph_allowed_repos.length}</span>
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Auth Posture</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1 text-sm text-[var(--ph-muted)]">
-                <p>
-                  Auth mode: <span className="font-medium text-[var(--ph-text)]">{settings.auth_mode}</span>
-                </p>
-                <p>
-                  Entra enabled:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">{settings.entra_auth_enabled ? 'Yes' : 'No'}</span>
-                </p>
-                <p>
-                  Admin roles:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">{settings.entra_admin_roles.length}</span>
-                </p>
-                <p>
-                  Admin API auth:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">{settings.admin_api_auth_enabled ? 'On' : 'Off'}</span>
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Provider Readiness</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1 text-sm text-[var(--ph-muted)]">
-                <p>
-                  LLM: <span className="font-medium text-[var(--ph-text)]">{llmLoading ? 'Checking...' : llmHealth?.available ? 'Available' : 'Unavailable'}</span>
-                </p>
-                <p>
-                  MCP: <span className="font-medium text-[var(--ph-text)]">{mcpLoading ? 'Checking...' : mcpHealth?.available ? 'Available' : 'Unavailable'}</span>
-                </p>
-                <p>
-                  MCP provider:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">{settings.mcp_provider}</span>
-                </p>
-                <p>
-                  MCP read-only:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">{settings.mcp_read_only ? 'Yes' : 'No'}</span>
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Ops Snapshot</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1 text-sm text-[var(--ph-muted)]">
-                <p>
-                  Runs processed:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">{statsLoading ? '...' : stats?.total_runs_processed ?? 0}</span>
-                </p>
-                <p>
-                  Safety gated:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">{statsLoading ? '...' : stats?.safety_blocked_remediations ?? 0}</span>
-                </p>
-                <p>
-                  Diagnostics wait:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">{settings.external_diagnostics_wait_seconds}s</span>
-                </p>
-                <p>
-                  Poll interval:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">{settings.external_diagnostics_poll_interval_seconds}s</span>
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Policy Impact Preview</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
-                <p>
-                  Remediation path:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">{remediationPolicySummary}</span>
-                </p>
-                <p>
-                  Diagnostics cadence:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">
-                    wait {settings.external_diagnostics_wait_seconds}s / poll{' '}
-                    {settings.external_diagnostics_poll_interval_seconds}s
-                  </span>
-                </p>
-                <p>
-                  MCP write posture:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">{mcpWriteSummary}</span>
-                </p>
-                <p>
-                  Repo scope:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">
-                    {settings.ph_allowed_repos.length === 0
-                      ? 'All repositories (no allowlist)'
-                      : `${settings.ph_allowed_repos.length} allowlisted repository entries`}
-                  </span>
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Task Model Routing Preview</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
-                <p>
-                  Provider:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">{settings.llm_provider}</span>
-                </p>
-                <p>
-                  Default model:{' '}
-                  <span className="font-medium text-[var(--ph-text)]">
-                    {providerDefaultModel || 'Not configured'}
-                  </span>
-                </p>
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                  {taskModelPreview.map((task) => (
-                    <div
-                      key={task.key}
-                      className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3"
-                    >
-                      <div className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">
-                        {task.label}
-                      </div>
-                      <div className="mt-1 break-words font-mono text-xs text-[var(--ph-text)]">
-                        {task.model}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Learning Queue</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={refreshLearningMutation.isPending}
-                    onClick={() => refreshLearningMutation.mutate()}
+          <Card>
+            <CardContent className="py-5">
+              <Tabs
+                value={activeSection}
+                onValueChange={(value) => setActiveSection(value as ControlCenterSection)}
+                className="w-full"
+              >
+                <TabsList className="grid h-auto w-full grid-cols-1 gap-1 rounded-xl border border-[var(--ph-border)] bg-slate-800/20 p-1 sm:grid-cols-3">
+                  <TabsTrigger
+                    value="overview"
+                    className="py-3 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white"
                   >
-                    {refreshLearningMutation.isPending ? 'Refreshing...' : 'Refresh Candidates'}
-                  </Button>
-                  <Badge variant="outline">Candidate: {learningQueueSummary.candidate}</Badge>
-                  <Badge variant="outline">Approved: {learningQueueSummary.approved}</Badge>
-                  <Badge variant="outline">Active: {learningQueueSummary.active}</Badge>
-                  <Badge variant="outline">Ready: {learningQueueSummary.ready}</Badge>
-                </div>
+                    Governance Overview
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="learning_ops"
+                    className="py-3 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white"
+                  >
+                    Learning & Ops
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="audit"
+                    className="py-3 text-sm font-semibold text-slate-300 data-[state=active]:bg-azure-600 data-[state=active]:text-white"
+                  >
+                    Audit & Trace
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <p className="mt-3 text-sm text-[var(--ph-muted)]">
+                {activeSection === 'overview' &&
+                  'Overview: runtime posture, policy impact, model routing, and MCP policy effect.'}
+                {activeSection === 'learning_ops' &&
+                  'Learning & Ops: candidate governance actions and investigation command runbooks.'}
+                {activeSection === 'audit' &&
+                  'Audit & Trace: recent settings changes with actor and request-id traceability.'}
+              </p>
+            </CardContent>
+          </Card>
 
-                {learningLoading && <p>Loading learning queue...</p>}
-                {learningError && (
-                  <p className="text-rose-400">
-                    {learningErrorDetail instanceof Error
-                      ? learningErrorDetail.message
-                      : 'Failed to load learning queue'}
-                  </p>
-                )}
-                {!learningLoading && !learningError && (learningQueue?.length ?? 0) === 0 && (
-                  <p>
-                    No learning candidates yet. Use <span className="font-medium text-[var(--ph-text)]">Refresh Candidates</span>{' '}
-                    after successful runs to generate governance-reviewed candidates.
-                  </p>
-                )}
+          {activeSection === 'overview' && (
+            <>
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+                <PostureCard
+                  title="Runtime Posture"
+                  items={[
+                    { label: 'Heal mode', value: settings.heal_mode },
+                    { label: 'Auto-create PR', value: settings.auto_create_pr ? 'Yes' : 'No' },
+                    { label: 'Max attempts', value: settings.max_remediation_attempts },
+                    { label: 'Repo allowlist', value: settings.ph_allowed_repos.length },
+                  ]}
+                />
 
-                <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
-                  {(learningQueue ?? []).slice(0, 8).map((item) => (
-                    <div
-                      key={item.id}
-                      className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-3"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="font-medium text-[var(--ph-text)]">{item.title}</p>
-                          <p className="text-xs text-[var(--ph-muted)]">
-                            runs: {item.occurrence_count} • success: {item.success_count} • action:{' '}
-                            {item.proposed_action}
-                          </p>
+                <PostureCard
+                  title="Auth Posture"
+                  items={[
+                    { label: 'Auth mode', value: settings.auth_mode },
+                    { label: 'Entra enabled', value: settings.entra_auth_enabled ? 'Yes' : 'No' },
+                    { label: 'Admin roles', value: settings.entra_admin_roles.length },
+                    { label: 'Admin API auth', value: settings.admin_api_auth_enabled ? 'On' : 'Off' },
+                  ]}
+                />
+
+                <PostureCard
+                  title="Provider Readiness"
+                  items={[
+                    {
+                      label: 'LLM',
+                      value: llmLoading ? 'Checking...' : llmHealth?.available ? 'Available' : 'Unavailable',
+                    },
+                    {
+                      label: 'MCP',
+                      value: mcpLoading ? 'Checking...' : mcpHealth?.available ? 'Available' : 'Unavailable',
+                    },
+                    { label: 'MCP provider', value: settings.mcp_provider },
+                    { label: 'MCP read-only', value: settings.mcp_read_only ? 'Yes' : 'No' },
+                  ]}
+                />
+
+                <PostureCard
+                  title="Ops Snapshot"
+                  items={[
+                    {
+                      label: 'Runs processed',
+                      value: statsLoading ? '...' : (stats?.total_runs_processed ?? 0),
+                    },
+                    {
+                      label: 'Safety gated',
+                      value: statsLoading ? '...' : (stats?.safety_blocked_remediations ?? 0),
+                    },
+                    { label: 'Diagnostics wait', value: `${settings.external_diagnostics_wait_seconds}s` },
+                    {
+                      label: 'Poll interval',
+                      value: `${settings.external_diagnostics_poll_interval_seconds}s`,
+                    },
+                  ]}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Policy Impact Preview</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
+                    <p>
+                      Remediation path:{' '}
+                      <span className="font-medium text-[var(--ph-text)]">{remediationPolicySummary}</span>
+                    </p>
+                    <p>
+                      Diagnostics cadence:{' '}
+                      <span className="font-medium text-[var(--ph-text)]">
+                        wait {settings.external_diagnostics_wait_seconds}s / poll{' '}
+                        {settings.external_diagnostics_poll_interval_seconds}s
+                      </span>
+                    </p>
+                    <p>
+                      MCP write posture:{' '}
+                      <span className="font-medium text-[var(--ph-text)]">{mcpWriteSummary}</span>
+                    </p>
+                    <p>
+                      Repo scope:{' '}
+                      <span className="font-medium text-[var(--ph-text)]">
+                        {settings.ph_allowed_repos.length === 0
+                          ? 'All repositories (no allowlist)'
+                          : `${settings.ph_allowed_repos.length} allowlisted repository entries`}
+                      </span>
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Task Model Routing Preview</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
+                    <p>
+                      Provider:{' '}
+                      <span className="font-medium text-[var(--ph-text)]">{settings.llm_provider}</span>
+                    </p>
+                    <p>
+                      Default model:{' '}
+                      <span className="font-medium text-[var(--ph-text)]">
+                        {providerDefaultModel || 'Not configured'}
+                      </span>
+                    </p>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                      {taskModelPreview.map((task) => (
+                        <div
+                          key={task.key}
+                          className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3"
+                        >
+                          <div className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">
+                            {task.label}
+                          </div>
+                          <div className="mt-1 break-words font-mono text-xs text-[var(--ph-text)]">
+                            {task.model}
+                          </div>
                         </div>
-                        <Badge variant="outline" className={toneClass(learningStatusTone(item.status))}>
-                          {learningStatusLabel(item.status)}
-                        </Badge>
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className={toneClass(learningReadinessTone(item))}>
-                          {learningReadinessLabel(item)}
-                        </Badge>
-                        {item.promotion_readiness && (
-                          <span className="text-xs text-[var(--ph-muted)]">
-                            {item.promotion_readiness.occurrence_count}/{item.promotion_readiness.min_occurrences}{' '}
-                            runs • {(item.promotion_readiness.success_rate * 100).toFixed(0)}%
-                            /{(item.promotion_readiness.min_success_rate * 100).toFixed(0)}% success
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-2 line-clamp-2 text-xs text-[var(--ph-muted)]">{item.suggested_playbook}</p>
-                      {item.promotion_readiness && item.promotion_readiness.reasons.length > 0 && (
-                        <p className="mt-2 text-xs text-[var(--ph-muted)]">
-                          {item.promotion_readiness.reasons
-                            .map((reason) => learningReadinessReasonLabel(reason))
-                            .join(' · ')}
-                        </p>
-                      )}
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={
-                            decideLearningMutation.isPending ||
-                            item.status === 'approved' ||
-                            item.status === 'active'
-                          }
-                          onClick={() =>
-                            decideLearningMutation.mutate({ candidateId: item.id, action: 'approve' })
-                          }
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={
-                            decideLearningMutation.isPending ||
-                            item.status === 'active' ||
-                            !item.promotion_readiness?.ready
-                          }
-                          onClick={() =>
-                            decideLearningMutation.mutate({ candidateId: item.id, action: 'activate' })
-                          }
-                        >
-                          Activate
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={
-                            decideLearningMutation.isPending ||
-                            item.status === 'active' ||
-                            !item.promotion_readiness?.requires_force_activate
-                          }
-                          onClick={() => {
-                            // Force activation bypasses readiness gates and should always
-                            // require explicit operator confirmation.
-                            const ok = window.confirm(
-                              'Force-activate this playbook candidate? This bypasses readiness gates and will be audit logged.'
-                            )
-                            if (!ok) return
-                            decideLearningMutation.mutate({
-                              candidateId: item.id,
-                              action: 'activate',
-                              forceActivate: true,
-                            })
-                          }}
-                        >
-                          Force Activate
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={
-                            decideLearningMutation.isPending ||
-                            item.status === 'rejected' ||
-                            item.status === 'retired'
-                          }
-                          onClick={() =>
-                            decideLearningMutation.mutate({ candidateId: item.id, action: 'reject' })
-                          }
-                        >
-                          Reject
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={decideLearningMutation.isPending || item.status === 'retired'}
-                          onClick={() =>
-                            decideLearningMutation.mutate({ candidateId: item.id, action: 'retire' })
-                          }
-                        >
-                          Retire
-                        </Button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Workflow className="h-4 w-4 text-azure-400" />
+                    MCP Tool Policy Effect
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {mcpToolRows.map((row) => (
+                    <div
+                      key={row.key}
+                      className="grid grid-cols-1 gap-1 rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3 text-sm md:grid-cols-3"
+                    >
+                      <div className="font-medium text-[var(--ph-text)]">{row.label}</div>
+                      <div className="text-[var(--ph-muted)]">Configured: {formatToolPolicy(row.policy)}</div>
+                      <div className={`${toneClass(row.effective.tone)} font-medium`}>
+                        Effective: {row.effective.label}
                       </div>
                     </div>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Workflow className="h-4 w-4 text-azure-400" />
-                  MCP Tool Policy Effect
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {mcpToolRows.map((row) => (
-                  <div
-                    key={row.key}
-                    className="grid grid-cols-1 gap-1 rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3 text-sm md:grid-cols-3"
-                  >
-                    <div className="font-medium text-[var(--ph-text)]">{row.label}</div>
-                    <div className="text-[var(--ph-muted)]">Configured: {formatToolPolicy(row.policy)}</div>
-                    <div className={`${toneClass(row.effective.tone)} font-medium`}>Effective: {row.effective.label}</div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <TerminalSquare className="h-4 w-4 text-azure-400" />
-                  Logs & Investigation Access
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button asChild size="sm" variant="secondary">
-                    <a href={LOGS_RUNBOOK_URL} rel="noopener noreferrer" target="_blank">
-                      Logs Runbook
-                      <ExternalLink className="ml-1 h-3.5 w-3.5" />
-                    </a>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ScrollText className="h-4 w-4 text-azure-400" />
+                    Next Actions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2">
+                  <Button asChild size="sm">
+                    <Link to="/app/settings">Open Settings</Link>
                   </Button>
-                  {latestRunUrl && (
-                    <Button asChild size="sm" variant="ghost">
-                      <a href={latestRunUrl} rel="noopener noreferrer" target="_blank">
-                        Latest Workflow Run
+                  <Button asChild size="sm" variant="secondary">
+                    <Link to="/app/activities">Review Activities</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {activeSection === 'learning_ops' && (
+            <div className="grid grid-cols-1 gap-4 2xl:grid-cols-12">
+              <Card className="2xl:col-span-7">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Learning Queue</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm text-[var(--ph-muted)]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={refreshLearningMutation.isPending}
+                      onClick={() => refreshLearningMutation.mutate()}
+                    >
+                      {refreshLearningMutation.isPending ? 'Refreshing...' : 'Refresh Candidates'}
+                    </Button>
+                    <Badge variant="outline">Candidate: {learningQueueSummary.candidate}</Badge>
+                    <Badge variant="outline">Approved: {learningQueueSummary.approved}</Badge>
+                    <Badge variant="outline">Active: {learningQueueSummary.active}</Badge>
+                    <Badge variant="outline">Ready: {learningQueueSummary.ready}</Badge>
+                  </div>
+
+                  {learningLoading && <p>Loading learning queue...</p>}
+                  {learningError && (
+                    <p className="text-rose-400">
+                      {learningErrorDetail instanceof Error
+                        ? learningErrorDetail.message
+                        : 'Failed to load learning queue'}
+                    </p>
+                  )}
+                  {!learningLoading && !learningError && (learningQueue?.length ?? 0) === 0 && (
+                    <p>
+                      No learning candidates yet. Use{' '}
+                      <span className="font-medium text-[var(--ph-text)]">Refresh Candidates</span> after
+                      successful runs to generate governance-reviewed candidates.
+                    </p>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    {(learningQueue ?? []).slice(0, 8).map((item) => (
+                      <div
+                        key={item.id}
+                        className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="break-words font-medium text-[var(--ph-text)]">{item.title}</p>
+                            <p className="text-xs text-[var(--ph-muted)]">
+                              runs: {item.occurrence_count} • success: {item.success_count} • action:{' '}
+                              {item.proposed_action}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className={toneClass(learningStatusTone(item.status))}>
+                            {learningStatusLabel(item.status)}
+                          </Badge>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <Badge variant="outline" className={toneClass(learningReadinessTone(item))}>
+                            {learningReadinessLabel(item)}
+                          </Badge>
+                          {item.promotion_readiness && (
+                            <span className="text-xs text-[var(--ph-muted)]">
+                              {item.promotion_readiness.occurrence_count}/
+                              {item.promotion_readiness.min_occurrences} runs •{' '}
+                              {(item.promotion_readiness.success_rate * 100).toFixed(0)}%/
+                              {(item.promotion_readiness.min_success_rate * 100).toFixed(0)}% success
+                            </span>
+                          )}
+                        </div>
+                        <details className="mt-2 rounded-md border border-[var(--ph-border)]/60 bg-[var(--ph-bg-elevated)]/20 px-2 py-1">
+                          <summary className="cursor-pointer text-xs font-medium text-[var(--ph-text)]">
+                            View candidate detail
+                          </summary>
+                          <div className="mt-2 space-y-2 text-xs text-[var(--ph-muted)]">
+                            <p className="break-words">{item.suggested_playbook}</p>
+                            {item.promotion_readiness && item.promotion_readiness.reasons.length > 0 && (
+                              <p className="break-words">
+                                {item.promotion_readiness.reasons
+                                  .map((reason) => learningReadinessReasonLabel(reason))
+                                  .join(' · ')}
+                              </p>
+                            )}
+                          </div>
+                        </details>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={
+                              decideLearningMutation.isPending ||
+                              item.status === 'approved' ||
+                              item.status === 'active'
+                            }
+                            onClick={() =>
+                              decideLearningMutation.mutate({ candidateId: item.id, action: 'approve' })
+                            }
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={
+                              decideLearningMutation.isPending ||
+                              item.status === 'active' ||
+                              !item.promotion_readiness?.ready
+                            }
+                            onClick={() =>
+                              decideLearningMutation.mutate({ candidateId: item.id, action: 'activate' })
+                            }
+                          >
+                            Activate
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={
+                              decideLearningMutation.isPending ||
+                              item.status === 'active' ||
+                              !item.promotion_readiness?.requires_force_activate
+                            }
+                            onClick={() => {
+                              const ok = window.confirm(
+                                'Force-activate this playbook candidate? This bypasses readiness gates and will be audit logged.'
+                              )
+                              if (!ok) return
+                              decideLearningMutation.mutate({
+                                candidateId: item.id,
+                                action: 'activate',
+                                forceActivate: true,
+                              })
+                            }}
+                          >
+                            Force Activate
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={
+                              decideLearningMutation.isPending ||
+                              item.status === 'rejected' ||
+                              item.status === 'retired'
+                            }
+                            onClick={() =>
+                              decideLearningMutation.mutate({ candidateId: item.id, action: 'reject' })
+                            }
+                          >
+                            Reject
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={decideLearningMutation.isPending || item.status === 'retired'}
+                            onClick={() =>
+                              decideLearningMutation.mutate({ candidateId: item.id, action: 'retire' })
+                            }
+                          >
+                            Retire
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="2xl:col-span-5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <TerminalSquare className="h-4 w-4 text-azure-400" />
+                    Logs & Investigation Access
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild size="sm" variant="secondary">
+                      <a href={LOGS_RUNBOOK_URL} rel="noopener noreferrer" target="_blank">
+                        Logs Runbook
                         <ExternalLink className="ml-1 h-3.5 w-3.5" />
                       </a>
                     </Button>
-                  )}
-                </div>
+                    {latestRunUrl && (
+                      <Button asChild size="sm" variant="ghost">
+                        <a href={latestRunUrl} rel="noopener noreferrer" target="_blank">
+                          Latest Workflow Run
+                          <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
 
-                <div className="space-y-3">
-                  <CommandScopeBlock
-                    title="Azure Deployment Commands"
-                    description="Use these when your backend is deployed to Azure Container Apps."
-                    commands={azureCommands}
-                    onCopy={copyCommand}
-                  />
-                  <CommandScopeBlock
-                    title="Local/Docker Commands"
-                    description="Use these when testing with a local backend and no Azure CLI."
-                    commands={localCommands}
-                    onCopy={copyCommand}
-                  />
-                </div>
+                  <div className="space-y-3">
+                    <CommandScopeBlock
+                      title="Azure Deployment Commands"
+                      description="Use these when your backend is deployed to Azure Container Apps."
+                      commands={azureCommands}
+                      onCopy={copyCommand}
+                    />
+                    <CommandScopeBlock
+                      title="Local/Docker Commands"
+                      description="Use these when testing with a local backend and no Azure CLI."
+                      commands={localCommands}
+                      onCopy={copyCommand}
+                    />
+                  </div>
 
-                <div className="text-xs text-[var(--ph-muted)]">
-                  Commands are grouped by execution scope so operators can avoid Azure-only paths during local
-                  troubleshooting.
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                  <div className="text-xs text-[var(--ph-muted)]">
+                    Commands are grouped by execution scope so operators can avoid Azure-only paths
+                    during local troubleshooting.
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
-          <AuditTrailPanel
-            canLoad={hasAuthAttempt}
-            entries={auditEntries}
-            isLoading={auditLoading}
-            isError={isAuditError}
-            error={isAuditError ? (auditError as Error) : null}
-            onLoad={() => {
-              void refetchAudit()
-            }}
-            title="Audit Timeline"
-            description="Recent settings changes with actor and request trace. Use this as the primary governance feed."
-            defaultVisibleCount={5}
-            pageSize={5}
-            defaultExpanded={true}
-          />
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <ScrollText className="h-4 w-4 text-azure-400" />
-                Next Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              <Button asChild size="sm">
-                <Link to="/app/settings">Open Settings</Link>
-              </Button>
-              <Button asChild size="sm" variant="secondary">
-                <Link to="/app/activities">Review Activities</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          {activeSection === 'audit' && (
+            <div className="space-y-4">
+              <AuditTrailPanel
+                canLoad={hasAuthAttempt}
+                entries={auditEntries}
+                isLoading={auditLoading}
+                isError={isAuditError}
+                error={isAuditError ? (auditError as Error) : null}
+                onLoad={() => {
+                  void refetchAudit()
+                }}
+                title="Audit Timeline"
+                description="Recent settings changes with actor and request trace. Use this as the primary governance feed."
+                defaultVisibleCount={5}
+                pageSize={5}
+                defaultExpanded={true}
+              />
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ScrollText className="h-4 w-4 text-azure-400" />
+                    Next Actions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2">
+                  <Button asChild size="sm">
+                    <Link to="/app/settings">Open Settings</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="secondary">
+                    <Link to="/app/activities">Review Activities</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </>
       )}
 

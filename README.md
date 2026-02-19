@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: f1bae20 -->
+<!-- LAST_VERIFIED: 2dc9251 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -26,7 +26,7 @@ CI failures create repetitive triage work. PipelineHealer shortens time-to-under
 - artifact idempotency (find-or-create PR/issue reuse)
 - task-level model routing (`analysis`, `diagnosis`, `remediation`) with provider-default fallback
 - learning queue governance with promotion-readiness gates and audited force activation
-- operator UX for fast triage (Dashboard snapshot, Activity Detail deep evidence, Control Center governance)
+- operator UX for fast triage (Dashboard snapshot, Activity Detail deep evidence, sectioned Control Center governance)
 
 This repository is the hackathon build, but designed for long-term production evolution.
 

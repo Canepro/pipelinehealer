@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { KeyRound, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../api/client'
@@ -292,45 +293,75 @@ export default function SettingsPage() {
             data={data}
           />
 
+          <Card>
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+              <p className="text-sm text-[var(--ph-muted)]">
+                Use section tabs below for changes, then verify outcomes in Control Center.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="secondary">
+                  <Link to="/app/control-center">Open Control Center</Link>
+                </Button>
+                <Button asChild size="sm" variant="ghost">
+                  <Link to="/app/activities">Review Activities</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
             <SettingsSummaryCard
               title="Runtime Posture"
-              lines={[
-                `Heal mode: ${data.heal_mode}`,
-                `Auto-create PR: ${data.auto_create_pr ? 'Yes' : 'No'}`,
-                `Max attempts: ${data.max_remediation_attempts}`,
+              items={[
+                { label: 'Heal mode', value: data.heal_mode },
+                { label: 'Auto-create PR', value: data.auto_create_pr ? 'Yes' : 'No' },
+                { label: 'Max attempts', value: data.max_remediation_attempts },
               ]}
             />
             <SettingsSummaryCard
               title="Scope"
-              lines={[
-                data.ph_allowed_repos.length > 0
-                  ? `${data.ph_allowed_repos.length} allowlisted repos`
-                  : 'All repositories',
-                `MCP allowlist: ${
-                  data.mcp_repo_allowlist.length > 0
-                    ? `${data.mcp_repo_allowlist.length} repos`
-                    : 'fallback to PH scope'
-                }`,
+              items={[
+                {
+                  label: 'Repo scope',
+                  value:
+                    data.ph_allowed_repos.length > 0
+                      ? `${data.ph_allowed_repos.length} allowlisted repos`
+                      : 'All repositories',
+                },
+                {
+                  label: 'MCP allowlist',
+                  value:
+                    data.mcp_repo_allowlist.length > 0
+                      ? `${data.mcp_repo_allowlist.length} repos`
+                      : 'Fallback to PH scope',
+                },
               ]}
             />
             <SettingsSummaryCard
               title="AI Provider"
-              lines={[
-                `Provider: ${data.llm_provider}`,
-                `Default model: ${
-                  data.llm_provider === 'azure_openai'
-                    ? data.azure_openai_deployment_name || 'Not configured'
-                    : data.openai_compatible_model || 'Not configured'
-                }`,
+              items={[
+                { label: 'Provider', value: data.llm_provider },
+                {
+                  label: 'Default model',
+                  value:
+                    data.llm_provider === 'azure_openai'
+                      ? data.azure_openai_deployment_name || 'Not configured'
+                      : data.openai_compatible_model || 'Not configured',
+                },
               ]}
             />
             <SettingsSummaryCard
               title="Security"
-              lines={[
-                `Auth mode: ${data.auth_mode}`,
-                `Admin auth: ${data.admin_api_auth_enabled ? 'Enabled' : 'Disabled'}`,
-                `Webhook signature: ${data.verify_webhook_signature ? 'Required' : 'Off'}`,
+              items={[
+                { label: 'Auth mode', value: data.auth_mode },
+                {
+                  label: 'Admin auth',
+                  value: data.admin_api_auth_enabled ? 'Enabled' : 'Disabled',
+                },
+                {
+                  label: 'Webhook signature',
+                  value: data.verify_webhook_signature ? 'Required' : 'Off',
+                },
               ]}
             />
           </div>
@@ -361,17 +392,26 @@ export default function SettingsPage() {
   )
 }
 
-function SettingsSummaryCard({ title, lines }: { title: string; lines: string[] }) {
+function SettingsSummaryCard({
+  title,
+  items,
+}: {
+  title: string
+  items: Array<{ label: string; value: string | number }>
+}) {
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-1 text-sm text-[var(--ph-muted)]">
-        {lines.map((line) => (
-          <p key={`${title}-${line}`} className="break-words">
-            {line}
-          </p>
+      <CardContent className="space-y-1.5 text-sm">
+        {items.map((item) => (
+          <div key={`${title}-${item.label}`} className="flex items-center justify-between gap-3">
+            <span className="text-[var(--ph-muted)]">{item.label}</span>
+            <span className="break-words text-right font-medium text-[var(--ph-text)]">
+              {item.value}
+            </span>
+          </div>
         ))}
       </CardContent>
     </Card>

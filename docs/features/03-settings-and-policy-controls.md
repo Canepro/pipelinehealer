@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: 04ad120 -->
+<!-- LAST_VERIFIED: 2dc9251 -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -13,6 +13,7 @@ This guide explains runtime controls, persistence behavior, and governance guard
 - Guardrails for repos, retries, and MCP tool policy
 - Task-level model routing overrides (`analysis`, `diagnosis`, `remediation`)
 - Control Center learning queue governance (`candidate -> approved -> active` lifecycle)
+- Control Center sectioned operator views (`Governance Overview`, `Learning & Ops`, `Audit & Trace`)
 
 ## Quick Start
 
@@ -23,6 +24,10 @@ This guide explains runtime controls, persistence behavior, and governance guard
 3. Change only one policy group at a time.
 4. Use **Save & Persist** to apply and persist in one action.
 5. Re-open Control Center for read-only governance verification after each save.
+6. Use Control Center section tabs to reduce cognitive load while preserving full detail:
+   - `Governance Overview`: posture, policy impact, model routing, MCP policy effect
+   - `Learning & Ops`: candidate lifecycle actions + logs/investigation commands
+   - `Audit & Trace`: collapsible audit timeline and request-trace review
 
 ## Runtime vs Durable
 

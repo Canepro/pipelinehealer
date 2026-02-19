@@ -10,6 +10,8 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - Replaced phase-style future plan with a SemVer-aligned roadmap in `docs/FUTURE_PLAN.md` (`v0.3.0` active target, `v0.4.0+` mapped backlog).
 - Updated docs index wording to reflect version-targeted planning as the default roadmap model.
+- Refined Control Center information architecture with section tabs (`Governance Overview`, `Learning & Ops`, `Audit & Trace`) and improved learning/ops layout density.
+- Polished Settings page operator ergonomics with structured key/value summary cards and quick navigation actions to Control Center/Activities.
 
 ## [v0.2.2] - 2026-02-19
 
