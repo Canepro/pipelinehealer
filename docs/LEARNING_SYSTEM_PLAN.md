@@ -1,6 +1,6 @@
 # Learning System Plan
 
-<!-- LAST_VERIFIED: 157ef45 -->
+<!-- LAST_VERIFIED: d13bd12 -->
 
 This document explains the learning/governance subsystem, how to use it today, and what is planned next.
 
@@ -12,6 +12,13 @@ Goals:
 - reduce repeated triage decisions
 - keep automation policy-safe and auditable
 - promote only patterns with clear evidence
+
+## In Plain Language
+
+- PipelineHealer watches for repeated successful remediation patterns.
+- It proposes those patterns as **candidates** in the learning queue.
+- A human operator still decides whether to approve/activate; activation is not automatic.
+- If you use force activation, it is explicitly recorded in audit history.
 
 ## Current Scope (Implemented)
 
@@ -44,6 +51,12 @@ Observability and audit:
 - decision audit metadata includes readiness before/after
 - forced activation metadata includes actor, reasons, and request id
 
+## What Learning Does Not Do (Yet)
+
+- It does not auto-edit candidate text fields from the UI.
+- It does not auto-activate candidates without a governance decision.
+- It does not bypass readiness gates unless `force_activate=true` is explicitly chosen and audited.
+
 ## How To Use (Today)
 
 UI:
@@ -63,6 +76,12 @@ API:
 - `POST /api/settings/learning/queue/refresh`
 - `POST /api/settings/learning/queue/{candidate_id}/decision`
 - `POST /api/settings/learning/feedback`
+
+Quick verification checklist:
+1. Run refresh and confirm candidate rows appear with `promotion_readiness`.
+2. Submit at least one verification payload (`pass|partial|fail`) for a related activity.
+3. Re-open the queue and confirm verification counters/pass-rate changed.
+4. Confirm audit includes the matching learning action (`learning_queue_refresh`, `learning_queue_decision`, or `learning_verification_feedback`).
 
 ## Current Constraints
 

@@ -6,7 +6,9 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Changed
+
+- `HEAD` Clarified `docs/LEARNING_SYSTEM_PLAN.md` with plain-language behavior, explicit non-goals, and a quick verification checklist for first-time operators.
 
 ## [v0.2.7] - 2026-02-19
 
