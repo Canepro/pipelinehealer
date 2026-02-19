@@ -6,6 +6,10 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
+- _No unreleased entries yet._
+
+## [v0.2.6] - 2026-02-19
+
 ### Added
 
 - `d3cbf8a` Added verification feedback capture API (`POST /api/settings/learning/feedback`) with durable per-activity verification metadata/history and audit entries.
@@ -17,6 +21,8 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - `534c216` Added operator-focused inline comments across Helm values/templates to improve first-time deploy clarity without changing chart behavior.
 - `157ef45` Added operator-focused inline comments to `docker-compose.yml`, `azure.yaml`, and CI workflow YAML for clearer local/ops intent.
 - `7206832` Synced `v0.2.6` roadmap/backlog tracking status, linked/closed BL issues (`#25`-`#28`), and refreshed stale `LAST_VERIFIED` markers in edited docs.
+- `29261de` Backfilled `Unreleased` changelog coverage for in-progress `v0.2.6` work so release-scope tracking remains complete.
+- `2356c0c` Reworked Activities desktop table layout to remove horizontal rail/slide dependency so row actions remain reachable while scanning long activity histories.
 
 ## [v0.2.5] - 2026-02-19
 
