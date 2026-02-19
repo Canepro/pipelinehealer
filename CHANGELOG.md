@@ -13,6 +13,12 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [v0.2.2] - 2026-02-19
 
+### Capability Highlights
+
+- Documentation and release-history clarity upgrade:
+  - incident case study is linked from docs index and README
+  - historical release trail is easier to audit and present
+
 ### Added
 
 - Case study lifecycle completion details for run `#22163136636`, including final issue state and linked PR artifact.
@@ -24,6 +30,13 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - Refreshed `LAST_VERIFIED` markers for edited docs to the post-merge baseline commit.
 
 ## [v0.2.1] - 2026-02-19
+
+### Capability Highlights
+
+- Production release safety hardening:
+  - repeatable release preparation flow
+  - explicit verification and rollback guidance
+  - safeguards to prevent tag/version mismatch recurrence
 
 ### Added
 
@@ -39,6 +52,15 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - Release process guidance now explicitly prevents repeating tag/version mismatch incidents like run `#22163136636`.
 
 ## [v0.2.0] - 2026-02-19
+
+### Capability Highlights
+
+- Learning-system governance became operational:
+  - candidate lifecycle actions in Control Center
+  - promotion-readiness gates and audited force activation
+- Platform portability improved:
+  - provider portability reliability hardening
+  - Kubernetes Helm target for non-ACA deployments
 
 ### Added
 
@@ -61,8 +83,21 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [v0.1.1] - 2026-02-18
 
+### Capability Highlights
+
+- First public PipelineHealer release:
+  - multi-agent CI failure triage and policy-aware remediation
+  - explainability and operator visibility foundations
+  - script-first operations and release/version control baseline
+
 ### Added
 
+- First public release baseline of PipelineHealer core capabilities:
+  - multi-agent CI/CD flow (`analyze -> diagnose -> remediate`) for GitHub Actions failures
+  - policy-aware remediation modes with safe-first defaults
+  - explainability metadata (diagnosis source, reason codes, evidence)
+  - operator surfaces (dashboard/activity views + admin settings)
+  - script-first operations via `bash scripts/ph.sh ...`
 - Release automation workflow for `vX.Y.Z` tags that validates version sync and publishes GitHub releases from changelog notes.
 - Repository `VERSION` file as the semver source of truth across backend and frontend packages.
 - Release helper scripts:
@@ -78,7 +113,11 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - `scripts/release.sh` now preserves existing `Unreleased` notes when generating a new release section.
 
-## [v0.1.0] - 2026-02-18
+## [v0.1.0] - 2026-02-18 (internal baseline, not a published GitHub release tag)
+
+### Capability Highlights
+
+- Internal milestone that established initial architecture and demo baseline before public release tagging.
 
 ### Added
 
