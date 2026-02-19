@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
 import { ExternalLink, GitBranch } from 'lucide-react'
@@ -226,63 +225,6 @@ export default function ActivityTable({
   focusedActivityId,
   highlightedActivityId,
 }: ActivityTableProps) {
-  const desktopScrollRef = useRef<HTMLDivElement | null>(null)
-  const desktopTopRailRef = useRef<HTMLDivElement | null>(null)
-  const [desktopScrollWidth, setDesktopScrollWidth] = useState(0)
-  const [desktopHasHorizontalOverflow, setDesktopHasHorizontalOverflow] = useState(false)
-
-  useEffect(() => {
-    const viewport = desktopScrollRef.current
-    if (!viewport) return
-
-    const syncDimensions = () => {
-      setDesktopScrollWidth(viewport.scrollWidth)
-      setDesktopHasHorizontalOverflow(viewport.scrollWidth > viewport.clientWidth + 1)
-    }
-
-    syncDimensions()
-    if (typeof ResizeObserver === 'undefined') {
-      return
-    }
-    const resizeObserver = new ResizeObserver(syncDimensions)
-    resizeObserver.observe(viewport)
-    const table = viewport.querySelector('table')
-    if (table) {
-      resizeObserver.observe(table)
-    }
-    return () => resizeObserver.disconnect()
-  }, [activities.length, isLoading])
-
-  useEffect(() => {
-    const topRail = desktopTopRailRef.current
-    const viewport = desktopScrollRef.current
-    if (!topRail || !viewport) return
-
-    let syncingFromTop = false
-    let syncingFromViewport = false
-
-    const onTopScroll = () => {
-      if (syncingFromViewport) return
-      syncingFromTop = true
-      viewport.scrollLeft = topRail.scrollLeft
-      syncingFromTop = false
-    }
-
-    const onViewportScroll = () => {
-      if (syncingFromTop) return
-      syncingFromViewport = true
-      topRail.scrollLeft = viewport.scrollLeft
-      syncingFromViewport = false
-    }
-
-    topRail.addEventListener('scroll', onTopScroll)
-    viewport.addEventListener('scroll', onViewportScroll)
-    return () => {
-      topRail.removeEventListener('scroll', onTopScroll)
-      viewport.removeEventListener('scroll', onViewportScroll)
-    }
-  }, [activities.length, desktopHasHorizontalOverflow])
-
   if (isLoading) {
     return (
       <Card>
@@ -415,20 +357,16 @@ export default function ActivityTable({
       </div>
 
       <div className="hidden lg:block">
-        {desktopHasHorizontalOverflow && (
-          <div className="border-b border-[var(--ph-border)] bg-slate-800/10 px-6 py-3">
-            <div className="mb-2 flex items-center justify-between gap-3 text-xs text-[var(--ph-muted)]">
-              <span>Horizontal scroll</span>
-              <span>Use this rail instead of scrolling to the bottom of the table.</span>
-            </div>
-            <div ref={desktopTopRailRef} className="overflow-x-auto overflow-y-hidden">
-              <div style={{ width: desktopScrollWidth, height: 1 }} />
-            </div>
-          </div>
-        )}
-
-        <div ref={desktopScrollRef} className="overflow-x-auto">
-          <table className="min-w-[1080px] w-full caption-bottom text-sm">
+        <div className="overflow-hidden">
+          <table className="w-full table-fixed caption-bottom text-sm">
+            <colgroup>
+              <col className="w-[15%]" />
+              <col className="w-[17%]" />
+              <col className="w-[26%]" />
+              <col className="w-[20%]" />
+              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+            </colgroup>
             <thead className="bg-slate-100/70 dark:bg-slate-800/60 [&_tr]:border-b [&_tr]:border-[var(--ph-border)]">
               <tr>
                 <th className="h-12 pl-6 pr-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -466,7 +404,7 @@ export default function ActivityTable({
                       activity.id === highlightedActivityId ? 'bg-azure-500/10' : ''
                     }`}
                   >
-                    <td className="whitespace-nowrap p-4 pl-6 align-middle">
+                    <td className="p-4 pl-6 align-middle">
                       <div className="flex items-center">
                         <GitBranch className="mr-2 h-5 w-5 text-gray-400" />
                         <div>
@@ -482,7 +420,7 @@ export default function ActivityTable({
                         </div>
                       </div>
                     </td>
-                    <td className="whitespace-nowrap p-4 align-middle">
+                    <td className="p-4 align-middle">
                       <div
                         className="max-w-[220px] truncate text-sm text-gray-900 dark:text-white"
                         title={activity.workflow_name}
@@ -493,7 +431,7 @@ export default function ActivityTable({
                         Run #{activity.workflow_run_id}
                       </div>
                     </td>
-                    <td className="whitespace-nowrap p-4 align-middle">
+                    <td className="p-4 align-middle">
                       {activity.id === focusedActivityId && (
                         <div className="mb-2">
                           <Badge className="rounded-md text-[11px]" variant="success">
@@ -540,8 +478,8 @@ export default function ActivityTable({
                     <td className="whitespace-nowrap p-4 align-middle text-sm text-gray-500">
                       {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
                     </td>
-                    <td className="whitespace-nowrap p-4 pr-6 align-middle text-sm">
-                      <div className="flex items-center space-x-2">
+                    <td className="p-4 pr-6 align-middle text-sm">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Button asChild variant="ghost" size="sm">
                           <Link to={`/app/activities/${activity.id}`}>View</Link>
                         </Button>
