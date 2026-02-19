@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: 7aa76a4 -->
+<!-- LAST_VERIFIED: b191408 -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -44,6 +44,14 @@ Requirements:
 - you are on the intended branch (usually `main`)
 
 If there are pending commits for release notes, finish and push them first.
+
+Optional helper (prints the exact ordered commands used in this runbook):
+
+```bash
+bash scripts/release_checklist.sh minor
+```
+
+This is a dry-run checklist generator; it does not modify files.
 
 ## 2) Prepare Changelog Notes
 

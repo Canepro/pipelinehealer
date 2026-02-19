@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 7aa76a4 -->
+<!-- LAST_VERIFIED: b191408 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -115,6 +115,7 @@ Release helpers:
 
 ```bash
 bash scripts/check_version_sync.sh
+bash scripts/release_checklist.sh minor
 bash scripts/release.sh patch
 ```
 

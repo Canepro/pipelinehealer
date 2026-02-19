@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 7aa76a4 -->
+<!-- LAST_VERIFIED: b191408 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -257,10 +257,12 @@ These helper scripts are intentionally separate from `scripts/ph.sh`.
 | Command | Description |
 |---------|-------------|
 | `bash scripts/check_version_sync.sh` | Verifies `VERSION`, backend, and frontend versions match |
+| `bash scripts/release_checklist.sh [bump]` | Prints ordered release commands (dry-run, no file changes) |
 | `bash scripts/release.sh <patch|minor|major|x.y.z>` | Bumps versions and prepares `CHANGELOG.md` release section |
 
 ```bash
 bash scripts/check_version_sync.sh
+bash scripts/release_checklist.sh minor
 bash scripts/release.sh patch
 ```
 
