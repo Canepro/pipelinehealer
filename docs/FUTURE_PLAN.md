@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 69c7e51 -->
+<!-- LAST_VERIFIED: 9169bf3 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -27,38 +27,44 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.2.0` | Released | Learning governance, portability core, Helm target |
 | `v0.2.1` | Released | Release-process corrective hardening |
 | `v0.2.2` | Released | Case-study/readme/docs consistency + release cleanup |
+| `v0.2.3` | Candidate in `main` | Release QA freeze scope implemented; release tag validation pending |
 
-## Active Target: `v0.2.3` (Release QA Freeze)
+## Active Target: `v0.2.4` (Release Artifact Immutability + Cost Guardrails)
 
-Theme: remove known non-breaking deployment/build warnings before continuing deeper feature work.
+Theme: ensure versioned installs are reproducible and affordable by publishing immutable release images and enforcing retention guardrails.
 
 ### Must-Have Scope
 
-1. Frontend bundle warning reduction
-   - Address Vite `chunk size > 500kB` warnings with targeted route/component splitting.
-   - Review heavy dependencies in dashboard/control-center paths and defer non-critical imports.
-2. Frontend dependency warning hygiene
-   - Resolve Bun peer dependency warning (`incorrect peer dependency react@18.3.1`) by aligning package peer matrix.
-   - Keep runtime stack stable (no breaking React major jump in patch release).
-3. Python package warning hygiene
-   - Investigate `agent-framework-core ... does not have an extra named all` warning during backend image build.
-   - Pin/upgrade dependency chain or document upstream limitation with explicit guardrails.
-4. Deploy log quality gate
-   - Add lightweight deploy-warning check/runbook note so warnings are visible and triaged each deploy.
-5. Release candidate QA + QOF polish
-   - keep scope to non-functional UI/readability polish and documentation alignment only.
-   - no net-new feature shipment in this release slice.
+1. Immutable release image publishing
+   - On each `vX.Y.Z` tag, build and push backend/frontend images to ACR.
+   - Publish both tag forms (`vX.Y.Z` and `X.Y.Z`) and record digests in release output.
+2. Helm reproducibility controls
+   - Add digest-based image pinning support (`repository@sha256:...`) with tag fallback.
+   - Keep Helm chart versions synced with repository versioning during release prep.
+3. Retention and cost controls
+   - Prune old local ACR-tagged images after full deploy.
+   - Prune old ACR tags/manifests with semver-tag preservation to avoid breaking versioned installs.
+4. Operator docs and runbook sync
+   - Document OIDC + ACR release requirements.
+   - Document digest-first Helm install guidance and release verification steps.
+5. Workflow compatibility hardening
+   - Ensure release build paths work with current lockfile format and existing CI/runtime constraints.
 
 ### Exit Criteria
 
-1. `bash scripts/ph.sh deploy` emits no untracked known-warning classes.
-2. Frontend production build warnings are reduced to zero or formally documented as upstream/transient.
-3. Warning triage policy is documented in ops docs (`docs/LOCAL_DEMO_RUNBOOK.md` and/or release checklist docs).
-4. QA gates for release candidate pass:
-   - `bun run lint`, `bun run build`
-   - targeted backend safety tests
-   - `bash scripts/release_scope_check.sh`
-   - docs cross-link and status consistency check
+1. `vX.Y.Z` GitHub release publishes immutable ACR references for backend/frontend (tags + digests).
+2. Helm chart supports both semver tag pinning and digest pinning without template changes.
+3. Full deploy includes retention controls; semver-like tags are preserved from ACR prune.
+4. Release docs and runbooks describe required GitHub/Azure OIDC configuration and verification commands.
+5. `bash scripts/check_version_sync.sh` validates `VERSION`, backend/frontend package versions, and Helm chart version/appVersion.
+
+### Initial `v0.2.4` Implementation Snapshot
+
+- Release workflow publishes ACR release images + `release_images.md` digest artifact.
+- Helm chart supports `digest` fields for backend/frontend images.
+- Deploy path includes local + ACR retention pruning controls with semver preservation.
+- Release helpers now synchronize `charts/pipelinehealer/Chart.yaml`.
+- GitHub OIDC release environment wiring documented and configured.
 
 ## Next Target: `v0.3.0` (Minor)
 
@@ -134,7 +140,10 @@ Theme: provider and platform extensibility.
 | `BL-009` | Vite chunk-size warning reduction (`>500kB`) | `v0.2.3` | patch | High | Completed |
 | `BL-010` | Bun peer-dependency warning cleanup (`react@18.3.1`) | `v0.2.3` | patch | High | Completed |
 | `BL-011` | Backend build warning cleanup (`agent-framework-core[all]`) ([#17](https://github.com/Canepro/pipelinehealer/issues/17)) | `v0.2.3` | patch | Medium | Blocked (upstream/index) |
-| `BL-012` | Deploy warning gate + triage runbook updates | `v0.2.3` | patch | Medium | In Progress |
+| `BL-012` | Deploy warning gate + triage runbook updates | `v0.2.3` | patch | Medium | Completed |
+| `BL-013` | Immutable ACR release image publish + digest artifact | `v0.2.4` | patch | High | Completed (in `main`) |
+| `BL-014` | Helm digest pinning + chart version sync in release tooling | `v0.2.4` | patch | High | Completed (in `main`) |
+| `BL-015` | Deploy retention controls (local + ACR) with semver preservation | `v0.2.4` | patch | Medium | Completed (in `main`) |
 
 ## Definition of Done (Per Version)
 
