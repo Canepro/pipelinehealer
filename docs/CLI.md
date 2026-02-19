@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 74e2d09 -->
+<!-- LAST_VERIFIED: 6b98ef2 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -133,9 +133,16 @@ bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2 --skip-env-syn
 bash scripts/ph.sh demo:e2e
 bash scripts/ph.sh demo:e2e --skip-webhook-sync
 bash scripts/ph.sh demo:e2e --triggers dependency,lint,test --wait-seconds 120
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180 --strict
 bash scripts/ph.sh demo:proof --repo owner/repo --limit 10
 bash scripts/ph.sh demo:reset
 ```
+
+`demo:e2e` notes:
+- Default activity settle wait is now `180s` (override with `--wait-seconds <n>`).
+- It performs a best-effort on-demand diagnostics backfill before final activity summary (disable with `--skip-backfill`).
+- It checks for at least one CI doctor-style workflow signal after dispatch (`CI Failure Doctor`/`ci-doctor`) using `--ci-signal-wait-seconds <n>`; queued/in-progress/completed runs all count as signal observed.
+- Use `--strict` for rehearsal/submission gating. Strict mode exits non-zero if dispatched activities do not reach terminal status within wait budget or if no CI doctor signal is observed.
 
 ### Scale Management
 

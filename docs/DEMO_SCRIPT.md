@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 9f40326 -->
+<!-- LAST_VERIFIED: 6b98ef2 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -72,7 +72,7 @@ Pass check:
 ## 3) Main E2E Demo Command (Use On Camera)
 
 ```bash
-bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 120
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180
 ```
 
 What this command does:
@@ -81,12 +81,21 @@ What this command does:
 - ensures demo fixtures are in the expected state
 - triggers all five demo failure scenarios (`dependency`, `lint`, `test`, `build_config`, `timeout`)
 - polls activity states to terminal (`completed` / `failed`) and prints runs, PRs, issues, and backend activity output
+- triggers an on-demand backfill sweep before final summary so late external diagnostics can be attached without waiting for the 10-minute background sweep
+- waits for a CI doctor workflow signal (`CI Failure Doctor` / `ci-doctor`) and prints whether that signal was observed
 
 Pass checks in output:
 
 - workflow dispatch events created
 - at least one dependency/lint remediation shows PR creation
 - test/build_config/timeout produce issues (or structured failure records)
+- `CI doctor signal detected` appears (best effort; if delayed, run `bash scripts/ph.sh backfill` and verify in Activity Detail)
+
+Rehearsal-only strict gate:
+
+```bash
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 300 --strict
+```
 
 ### Single Failure Type (faster, focused demo)
 
@@ -162,7 +171,7 @@ TELL: PipelineHealer listens for `workflow_run.completed` failures, then runs a 
 SHOW: Terminal running:
 
 ```bash
-bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 120
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180
 ```
 
 SHOW: Output with webhook sync, workflow/activity output, and dashboard updating in real time.

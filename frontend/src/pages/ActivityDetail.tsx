@@ -1154,7 +1154,7 @@ export default function ActivityDetail() {
                     )}
                   </div>
                   <div>
-                    <p className="text-gray-500 dark:text-gray-400">Tool Calls</p>
+                    <p className="text-gray-500 dark:text-gray-400">MCP Tool Calls</p>
                     <p className="text-gray-900 dark:text-white">{mcpToolCallCount}</p>
                   </div>
                   <div>
@@ -1192,6 +1192,10 @@ export default function ActivityDetail() {
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                           Source Attribution
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Includes passive GH-AW diagnostics and MCP-derived signals. This can be non-zero even when
+                          MCP tool calls are zero.
                         </p>
                         {mcpSourceAttribution.length > 0 ? (
                           <ul className="mt-2 space-y-1">
@@ -1243,7 +1247,8 @@ export default function ActivityDetail() {
                         </ul>
                       ) : (
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                          No MCP tool invocations captured for this activity yet.
+                          No direct MCP tool invocations captured for this activity yet. Passive diagnostics may still
+                          appear under Source Attribution.
                         </p>
                       )}
                     </div>
