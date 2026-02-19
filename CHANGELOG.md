@@ -8,6 +8,18 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - _No unreleased entries yet._
 
+## [v0.2.2] - 2026-02-19
+
+### Added
+
+- Case study lifecycle completion details for run `#22163136636`, including final issue state and linked PR artifact.
+- Docs index now directly references the release-tag mismatch case study under `docs/case-studies/`.
+
+### Changed
+
+- README "Why this project" section now includes a production-like incident proof block (activity, run, issue, PR, release links).
+- Refreshed `LAST_VERIFIED` markers for edited docs to the post-merge baseline commit.
+
 ## [v0.2.1] - 2026-02-19
 
 ### Added

@@ -1,6 +1,6 @@
 # Case Study: Release Tag/Version Mismatch (`run #22163136636`)
 
-<!-- LAST_VERIFIED: b69a9ec -->
+<!-- LAST_VERIFIED: f1bae20 -->
 
 ## Summary
 
@@ -60,5 +60,6 @@ Applied in this repository:
 
 - Activity detail: `f92ee7d9-dd2f-4e32-8edd-c2b44ee0cae3`
 - Workflow run: `https://github.com/Canepro/pipelinehealer/actions/runs/22163136636`
-- Remediation issue: `https://github.com/Canepro/pipelinehealer/issues/15`
+- Remediation issue: `https://github.com/Canepro/pipelinehealer/issues/15` (closed after corrective release + case-study merge)
 - Corrective release tag: `https://github.com/Canepro/pipelinehealer/releases/tag/v0.2.1`
+- Case-study PR: `https://github.com/Canepro/pipelinehealer/pull/16`

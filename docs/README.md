@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: b69a9ec -->
+<!-- LAST_VERIFIED: f1bae20 -->
 
 Use this index to find the right doc quickly.
 
@@ -32,6 +32,7 @@ Use this index to find the right doc quickly.
 - `UI_PLAN.md` — UI maturity plan, principles, and weekly tracking through submission
 - `GH_AW_IMPLEMENTATION_TRACKER.md` — gh-aw research summary, Layer 1/2 checklists, decision log, and evidence
 - `case-studies/` — real incident writeups showing detection, classification, and remediation outcomes
+  - `case-studies/release-tag-mismatch-22163136636.md` — release tag/version mismatch incident handled by PipelineHealer
 - `screens/` — versioned UI proof screenshots used by Week 2 and Week 3 evidence checkpoints
 
 ### Repo-Level
