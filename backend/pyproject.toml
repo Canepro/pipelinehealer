@@ -1,6 +1,6 @@
 [project]
 name = "pipelinehealer"
-version = "0.1.1"
+version = "0.2.0"
 description = "Self-healing CI/CD agent system using Microsoft Agent Framework"
 readme = "README.md"
 requires-python = ">=3.11"

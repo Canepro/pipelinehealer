@@ -8,6 +8,27 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - _No unreleased entries yet._
 
+## [v0.2.0] - 2026-02-19
+
+### Added
+
+- Learning queue governance APIs and Control Center actions (`approve`, `reject`, `activate`, `retire`, `reset_candidate`).
+- Promotion-readiness gates for playbook activation with explicit audited `force_activate` override.
+- Kubernetes Helm deployment target and operator runbook.
+- Dedicated learning-system documentation and updated architecture coverage in README.
+
+### Changed
+
+- Control Center learning queue now uses a full-width layout for better operator review workflow.
+- Docs and runbooks synchronized to current command/auth/runtime behavior (`API`, `CLI`, `LOCAL_DEMO_RUNBOOK`, `README`).
+- Repo standards now require concise intent-focused comments for non-obvious logic.
+
+### Fixed
+
+- Provider portability path hardened with retry/error classification for timeout/429/5xx scenarios.
+- Added provider parity regression tests to guard diagnosis/remediation behavior consistency.
+- Failure classification trust hardened for ambiguous test signatures.
+
 ## [v0.1.1] - 2026-02-18
 
 ### Added
