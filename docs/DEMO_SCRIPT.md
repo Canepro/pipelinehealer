@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 786e214 -->
+<!-- LAST_VERIFIED: f041ad6 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -32,6 +32,7 @@ Run from repo root:
 ```bash
 cd /mnt/d/repos/pipelinehealer
 git pull --ff-only origin main
+bash scripts/ph.sh deploy:release --release-version v0.2.6
 bash scripts/ph.sh warm
 bash scripts/ph.sh status
 bash scripts/ph.sh settings:check
@@ -50,11 +51,12 @@ bash scripts/ph.sh deploy:env
 bash scripts/ph.sh settings:check
 ```
 
-If `deploy` fails with Podman socket error:
+If `deploy:release` fails due Azure auth/session context:
 
 ```bash
-podmanup
-bash scripts/ph.sh deploy
+az account show
+az login
+bash scripts/ph.sh deploy:release --release-version v0.2.6
 ```
 
 ## 2) Optional Clean Slate for Demo Repo
@@ -222,7 +224,7 @@ bash scripts/ph.sh settings:check
 `401 Invalid bearer token` after successful Entra login:
 
 - Confirm backend `AUTH_MODE` and `ENTRA_*` values are synced (`bash scripts/ph.sh deploy:env`).
-- If frontend `VITE_ENTRA_*` changed, run full deploy (`bash scripts/ph.sh deploy`).
+- If frontend `VITE_ENTRA_*` changed, publish a new release and deploy it (`bash scripts/ph.sh deploy:release --release-version vX.Y.Z`).
 
 `Client error '403 Forbidden' for GitHub issue/PR creation`:
 
@@ -247,7 +249,7 @@ Terminal closes unexpectedly:
 - run scripts with `bash scripts/...`
 - do not use `source` or `. scripts/...`
 
-Podman unavailable:
+Podman unavailable (only relevant for local/full-build deploy path):
 
 ```bash
 podmanup
