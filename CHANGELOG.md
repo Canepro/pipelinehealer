@@ -17,6 +17,8 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - `a80c271` Refreshed `docs/DEMO_SCRIPT.md` verification marker after submission-runbook updates.
 - `308b862` Polished README submission-phase positioning, clarified remediation language, and added an explicit `v0.2.6` baseline section.
 - `9e74863` Updated README architecture Mermaid diagram to match current runtime behavior (background diagnostics backfill, GH-AW sources, optional MCP enrichment).
+- `695834f` Hardened `demo:e2e` verification with configurable CI-signal waits, optional strict gating, on-demand diagnostics backfill, and clearer passive-vs-direct MCP summary output.
+- `695834f` Clarified Activity Detail MCP observability copy so passive GH-AW attribution and direct MCP tool-call telemetry are clearly differentiated.
 
 ## [v0.2.6] - 2026-02-19
 
