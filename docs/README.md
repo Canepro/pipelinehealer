@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: 7aa76a4 -->
+<!-- LAST_VERIFIED: b69a9ec -->
 
 Use this index to find the right doc quickly.
 
@@ -31,6 +31,7 @@ Use this index to find the right doc quickly.
 - `FUTURE_PLAN.md` — post-demo roadmap and next-priority backlog
 - `UI_PLAN.md` — UI maturity plan, principles, and weekly tracking through submission
 - `GH_AW_IMPLEMENTATION_TRACKER.md` — gh-aw research summary, Layer 1/2 checklists, decision log, and evidence
+- `case-studies/` — real incident writeups showing detection, classification, and remediation outcomes
 - `screens/` — versioned UI proof screenshots used by Week 2 and Week 3 evidence checkpoints
 
 ### Repo-Level
