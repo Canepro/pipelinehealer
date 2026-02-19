@@ -37,6 +37,11 @@ This is the long-form project tracker for hackathon execution status, submission
 - Deploy reliability hardening:
   - `deploy` now prints resolved deployed backend/frontend image references from Azure after update
   - full deploy now fails fast if deployed image refs do not match the requested commit tag
+- Deployment warning debt tracking introduced (2026-02-19 deploy logs):
+  - frontend Vite chunk-size warning (`Some chunks are larger than 500 kB after minification`)
+  - frontend Bun peer warning (`incorrect peer dependency react@18.3.1`)
+  - backend uv warning (`agent-framework-core ... does not have an extra named all`)
+  - remediation plan mapped to versioned backlog in `docs/FUTURE_PLAN.md` (`v0.2.3`, `BL-009..BL-012`)
 - Release hygiene automation:
   - semver sync guard added for `VERSION`, backend, and frontend manifests
   - tag-driven GitHub release workflow added (`vX.Y.Z` + changelog section validation)

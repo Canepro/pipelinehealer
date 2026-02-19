@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 688ae1d -->
+<!-- LAST_VERIFIED: 69331ac -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -57,6 +57,30 @@ Theme: complete learning-system operator workflow from candidate signal to safe 
    - `docs/LOCAL_DEMO_RUNBOOK.md`
    - `docs/features/04-learning-system.md`
 
+## Fast-Follow Patch Target: `v0.2.3` (Quality/Build Warning Debt)
+
+Theme: remove known non-breaking deployment/build warnings before continuing deeper feature work.
+
+### Must-Have Scope
+
+1. Frontend bundle warning reduction
+   - Address Vite `chunk size > 500kB` warnings with targeted route/component splitting.
+   - Review heavy dependencies in dashboard/control-center paths and defer non-critical imports.
+2. Frontend dependency warning hygiene
+   - Resolve Bun peer dependency warning (`incorrect peer dependency react@18.3.1`) by aligning package peer matrix.
+   - Keep runtime stack stable (no breaking React major jump in patch release).
+3. Python package warning hygiene
+   - Investigate `agent-framework-core ... does not have an extra named all` warning during backend image build.
+   - Pin/upgrade dependency chain or document upstream limitation with explicit guardrails.
+4. Deploy log quality gate
+   - Add lightweight deploy-warning check/runbook note so warnings are visible and triaged each deploy.
+
+### Exit Criteria
+
+1. `bash scripts/ph.sh deploy` emits no untracked known-warning classes.
+2. Frontend production build warnings are reduced to zero or formally documented as upstream/transient.
+3. Warning triage policy is documented in ops docs (`docs/LOCAL_DEMO_RUNBOOK.md` and/or release checklist docs).
+
 ## Planned Target: `v0.4.0` (Minor)
 
 Theme: MCP operational maturity + observability depth.
@@ -99,6 +123,10 @@ Theme: provider and platform extensibility.
 | `BL-006` | In-app investigation/log viewer (bounded) | `v0.4.x` | patch/minor | Medium | Queued |
 | `BL-007` | Multi-provider parity hardening and rollback automation | `v0.5.0` | minor | Medium | Queued |
 | `BL-008` | Non-GitHub CI adapter readiness | `v0.5.x` | minor | Medium | Queued |
+| `BL-009` | Vite chunk-size warning reduction (`>500kB`) | `v0.2.3` | patch | High | Planned |
+| `BL-010` | Bun peer-dependency warning cleanup (`react@18.3.1`) | `v0.2.3` | patch | High | Planned |
+| `BL-011` | Backend build warning cleanup (`agent-framework-core[all]`) | `v0.2.3` | patch | Medium | Planned |
+| `BL-012` | Deploy warning gate + triage runbook updates | `v0.2.3` | patch | Medium | Planned |
 
 ## Definition of Done (Per Version)
 
