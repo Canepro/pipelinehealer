@@ -19,6 +19,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - `9e74863` Updated README architecture Mermaid diagram to match current runtime behavior (background diagnostics backfill, GH-AW sources, optional MCP enrichment).
 - `695834f` Hardened `demo:e2e` verification with configurable CI-signal waits, optional strict gating, on-demand diagnostics backfill, and clearer passive-vs-direct MCP summary output.
 - `695834f` Clarified Activity Detail MCP observability copy so passive GH-AW attribution and direct MCP tool-call telemetry are clearly differentiated.
+- `6608f3a` Reworked Activity Detail information hierarchy with a top-level `PipelineHealer Decision` summary that combines diagnosis and remediation outcome, and moved deep model/evidence panels under a dedicated technical enrichment section.
 
 ## [v0.2.6] - 2026-02-19
 
