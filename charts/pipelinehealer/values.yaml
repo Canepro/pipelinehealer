@@ -1,11 +1,20 @@
+# Minimal operator guide:
+# - Start with this file for first deploys.
+# - Prefer image digests for reproducible releases.
+# - Keep secret values out of git; inject via CI/CD or external secret manager.
+
+# Optional overrides for generated resource names.
 nameOverride: ""
 fullnameOverride: ""
 
+# Private registry pull secrets (list of {name: ...} objects).
 imagePullSecrets: []
 
 backend:
+  # Replica count is ignored when autoscaling.enabled=true.
   replicaCount: 1
   image:
+    # Use digest for immutable releases. If digest is set, tag is ignored.
     repository: caneprophacr01.azurecr.io/pipelinehealer-backend
     digest: ""
     tag: ""
@@ -25,6 +34,7 @@ backend:
     maxReplicas: 3
     targetCPUUtilizationPercentage: 80
 
+  # Non-secret runtime config -> rendered into ConfigMap.
   env:
     ENVIRONMENT: production
     LOG_LEVEL: INFO
@@ -36,7 +46,9 @@ backend:
     AUTO_CREATE_TRACKING_ISSUE_FOR_PRS: "true"
     MAX_REMEDIATION_ATTEMPTS: "20"
 
+    # auth modes: api_key | entra | hybrid
     AUTH_MODE: api_key
+    # Required app role/scope when using Entra admin auth.
     ENTRA_ADMIN_ROLES: PipelineHealer.Admin
 
     LLM_PROVIDER: azure_openai
@@ -68,6 +80,8 @@ backend:
     CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
     CORS_ALLOW_ORIGIN_REGEX: https://.*\\.azurecontainerapps\\.io
 
+  # Secret runtime config -> rendered into Kubernetes Secret.
+  # For production, prefer external secret sync over plain values files.
   secretEnv:
     API_AUTH_KEY: ""
     ADMIN_API_KEY: ""
@@ -77,8 +91,10 @@ backend:
     GITHUB_WEBHOOK_SECRET: ""
 
 frontend:
+  # Replica count is ignored when autoscaling.enabled=true.
   replicaCount: 1
   image:
+    # Use digest for immutable releases. If digest is set, tag is ignored.
     repository: caneprophacr01.azurecr.io/pipelinehealer-frontend
     digest: ""
     tag: ""
@@ -99,12 +115,15 @@ frontend:
     targetCPUUtilizationPercentage: 80
 
   env:
+    # Optional explicit backend URL. Leave empty to auto-target backend Service.
     BACKEND_UPSTREAM: ""
 
+  # Secret runtime config for frontend.
   secretEnv:
     API_AUTH_KEY: ""
 
 ingress:
+  # Exposes frontend service. Keep false for internal-only installs.
   enabled: false
   className: ""
   annotations: {}

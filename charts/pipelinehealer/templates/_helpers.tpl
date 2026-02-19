@@ -41,6 +41,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{- define "pipelinehealer.backend.image" -}}
+{{/* Digest takes precedence to keep releases immutable and reproducible. */}}
 {{- $digest := .Values.backend.image.digest | default "" -}}
 {{- if $digest -}}
 {{- printf "%s@%s" .Values.backend.image.repository $digest -}}
@@ -51,6 +52,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{- define "pipelinehealer.frontend.image" -}}
+{{/* Digest takes precedence to keep releases immutable and reproducible. */}}
 {{- $digest := .Values.frontend.image.digest | default "" -}}
 {{- if $digest -}}
 {{- printf "%s@%s" .Values.frontend.image.repository $digest -}}

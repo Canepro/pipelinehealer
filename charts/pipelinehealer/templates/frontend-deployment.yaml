@@ -45,6 +45,7 @@ spec:
                 name: {{ include "pipelinehealer.frontend.fullname" . }}-secrets
           env:
             - name: BACKEND_UPSTREAM
+              # Default points to in-cluster backend Service for zero-config installs.
               value: {{ .Values.frontend.env.BACKEND_UPSTREAM | default (printf "http://%s:%v" (include "pipelinehealer.backend.fullname" .) .Values.backend.service.port) | quote }}
           livenessProbe:
             httpGet:

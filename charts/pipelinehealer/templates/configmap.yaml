@@ -19,6 +19,7 @@ metadata:
     app.kubernetes.io/component: frontend
 data:
 {{- range $key, $value := .Values.frontend.env }}
+{{/* BACKEND_UPSTREAM is injected directly in deployment with a service-aware default. */}}
 {{- if ne $key "BACKEND_UPSTREAM" }}
   {{ $key }}: {{ $value | toString | quote }}
 {{- end }}
