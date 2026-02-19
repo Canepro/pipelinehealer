@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: a3a89c8 -->
+<!-- LAST_VERIFIED: 7aa76a4 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -50,6 +50,7 @@ Azure is the default deployment path for hackathon requirements, but the runtime
 - [Model Provider Switch Runbook](docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md)
 - [Learning System Plan](docs/LEARNING_SYSTEM_PLAN.md)
 - [Kubernetes Helm Runbook](docs/KUBERNETES_HELM_RUNBOOK.md)
+- [Release Runbook](docs/RELEASE_RUNBOOK.md)
 - [Changelog](CHANGELOG.md)
 - [Settings & Policy Feature Guide](docs/features/03-settings-and-policy-controls.md)
 - [Explainability & Observability Guide](docs/features/05-explainability-and-observability.md)

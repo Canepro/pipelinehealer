@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: c8a1c8d -->
+<!-- LAST_VERIFIED: 7aa76a4 -->
 
 Use this index to find the right doc quickly.
 
@@ -22,6 +22,7 @@ Use this index to find the right doc quickly.
 - `MODEL_PROVIDER_SWITCH_RUNBOOK.md` — auditable provider switching and rollback playbook
 - `LEARNING_SYSTEM_PLAN.md` — learning queue lifecycle, governance model, and activation safety rules
 - `KUBERNETES_HELM_RUNBOOK.md` — Helm-based Kubernetes deployment target (secondary to Azure)
+- `RELEASE_RUNBOOK.md` — release prep, semver bump, tag/publish verification, and rollback guidance
 - `PREDEPLOY_PLACEHOLDER_AUDIT.md` — pre-deploy stop-ship checklist
 
 ### Tier 3 — Internal/Transient (author discretion; archive post-submission)

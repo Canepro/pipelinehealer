@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 986f833 -->
+<!-- LAST_VERIFIED: 7aa76a4 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -269,6 +269,8 @@ Suggested release flow:
 2. Run `bash scripts/release.sh patch` (or `minor`/`major`).
 3. Edit release notes in `CHANGELOG.md` under the new `vX.Y.Z` section.
 4. Commit release files, tag `vX.Y.Z`, then push with `--follow-tags`.
+
+For full release prep through post-release verification, use `docs/RELEASE_RUNBOOK.md`.
 
 ### Log Inspection
 
