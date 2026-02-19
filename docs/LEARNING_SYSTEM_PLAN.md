@@ -56,6 +56,7 @@ Observability and audit:
 - It does not auto-edit candidate text fields from the UI.
 - It does not auto-activate candidates without a governance decision.
 - It does not bypass readiness gates unless `force_activate=true` is explicitly chosen and audited.
+- It does not auto-parse GitHub issue comments into verification feedback; comments are evidence, but feedback must be submitted via the learning feedback API/UI flow.
 
 ## How To Use (Today)
 
