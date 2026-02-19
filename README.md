@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 74e2d09 -->
+<!-- LAST_VERIFIED: a80c271 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -8,10 +8,10 @@
 [![Azure](https://img.shields.io/badge/Azure-Deployed-blue)](https://azure.microsoft.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-PipelineHealer ingests failed workflow runs, diagnoses root cause, and applies safe remediation policy:
-- deterministic fixes can become PRs
-- ambiguous/risky cases become structured issues
-- every action is auditable and explainable
+PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies policy-aware remediation:
+- deterministic fixes can open or reuse pull requests
+- ambiguous or risky cases open structured issues instead of unsafe edits
+- every action is auditable, explainable, and traceable to run evidence
 
 ![Dashboard — processed count, safety gating ratios, failure type breakdown, and explainability snapshot](docs/screens/dashboard.png)
 ![Landing page — policy-aware remediation overview and operational snapshot](docs/screens/Pipelinehealer-Landing_Page.png)
@@ -28,9 +28,15 @@ CI failures create repetitive triage work. PipelineHealer shortens time-to-under
 - learning queue governance with promotion-readiness gates and audited force activation
 - operator UX for fast triage (Dashboard snapshot, Activity Detail deep evidence, sectioned Control Center governance)
 
-This repository is the hackathon build, but designed for long-term production evolution.
+This repository is the hackathon submission baseline, designed for continued production-grade evolution.
 
-### Proof in a real incident
+## Submission baseline (v0.2.6)
+
+- Release baseline: [`v0.2.6`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.2.6)
+- Deployment model: Azure-first, using immutable release images (`bash scripts/ph.sh deploy:release --release-version vX.Y.Z`)
+- Operator docs: `docs/DEMO_SCRIPT.md`, `docs/LOCAL_DEMO_RUNBOOK.md`, `docs/RELEASE_RUNBOOK.md`
+
+### Evidence from a real incident
 
 PipelineHealer already caught and classified a real release-pipeline failure end to end:
 - Activity: `f92ee7d9-dd2f-4e32-8edd-c2b44ee0cae3`
