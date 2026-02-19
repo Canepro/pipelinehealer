@@ -70,9 +70,43 @@ jobs:
 
       - name: Login to ACR
         id: acr
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           set -euo pipefail
-          login_server="$(az acr show -n "$ACR_NAME" --query loginServer -o tsv | tr -d '\r\n')"
+          login_server=""
+          selected_subscription=""
+
+          # Prefer the configured subscription first.
+          if [[ -n "${AZURE_SUBSCRIPTION_ID:-}" ]]; then
+            az account set --subscription "$AZURE_SUBSCRIPTION_ID" >/dev/null 2>&1 || true
+            login_server="$(az acr show -n "$ACR_NAME" --query loginServer -o tsv 2>/dev/null | tr -d '\r\n' || true)"
+            if [[ -n "$login_server" ]]; then
+              selected_subscription="$AZURE_SUBSCRIPTION_ID"
+            fi
+          fi
+
+          # Fallback: find the subscription that contains this ACR.
+          if [[ -z "$login_server" ]]; then
+            while IFS= read -r sid; do
+              [[ -z "$sid" ]] && continue
+              az account set --subscription "$sid" >/dev/null 2>&1 || continue
+              candidate="$(az acr show -n "$ACR_NAME" --query loginServer -o tsv 2>/dev/null | tr -d '\r\n' || true)"
+              if [[ -n "$candidate" ]]; then
+                login_server="$candidate"
+                selected_subscription="$sid"
+                break
+              fi
+            done < <(az account list --query "[].id" -o tsv | tr -d '\r')
+          fi
+
+          if [[ -z "$login_server" ]]; then
+            echo "Unable to find ACR '$ACR_NAME' in subscriptions available to this identity." >&2
+            az account list --query "[].{name:name,id:id}" -o table || true
+            exit 1
+          fi
+
+          echo "Using subscription: $selected_subscription"
           token="$(az acr login -n "$ACR_NAME" --expose-token --query accessToken -o tsv | tr -d '\r\n')"
           echo "$token" | docker login "$login_server" --username 00000000-0000-0000-0000-000000000000 --password-stdin
           echo "login_server=$login_server" >>"$GITHUB_OUTPUT"
