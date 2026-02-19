@@ -244,6 +244,18 @@ These are enforceable defaults for all primary product screens.
 - Dashboard ops KPI expansion:
   - added `MCP Runs (30d)` and `LLM Fallback (30d)` chips to the command-center header.
 
+### Week 4 Checkpoint (2026-02-19)
+
+- Control Center readability polish:
+  - converted policy/model summary areas from sentence blocks to structured key/value rows
+  - improved panel scanability and visual balance without removing governance detail
+- Learning queue card density polish:
+  - standardized recurring metadata as compact badges (`Runs`, `Success`, `Action`)
+  - preserved full candidate detail behind the existing expandable panel
+- Settings operator guidance polish:
+  - added a concise 4-step workflow card (`Authenticate -> Edit -> Save & Persist -> Verify`)
+  - keeps save behavior unchanged while improving first-time operator orientation
+
 ## Acceptance Checklist (Per Page)
 
 - [ ] Visual hierarchy is obvious in under 5 seconds.

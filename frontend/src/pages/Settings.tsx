@@ -309,6 +309,36 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Operator Workflow</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+                <WorkflowStep
+                  step={1}
+                  title="Authenticate"
+                  detail="Load admin access key or use active login session."
+                />
+                <WorkflowStep
+                  step={2}
+                  title="Edit Policy"
+                  detail="Adjust runtime, model, and MCP settings in section tabs."
+                />
+                <WorkflowStep
+                  step={3}
+                  title="Save & Persist"
+                  detail="Use one save action to apply runtime + durable configuration."
+                />
+                <WorkflowStep
+                  step={4}
+                  title="Verify"
+                  detail="Confirm outcomes in Control Center and Activity evidence."
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
             <SettingsSummaryCard
               title="Runtime Posture"
@@ -374,12 +404,12 @@ export default function SettingsPage() {
             isLlmHealthLoading={isLlmHealthLoading}
             mcpProviderHealth={mcpProviderHealth}
             isMcpHealthLoading={isMcpHealthLoading}
-          hasUnsavedChanges={hasUnsavedChanges}
-          newRepoInput={newRepoInput}
-          setNewRepoInput={setNewRepoInput}
-          newMcpRepoInput={newMcpRepoInput}
-          setNewMcpRepoInput={setNewMcpRepoInput}
-          setGhAwWorkflowsInput={setGhAwWorkflowsInput}
+            hasUnsavedChanges={hasUnsavedChanges}
+            newRepoInput={newRepoInput}
+            setNewRepoInput={setNewRepoInput}
+            newMcpRepoInput={newMcpRepoInput}
+            setNewMcpRepoInput={setNewMcpRepoInput}
+            setGhAwWorkflowsInput={setGhAwWorkflowsInput}
             setLastSavedForm={setLastSavedForm}
             savePending={saveMutation.isPending}
             saveError={saveMutation.isError ? (saveMutation.error as Error) : null}
@@ -388,6 +418,28 @@ export default function SettingsPage() {
           />
         </>
       )}
+    </div>
+  )
+}
+
+function WorkflowStep({
+  step,
+  title,
+  detail,
+}: {
+  step: number
+  title: string
+  detail: string
+}) {
+  return (
+    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-3">
+      <div className="flex items-center gap-2">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-azure-600/90 text-[11px] font-semibold text-white">
+          {step}
+        </span>
+        <span className="text-sm font-medium text-[var(--ph-text)]">{title}</span>
+      </div>
+      <p className="mt-1 text-xs text-[var(--ph-muted)]">{detail}</p>
     </div>
   )
 }

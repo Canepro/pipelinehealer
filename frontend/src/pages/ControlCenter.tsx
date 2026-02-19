@@ -24,6 +24,11 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 type ToolPolicy = 'disabled' | 'read_only' | 'write_with_approval' | 'auto'
 type ControlCenterSection = 'overview' | 'learning_ops' | 'audit'
 type PostureItem = { label: string; value: string | number }
+type SummaryRow = {
+  label: string
+  value: string
+  tone?: 'default' | 'ok' | 'warn' | 'bad' | 'muted'
+}
 
 const LOGS_RUNBOOK_URL =
   'https://github.com/Canepro/pipelinehealer/blob/main/docs/LOGS_AND_INVESTIGATION.md'
@@ -236,6 +241,36 @@ function PostureCard({ title, items }: { title: string; items: PostureItem[] }) 
         ))}
       </CardContent>
     </Card>
+  )
+}
+
+function SummaryRows({ rows }: { rows: SummaryRow[] }) {
+  return (
+    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25">
+      {rows.map((row) => (
+        <div
+          key={`${row.label}-${row.value}`}
+          className="grid grid-cols-[minmax(0,180px)_1fr] items-start gap-3 border-b border-[var(--ph-border)]/70 px-3 py-2 text-sm last:border-b-0"
+        >
+          <span className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">{row.label}</span>
+          <span
+            className={`font-medium ${
+              row.tone === 'ok'
+                ? 'text-emerald-300'
+                : row.tone === 'warn'
+                  ? 'text-amber-300'
+                  : row.tone === 'bad'
+                    ? 'text-rose-300'
+                    : row.tone === 'muted'
+                      ? 'text-[var(--ph-muted)]'
+                      : 'text-[var(--ph-text)]'
+            }`}
+          >
+            {row.value}
+          </span>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -683,52 +718,51 @@ export default function ControlCenterPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                <Card>
+                <Card className="h-full">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base">Policy Impact Preview</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
-                    <p>
-                      Remediation path:{' '}
-                      <span className="font-medium text-[var(--ph-text)]">{remediationPolicySummary}</span>
-                    </p>
-                    <p>
-                      Diagnostics cadence:{' '}
-                      <span className="font-medium text-[var(--ph-text)]">
-                        wait {settings.external_diagnostics_wait_seconds}s / poll{' '}
-                        {settings.external_diagnostics_poll_interval_seconds}s
-                      </span>
-                    </p>
-                    <p>
-                      MCP write posture:{' '}
-                      <span className="font-medium text-[var(--ph-text)]">{mcpWriteSummary}</span>
-                    </p>
-                    <p>
-                      Repo scope:{' '}
-                      <span className="font-medium text-[var(--ph-text)]">
-                        {settings.ph_allowed_repos.length === 0
-                          ? 'All repositories (no allowlist)'
-                          : `${settings.ph_allowed_repos.length} allowlisted repository entries`}
-                      </span>
-                    </p>
+                    <SummaryRows
+                      rows={[
+                        {
+                          label: 'Remediation Path',
+                          value: remediationPolicySummary,
+                        },
+                        {
+                          label: 'Diagnostics Cadence',
+                          value: `wait ${settings.external_diagnostics_wait_seconds}s / poll ${settings.external_diagnostics_poll_interval_seconds}s`,
+                        },
+                        {
+                          label: 'MCP Write Posture',
+                          value: mcpWriteSummary,
+                        },
+                        {
+                          label: 'Repo Scope',
+                          value:
+                            settings.ph_allowed_repos.length === 0
+                              ? 'All repositories (no allowlist)'
+                              : `${settings.ph_allowed_repos.length} allowlisted repository entries`,
+                        },
+                      ]}
+                    />
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="h-full">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base">Task Model Routing Preview</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
-                    <p>
-                      Provider:{' '}
-                      <span className="font-medium text-[var(--ph-text)]">{settings.llm_provider}</span>
-                    </p>
-                    <p>
-                      Default model:{' '}
-                      <span className="font-medium text-[var(--ph-text)]">
-                        {providerDefaultModel || 'Not configured'}
-                      </span>
-                    </p>
+                    <SummaryRows
+                      rows={[
+                        { label: 'Provider', value: settings.llm_provider },
+                        {
+                          label: 'Default Model',
+                          value: providerDefaultModel || 'Not configured',
+                        },
+                      ]}
+                    />
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                       {taskModelPreview.map((task) => (
                         <div
@@ -837,10 +871,13 @@ export default function ControlCenterPage() {
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
                             <p className="break-words font-medium text-[var(--ph-text)]">{item.title}</p>
-                            <p className="text-xs text-[var(--ph-muted)]">
-                              runs: {item.occurrence_count} • success: {item.success_count} • action:{' '}
-                              {item.proposed_action}
-                            </p>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                              <Badge variant="outline">Runs: {item.occurrence_count}</Badge>
+                              <Badge variant="outline">
+                                Success: {item.success_count}/{item.occurrence_count}
+                              </Badge>
+                              <Badge variant="outline">Action: {item.proposed_action}</Badge>
+                            </div>
                           </div>
                           <Badge variant="outline" className={toneClass(learningStatusTone(item.status))}>
                             {learningStatusLabel(item.status)}

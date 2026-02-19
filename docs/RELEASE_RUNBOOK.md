@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: 1ad62ce -->
+<!-- LAST_VERIFIED: 69c7e51 -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -100,6 +100,20 @@ Recommended sanity checks:
 python3 -m pytest backend/tests/test_phase2_security.py::test_api_routes_allow_development_without_key -q
 cd frontend && bun run build && cd ..
 ```
+
+Deploy-warning QA gate (required before tagging):
+
+1. Run full deploy and capture warnings:
+```bash
+bash scripts/ph.sh deploy
+```
+2. If warnings appear, classify them as:
+   - fixed in-scope (must be resolved before tag), or
+   - tracked upstream/transient with explicit backlog/issue linkage.
+3. Verify warning debt status is documented in:
+   - `docs/FUTURE_PLAN.md` (backlog status)
+   - `CHANGELOG.md` (`Unreleased` entry)
+4. For `v0.2.3`, backend warning `agent-framework-core[all]` is tracked via issue [#17](https://github.com/Canepro/pipelinehealer/issues/17) and is allowed only as a documented exception.
 
 ## 5) Commit, Tag, Push
 

@@ -1,6 +1,6 @@
 # Logs And Investigation Guide
 
-<!-- LAST_VERIFIED: 4c9810d -->
+<!-- LAST_VERIFIED: 69c7e51 -->
 
 Use this guide to debug PipelineHealer behavior quickly in local, Docker, and Azure runs.
 
@@ -17,6 +17,20 @@ bash scripts/ph.sh status
 bash scripts/ph.sh settings:check | jq
 bash scripts/ph.sh logs
 ```
+
+## Deploy Warning Triage (Release QA)
+
+Use this before cutting tags to avoid shipping untracked warning debt:
+
+```bash
+bash scripts/ph.sh deploy
+bash scripts/release_scope_check.sh
+```
+
+If deployment warnings are present:
+- confirm they are listed in `docs/FUTURE_PLAN.md` with an explicit status
+- confirm they are referenced in `CHANGELOG.md` `Unreleased`
+- if warning is upstream/transient, link the tracking issue in both locations
 
 ## Core Commands
 

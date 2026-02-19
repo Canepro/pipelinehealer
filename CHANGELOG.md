@@ -8,10 +8,13 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ### Changed
 
+- `69c7e51` Linked BL-011 backend warning tracking issue (`#17`) into roadmap/log docs to keep warning-debt traceability release-aligned.
 - `1ad62ce` Replaced phase-style future plan with a SemVer-aligned roadmap in `docs/FUTURE_PLAN.md` (`v0.3.0` active target, `v0.4.0+` mapped backlog).
 - `1ad62ce` Updated docs index wording to reflect version-targeted planning as the default roadmap model.
 - `69331ac` Refined Control Center information architecture with section tabs (`Governance Overview`, `Learning & Ops`, `Audit & Trace`) and improved learning/ops layout density.
 - `69331ac` Polished Settings page operator ergonomics with structured key/value summary cards and quick navigation actions to Control Center/Activities.
+- `HEAD` Aligned release docs and roadmap to an explicit `v0.2.3` QA freeze (no new feature scope; warning-debt closure + QA gates only).
+- `HEAD` Added release warning-triage guidance to runbooks and improved Control Center/Settings readability with structured summary rows and workflow-oriented UI cues.
 - `688ae1d` Adopted SemVer-based future roadmap structure and version-targeted backlog model.
 - `030fc39` Refreshed documentation `LAST_VERIFIED` markers after roadmap synchronization.
 - `a13de38` Added capability highlights across historical changelog versions for clearer release archaeology.
