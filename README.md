@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: b191408 -->
+<!-- LAST_VERIFIED: fcf292a -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -30,6 +30,16 @@ CI failures create repetitive triage work. PipelineHealer shortens time-to-under
 
 This repository is the hackathon build, but designed for long-term production evolution.
 
+### Proof in a real incident
+
+PipelineHealer already caught and classified a real release-pipeline failure end to end:
+- Activity: `f92ee7d9-dd2f-4e32-8edd-c2b44ee0cae3`
+- Workflow run: `#22163136636` (version/tag mismatch)
+- Incident issue: [#15](https://github.com/Canepro/pipelinehealer/issues/15)
+- Case-study PR: [#16](https://github.com/Canepro/pipelinehealer/pull/16)
+- Full write-up: [`docs/case-studies/release-tag-mismatch-22163136636.md`](docs/case-studies/release-tag-mismatch-22163136636.md)
+- Corrective release: [`v0.2.1`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.2.1)
+
 Azure is the default deployment path for hackathon requirements, but the runtime is portable:
 - backend API commands can target any reachable backend via `PH_BACKEND_URL`
 - model provider can be Azure OpenAI or OpenAI-compatible (`LLM_PROVIDER`)
@@ -51,6 +61,7 @@ Azure is the default deployment path for hackathon requirements, but the runtime
 - [Learning System Plan](docs/LEARNING_SYSTEM_PLAN.md)
 - [Kubernetes Helm Runbook](docs/KUBERNETES_HELM_RUNBOOK.md)
 - [Release Runbook](docs/RELEASE_RUNBOOK.md)
+- [Case Studies](docs/case-studies/release-tag-mismatch-22163136636.md)
 - [Changelog](CHANGELOG.md)
 - [Settings & Policy Feature Guide](docs/features/03-settings-and-policy-controls.md)
 - [Explainability & Observability Guide](docs/features/05-explainability-and-observability.md)
