@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 6da0e29 -->
+<!-- LAST_VERIFIED: f9eb981 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -513,6 +513,14 @@ bash scripts/ph.sh deploy:release --release-version vX.Y.Z
 
 This promotes already-published release images from ACR by digest, updates both Container Apps, syncs env vars, and verifies health.
 
+Production hardening option (recommended):
+
+```bash
+bash scripts/ph.sh deploy:release --release-version vX.Y.Z --secure-secrets
+```
+
+This keeps sensitive runtime values in Container App secret storage and applies them as `secretref` env mappings instead of plain env values.
+
 ### Full Redeploy From Local Build (Development/Hotfix Path)
 
 ```bash
@@ -535,6 +543,7 @@ Sync env vars only (no image rebuild):
 
 ```bash
 bash scripts/ph.sh deploy:env
+bash scripts/ph.sh deploy:env --secure-secrets
 ```
 
 ### Scale To Zero

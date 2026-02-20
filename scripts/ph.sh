@@ -66,7 +66,10 @@ Commands:
 
 Examples:
   bash scripts/ph.sh deploy
-  bash scripts/ph.sh deploy:release --release-version v0.2.7
+  bash scripts/ph.sh deploy --secure-secrets
+  bash scripts/ph.sh deploy:release --release-version vX.Y.Z
+  bash scripts/ph.sh deploy:release --release-version vX.Y.Z --secure-secrets
+  bash scripts/ph.sh deploy:env --secure-secrets
   bash scripts/ph.sh deploy:bg
   bash scripts/ph.sh deploy:logs
   bash scripts/ph.sh urls

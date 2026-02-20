@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 95acca3 -->
+<!-- LAST_VERIFIED: f9eb981 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -212,6 +212,7 @@ Theme: provider and platform extensibility.
 | `BL-026` | Cross-platform operator support: PowerShell wrapper + non-Azure deploy wrapper strategy for `ph` commands | `v0.5.0` | minor | Medium | Planned |
 | `BL-027` | AKS/Helm onboarding hardening: explicit required-vs-optional auth paths, Entra build-time vs runtime guardrails, and post-deploy auth verification checklist ([#32](https://github.com/Canepro/pipelinehealer/issues/32)) | `v0.3.0` | patch | Medium | Completed (in `main`) |
 | `BL-028` | Submission-baseline drift control (`v0.2.8`): release auth build-var gating + docs version alignment pass | `v0.2.8` | patch | High | Completed (in `main`) |
+| `BL-029` | Azure deploy hardening option: `--secure-secrets` path in deploy tooling (`ph.sh` + redeploy script) with operator docs for secretref-backed runtime env | `v0.3.0` | patch | High | Completed (in `main`) |
 
 ## Definition of Done (Per Version)
 

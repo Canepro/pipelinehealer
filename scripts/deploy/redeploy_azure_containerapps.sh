@@ -29,6 +29,8 @@ Options:
   --release-version <ver>   Deploy existing ACR release images (vX.Y.Z or X.Y.Z) by digest
   --api-key <value>         Override API_AUTH_KEY (otherwise read from env file)
   --admin-key <value>       Override ADMIN_API_KEY (otherwise read from env file)
+  --secure-secrets          Store sensitive env values as Container App secrets and bind via secretref
+  --secret-prefix <prefix>  Prefix for generated Container App secret names (default: ph)
   --env-only                Update env vars only; do not build/push or change image
   --acr-retain-tags <n>     Keep newest n tags in ACR per repo after full deploy (default: 25, 0 disables)
   --skip-acr-prune          Disable post-deploy ACR pruning
@@ -58,6 +60,8 @@ DO_VERIFY="1"
 PRUNE_ACR_IMAGES="1"
 ACR_RETAIN_TAGS="25"
 PRUNE_LOCAL_IMAGES="1"
+USE_SECRET_REFS="0"
+SECRET_PREFIX="ph"
 
 BACKEND_RUNTIME_ENV_KEYS=(
   "AUTH_MODE"
@@ -95,12 +99,28 @@ BACKEND_RUNTIME_ENV_KEYS=(
   "OPENAI_COMPATIBLE_BASE_URL"
   "OPENAI_COMPATIBLE_MODEL"
   "OPENAI_COMPATIBLE_API_KEY"
+  "GITHUB_PERSONAL_ACCESS_TOKEN"
+  "GITHUB_WEBHOOK_SECRET"
   "MCP_ENABLED"
   "MCP_PROVIDER"
   "MCP_READ_ONLY"
   "MCP_TIMEOUT_SECONDS"
   "MCP_MAX_RETRIES"
   "AZURE_OPENAI_CHAT_API_VERSION"
+)
+
+BACKEND_SECRET_ENV_KEYS=(
+  "API_AUTH_KEY"
+  "ADMIN_API_KEY"
+  "AZURE_OPENAI_API_KEY"
+  "OPENAI_COMPATIBLE_API_KEY"
+  "GITHUB_PERSONAL_ACCESS_TOKEN"
+  "GITHUB_WEBHOOK_SECRET"
+  "AUDIT_SALT"
+)
+
+FRONTEND_SECRET_ENV_KEYS=(
+  "API_AUTH_KEY"
 )
 
 while [[ $# -gt 0 ]]; do
@@ -146,6 +166,14 @@ while [[ $# -gt 0 ]]; do
       ADMIN_API_KEY="$2"
       shift 2
       ;;
+    --secure-secrets)
+      USE_SECRET_REFS="1"
+      shift
+      ;;
+    --secret-prefix)
+      SECRET_PREFIX="$2"
+      shift 2
+      ;;
     --env-only)
       MODE="env_only"
       shift
@@ -182,7 +210,7 @@ if [[ "$ENV_FILE" != /* ]]; then
   ENV_FILE="$REPO_ROOT/$ENV_FILE"
 fi
 
-for cmd in az curl tr grep cut; do
+for cmd in az curl tr grep cut sed; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "Missing required command: $cmd" >&2
     exit 1
@@ -216,6 +244,86 @@ read_env_key() {
   grep -E "^${key}=" "$ENV_FILE" | tail -n1 | cut -d= -f2- | tr -d '\r\n' || true
 }
 
+array_contains() {
+  local needle="$1"
+  shift
+  local item
+  for item in "$@"; do
+    if [[ "$item" == "$needle" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+normalize_secret_name_fragment() {
+  printf '%s' "$1" \
+    | tr '[:upper:]_' '[:lower:]-' \
+    | sed -E 's/[^a-z0-9-]+/-/g; s/^-+//; s/-+$//; s/-+/-/g'
+}
+
+secret_name_for_key() {
+  local app_scope="$1"
+  local key="$2"
+  local normalized_prefix normalized_key
+  normalized_prefix="$(normalize_secret_name_fragment "$SECRET_PREFIX")"
+  normalized_key="$(normalize_secret_name_fragment "$key")"
+  if [[ -z "$normalized_prefix" || -z "$normalized_key" ]]; then
+    echo "Unable to build a valid secret name for key '$key' (prefix='$SECRET_PREFIX')." >&2
+    exit 2
+  fi
+  printf '%s-%s-%s' "$normalized_prefix" "$app_scope" "$normalized_key"
+}
+
+add_backend_env_var() {
+  local key="$1"
+  local value="$2"
+  local secret_name
+  [[ -z "${value:-}" ]] && return 0
+  if [[ "$USE_SECRET_REFS" == "1" ]] && array_contains "$key" "${BACKEND_SECRET_ENV_KEYS[@]}"; then
+    secret_name="$(secret_name_for_key "be" "$key")"
+    BACKEND_SECRET_VALUES["$secret_name"]="$value"
+    BACKEND_SET_ENV_VARS+=("$key=secretref:$secret_name")
+    return 0
+  fi
+  BACKEND_SET_ENV_VARS+=("$key=$value")
+}
+
+add_frontend_env_var() {
+  local key="$1"
+  local value="$2"
+  local secret_name
+  [[ -z "${value:-}" ]] && return 0
+  if [[ "$USE_SECRET_REFS" == "1" ]] && array_contains "$key" "${FRONTEND_SECRET_ENV_KEYS[@]}"; then
+    secret_name="$(secret_name_for_key "fe" "$key")"
+    FRONTEND_SECRET_VALUES["$secret_name"]="$value"
+    FRONTEND_SET_ENV_VARS+=("$key=secretref:$secret_name")
+    return 0
+  fi
+  FRONTEND_SET_ENV_VARS+=("$key=$value")
+}
+
+apply_containerapp_secrets() {
+  local app_name="$1"
+  local map_name="$2"
+  local -n secret_map="$map_name"
+  local -a secret_kv_pairs=()
+  local secret_name
+
+  for secret_name in "${!secret_map[@]}"; do
+    secret_kv_pairs+=("$secret_name=${secret_map[$secret_name]}")
+  done
+
+  if [[ "${#secret_kv_pairs[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  az containerapp secret set \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$app_name" \
+    --secrets "${secret_kv_pairs[@]}" >/dev/null
+}
+
 if [[ -z "${API_AUTH_KEY:-}" ]]; then
   API_AUTH_KEY="$(read_env_key "API_AUTH_KEY")"
 fi
@@ -243,22 +351,21 @@ BACKEND_FQDN="$(
 )"
 BACKEND_URL="https://$BACKEND_FQDN"
 
-BACKEND_SET_ENV_VARS=(
-  "API_AUTH_KEY=$API_AUTH_KEY"
-  "ADMIN_API_KEY=$ADMIN_API_KEY"
-)
+BACKEND_SET_ENV_VARS=()
+FRONTEND_SET_ENV_VARS=()
+declare -A BACKEND_SECRET_VALUES=()
+declare -A FRONTEND_SECRET_VALUES=()
+
+add_backend_env_var "API_AUTH_KEY" "$API_AUTH_KEY"
+add_backend_env_var "ADMIN_API_KEY" "$ADMIN_API_KEY"
 
 for key in "${BACKEND_RUNTIME_ENV_KEYS[@]}"; do
   value="$(read_env_key "$key")"
-  if [[ -n "$value" ]]; then
-    BACKEND_SET_ENV_VARS+=("$key=$value")
-  fi
+  add_backend_env_var "$key" "$value"
 done
 
-FRONTEND_SET_ENV_VARS=(
-  "BACKEND_UPSTREAM=$BACKEND_URL"
-  "API_AUTH_KEY=$API_AUTH_KEY"
-)
+add_frontend_env_var "BACKEND_UPSTREAM" "$BACKEND_URL"
+add_frontend_env_var "API_AUTH_KEY" "$API_AUTH_KEY"
 
 detect_engine() {
   if [[ "$CONTAINER_ENGINE" == "podman" || "$CONTAINER_ENGINE" == "docker" ]]; then
@@ -451,6 +558,9 @@ echo "Backend app    : $BACKEND_APP"
 echo "Frontend app   : $FRONTEND_APP"
 echo "Mode           : $MODE"
 echo "Image tag      : $IMAGE_TAG"
+if [[ "$USE_SECRET_REFS" == "1" ]]; then
+  echo "Secret mode    : enabled (Container App secretref)"
+fi
 if [[ "$MODE" == "release" ]]; then
   echo "Release version: $RELEASE_VERSION"
 fi
@@ -466,6 +576,11 @@ fi
 
 expected_backend_image=""
 expected_frontend_image=""
+
+if [[ "$USE_SECRET_REFS" == "1" ]]; then
+  apply_containerapp_secrets "$BACKEND_APP" "BACKEND_SECRET_VALUES"
+  apply_containerapp_secrets "$FRONTEND_APP" "FRONTEND_SECRET_VALUES"
+fi
 
 if [[ "$MODE" == "full" ]]; then
   if ! CONTAINER_ENGINE="$(detect_engine)"; then

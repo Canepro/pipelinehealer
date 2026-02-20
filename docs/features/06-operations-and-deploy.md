@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: 74e2d09 -->
+<!-- LAST_VERIFIED: f9eb981 -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -20,6 +20,7 @@ This guide explains day-to-day operations: local bring-up, Azure deploy, verific
    - `bash scripts/ph.sh settings:check`
 3. Deploy to Azure:
    - recommended release deploy: `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`
+   - production hardening: `bash scripts/ph.sh deploy:release --release-version vX.Y.Z --secure-secrets`
    - env-only changes: `bash scripts/ph.sh deploy:env`
 4. Verify:
    - `bash scripts/ph.sh status`
@@ -88,11 +89,13 @@ Use `deploy:release` for Azure production/staging promotion:
 - deploys already-published ACR release images by digest
 - no local container build dependency
 - best match for release-driven operations
+- add `--secure-secrets` to store sensitive runtime values as Container App secrets + `secretref` mappings
 
 Use `deploy:env` when only backend runtime env changed:
 - auth mode and Entra backend vars
 - policy values
 - MCP/backend controls
+- use `deploy:env --secure-secrets` when rotating or hardening secrets
 
 Use full `deploy` for development/hotfix iterations when frontend build-time vars changed:
 - any `VITE_*` auth/config values

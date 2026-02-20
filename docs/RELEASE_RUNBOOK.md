@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: ca5b69c -->
+<!-- LAST_VERIFIED: f9eb981 -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -184,6 +184,12 @@ az acr repository show-tags -n <acr-name> --repository pipelinehealer-frontend -
 ```bash
 bash scripts/ph.sh deploy:release --release-version vX.Y.Z
 bash scripts/ph.sh status
+```
+
+Production hardening option:
+
+```bash
+bash scripts/ph.sh deploy:release --release-version vX.Y.Z --secure-secrets
 ```
 
 7. If Entra auth is expected, verify frontend bundle auth mode after deploy:

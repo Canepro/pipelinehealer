@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 6da0e29 -->
+<!-- LAST_VERIFIED: f9eb981 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -124,7 +124,9 @@ PowerShell-only environments (no bash): run the same GitHub checks with `gh`, an
 ```bash
 bash scripts/ph.sh deploy
 bash scripts/ph.sh deploy:release --release-version vX.Y.Z
+bash scripts/ph.sh deploy:release --release-version vX.Y.Z --secure-secrets
 bash scripts/ph.sh deploy:env
+bash scripts/ph.sh deploy:env --secure-secrets
 bash scripts/ph.sh deploy:bg
 bash scripts/ph.sh deploy:logs
 bash scripts/ph.sh deploy:status
@@ -142,6 +144,8 @@ bash scripts/ph.sh deploy --skip-local-image-prune
 Important:
 
 - Recommended for Azure production/staging: `deploy:release --release-version vX.Y.Z`.
+- Production hardening option: append `--secure-secrets` to `deploy`, `deploy:release`, or `deploy:env` to store sensitive values as Container App secrets and bind env vars via `secretref`.
+- Optional naming control for secret mode: `--secret-prefix <prefix>` (default `ph`).
 - `deploy:release` resolves ACR digests and deploys immutable image references (`repository@sha256:...`).
 - Use `deploy:env` when changing backend runtime values (for example `AUTH_MODE`, `ENTRA_*`, policy settings).
 - Use full `deploy` for local iteration when frontend `VITE_*` values changed, because those are build-time inputs.
