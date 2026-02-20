@@ -483,6 +483,50 @@ class PassiveIssueGHAWAdapter:
                     source.name, owner, repo, type(exc).__name__,
                 )
 
+        # Some gh-aw packages may emit findings without the expected source label.
+        # If search and label-scoped listing found nothing, do a bounded scan of
+        # recent issues and keep only likely source/run candidates.
+        if list_issues is not None and not issues:
+            try:
+                listed_any = await list_issues(
+                    owner,
+                    repo,
+                    state="all",
+                    labels=None,
+                    sort="updated",
+                    direction="desc",
+                    per_page=50,
+                )
+                run_id_text = str(run_id)
+                run_number_text = f"run #{run_number}" if run_number is not None else ""
+                sha_prefix = head_sha[:12].lower()
+                title_prefix = source.title_prefix.lower()
+                source_name = source.name.replace("-", " ").lower()
+                for issue in listed_any:
+                    number = issue.get("number")
+                    if not isinstance(number, int):
+                        continue
+                    if number in seen_numbers:
+                        continue
+                    title = str(issue.get("title", "")).lower()
+                    body = str(issue.get("body", "")).lower()
+                    blob = f"{title}\n{body}"
+                    if (
+                        title_prefix not in blob
+                        and source_name not in blob
+                        and run_id_text not in blob
+                        and (not run_number_text or run_number_text not in blob)
+                        and sha_prefix not in blob
+                    ):
+                        continue
+                    seen_numbers.add(number)
+                    issues.append(issue)
+            except Exception as exc:
+                logger.warning(
+                    "Unlabeled issue fallback for %s failed for %s/%s: %s",
+                    source.name, owner, repo, type(exc).__name__,
+                )
+
         candidates: list[tuple[int, str, str, dict[str, object]]] = []
         for issue in issues:
             number = issue.get("number")

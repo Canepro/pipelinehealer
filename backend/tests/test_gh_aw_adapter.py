@@ -16,6 +16,7 @@ class _FakeGitHubTools:
         self.queries: list[str] = []
         self.issue_comments: dict[int, list[dict[str, object]]] = {}
         self.listed_issues: list[dict[str, object]] = []
+        self.listed_issues_by_label: dict[str | None, list[dict[str, object]]] = {}
 
     async def list_repo_workflows(self, owner: str, repo: str):
         _ = owner, repo
@@ -49,6 +50,10 @@ class _FakeGitHubTools:
         per_page: int = 30,
     ):
         _ = owner, repo, state, labels, sort, direction, per_page
+        if labels in self.listed_issues_by_label:
+            return self.listed_issues_by_label[labels]
+        if labels is None and None in self.listed_issues_by_label:
+            return self.listed_issues_by_label[None]
         return self.listed_issues
 
 
@@ -223,6 +228,40 @@ async def test_collect_external_diagnostics_uses_list_issues_fallback_when_searc
     assert len(diagnostics) == 1
     assert diagnostics[0].status == ExternalDiagnosticStatus.AVAILABLE
     assert diagnostics[0].url == "https://github.com/Canepro/pipelinehealer/issues/400"
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_uses_unlabeled_issue_fallback_when_label_mismatch() -> None:
+    gh = _FakeGitHubTools()
+    gh.issues = []
+    gh.listed_issues_by_label["ci-doctor"] = []
+    gh.listed_issues_by_label[None] = [
+        {
+            "number": 34,
+            "title": "[CI Failure Doctor] CI Failure Investigation - Run #22237976384",
+            "body": (
+                "Run: https://github.com/Canepro/pipelinehealer/actions/runs/22237976384\n"
+                "Commit: 8aa5d91ba55cb067982227f28a22668fffa6de6f"
+            ),
+            "html_url": "https://github.com/Canepro/pipelinehealer/issues/34",
+            "state": "open",
+        }
+    ]
+    adapter = PassiveIssueGHAWAdapter(gh, known_workflows=["ci-doctor"])
+
+    diagnostics = await adapter.collect_external_diagnostics(
+        owner="Canepro",
+        repo="pipelinehealer",
+        run_id=22237976384,
+        head_sha="8aa5d91ba55cb067982227f28a22668fffa6de6f",
+        run_number=172,
+        sources=[_CI_DOCTOR_SOURCE],
+    )
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].status == ExternalDiagnosticStatus.AVAILABLE
+    assert diagnostics[0].matched_run_id == 22237976384
+    assert diagnostics[0].url == "https://github.com/Canepro/pipelinehealer/issues/34"
 
 
 @pytest.mark.asyncio
