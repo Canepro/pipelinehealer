@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: ac2b1d4 -->
+<!-- LAST_VERIFIED: 95acca3 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -32,6 +32,7 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.2.5` | Released | Release publish/RBAC hardening follow-up |
 | `v0.2.6` | Released | Verification-learning loop + diagnostics source-selection transparency |
 | `v0.2.7` | Released | Submission-readiness/operator-clarity pass (MCP explanation, demo/runbook clarity, docs alignment) |
+| `v0.2.8` | Released | Release integrity hardening + docs/version drift cleanup for submission baseline |
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
@@ -90,6 +91,29 @@ Theme: remove operator ambiguity before submission by clarifying diagnostics-sou
 1. Operator can determine diagnostics path from one activity without log digging.
 2. Demo CLI output explicitly distinguishes passive-only signal runs from direct MCP tool calls.
 3. Core docs (`README`, `CLI`, `DEMO_SCRIPT`, `LOCAL_DEMO_RUNBOOK`, feature guides) are version-aligned and non-contradictory.
+
+## Released Target: `v0.2.8` (Release Integrity + Drift Control)
+
+Theme: lock submission baseline integrity by ensuring release/auth wiring matches runtime expectations and removing stale version guidance from operator docs.
+
+### Must-Have Scope
+
+1. Release auth/build guardrails
+   - Validate required frontend auth build variables in release workflow for Entra-mode releases.
+   - Document release-environment prerequisites for deterministic frontend auth behavior.
+2. AKS/operator runbook hardening
+   - Clarify required vs optional settings for Kubernetes deployments.
+   - Clarify Entra build-time vs runtime settings and post-deploy verification checks.
+3. Version drift cleanup
+   - Remove stale hardcoded release examples from user-facing docs where they could be misread as current baseline.
+   - Keep historical version references only in changelog/case-study/roadmap history context.
+
+### Exit Criteria
+
+1. Tagged release publishes successfully and appears on GitHub release page.
+2. Release workflow fails early when required Entra frontend build variables are missing.
+3. Core operator docs and README consistently point to `v0.2.8` as submission baseline (or use `vX.Y.Z` placeholders where appropriate).
+4. No contradictory release-version statements in user-facing docs.
 
 ## Active Target: `v0.3.0` (Minor)
 
@@ -187,6 +211,7 @@ Theme: provider and platform extensibility.
 | `BL-025` | Accuracy-assessment bridge: ingest structured GitHub issue verification comments into `learning/feedback` with audit traceability | `v0.3.0` | minor | High | Planned |
 | `BL-026` | Cross-platform operator support: PowerShell wrapper + non-Azure deploy wrapper strategy for `ph` commands | `v0.5.0` | minor | Medium | Planned |
 | `BL-027` | AKS/Helm onboarding hardening: explicit required-vs-optional auth paths, Entra build-time vs runtime guardrails, and post-deploy auth verification checklist ([#32](https://github.com/Canepro/pipelinehealer/issues/32)) | `v0.3.0` | patch | Medium | Completed (in `main`) |
+| `BL-028` | Submission-baseline drift control (`v0.2.8`): release auth build-var gating + docs version alignment pass | `v0.2.8` | patch | High | Completed (in `main`) |
 
 ## Definition of Done (Per Version)
 
