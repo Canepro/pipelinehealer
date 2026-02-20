@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 8980118 -->
+<!-- LAST_VERIFIED: ac2b1d4 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -186,6 +186,7 @@ Theme: provider and platform extensibility.
 | `BL-024` | Release baseline alignment (`v0.2.7`) across README/CLI/runbooks | `v0.2.7` | patch | Medium | Completed (in `main`) |
 | `BL-025` | Accuracy-assessment bridge: ingest structured GitHub issue verification comments into `learning/feedback` with audit traceability | `v0.3.0` | minor | High | Planned |
 | `BL-026` | Cross-platform operator support: PowerShell wrapper + non-Azure deploy wrapper strategy for `ph` commands | `v0.5.0` | minor | Medium | Planned |
+| `BL-027` | AKS/Helm onboarding hardening: explicit required-vs-optional auth paths, Entra build-time vs runtime guardrails, and post-deploy auth verification checklist ([#32](https://github.com/Canepro/pipelinehealer/issues/32)) | `v0.3.0` | patch | Medium | Completed (in `main`) |
 
 ## Definition of Done (Per Version)
 

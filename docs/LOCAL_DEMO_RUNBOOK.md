@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 8980118 -->
+<!-- LAST_VERIFIED: ac2b1d4 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -45,6 +45,7 @@ Important command scope rule:
 - `settings:check`, `settings:audit`, `settings:persist`, `settings:persist:verify`, `audit:proof`, `backfill` work with any reachable backend URL via `PH_BACKEND_URL`.
 - `demo:proof` and `demo:reset` are GitHub-only (`gh`), backend independent.
 - For Kubernetes, use the Helm guide: `docs/KUBERNETES_HELM_RUNBOOK.md`.
+  - If Entra session login is required on Kubernetes, ensure frontend image was built with `VITE_AUTH_MODE=entra` and required `VITE_ENTRA_*` values (build-time inputs).
 
 ### `ph.sh` Platform Clarification
 
