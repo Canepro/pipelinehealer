@@ -1,6 +1,6 @@
 # Feature: Auth And Access
 
-<!-- LAST_VERIFIED: a95ed82 -->
+<!-- LAST_VERIFIED: c07f9c3 -->
 
 This guide explains how users authenticate to PipelineHealer and how admin-only actions are protected.
 
@@ -11,15 +11,29 @@ This guide explains how users authenticate to PipelineHealer and how admin-only 
 - Admin protection for `/api/settings*`
 - Common login/authorization errors and fixes
 
+## Do I Need Entra?
+
+Short answer: no, not for baseline usage.
+
+- Baseline repo adoption can run with key auth (`api_key`) or migration-safe `hybrid`.
+- Entra is needed only if you want Microsoft sign-in session flows in the UI.
+- Release maintainers must set frontend `VITE_ENTRA_*` vars at build time for Entra-enabled images.
+
 ## Quick Start
 
-1. Start with migration-safe mode:
-   - backend: `AUTH_MODE=hybrid`
-   - frontend: `VITE_AUTH_MODE=entra`
-2. Verify settings:
+1. Pick one auth path:
+   - key-only baseline:
+     - backend: `AUTH_MODE=api_key`
+     - frontend: `VITE_AUTH_MODE=none` (or leave unset)
+   - Entra session path (migration-safe):
+     - backend: `AUTH_MODE=hybrid`
+     - frontend: `VITE_AUTH_MODE=entra`
+2. Configure matching required variables for the chosen path.
+3. Verify settings:
    - `bash scripts/ph.sh settings:check | jq '.auth_mode,.entra_auth_enabled,.entra_admin_roles'`
-3. Test admin access in UI:
-   - sign in, go to `/settings`, use `Use Login Session`
+4. Test access:
+   - key mode: use `X-API-Key` / `X-Admin-Key`
+   - Entra mode: sign in, go to `/settings`, use `Use Login Session`
 
 ## Auth Modes
 
@@ -48,6 +62,13 @@ Recommended:
 8. Assign user/group in Enterprise Applications to `PipelineHealer Admin`.
 
 ## Required Environment Variables
+
+If using key-only auth (`api_key`):
+- Entra variables are optional.
+- Use `X-API-Key` and `X-Admin-Key` headers for protected/admin routes.
+
+If using Entra session auth (`entra` or `hybrid` with login session):
+- Use the backend + frontend variables below.
 
 Backend:
 - `AUTH_MODE`

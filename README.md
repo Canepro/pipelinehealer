@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 75ebffd -->
+<!-- LAST_VERIFIED: c07f9c3 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -188,6 +188,20 @@ bun run dev
 ```
 
 For full local and Docker paths, use `docs/LOCAL_DEMO_RUNBOOK.md`.
+
+### Required vs Optional (For New Repo Users)
+
+If someone installs PipelineHealer from this repo, these are the practical setup paths:
+
+| Setup path | Required | Not required |
+|---|---|---|
+| Basic local install (recommended first run) | Python/Bun/GitHub CLI, one LLM provider path, `GITHUB_PERSONAL_ACCESS_TOKEN` | All `ENTRA_*`, all `VITE_ENTRA_*` |
+| Entra login in UI (`Use Login Session`) | Backend auth config (`AUTH_MODE=entra` or `hybrid` + `ENTRA_*`), frontend build with `VITE_AUTH_MODE=entra` + required `VITE_ENTRA_*` | `X-Admin-Key` for session-auth flows |
+| Release maintainer publishing Entra-enabled images | GitHub release environment vars: `VITE_AUTH_MODE=entra`, `VITE_ENTRA_CLIENT_ID`, `VITE_ENTRA_API_SCOPE`, and `VITE_ENTRA_AUTHORITY` or `VITE_ENTRA_TENANT_ID` | Custom redirect/logout vars unless needed by your tenant setup |
+
+Important:
+- Entra is optional for adopting PipelineHealer.
+- `VITE_*` values are build-time frontend inputs; changing them requires a new release image.
 
 ## One-command ops
 

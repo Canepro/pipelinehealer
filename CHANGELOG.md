@@ -16,6 +16,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - `HEAD` Ran a docs-only first-time-operator dry-run and tightened onboarding clarity: optional tool prerequisites (`Docker/Podman`, `jq`), explicit workflow trigger guidance (`ci.yml` + `gh workflow list`), and a copy-paste 10-minute operator verification path in `docs/CLI.md` and `README.md`.
 - `HEAD` Performed README housekeeping for submission phase: moved `Architecture` near the project baseline sections, expanded `Hackathon status` with team/collaboration guidance, and improved scan order for first-time readers.
 - `HEAD` Fixed Entra auth release drift: release workflow now validates and injects frontend `VITE_*` auth build args, Settings/Control Center now clearly signal when session auth is unavailable due `VITE_AUTH_MODE=none`, and release runbook now includes Entra build-variable prerequisites plus post-deploy bundle verification.
+- `HEAD` Clarified newcomer auth expectations: added `Required vs Optional` setup matrix in `README` and explicit "Do I Need Entra?" guidance in `docs/features/01-auth-and-access.md` to reduce repo-adopter confusion.
 
 ## [v0.2.7] - 2026-02-19
 
