@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: b05af6d -->
+<!-- LAST_VERIFIED: c9b4d96 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -219,6 +219,30 @@ These items are researched and tracked, but not approved for build scope yet.
   - All Copilot-assisted remediation actions must remain traceable in activity/issue evidence.
   - Keep GitHub provider coupling optional (do not regress non-GitHub portability goals).
 
+### DP-002: Multi-Platform Notification Delivery (Slack / Teams / Rocket.Chat)
+
+- Status: `Undecided` (`nice-to-have`, not in active release scope)
+- Problem statement:
+  - Non-admin developers and stakeholders need actionable PipelineHealer updates in chat tools without depending on dashboard access.
+- Research summary:
+  - Slack supports app-based incoming webhooks and OAuth-based installation, with upgrade path to `chat.postMessage` for richer lifecycle operations.
+  - Microsoft Teams is migrating connector-based webhooks toward Workflows/Power Automate and bot-based proactive messaging patterns.
+  - Rocket.Chat supports incoming/outgoing webhooks and Integration API endpoints for managed integration provisioning.
+- Candidate architecture:
+  - Add a provider-agnostic `NotificationSink` interface (`send`, `update`, `health`) with adapters for Slack, Teams, Rocket.Chat.
+  - Emit notification events from activity lifecycle transitions (`created`, `diagnosed`, `remediation_opened`, `resolved`, `failed`).
+  - Keep dashboard as source of truth; notifications carry summary + deep links to activity details.
+- Recommended rollout (if approved):
+  - Phase 1: Slack webhook adapter + audit trail + rate-limit/retry policy.
+  - Phase 2: Teams Workflows webhook adapter with card templates aligned to Teams connector retirement path.
+  - Phase 3: Rocket.Chat incoming webhook/API adapter for self-hosted teams.
+  - Phase 4: Optional message update/ack actions (`chat.postMessage`/provider equivalent) with approval gates for write actions.
+- Guardrails if adopted later:
+  - Respect repo allowlist and role-based audience mapping.
+  - Redact secrets/tokens from payloads by policy before send.
+  - Rate-limit and retry with provider-specific backoff/429 handling.
+  - Preserve audit trail for every outbound notification attempt/result.
+
 ## Backlog Queue (Version-Mapped)
 
 | ID | Item | Recommended Target | Type | Priority | Status |
@@ -255,6 +279,7 @@ These items are researched and tracked, but not approved for build scope yet.
 | `BL-030` | GH-AW + GitHub MCP hybrid diagnostics ingestion mode (`GH_AW_INGESTION_MODE=hybrid`) across backend/UI/CLI/docs | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
 | `BL-031` | Passive backfill label-mismatch reliability fix (unlabeled fallback matching for ci-doctor findings) ([#35](https://github.com/Canepro/pipelinehealer/issues/35)) | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
 | `BL-032` | Copilot integration research track: evaluate coding-agent + MCP coexistence model without bypassing PipelineHealer governance | `TBD (post-submission)` | minor | Low | Research / Undecided |
+| `BL-033` | Multi-platform notifications research track: Slack/Teams/Rocket.Chat delivery model for non-admin stakeholders with auditable outbound events | `TBD (post-submission)` | minor | Medium | Research / Undecided |
 
 ## Definition of Done (Per Version)
 
