@@ -8,6 +8,20 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - _No unreleased entries yet._
 
+## [v0.2.9] - 2026-02-20
+
+### Added
+
+- _Describe new features here._
+
+### Changed
+
+- _Describe behavior changes here._
+
+### Fixed
+
+- _Describe fixes here._
+
 ## [v0.2.8] - 2026-02-20
 
 ### Changed
