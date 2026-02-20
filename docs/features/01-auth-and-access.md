@@ -1,6 +1,6 @@
 # Feature: Auth And Access
 
-<!-- LAST_VERIFIED: c07f9c3 -->
+<!-- LAST_VERIFIED: a18e44e -->
 
 This guide explains how users authenticate to PipelineHealer and how admin-only actions are protected.
 
@@ -17,6 +17,7 @@ Short answer: no, not for baseline usage.
 
 - Baseline repo adoption can run with key auth (`api_key`) or migration-safe `hybrid`.
 - Entra is needed only if you want Microsoft sign-in session flows in the UI.
+- `hybrid` means both auth methods are valid at once (keys + Entra session), and is recommended during testing/migration.
 - Release maintainers must set frontend `VITE_ENTRA_*` vars at build time for Entra-enabled images.
 
 ## Quick Start
@@ -25,8 +26,12 @@ Short answer: no, not for baseline usage.
    - key-only baseline:
      - backend: `AUTH_MODE=api_key`
      - frontend: `VITE_AUTH_MODE=none` (or leave unset)
-   - Entra session path (migration-safe):
+   - both methods (recommended rollout/testing):
      - backend: `AUTH_MODE=hybrid`
+     - frontend: `VITE_AUTH_MODE=entra`
+     - operators can use either session login or key headers
+   - Entra session path (migration-safe):
+     - backend: `AUTH_MODE=entra`
      - frontend: `VITE_AUTH_MODE=entra`
 2. Configure matching required variables for the chosen path.
 3. Verify settings:

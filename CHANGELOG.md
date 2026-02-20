@@ -17,6 +17,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - `HEAD` Performed README housekeeping for submission phase: moved `Architecture` near the project baseline sections, expanded `Hackathon status` with team/collaboration guidance, and improved scan order for first-time readers.
 - `HEAD` Fixed Entra auth release drift: release workflow now validates and injects frontend `VITE_*` auth build args, Settings/Control Center now clearly signal when session auth is unavailable due `VITE_AUTH_MODE=none`, and release runbook now includes Entra build-variable prerequisites plus post-deploy bundle verification.
 - `HEAD` Clarified newcomer auth expectations: added `Required vs Optional` setup matrix in `README` and explicit "Do I Need Entra?" guidance in `docs/features/01-auth-and-access.md` to reduce repo-adopter confusion.
+- `HEAD` Clarified that `AUTH_MODE=hybrid` supports both key and Entra session auth simultaneously and is the recommended testing/migration posture in auth docs.
 
 ## [v0.2.7] - 2026-02-19
 

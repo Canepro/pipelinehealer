@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: c07f9c3 -->
+<!-- LAST_VERIFIED: a18e44e -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -201,6 +201,7 @@ If someone installs PipelineHealer from this repo, these are the practical setup
 
 Important:
 - Entra is optional for adopting PipelineHealer.
+- `AUTH_MODE=hybrid` supports both key headers and Entra bearer sessions in the same deployment (recommended during migration/testing).
 - `VITE_*` values are build-time frontend inputs; changing them requires a new release image.
 
 ## One-command ops
