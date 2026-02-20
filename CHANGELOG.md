@@ -8,19 +8,19 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ### Changed
 
-- `HEAD` Clarified `docs/LEARNING_SYSTEM_PLAN.md` with plain-language behavior, explicit non-goals, and a quick verification checklist for first-time operators.
-- `HEAD` Re-evaluated `v0.3.0` roadmap scope to add `BL-025` (structured GitHub issue accuracy comment ingestion into `learning/feedback`) and aligned learning plan "Immediate Next" items to match.
-- `HEAD` Updated `demo-repo/README.md` for current demo timings/strict mode, clearer ci-doctor/MCP interpretation, and practical demo-artifact housekeeping commands.
-- `HEAD` Added beginner-friendly operator onboarding clarity (`README` new-operator checklist) and explicit `ph.sh` platform/operation support matrix + alternatives in `docs/CLI.md` and `docs/LOCAL_DEMO_RUNBOOK.md`.
-- `HEAD` Added backlog tracking for cross-platform operator support (`BL-026`, target `v0.5.0`) in `docs/FUTURE_PLAN.md`.
-- `HEAD` Ran a docs-only first-time-operator dry-run and tightened onboarding clarity: optional tool prerequisites (`Docker/Podman`, `jq`), explicit workflow trigger guidance (`ci.yml` + `gh workflow list`), and a copy-paste 10-minute operator verification path in `docs/CLI.md` and `README.md`.
-- `HEAD` Performed README housekeeping for submission phase: moved `Architecture` near the project baseline sections, expanded `Hackathon status` with team/collaboration guidance, and improved scan order for first-time readers.
-- `HEAD` Fixed Entra auth release drift: release workflow now validates and injects frontend `VITE_*` auth build args, Settings/Control Center now clearly signal when session auth is unavailable due `VITE_AUTH_MODE=none`, and release runbook now includes Entra build-variable prerequisites plus post-deploy bundle verification.
-- `HEAD` Clarified newcomer auth expectations: added `Required vs Optional` setup matrix in `README` and explicit "Do I Need Entra?" guidance in `docs/features/01-auth-and-access.md` to reduce repo-adopter confusion.
-- `HEAD` Clarified that `AUTH_MODE=hybrid` supports both key and Entra session auth simultaneously and is the recommended testing/migration posture in auth docs.
-- `HEAD` Hardened Kubernetes/AKS operator docs for auth reliability (`docs/KUBERNETES_HELM_RUNBOOK.md`, `docs/LOCAL_DEMO_RUNBOOK.md`): added required-vs-optional AKS setup matrix, explicit Entra build-time vs runtime guidance, post-deploy frontend auth-mode verification commands, and the common `VITE_AUTH_MODE=none` pitfall/fix path (tracked via #32).
-- `HEAD` Added version-plan traceability for AKS/auth doc hardening in `docs/FUTURE_PLAN.md` (`BL-027`, target `v0.3.0`).
-- `HEAD` Release-doc drift pass for `v0.2.8` prep: replaced stale hardcoded release command examples with `vX.Y.Z`, generalized outdated roadmap index wording, and aligned auth/runbook examples to reduce future stale statements.
+- `2882470` Clarified `docs/LEARNING_SYSTEM_PLAN.md` with plain-language behavior, explicit non-goals, and a quick verification checklist for first-time operators.
+- `5ef9d80` Clarified learning-system behavior to explicitly note that GitHub issue comments are evidence but are not auto-ingested into feedback.
+- `f1bce38` Refreshed `docs/LEARNING_SYSTEM_PLAN.md` verification marker after learning-plan clarity update.
+- `b5cbb7e` Re-evaluated `v0.3.0` roadmap scope to add `BL-025` (structured GitHub issue accuracy comment ingestion into `learning/feedback`) and aligned learning plan immediate-next scope.
+- `8980118` Updated `demo-repo/README.md` for current demo timings/strict mode, clearer ci-doctor/MCP interpretation, and practical demo-artifact housekeeping commands.
+- `b715e90` Added beginner-friendly onboarding clarity and explicit platform support guidance in `README.md`, `docs/CLI.md`, and `docs/LOCAL_DEMO_RUNBOOK.md`.
+- `75ebffd` Tightened first-time operator onboarding flow with concrete verification steps and reduced command ambiguity.
+- `ca5b69c` Reordered README information architecture and expanded hackathon status/collaboration guidance for submission-phase readability.
+- `c07f9c3` Fixed Entra auth release drift by validating/injecting frontend `VITE_*` build args in release workflow, plus clearer UI/runbook guidance.
+- `a18e44e` Clarified required-vs-optional auth setup paths for repo adopters and added explicit "Do I Need Entra?" guidance.
+- `ac2b1d4` Clarified that `AUTH_MODE=hybrid` supports both key and Entra session auth simultaneously and is the recommended testing/migration posture.
+- `6da0e29` Hardened AKS/Kubernetes auth runbooks with build-vs-runtime guardrails and post-deploy auth verification.
+- `facb20d` Removed stale hardcoded release-version examples in docs and normalized release commands to `vX.Y.Z` where appropriate.
 
 ## [v0.2.7] - 2026-02-19
 
