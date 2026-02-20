@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: ba0e21d -->
+<!-- LAST_VERIFIED: dd885d8 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -274,7 +274,8 @@ For exact command-level setup and troubleshooting, use:
 If you are asking "is MCP actually working?", use this rule:
 - `MCP Tool Calls > 0` in Activity Detail means direct MCP tools were invoked for that activity.
 - `MCP Tool Calls = 0` does not automatically mean broken MCP. In passive `gh_aw` mode, diagnostics can still be ingested without direct MCP tool calls.
-- Check `Source Attribution` + `source_selection_path` to see the actual path used (`gh_aw_passive`, `github_mcp_direct`, or `github_mcp_blocked`).
+- In hybrid mode (`GH_AW_INGESTION_MODE=hybrid`), both GH-AW and MCP findings can appear in the same activity.
+- Check `Source Attribution` + `source_selection_path` to see the path per finding (`gh_aw_passive`, `github_mcp_direct`, or `github_mcp_blocked`).
 - For a terminal proof run from CLI, use `bash scripts/ph.sh demo:e2e --strict` and review the printed MCP summary counters.
 
 ## Versioning and release

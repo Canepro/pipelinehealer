@@ -80,7 +80,7 @@ Examples:
   bash scripts/ph.sh demo:proof --repo owner/repo
   bash scripts/ph.sh settings:persist --from-settings
   bash scripts/ph.sh settings:persist:verify --from-settings
-  bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2 --gh-aw-tools-enabled true --gh-aw-ingestion-mode passive
+  bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2 --gh-aw-tools-enabled true --gh-aw-ingestion-mode hybrid
   bash scripts/ph.sh audit:proof --limit 5
   bash scripts/ph.sh logs
   bash scripts/ph.sh logs:grep --pattern "debug-mode"
@@ -975,7 +975,7 @@ _persist_validate() {
     echo "  --auto-create-pr true|false  --max-remediation-attempts N" >&2
     echo "  --pipeline-step-timeout-seconds N  --gh-aw-tools-enabled true|false" >&2
     echo "  --external-diagnostics-wait-seconds N  --external-diagnostics-poll-interval-seconds N" >&2
-    echo "  --gh-aw-ingestion-mode disabled|passive  --gh-aw-known-workflows CSV" >&2
+    echo "  --gh-aw-ingestion-mode disabled|passive|hybrid  --gh-aw-known-workflows CSV" >&2
     echo "  --mcp-enabled true|false  --mcp-provider disabled|github|azure_monitor|custom" >&2
     echo "  --mcp-read-only true|false  --mcp-timeout-seconds N  --mcp-max-retries N" >&2
     echo "  --mcp-tool-policies \"tool=mode,tool2=mode\"  --mcp-repo-allowlist CSV  --clear-mcp-repo-allowlist" >&2
@@ -1012,8 +1012,8 @@ _persist_validate() {
 
   if [[ -n "${_sp_gh_aw_ingestion_mode:-}" ]]; then
     case "${_sp_gh_aw_ingestion_mode,,}" in
-      disabled|passive) _sp_gh_aw_ingestion_mode="${_sp_gh_aw_ingestion_mode,,}" ;;
-      *) echo "Invalid --gh-aw-ingestion-mode value: $_sp_gh_aw_ingestion_mode (expected disabled|passive)" >&2; exit 2 ;;
+      disabled|passive|hybrid) _sp_gh_aw_ingestion_mode="${_sp_gh_aw_ingestion_mode,,}" ;;
+      *) echo "Invalid --gh-aw-ingestion-mode value: $_sp_gh_aw_ingestion_mode (expected disabled|passive|hybrid)" >&2; exit 2 ;;
     esac
   fi
 

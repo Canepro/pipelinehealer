@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: f9eb981 -->
+<!-- LAST_VERIFIED: dd885d8 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -212,6 +212,7 @@ bash scripts/ph.sh demo:reset
 `demo:e2e` MCP interpretation:
 - `mcp_tool_calls_total > 0`: direct MCP tools were invoked.
 - `mcp_tool_calls_total = 0` with `passive_only_signal_activities > 0`: passive `gh_aw` ingestion was used successfully (expected in passive mode).
+- In `hybrid` mode, the same activity can include both GH-AW diagnostics and MCP context; use per-finding `source_selection_path` to confirm each source.
 - If MCP is enabled but blocked/unavailable, activity metadata shows `source_selection_path=github_mcp_blocked` and a reason code.
 
 ### Scale Management
@@ -279,7 +280,7 @@ bash scripts/ph.sh settings:persist --from-settings --skip-redeploy
 ```bash
 bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2
 bash scripts/ph.sh settings:persist --heal-mode safe --auto-create-pr false
-bash scripts/ph.sh settings:persist --gh-aw-tools-enabled true --gh-aw-ingestion-mode passive
+bash scripts/ph.sh settings:persist --gh-aw-tools-enabled true --gh-aw-ingestion-mode hybrid
 bash scripts/ph.sh settings:persist --external-diagnostics-wait-seconds 60 --external-diagnostics-poll-interval-seconds 15
 bash scripts/ph.sh settings:persist --mcp-enabled true --mcp-provider github --mcp-read-only true
 bash scripts/ph.sh settings:persist --mcp-tool-policies "fetch_failure_context=read_only,fetch_runbook_context=read_only,publish_artifact=write_with_approval,rerun_pipeline=write_with_approval"
@@ -302,7 +303,7 @@ bash scripts/ph.sh settings:persist --clear-mcp-repo-allowlist
 | `--external-diagnostics-wait-seconds` | float | Set `EXTERNAL_DIAGNOSTICS_WAIT_SECONDS` |
 | `--external-diagnostics-poll-interval-seconds` | float | Set `EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS` |
 | `--gh-aw-tools-enabled` | `true`, `false` | Set `GH_AW_TOOLS_ENABLED` |
-| `--gh-aw-ingestion-mode` | `disabled`, `passive` | Set `GH_AW_INGESTION_MODE` |
+| `--gh-aw-ingestion-mode` | `disabled`, `passive`, `hybrid` | Set `GH_AW_INGESTION_MODE` |
 | `--gh-aw-known-workflows` | CSV | Set `GH_AW_KNOWN_WORKFLOWS` |
 | `--mcp-enabled` | `true`, `false` | Set `MCP_ENABLED` |
 | `--mcp-provider` | `disabled`, `github`, `azure_monitor`, `custom` | Set `MCP_PROVIDER` |

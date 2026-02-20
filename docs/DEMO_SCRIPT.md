@@ -83,7 +83,7 @@ What this command does:
 - polls activity states to terminal (`completed` / `failed`) and prints runs, PRs, issues, and backend activity output
 - triggers an on-demand backfill sweep before final summary so late external diagnostics can be attached without waiting for the 10-minute background sweep
 - waits for a CI doctor workflow signal (`CI Failure Doctor` / `ci-doctor`) and prints whether that signal was observed
-- prints MCP verification counters so you can quickly separate passive diagnostics from direct MCP tool usage
+- prints MCP verification counters so you can separate passive diagnostics, hybrid diagnostics, and direct MCP tool usage
 
 Pass checks in output:
 
@@ -94,6 +94,7 @@ Pass checks in output:
 - MCP interpretation:
   - `mcp_tool_calls_total > 0` = direct MCP invocation observed
   - `mcp_tool_calls_total = 0` + passive diagnostics/source attribution = passive mode worked as designed
+  - In hybrid mode, expect mixed source attribution in one activity (`gh_aw_passive` + `github_mcp_direct` and/or `github_mcp_blocked`)
 
 Rehearsal-only strict gate:
 

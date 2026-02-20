@@ -823,7 +823,7 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         return poll_seconds
     if attr_name == "gh_aw_ingestion_mode":
         normalized = str(value).strip().lower()
-        if normalized not in {"disabled", "passive"}:
+        if normalized not in {"disabled", "passive", "hybrid"}:
             raise ValueError("invalid gh_aw_ingestion_mode")
         return normalized
     if attr_name == "gh_aw_known_workflows":
@@ -1012,10 +1012,10 @@ async def update_app_settings(
 
     if "gh_aw_ingestion_mode" in changes:
         mode = str(changes["gh_aw_ingestion_mode"]).strip().lower()
-        if mode not in {"disabled", "passive"}:
+        if mode not in {"disabled", "passive", "hybrid"}:
             raise HTTPException(
                 status_code=422,
-                detail="gh_aw_ingestion_mode must be one of: disabled, passive",
+                detail="gh_aw_ingestion_mode must be one of: disabled, passive, hybrid",
             )
         changes["gh_aw_ingestion_mode"] = mode
 

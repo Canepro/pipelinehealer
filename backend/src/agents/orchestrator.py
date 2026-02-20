@@ -547,11 +547,25 @@ class OrchestratorAgent:
         assert last_error is not None
         raise last_error
 
+    def _gh_aw_ingestion_mode(self) -> str:
+        """Return normalized gh-aw ingestion mode."""
+        mode = (self._settings.gh_aw_ingestion_mode or "disabled").strip().lower()
+        if mode not in {"disabled", "passive", "hybrid"}:
+            return "disabled"
+        return mode
+
     def _gh_aw_passive_enabled(self) -> bool:
-        """Return whether gh-aw passive diagnostics collection is enabled."""
+        """Return whether passive-style gh-aw diagnostics collection is enabled."""
         return (
             self._settings.gh_aw_tools_enabled
-            and self._settings.gh_aw_ingestion_mode == "passive"
+            and self._gh_aw_ingestion_mode() in {"passive", "hybrid"}
+        )
+
+    def _gh_aw_hybrid_enabled(self) -> bool:
+        """Return whether hybrid gh-aw + MCP diagnostics collection is enabled."""
+        return (
+            self._settings.gh_aw_tools_enabled
+            and self._gh_aw_ingestion_mode() == "hybrid"
         )
 
     @staticmethod
@@ -568,6 +582,30 @@ class OrchestratorAgent:
             metadata["source_selection_reason"] = reason
             diagnostic.metadata = metadata
         return diagnostics
+
+    @staticmethod
+    def _merge_external_diagnostics(
+        primary: list[ExternalDiagnostic],
+        secondary: list[ExternalDiagnostic],
+    ) -> list[ExternalDiagnostic]:
+        """Merge diagnostics lists while suppressing obvious duplicates."""
+        merged: list[ExternalDiagnostic] = []
+        seen: set[tuple[object, ...]] = set()
+        for diagnostic in [*primary, *secondary]:
+            metadata = diagnostic.metadata or {}
+            signature = (
+                diagnostic.source,
+                diagnostic.status.value,
+                diagnostic.summary,
+                diagnostic.url,
+                diagnostic.matched_run_id,
+                metadata.get("reason_code"),
+            )
+            if signature in seen:
+                continue
+            seen.add(signature)
+            merged.append(diagnostic)
+        return merged
 
     def _github_mcp_collection_enabled(
         self,
@@ -912,7 +950,7 @@ class OrchestratorAgent:
         event: WorkflowRunEvent,
         activity: ActivityRecord,
     ) -> list[ExternalDiagnostic]:
-        """Collect external diagnostics from all available gh-aw sources.
+        """Collect external diagnostics from gh-aw and/or GitHub MCP.
 
         Ambient sources (breaking-change-checker, etc.) are collected
         immediately in a single pass.  ci-doctor is polled with bounded
@@ -958,6 +996,60 @@ class OrchestratorAgent:
                 )
             return []
 
+        gh_aw_diagnostics = await self._collect_external_diagnostics_from_gh_aw_passive(
+            owner=owner,
+            repo=repo,
+            event=event,
+        )
+        if not self._gh_aw_hybrid_enabled():
+            return gh_aw_diagnostics
+
+        mcp_diagnostics: list[ExternalDiagnostic] = []
+        mcp_enabled, mcp_reason = self._github_mcp_collection_enabled(
+            activity,
+            owner=owner,
+            repo=repo,
+            default_branch=event.repository.default_branch,
+        )
+        if mcp_enabled:
+            mcp_diagnostics = await self._collect_external_diagnostics_from_github_mcp(
+                activity, owner, repo, event,
+            )
+            mcp_diagnostics = self._annotate_source_selection(
+                mcp_diagnostics,
+                path="github_mcp_direct",
+                reason="hybrid_mode_enabled",
+            )
+        elif (
+            self._settings.mcp_enabled
+            and (self._settings.mcp_provider or "").strip().lower() == "github"
+        ):
+            mcp_diagnostics = [
+                ExternalDiagnostic(
+                    source="github-mcp",
+                    status=ExternalDiagnosticStatus.UNAVAILABLE,
+                    summary="GitHub MCP context collection blocked by policy guardrails",
+                    matched_run_id=event.workflow_run.id,
+                    metadata={
+                        "reason_code": mcp_reason,
+                        "provider": "github",
+                    },
+                )
+            ]
+            mcp_diagnostics = self._annotate_source_selection(
+                mcp_diagnostics,
+                path="github_mcp_blocked",
+                reason=f"hybrid_mode:{mcp_reason}",
+            )
+        return self._merge_external_diagnostics(gh_aw_diagnostics, mcp_diagnostics)
+
+    async def _collect_external_diagnostics_from_gh_aw_passive(
+        self,
+        owner: str,
+        repo: str,
+        event: WorkflowRunEvent,
+    ) -> list[ExternalDiagnostic]:
+        """Collect diagnostics from passive gh-aw issue sources."""
         # --- Discover available diagnostic sources ---
         try:
             capability = await self._gh_aw_adapter.discover_capability(owner, repo)

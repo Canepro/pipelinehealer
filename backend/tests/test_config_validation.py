@@ -44,3 +44,11 @@ def test_rejects_invalid_mcp_tool_policy_mode() -> None:
         assert "MCP_TOOL_POLICIES values must be one of" in str(exc)
     else:
         raise AssertionError("Expected ValidationError for invalid MCP tool policy mode")
+
+
+def test_accepts_hybrid_gh_aw_ingestion_mode() -> None:
+    settings = Settings(
+        _env_file=None,
+        gh_aw_ingestion_mode="hybrid",
+    )
+    assert settings.gh_aw_ingestion_mode == "hybrid"

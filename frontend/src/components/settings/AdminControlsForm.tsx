@@ -1004,6 +1004,7 @@ export default function AdminControlsForm({
                   <SelectContent>
                     <SelectItem value="disabled">Disabled</SelectItem>
                     <SelectItem value="passive">Passive — Read from GitHub Issues</SelectItem>
+                    <SelectItem value="hybrid">Hybrid — GH-AW + GitHub MCP</SelectItem>
                   </SelectContent>
                 </Select>
               </FieldGroup>

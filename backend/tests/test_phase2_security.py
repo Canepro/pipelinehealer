@@ -825,6 +825,23 @@ async def test_admin_patch_rejects_invalid_gh_aw_ingestion_mode(monkeypatch) -> 
 
 
 @pytest.mark.asyncio
+async def test_admin_patch_accepts_hybrid_gh_aw_ingestion_mode(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    response = await _patch_settings(
+        {"gh_aw_ingestion_mode": "hybrid"},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    assert response.json()["gh_aw_ingestion_mode"] == "hybrid"
+
+
+@pytest.mark.asyncio
 async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")

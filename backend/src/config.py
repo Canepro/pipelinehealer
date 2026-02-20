@@ -169,7 +169,7 @@ class Settings(BaseSettings):
     )
     gh_aw_ingestion_mode: str = Field(
         default="disabled",
-        description="External diagnostics ingestion mode: disabled or passive",
+        description="External diagnostics ingestion mode: disabled, passive, or hybrid",
     )
     gh_aw_known_workflows: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: [
@@ -533,8 +533,8 @@ class Settings(BaseSettings):
     def validate_gh_aw_ingestion_mode(cls, value: str) -> str:
         """Validate external diagnostics ingestion mode."""
         normalized = value.strip().lower()
-        if normalized not in {"disabled", "passive"}:
-            raise ValueError("GH_AW_INGESTION_MODE must be one of: disabled, passive")
+        if normalized not in {"disabled", "passive", "hybrid"}:
+            raise ValueError("GH_AW_INGESTION_MODE must be one of: disabled, passive, hybrid")
         return normalized
 
     @field_validator("external_diagnostics_wait_seconds")

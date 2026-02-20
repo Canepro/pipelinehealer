@@ -27,7 +27,7 @@ export type SettingsFormState = {
   log_prompt_head_chars: number
   log_prompt_tail_chars: number
   gh_aw_tools_enabled: boolean
-  gh_aw_ingestion_mode: 'disabled' | 'passive'
+  gh_aw_ingestion_mode: 'disabled' | 'passive' | 'hybrid'
   gh_aw_known_workflows: string[]
   ph_allowed_repos: string[]
   azure_openai_deployment_name: string
@@ -134,7 +134,12 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
   log_prompt_head_chars: data.log_prompt_head_chars,
   log_prompt_tail_chars: data.log_prompt_tail_chars,
   gh_aw_tools_enabled: data.gh_aw_tools_enabled,
-  gh_aw_ingestion_mode: data.gh_aw_ingestion_mode === 'passive' ? 'passive' : 'disabled',
+  gh_aw_ingestion_mode:
+    data.gh_aw_ingestion_mode === 'hybrid'
+      ? 'hybrid'
+      : data.gh_aw_ingestion_mode === 'passive'
+        ? 'passive'
+        : 'disabled',
   gh_aw_known_workflows: data.gh_aw_known_workflows ?? [],
   ph_allowed_repos: data.ph_allowed_repos ?? [],
   azure_openai_deployment_name: data.azure_openai_deployment_name ?? '',
@@ -229,7 +234,7 @@ export const SETTING_DESCRIPTIONS: Record<string, string> = {
   gh_aw_tools_enabled:
     'Master switch for GitHub Agentic Workflows integration. When off, no external diagnostics are collected.',
   gh_aw_ingestion_mode:
-    'How external diagnostics are collected. "passive" reads findings from GitHub issues. "disabled" turns collection off.',
+    'How external diagnostics are collected. "passive" reads GH-AW findings from GitHub issues, "hybrid" combines GH-AW + MCP context, and "disabled" turns collection off.',
   gh_aw_known_workflows:
     'Workflows to skip when polling ci-doctor (prevents circular self-diagnosis). ci-doctor is always included.',
   verify_webhook_signature_in_development:

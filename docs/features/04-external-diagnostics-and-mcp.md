@@ -1,6 +1,6 @@
 # Feature: External Diagnostics And MCP
 
-<!-- LAST_VERIFIED: 4b540b9 -->
+<!-- LAST_VERIFIED: dd885d8 -->
 
 This guide explains how PipelineHealer ingests external findings and how GitHub MCP is selected, gated, and verified in real runs.
 
@@ -16,6 +16,7 @@ This guide explains how PipelineHealer ingests external findings and how GitHub 
 
 1. Choose your diagnostics path:
    - Passive `gh_aw`: `GH_AW_TOOLS_ENABLED=true` + `GH_AW_INGESTION_MODE=passive`
+   - Hybrid (recommended): `GH_AW_TOOLS_ENABLED=true` + `GH_AW_INGESTION_MODE=hybrid`
    - Direct MCP: disable passive mode first (`GH_AW_TOOLS_ENABLED=false` or `GH_AW_INGESTION_MODE=disabled`), then enable MCP.
 2. Enable MCP (if you want direct MCP collection):
    - `MCP_ENABLED=true`
@@ -37,8 +38,11 @@ This guide explains how PipelineHealer ingests external findings and how GitHub 
 
 Source-selection behavior:
 - If `GH_AW_TOOLS_ENABLED=true` and `GH_AW_INGESTION_MODE=passive`, PipelineHealer prioritizes passive `gh_aw` diagnostics collection.
+- If `GH_AW_TOOLS_ENABLED=true` and `GH_AW_INGESTION_MODE=hybrid`, PipelineHealer collects passive `gh_aw` findings and GitHub MCP context in the same activity (subject to MCP policy/health guardrails).
 - If passive mode is disabled and GitHub MCP is enabled/healthy/policy-allowed, PipelineHealer uses direct GitHub MCP context collection.
-- If passive mode is enabled but a repo has no `gh_aw` workflows, PipelineHealer records passive-path unavailability (`capability_unavailable`) and does not auto-switch to direct MCP in that same path.
+- If passive mode is enabled but a repo has no `gh_aw` workflows, PipelineHealer records passive-path unavailability (`capability_unavailable`).
+  - In `passive`, that is the final diagnostics path.
+  - In `hybrid`, MCP collection still runs and may provide context if allowed.
 - Activity metadata now includes:
   - `metadata.source_selection_path`
   - `metadata.source_selection_reason`
@@ -64,10 +68,10 @@ When enabled, MCP calls are still bounded by:
 
 Use this interpretation model:
 - `source_selection_path=gh_aw_passive`:
-  - expected when passive mode is enabled.
+  - expected when passive GH-AW collection is enabled (`passive` or `hybrid`).
   - `MCP Tool Calls` can be `0` and still be healthy.
 - `source_selection_path=github_mcp_direct`:
-  - direct MCP path selected.
+  - direct MCP path selected (standalone MCP mode or hybrid mode).
   - `MCP Tool Calls` should be `> 0` for successful context fetches.
 - `source_selection_path=github_mcp_blocked`:
   - MCP was configured but blocked by policy/health/provider state.

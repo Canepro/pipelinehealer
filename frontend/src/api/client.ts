@@ -213,7 +213,7 @@ export interface AdminSettingsUpdate {
   log_prompt_head_chars?: number
   log_prompt_tail_chars?: number
   gh_aw_tools_enabled?: boolean
-  gh_aw_ingestion_mode?: 'disabled' | 'passive'
+  gh_aw_ingestion_mode?: 'disabled' | 'passive' | 'hybrid'
   gh_aw_known_workflows?: string[]
   ph_allowed_repos?: string[]
   llm_provider?: 'azure_openai' | 'openai_compatible' | 'custom'

@@ -159,6 +159,36 @@ class _EventuallyAvailableAdapter:
         ]
 
 
+class _AlwaysAvailableAdapter:
+    async def discover_capability(self, owner: str, repo: str) -> GHAWCapability:
+        _ = owner, repo
+        return GHAWCapability(
+            repo_full_name="Canepro/repo",
+            is_available=True,
+            available_sources=[_CI_DOCTOR_SOURCE],
+        )
+
+    async def collect_external_diagnostics(
+        self,
+        owner: str,
+        repo: str,
+        run_id: int,
+        head_sha: str,
+        run_number: int | None = None,
+        *,
+        sources: list[DiagnosticSourceConfig] | None = None,
+    ) -> list[ExternalDiagnostic]:
+        _ = owner, repo, head_sha, run_number, sources
+        return [
+            ExternalDiagnostic(
+                source="ci-doctor",
+                status=ExternalDiagnosticStatus.AVAILABLE,
+                summary="ci-doctor finding",
+                matched_run_id=run_id,
+            )
+        ]
+
+
 class _NeverAvailableAdapter:
     def __init__(self) -> None:
         self.calls = 0
@@ -471,6 +501,63 @@ async def test_collect_external_diagnostics_uses_github_mcp_without_gh_aw(monkey
     assert diagnostic.metadata.get("failed_jobs_count") == 1
     assert diagnostic.metadata.get("changed_files") == []
     assert isinstance(diagnostic.metadata.get("details"), dict)
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_hybrid_includes_gh_aw_and_mcp(monkeypatch) -> None:
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    monkeypatch.setenv("MCP_PROVIDER", "github")
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "token")
+    monkeypatch.setenv("MCP_REPO_ALLOWLIST", "canepro/repo")
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "true")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "hybrid")
+    monkeypatch.setenv("EXTERNAL_DIAGNOSTICS_WAIT_SECONDS", "0")
+    reset_settings()
+
+    orchestrator = OrchestratorAgent(github_tools=_MCPGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
+    orchestrator._gh_aw_adapter = _AlwaysAvailableAdapter()  # type: ignore[assignment]
+
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event(), _activity())
+    sources = {diag.source for diag in diagnostics}
+    assert "ci-doctor" in sources
+    assert "github-mcp" in sources
+    gh_aw_diag = next(diag for diag in diagnostics if diag.source == "ci-doctor")
+    mcp_diag = next(diag for diag in diagnostics if diag.source == "github-mcp")
+    assert gh_aw_diag.metadata.get("source_selection_path") == "gh_aw_passive"
+    assert mcp_diag.metadata.get("source_selection_path") == "github_mcp_direct"
+    assert mcp_diag.metadata.get("source_selection_reason") == "hybrid_mode_enabled"
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_hybrid_keeps_gh_aw_when_mcp_blocked(monkeypatch) -> None:
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    monkeypatch.setenv("MCP_PROVIDER", "github")
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "token")
+    monkeypatch.setenv("MCP_REPO_ALLOWLIST", "canepro/other-repo")
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "true")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "hybrid")
+    monkeypatch.setenv("EXTERNAL_DIAGNOSTICS_WAIT_SECONDS", "0")
+    reset_settings()
+
+    orchestrator = OrchestratorAgent(github_tools=_MCPGitHubTools(), storage=InMemoryStorage())  # type: ignore[arg-type]
+    activity = _activity()
+    activity.mcp_model_path = MCPModelPath(
+        provider="github",
+        enabled=True,
+        available=True,
+        read_only=True,
+        reason="ok",
+    )
+    orchestrator._gh_aw_adapter = _AlwaysAvailableAdapter()  # type: ignore[assignment]
+
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event(), activity)
+    sources = {diag.source for diag in diagnostics}
+    assert "ci-doctor" in sources
+    blocked = next(diag for diag in diagnostics if diag.source == "github-mcp")
+    assert blocked.status == ExternalDiagnosticStatus.UNAVAILABLE
+    assert blocked.metadata.get("reason_code") == "repo_not_allowlisted"
+    assert blocked.metadata.get("source_selection_path") == "github_mcp_blocked"
+    assert blocked.metadata.get("source_selection_reason") == "hybrid_mode:repo_not_allowlisted"
 
 
 @pytest.mark.asyncio

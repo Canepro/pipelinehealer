@@ -845,7 +845,8 @@ class PassiveIssueGHAWAdapter:
 def create_gh_aw_adapter(*, github_tools: GitHubTools) -> GHAWAdapter:
     """Return an adapter instance for external diagnostics collection."""
     settings = get_settings()
-    if not settings.gh_aw_tools_enabled or settings.gh_aw_ingestion_mode != "passive":
+    mode = (settings.gh_aw_ingestion_mode or "disabled").strip().lower()
+    if not settings.gh_aw_tools_enabled or mode not in {"passive", "hybrid"}:
         return NullGHAWAdapter(reason="external diagnostics disabled by runtime settings")
     return PassiveIssueGHAWAdapter(
         github_tools=github_tools,

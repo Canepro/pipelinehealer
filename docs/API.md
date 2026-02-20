@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 6da0e29 -->
+<!-- LAST_VERIFIED: dd885d8 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -554,7 +554,7 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 | `log_prompt_tail_chars` | int | 100–200,000 |
 | `ph_allowed_repos` | list[string] | Each entry must be `owner/repo` format; URLs and SSH paths are normalized |
 | `gh_aw_tools_enabled` | bool | Enable/disable GitHub Agentic Workflows integration |
-| `gh_aw_ingestion_mode` | string | `disabled` or `passive` |
+| `gh_aw_ingestion_mode` | string | `disabled`, `passive`, or `hybrid` |
 | `gh_aw_known_workflows` | list[string] | Workflow names to detect (e.g. `ci-doctor`, `schema-consistency-checker`) |
 | `external_diagnostics_wait_seconds` | float | 0–900 (set `0` for fully async diagnostics/backfill) |
 | `external_diagnostics_poll_interval_seconds` | float | >0–120; must be `<= external_diagnostics_wait_seconds` when wait budget is enabled |
@@ -1063,7 +1063,7 @@ Represents findings from an external diagnostic tool (e.g. GitHub Agentic Workfl
 | `url` | string \| null | Link to external findings (issue, discussion, etc.) |
 | `matched_run_id` | int \| null | GitHub workflow run ID the findings relate to |
 | `metadata` | object | Structured diagnostic metadata (reason codes, issue numbers, etc.) |
-| `metadata.source_selection_path` | string \| null | Collection strategy selected by orchestrator (`gh_aw_passive`, `github_mcp_direct`, `github_mcp_blocked`) |
+| `metadata.source_selection_path` | string \| null | Collection strategy selected for that diagnostic (`gh_aw_passive`, `github_mcp_direct`, `github_mcp_blocked`); hybrid mode may include multiple paths in one activity |
 | `metadata.source_selection_reason` | string \| null | Why that strategy/path was selected |
 | `metadata.details` | object \| null | Deep content enrichment extracted from the ci-doctor issue body (see below) |
 | `collected_at` | string (ISO datetime) | Timestamp when the external finding was collected |
