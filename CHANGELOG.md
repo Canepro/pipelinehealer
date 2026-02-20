@@ -20,6 +20,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - `HEAD` Clarified that `AUTH_MODE=hybrid` supports both key and Entra session auth simultaneously and is the recommended testing/migration posture in auth docs.
 - `HEAD` Hardened Kubernetes/AKS operator docs for auth reliability (`docs/KUBERNETES_HELM_RUNBOOK.md`, `docs/LOCAL_DEMO_RUNBOOK.md`): added required-vs-optional AKS setup matrix, explicit Entra build-time vs runtime guidance, post-deploy frontend auth-mode verification commands, and the common `VITE_AUTH_MODE=none` pitfall/fix path (tracked via #32).
 - `HEAD` Added version-plan traceability for AKS/auth doc hardening in `docs/FUTURE_PLAN.md` (`BL-027`, target `v0.3.0`).
+- `HEAD` Release-doc drift pass for `v0.2.8` prep: replaced stale hardcoded release command examples with `vX.Y.Z`, generalized outdated roadmap index wording, and aligned auth/runbook examples to reduce future stale statements.
 
 ## [v0.2.7] - 2026-02-19
 

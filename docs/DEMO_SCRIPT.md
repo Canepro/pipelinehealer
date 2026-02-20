@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 4b540b9 -->
+<!-- LAST_VERIFIED: 6da0e29 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -32,7 +32,7 @@ Run from repo root:
 ```bash
 cd /mnt/d/repos/pipelinehealer
 git pull --ff-only origin main
-bash scripts/ph.sh deploy:release --release-version v0.2.7
+bash scripts/ph.sh deploy:release --release-version vX.Y.Z
 bash scripts/ph.sh warm
 bash scripts/ph.sh status
 bash scripts/ph.sh settings:check
@@ -56,7 +56,7 @@ If `deploy:release` fails due Azure auth/session context:
 ```bash
 az account show
 az login
-bash scripts/ph.sh deploy:release --release-version v0.2.7
+bash scripts/ph.sh deploy:release --release-version vX.Y.Z
 ```
 
 ## 2) Optional Clean Slate for Demo Repo

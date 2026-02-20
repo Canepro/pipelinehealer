@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: a18e44e -->
+<!-- LAST_VERIFIED: 6da0e29 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -212,7 +212,7 @@ From repo root:
 bash scripts/ph.sh help
 bash scripts/ph.sh settings:check
 bash scripts/ph.sh settings:persist:verify --from-settings --skip-redeploy
-bash scripts/ph.sh deploy:release --release-version v0.2.7
+bash scripts/ph.sh deploy:release --release-version vX.Y.Z
 bash scripts/ph.sh deploy:env
 bash scripts/ph.sh status
 bash scripts/ph.sh logs

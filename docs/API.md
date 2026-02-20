@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 4b540b9 -->
+<!-- LAST_VERIFIED: 6da0e29 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -867,7 +867,7 @@ Captures operator verification outcomes for one activity and links that evidence
   "remediation": "pass",
   "notes": "Diagnosis needed minor correction after rerun.",
   "issue_number": 25,
-  "target_version": "v0.2.7"
+  "target_version": "vX.Y.Z"
 }
 ```
 

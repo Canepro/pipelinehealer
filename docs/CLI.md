@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 8980118 -->
+<!-- LAST_VERIFIED: 6da0e29 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -34,7 +34,7 @@ Quick examples:
 PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh settings:check
 
 # Azure infra scope (recommended release promotion path)
-bash scripts/ph.sh deploy:release --release-version v0.2.7
+bash scripts/ph.sh deploy:release --release-version vX.Y.Z
 
 # GitHub-only scope
 bash scripts/ph.sh demo:proof --repo owner/repo --limit 10
@@ -123,7 +123,7 @@ PowerShell-only environments (no bash): run the same GitHub checks with `gh`, an
 
 ```bash
 bash scripts/ph.sh deploy
-bash scripts/ph.sh deploy:release --release-version v0.2.7
+bash scripts/ph.sh deploy:release --release-version vX.Y.Z
 bash scripts/ph.sh deploy:env
 bash scripts/ph.sh deploy:bg
 bash scripts/ph.sh deploy:logs

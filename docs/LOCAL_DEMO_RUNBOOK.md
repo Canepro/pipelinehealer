@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: ac2b1d4 -->
+<!-- LAST_VERIFIED: 6da0e29 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -508,7 +508,7 @@ bash scripts/ph.sh urls
 ### Deploy Published Release (Recommended)
 
 ```bash
-bash scripts/ph.sh deploy:release --release-version v0.2.7
+bash scripts/ph.sh deploy:release --release-version vX.Y.Z
 ```
 
 This promotes already-published release images from ACR by digest, updates both Container Apps, syncs env vars, and verifies health.
