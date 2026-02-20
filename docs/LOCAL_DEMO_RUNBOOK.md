@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: f9eb981 -->
+<!-- LAST_VERIFIED: 004655e -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -430,6 +430,7 @@ If MCP is enabled, the same Activity Detail now includes `MCP Observability`:
 How to read this without guessing:
 - `MCP Tool Calls > 0` means direct MCP tools were used.
 - `MCP Tool Calls = 0` can still be healthy if `Source Attribution` shows passive `gh_aw` diagnostics.
+- In hybrid mode, one activity can include both GH-AW and MCP paths (`gh_aw_passive` + `github_mcp_direct` and/or `github_mcp_blocked`).
 - If MCP was expected but blocked, check `source_selection_path=github_mcp_blocked` and the reason code.
 
 ### Idempotency Validation (Recommended for demos/reviews)

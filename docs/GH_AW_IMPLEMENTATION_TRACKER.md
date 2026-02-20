@@ -1,6 +1,6 @@
 # GitHub Agentic Workflows Implementation Tracker
 
-**Last updated:** February 16, 2026
+**Last updated:** February 20, 2026
 
 This tracker is the single source of truth for GitHub Agentic Workflows adoption in PipelineHealer, covering both the original research review and execution status.
 
@@ -35,6 +35,7 @@ Primary source: [`Meet the Workflows: Fault Investigation`](https://github.githu
 |---|---|---|
 | Layer 1: baseline repo hygiene | Completed | merged in PR #3 with passing CI checks |
 | Layer 2: PipelineHealer orchestration integration | **Complete** | PR A through PR G implemented on `main`; backfill + deep enrichment + UI panel shipped |
+| Layer 2 runtime mode evolution (MCP + GH-AW) | **Complete** | `v0.2.9` shipped `GH_AW_INGESTION_MODE=hybrid` with per-finding source selection metadata and passive backfill label-mismatch hardening |
 
 ## Layer 1 Checklist (Repo Hygiene)
 

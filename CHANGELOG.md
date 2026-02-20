@@ -12,15 +12,19 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ### Added
 
-- _Describe new features here._
+- `8aa5d91` Added secure Azure deployment mode (`deploy:env --secure-secrets`) that maps sensitive runtime settings to Container Apps `secretRef` values instead of plaintext environment values.
+- `4387443` Added hybrid external-diagnostics ingestion mode (`GH_AW_INGESTION_MODE=hybrid`) so the same activity can include both passive GH-AW findings and GitHub MCP context.
 
 ### Changed
 
-- _Describe behavior changes here._
+- `4387443` Expanded runtime validation and settings surfaces to support `gh_aw_ingestion_mode=hybrid` across backend API/config validation, `scripts/ph.sh`, and Settings UI.
+- `4387443` Updated operator docs, API docs, CLI docs, and feature guides to explain passive vs direct MCP vs hybrid source-selection behavior.
+- `f9eb981` Aligned roadmap baseline/tracking docs to the `v0.2.8` submission baseline prior to `v0.2.9` cut.
 
 ### Fixed
 
-- _Describe fixes here._
+- `dd885d8` Fixed GH-AW passive backfill matching when CI Doctor issues use unexpected labels by adding bounded unlabeled-issue fallback scanning and regression coverage.
+- `ec6dd9d` Fixed CI shellcheck false-positive handling around secret-ref mapping in deploy scripts.
 
 ## [v0.2.8] - 2026-02-20
 

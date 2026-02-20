@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: f9eb981 -->
+<!-- LAST_VERIFIED: 004655e -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -33,6 +33,7 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.2.6` | Released | Verification-learning loop + diagnostics source-selection transparency |
 | `v0.2.7` | Released | Submission-readiness/operator-clarity pass (MCP explanation, demo/runbook clarity, docs alignment) |
 | `v0.2.8` | Released | Release integrity hardening + docs/version drift cleanup for submission baseline |
+| `v0.2.9` | Released | GH-AW/MCP hybrid diagnostics mode + passive backfill matching reliability hardening |
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
@@ -114,6 +115,26 @@ Theme: lock submission baseline integrity by ensuring release/auth wiring matche
 2. Release workflow fails early when required Entra frontend build variables are missing.
 3. Core operator docs and README consistently point to `v0.2.8` as submission baseline (or use `vX.Y.Z` placeholders where appropriate).
 4. No contradictory release-version statements in user-facing docs.
+
+## Released Target: `v0.2.9` (Hybrid Diagnostics + Backfill Reliability)
+
+Theme: remove MCP vs GH-AW ingestion ambiguity by enabling combined evidence collection while improving passive matching reliability.
+
+### Must-Have Scope
+
+1. Hybrid diagnostics mode
+   - Support `GH_AW_INGESTION_MODE=hybrid` so GH-AW passive findings and GitHub MCP context can appear in one activity.
+2. Backfill reliability hardening
+   - Fix ci-doctor matching gaps when expected labels are missing/mismatched.
+3. Ops/docs alignment
+   - Sync API/CLI/settings UI/runbooks with hybrid-mode behavior and per-finding source-selection metadata.
+
+### Exit Criteria
+
+1. Hybrid mode is configurable through runtime settings + CLI + UI.
+2. Activity diagnostics can include both `gh_aw_passive` and `github_mcp_direct` path metadata in one run.
+3. Passive backfill regression coverage confirms late ci-doctor issue matching when labels drift.
+4. Release notes and changelog capture real Added/Changed/Fixed entries for `v0.2.9`.
 
 ## Active Target: `v0.3.0` (Minor)
 
@@ -212,7 +233,9 @@ Theme: provider and platform extensibility.
 | `BL-026` | Cross-platform operator support: PowerShell wrapper + non-Azure deploy wrapper strategy for `ph` commands | `v0.5.0` | minor | Medium | Planned |
 | `BL-027` | AKS/Helm onboarding hardening: explicit required-vs-optional auth paths, Entra build-time vs runtime guardrails, and post-deploy auth verification checklist ([#32](https://github.com/Canepro/pipelinehealer/issues/32)) | `v0.3.0` | patch | Medium | Completed (in `main`) |
 | `BL-028` | Submission-baseline drift control (`v0.2.8`): release auth build-var gating + docs version alignment pass | `v0.2.8` | patch | High | Completed (in `main`) |
-| `BL-029` | Azure deploy hardening option: `--secure-secrets` path in deploy tooling (`ph.sh` + redeploy script) with operator docs for secretref-backed runtime env | `v0.3.0` | patch | High | Completed (in `main`) |
+| `BL-029` | Azure deploy hardening option: `--secure-secrets` path in deploy tooling (`ph.sh` + redeploy script) with operator docs for secretref-backed runtime env | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
+| `BL-030` | GH-AW + GitHub MCP hybrid diagnostics ingestion mode (`GH_AW_INGESTION_MODE=hybrid`) across backend/UI/CLI/docs | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
+| `BL-031` | Passive backfill label-mismatch reliability fix (unlabeled fallback matching for ci-doctor findings) ([#35](https://github.com/Canepro/pipelinehealer/issues/35)) | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
 
 ## Definition of Done (Per Version)
 
