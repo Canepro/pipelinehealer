@@ -81,6 +81,33 @@ This section answers two practical questions:
 
 ---
 
+## First-Time Operator Quick Check (10 Minutes)
+
+Use this when you just received access and want a minimal confidence pass.
+
+```bash
+# 1) Backend health (set to your deployed backend URL)
+BACKEND_URL="https://<your-backend-url>"
+curl -sS "$BACKEND_URL/health"
+
+# 2) Runtime settings visibility (works for Azure and non-Azure backends)
+PH_BACKEND_URL="$BACKEND_URL" bash scripts/ph.sh settings:check
+
+# 3) GitHub access
+gh auth status
+gh repo view <owner>/<repo> >/dev/null
+
+# 4) Trigger one deterministic CI failure
+gh workflow run ci.yml -R <owner>/<repo> -f failure_type=dependency
+
+# 5) Confirm outcome artifact (PR/issue) and run evidence
+bash scripts/ph.sh demo:proof --repo <owner>/<repo> --limit 5
+```
+
+PowerShell-only environments (no bash): run the same GitHub checks with `gh`, and call backend endpoints directly via `docs/API.md` until `ph.ps1` support lands (`BL-026`).
+
+---
+
 ## Commands
 
 ### Deploy

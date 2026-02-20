@@ -22,7 +22,8 @@ Before you start, make sure you have:
 - **[uv](https://docs.astral.sh/uv/)** (recommended) or pip — `uv --version`
 - **[Bun](https://bun.sh/)** — `bun --version`
 - **[GitHub CLI](https://cli.github.com/)** — `gh auth status` (must be logged in)
-- **Docker** (for containerized setup) — `docker --version`
+- **Docker or Podman** (optional, for containerized setup only) — `docker --version` or `podman --version`
+- **jq** (optional, only for pretty-filtered JSON examples) — `jq --version`
 - **An LLM provider credential** (Azure OpenAI or OpenAI-compatible) — see Step 1 below
 - **A GitHub Personal Access Token** with `repo` and `workflow` scopes — [create one here](https://github.com/settings/tokens)
 
@@ -108,6 +109,8 @@ Use:
 ```bash
 bash scripts/ph.sh settings:check | jq '.llm_provider,.openai_compatible_base_url,.openai_compatible_model'
 ```
+
+If you do not have `jq`, run `bash scripts/ph.sh settings:check` and inspect the raw JSON output.
 
 ---
 
@@ -370,11 +373,13 @@ bunx smee-client --url https://smee.io/<your-channel> --target http://127.0.0.1:
 Now trigger some CI failures to give PipelineHealer something to analyze:
 
 ```bash
-gh workflow run CI -R <owner>/<repo> -f failure_type=dependency
-gh workflow run CI -R <owner>/<repo> -f failure_type=lint
+gh workflow list -R <owner>/<repo>
+gh workflow run ci.yml -R <owner>/<repo> -f failure_type=dependency
+gh workflow run ci.yml -R <owner>/<repo> -f failure_type=lint
 ```
 
 Replace `<owner>/<repo>` with your demo repo (for example `Canepro/pipelinehealer-demo`).
+If the workflow filename is not `ci.yml` in your repo, use the name returned by `gh workflow list`.
 
 **Wait about 30-60 seconds** for the workflow to run and fail. You should see webhook events arriving in the smee terminal.
 

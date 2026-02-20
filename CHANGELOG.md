@@ -13,6 +13,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - `HEAD` Updated `demo-repo/README.md` for current demo timings/strict mode, clearer ci-doctor/MCP interpretation, and practical demo-artifact housekeeping commands.
 - `HEAD` Added beginner-friendly operator onboarding clarity (`README` new-operator checklist) and explicit `ph.sh` platform/operation support matrix + alternatives in `docs/CLI.md` and `docs/LOCAL_DEMO_RUNBOOK.md`.
 - `HEAD` Added backlog tracking for cross-platform operator support (`BL-026`, target `v0.5.0`) in `docs/FUTURE_PLAN.md`.
+- `HEAD` Ran a docs-only first-time-operator dry-run and tightened onboarding clarity: optional tool prerequisites (`Docker/Podman`, `jq`), explicit workflow trigger guidance (`ci.yml` + `gh workflow list`), and a copy-paste 10-minute operator verification path in `docs/CLI.md` and `README.md`.
 
 ## [v0.2.7] - 2026-02-19
 

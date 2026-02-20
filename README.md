@@ -84,10 +84,18 @@ cp backend/.env.example backend/.env
 ```
 
 2. Set minimum required values in `backend/.env`:
-- `AZURE_OPENAI_ENDPOINT`
-- `AZURE_OPENAI_DEPLOYMENT_NAME`
-- `AZURE_OPENAI_API_KEY`
-- `GITHUB_PERSONAL_ACCESS_TOKEN`
+- Pick one LLM path:
+  - Azure OpenAI:
+    - `AZURE_OPENAI_ENDPOINT`
+    - `AZURE_OPENAI_DEPLOYMENT_NAME`
+    - `AZURE_OPENAI_API_KEY`
+  - OpenAI-compatible:
+    - `LLM_PROVIDER=openai_compatible`
+    - `OPENAI_COMPATIBLE_BASE_URL`
+    - `OPENAI_COMPATIBLE_MODEL`
+    - `OPENAI_COMPATIBLE_API_KEY`
+- Set GitHub access token:
+  - `GITHUB_PERSONAL_ACCESS_TOKEN`
 
 3. Run locally (host-native):
 ```bash
@@ -133,13 +141,37 @@ Use full command docs for flags and troubleshooting: `docs/CLI.md`.
 
 ## New Operator Checklist (After Deploy)
 
-If someone new just got access to a deployed environment, this is the fastest safe setup path:
+If someone new just got access to a deployed environment, use this 5-step proof path.
 
-1. Confirm access + URLs (frontend dashboard URL and backend `/health` response).
-2. Confirm auth mode (key mode with `X-API-Key`/`X-Admin-Key` or Entra/hybrid login).
-3. Confirm LLM provider is healthy by running `bash scripts/ph.sh settings:check`.
-4. Confirm GitHub integration (token repo permissions + webhook delivery to `/webhook/github`).
-5. Run one validation cycle (trigger one known demo failure and verify a sensible PR/issue outcome).
+1. Set backend URL and check health:
+```bash
+BACKEND_URL="https://<your-backend-url>"
+curl -sS "$BACKEND_URL/health"
+```
+Expected: `{"status":"healthy"}`.
+
+2. Validate runtime settings visibility:
+```bash
+PH_BACKEND_URL="$BACKEND_URL" bash scripts/ph.sh settings:check
+```
+PowerShell-only fallback: call `GET /api/settings` directly (see `docs/API.md`) with required auth headers.
+
+3. Validate GitHub access + target repo:
+```bash
+gh auth status
+gh repo view <owner>/<repo> >/dev/null
+```
+
+4. Trigger one deterministic failure:
+```bash
+gh workflow run ci.yml -R <owner>/<repo> -f failure_type=dependency
+```
+
+5. Verify PipelineHealer outcome:
+```bash
+bash scripts/ph.sh demo:proof --repo <owner>/<repo> --limit 5
+```
+Expected: new activity plus a remediation PR or a structured issue (depending on policy/failure type).
 
 For exact command-level setup and troubleshooting, use:
 - `docs/LOCAL_DEMO_RUNBOOK.md`
