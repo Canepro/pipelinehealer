@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 8980118 -->
+<!-- LAST_VERIFIED: 75ebffd -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -50,6 +50,83 @@ Azure is the default deployment path for hackathon requirements, but the runtime
 - backend API commands can target any reachable backend via `PH_BACKEND_URL`
 - model provider can be Azure OpenAI or OpenAI-compatible (`LLM_PROVIDER`)
 - Kubernetes is supported via Helm as a secondary deployment target (`charts/pipelinehealer`)
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph CI["CI Sources"]
+    GH["GitHub Actions<br/>workflow_run.completed"]
+  end
+
+  subgraph PH["PipelineHealer Core"]
+    WH["/webhook/github"]
+    OR["Orchestrator"]
+    LA["Log Analyzer"]
+    DG["Diagnosis<br/>(Pattern -> LLM fallback)"]
+    RM["Remediation<br/>(policy-gated)"]
+    BF["Background Diagnostics Backfill<br/>every 10 min"]
+    ST[("Cosmos DB / In-Memory")]
+  end
+
+  subgraph EXT["External Diagnostics"]
+    AW["GH-AW findings<br/>(ci-doctor + breaking-change-checker)"]
+    MCP["GitHub MCP Provider<br/>(optional, read-only default)"]
+  end
+
+  subgraph LEARN["Learning Governance"]
+    LQ["Learning Queue<br/>candidate/approved/active"]
+    LG["Promotion Readiness Gates<br/>status + occurrence + success-rate + sample-size"]
+    FP["Force Activate<br/>(explicit, audited)"]
+  end
+
+  subgraph GOV["Governance Surface"]
+    UI["Admin Settings UI"]
+    CC["Control Center"]
+    API["/api/settings*"]
+    AUD["Settings Audit Trail"]
+    EXP["Explainability + Model Path"]
+  end
+
+  subgraph OUT["GitHub Outcomes"]
+    PR["Create / Reuse PR"]
+    IS["Create / Reuse Issue"]
+    RR["Re-run Failed Jobs"]
+  end
+
+  GH --> WH --> OR
+  OR --> LA --> DG --> RM
+  RM --> PR
+  RM --> IS
+  RM --> RR
+
+  GH -. run context .-> AW
+  AW -. external findings .-> DG
+  BF --> OR
+  BF --> ST
+  OR -. poll/enrich .-> AW
+  OR -. MCP tool calls .-> MCP
+  MCP -. enrichment .-> DG
+
+  UI --> API --> OR
+  CC --> API
+  API --> BF
+  OR --> LQ
+  LQ --> LG
+  LG --> RM
+  FP --> RM
+  API --> AUD
+  OR --> EXP
+  OR --> ST
+```
+
+## Hackathon status
+
+- Public repo + live Azure deployment
+- Multi-agent implementation with explainability and governance
+- Demo flow and operator runbooks documented
+- Team: currently maintained by a solo builder (Canepro / Vincent)
+- Collaboration welcome: open an issue or PR proposal, and align implementation to a target version in `docs/FUTURE_PLAN.md`
 
 ## Documentation
 
@@ -213,78 +290,3 @@ Recommended Azure promotion command after release: `bash scripts/ph.sh deploy:re
 - settings UI uses one-step `Save & Persist` for durable config updates
 - Entra + API key auth modes (`api_key`, `entra`, `hybrid`)
 - MCP defaults are safe (`MCP_ENABLED=false`, `MCP_READ_ONLY=true`)
-
-## Architecture
-
-```mermaid
-flowchart LR
-  subgraph CI["CI Sources"]
-    GH["GitHub Actions<br/>workflow_run.completed"]
-  end
-
-  subgraph PH["PipelineHealer Core"]
-    WH["/webhook/github"]
-    OR["Orchestrator"]
-    LA["Log Analyzer"]
-    DG["Diagnosis<br/>(Pattern -> LLM fallback)"]
-    RM["Remediation<br/>(policy-gated)"]
-    BF["Background Diagnostics Backfill<br/>every 10 min"]
-    ST[("Cosmos DB / In-Memory")]
-  end
-
-  subgraph EXT["External Diagnostics"]
-    AW["GH-AW findings<br/>(ci-doctor + breaking-change-checker)"]
-    MCP["GitHub MCP Provider<br/>(optional, read-only default)"]
-  end
-
-  subgraph LEARN["Learning Governance"]
-    LQ["Learning Queue<br/>candidate/approved/active"]
-    LG["Promotion Readiness Gates<br/>status + occurrence + success-rate + sample-size"]
-    FP["Force Activate<br/>(explicit, audited)"]
-  end
-
-  subgraph GOV["Governance Surface"]
-    UI["Admin Settings UI"]
-    CC["Control Center"]
-    API["/api/settings*"]
-    AUD["Settings Audit Trail"]
-    EXP["Explainability + Model Path"]
-  end
-
-  subgraph OUT["GitHub Outcomes"]
-    PR["Create / Reuse PR"]
-    IS["Create / Reuse Issue"]
-    RR["Re-run Failed Jobs"]
-  end
-
-  GH --> WH --> OR
-  OR --> LA --> DG --> RM
-  RM --> PR
-  RM --> IS
-  RM --> RR
-
-  GH -. run context .-> AW
-  AW -. external findings .-> DG
-  BF --> OR
-  BF --> ST
-  OR -. poll/enrich .-> AW
-  OR -. MCP tool calls .-> MCP
-  MCP -. enrichment .-> DG
-
-  UI --> API --> OR
-  CC --> API
-  API --> BF
-  OR --> LQ
-  LQ --> LG
-  LG --> RM
-  FP --> RM
-  API --> AUD
-  OR --> EXP
-  OR --> ST
-```
-
-## Hackathon status
-
-- Public repo + live Azure deployment
-- Multi-agent implementation with explainability and governance
-- Demo flow and operator runbooks documented
