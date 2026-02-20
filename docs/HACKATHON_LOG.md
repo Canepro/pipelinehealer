@@ -1,6 +1,6 @@
 # PipelineHealer Hackathon Log
 
-**Last updated:** February 19, 2026
+**Last updated:** February 20, 2026
 
 This is the long-form project tracker for hackathon execution status, submission readiness, and milestone history.
 
@@ -22,7 +22,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - GitHub Agentic Workflows Layer 1 (repo hygiene) merged to `main`; Layer 2 planning tracked in `docs/GH_AW_IMPLEMENTATION_TRACKER.md`
 - External diagnostics latency model updated to fast-path defaults (60s wait budget, 15s poll interval) with async backfill-first fallback
 - Plan discipline lock active: implement remaining platform-extension work in this order `0.1 MCP completion -> 0.3 Control Center UX -> 0.4 model portability -> 0.2 learning system`; new items are queued in `docs/FUTURE_PLAN.md` backlog unless break/fix or security-critical
-- Release `v0.2.7` is the current submission baseline; submission freeze remains active (bugfix/docs/housekeeping only)
+- Release `v0.2.8` is the current submission baseline; submission freeze remains active (bugfix/docs/housekeeping only)
 - MCP observability upgraded: real per-call tool invocation counting, aggregate MCP latency, and enriched action-audit fields (`provider`, `latency_ms`, `success`, `error_class`); read-only runbook context retrieval (`fetch_runbook_context`) now adds `knowledge-mcp` evidence when available
 - Control Center governance route added: `/app/control-center` provides read-only runtime/auth/provider posture, MCP policy-effect matrix, and centralized audit timeline
 - Settings audit UX reworked: audit/trace now lives only in Control Center as a single governance source

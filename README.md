@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 6da0e29 -->
+<!-- LAST_VERIFIED: ba0e21d -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -30,9 +30,9 @@ CI failures create repetitive triage work. PipelineHealer shortens time-to-under
 
 This repository is the hackathon submission baseline, designed for continued production-grade evolution.
 
-## Submission baseline (v0.2.7)
+## Submission baseline (v0.2.8)
 
-- Release baseline: [`v0.2.7`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.2.7)
+- Release baseline: [`v0.2.8`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.2.8)
 - Deployment model: Azure-first, using immutable release images (`bash scripts/ph.sh deploy:release --release-version vX.Y.Z`)
 - Operator docs: `docs/DEMO_SCRIPT.md`, `docs/LOCAL_DEMO_RUNBOOK.md`, `docs/RELEASE_RUNBOOK.md`
 

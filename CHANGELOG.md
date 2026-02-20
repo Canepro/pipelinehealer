@@ -6,6 +6,10 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
+- _No unreleased entries yet._
+
+## [v0.2.8] - 2026-02-20
+
 ### Changed
 
 - `2882470` Clarified `docs/LEARNING_SYSTEM_PLAN.md` with plain-language behavior, explicit non-goals, and a quick verification checklist for first-time operators.
@@ -38,9 +42,9 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - `695834f` Hardened `demo:e2e` verification with configurable CI-signal waits, optional strict gating, on-demand diagnostics backfill, and clearer passive-vs-direct MCP summary output.
 - `695834f` Clarified Activity Detail MCP observability copy so passive GH-AW attribution and direct MCP tool-call telemetry are clearly differentiated.
 - `6608f3a` Reworked Activity Detail information hierarchy with a top-level `PipelineHealer Decision` summary that combines diagnosis and remediation outcome, and moved deep model/evidence panels under a dedicated technical enrichment section.
-- `HEAD` Promoted `v0.2.7` submission baseline references across `README`, `CLI`, demo/runbook docs, and `ph.sh` operator help examples.
-- `HEAD` Added explicit MCP interpretation guidance for non-expert operators (enabled vs selected path vs direct tool invocation) across README, feature docs, and runbooks.
-- `HEAD` Updated roadmap/index tracking to close `v0.2.7` as submission-readiness/operator-clarity scope and return active planning to `v0.3.0`.
+- `d13bd12` Promoted `v0.2.7` submission baseline references across `README`, `CLI`, demo/runbook docs, and `ph.sh` operator help examples.
+- `d13bd12` Added explicit MCP interpretation guidance for non-expert operators (enabled vs selected path vs direct tool invocation) across README, feature docs, and runbooks.
+- `d13bd12` Updated roadmap/index tracking to close `v0.2.7` as submission-readiness/operator-clarity scope and return active planning to `v0.3.0`.
 
 ## [v0.2.6] - 2026-02-19
 
@@ -86,8 +90,8 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - `1ad62ce` Updated docs index wording to reflect version-targeted planning as the default roadmap model.
 - `69331ac` Refined Control Center information architecture with section tabs (`Governance Overview`, `Learning & Ops`, `Audit & Trace`) and improved learning/ops layout density.
 - `69331ac` Polished Settings page operator ergonomics with structured key/value summary cards and quick navigation actions to Control Center/Activities.
-- `HEAD` Aligned release docs and roadmap to an explicit `v0.2.3` QA freeze (no new feature scope; warning-debt closure + QA gates only).
-- `HEAD` Added release warning-triage guidance to runbooks and improved Control Center/Settings readability with structured summary rows and workflow-oriented UI cues.
+- `8b082a1` Aligned release docs and roadmap to an explicit `v0.2.3` QA freeze (no new feature scope; warning-debt closure + QA gates only).
+- `8b082a1` Added release warning-triage guidance to runbooks and improved Control Center/Settings readability with structured summary rows and workflow-oriented UI cues.
 - `688ae1d` Adopted SemVer-based future roadmap structure and version-targeted backlog model.
 - `030fc39` Refreshed documentation `LAST_VERIFIED` markers after roadmap synchronization.
 - `a13de38` Added capability highlights across historical changelog versions for clearer release archaeology.
