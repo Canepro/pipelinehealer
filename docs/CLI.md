@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 4b540b9 -->
+<!-- LAST_VERIFIED: 8980118 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -44,6 +44,40 @@ bash scripts/check_version_sync.sh
 ```
 
 Kubernetes deploy path is intentionally kept outside `scripts/ph.sh` right now to avoid cloud-lock assumptions in the CLI. Use Helm runbook commands directly.
+
+---
+
+## Platform Support Matrix (Normy-Proof)
+
+This section answers two practical questions:
+- "Will `ph.sh` run on my machine?"
+- "If this command is not supported here, what do I use instead?"
+
+### Shell/OS Support
+
+| Environment | `ph.sh` support | Notes |
+|------|------------------|-------|
+| Linux | Full | Recommended |
+| macOS | Full | Recommended |
+| Windows + WSL2 | Full | Recommended Windows path |
+| Windows + Git Bash | Mostly full | Works for many flows; Azure tooling behavior depends on local setup |
+| Windows PowerShell (without bash) | Not supported for `ph.sh` | Use WSL2/Git Bash, or run equivalent direct `az`/`gh`/API commands |
+
+### Operation Support By Deployment Target
+
+| Operation type | Azure deployed backend | Local backend (`PH_BACKEND_URL`) | Other cloud backend (non-Azure) | Alternative when not supported |
+|------|-------------------------|-------------------------------|-------------------------------|--------------------------------|
+| Infra deploy/manage (`deploy*`, `status`, `urls`, `warm`, `lowcost`, `webhook:*`, `rollout:canary`, `demo:e2e`) | Supported | Not supported | Not supported | Use your platform's deploy tooling + `PH_BACKEND_URL` API commands |
+| Runtime settings/audit (`settings:*`, `audit:proof`, `backfill`) | Supported | Supported | Supported (if backend reachable) | Direct API calls from `docs/API.md` |
+| GitHub artifact ops (`demo:proof`, `demo:reset`) | Supported | Supported | Supported | Direct `gh` commands |
+| Local container logs/AOAI (`logs*`, `aoai:check`) | Supported in local mode with compose | Supported | Not supported for remote-only backends | Use platform-native logs (ACA/K8s/host logs) |
+| Kubernetes deploy | Outside `ph.sh` | Outside `ph.sh` | Outside `ph.sh` | Use `helm` + `kubectl` (`docs/KUBERNETES_HELM_RUNBOOK.md`) |
+
+### Planned (Not Yet Supported In `ph.sh`)
+
+- Native PowerShell wrapper for operator commands (`ph.ps1`) to remove bash dependency on Windows.
+- Cloud-provider deploy wrappers beyond Azure (for example AWS/GCP/DO) while keeping the same settings/audit command model.
+- Tracking: `docs/FUTURE_PLAN.md` (`BL-026`).
 
 ---
 
@@ -411,7 +445,7 @@ Important:
 
 These commands manage Azure infrastructure and will print a clear error when `PH_BACKEND_URL` is set:
 
-`deploy`, `deploy:env`, `deploy:bg`, `deploy:logs`, `deploy:status`, `urls`, `status`, `warm`, `lowcost`, `webhook:add`, `webhook:disable`, `rollout:canary`, `demo:e2e`.
+`deploy`, `deploy:release`, `deploy:env`, `deploy:bg`, `deploy:logs`, `deploy:status`, `urls`, `status`, `warm`, `lowcost`, `webhook:add`, `webhook:disable`, `rollout:canary`, `demo:e2e`.
 
 ### Switching Back to Azure
 

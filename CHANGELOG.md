@@ -11,6 +11,8 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - `HEAD` Clarified `docs/LEARNING_SYSTEM_PLAN.md` with plain-language behavior, explicit non-goals, and a quick verification checklist for first-time operators.
 - `HEAD` Re-evaluated `v0.3.0` roadmap scope to add `BL-025` (structured GitHub issue accuracy comment ingestion into `learning/feedback`) and aligned learning plan "Immediate Next" items to match.
 - `HEAD` Updated `demo-repo/README.md` for current demo timings/strict mode, clearer ci-doctor/MCP interpretation, and practical demo-artifact housekeeping commands.
+- `HEAD` Added beginner-friendly operator onboarding clarity (`README` new-operator checklist) and explicit `ph.sh` platform/operation support matrix + alternatives in `docs/CLI.md` and `docs/LOCAL_DEMO_RUNBOOK.md`.
+- `HEAD` Added backlog tracking for cross-platform operator support (`BL-026`, target `v0.5.0`) in `docs/FUTURE_PLAN.md`.
 
 ## [v0.2.7] - 2026-02-19
 

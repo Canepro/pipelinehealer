@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 4b540b9 -->
+<!-- LAST_VERIFIED: 8980118 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -44,6 +44,23 @@ Important command scope rule:
 - `settings:check`, `settings:audit`, `settings:persist`, `settings:persist:verify`, `audit:proof`, `backfill` work with any reachable backend URL via `PH_BACKEND_URL`.
 - `demo:proof` and `demo:reset` are GitHub-only (`gh`), backend independent.
 - For Kubernetes, use the Helm guide: `docs/KUBERNETES_HELM_RUNBOOK.md`.
+
+### `ph.sh` Platform Clarification
+
+`scripts/ph.sh` is a bash-first operator tool.
+
+- Works best on Linux/macOS and Windows via WSL2.
+- On Windows without bash (PowerShell-only), run either:
+  - WSL2/Git Bash (recommended), or
+  - direct alternatives (`az`, `gh`, and REST API calls from `docs/API.md`).
+
+When `ph.sh` command scope does not match your environment:
+- non-Azure backend: set `PH_BACKEND_URL` and use `settings:*`, `audit:proof`, `backfill`
+- Kubernetes deploys: use Helm directly (`docs/KUBERNETES_HELM_RUNBOOK.md`)
+- remote backend logs: use platform-native logs (Azure/Kubernetes/host logs), not local `logs*`
+
+Planned support (not yet shipped):
+- native PowerShell wrapper + broader non-Azure deploy wrappers (tracked in `docs/FUTURE_PLAN.md`, `BL-026`)
 
 ---
 

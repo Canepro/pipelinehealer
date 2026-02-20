@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: f1bce38 -->
+<!-- LAST_VERIFIED: 8980118 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -154,6 +154,7 @@ Theme: provider and platform extensibility.
    - Preserve policy and remediation guardrails across providers.
 3. Operator packaging
    - Kubernetes deployment polish and environment profiles.
+   - Cross-platform operator wrapper support (PowerShell-first path on Windows).
 
 ## Backlog Queue (Version-Mapped)
 
@@ -184,6 +185,7 @@ Theme: provider and platform extensibility.
 | `BL-023` | Docs/runbook MCP interpretation hardening for non-expert operators | `v0.2.7` | patch | High | Completed (in `main`) |
 | `BL-024` | Release baseline alignment (`v0.2.7`) across README/CLI/runbooks | `v0.2.7` | patch | Medium | Completed (in `main`) |
 | `BL-025` | Accuracy-assessment bridge: ingest structured GitHub issue verification comments into `learning/feedback` with audit traceability | `v0.3.0` | minor | High | Planned |
+| `BL-026` | Cross-platform operator support: PowerShell wrapper + non-Azure deploy wrapper strategy for `ph` commands | `v0.5.0` | minor | Medium | Planned |
 
 ## Definition of Done (Per Version)
 

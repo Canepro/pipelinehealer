@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 4b540b9 -->
+<!-- LAST_VERIFIED: 8980118 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -120,6 +120,30 @@ bash scripts/ph.sh demo:e2e
 ```
 
 Use full command docs for flags and troubleshooting: `docs/CLI.md`.
+
+## `ph.sh` Platform Notes
+
+`scripts/ph.sh` is a bash-first operator CLI.
+
+- Recommended: Linux, macOS, or Windows via WSL2.
+- Windows PowerShell-only environments are not first-class for `ph.sh` today.
+  - Alternative: run equivalent `az`/`gh` commands and backend API calls from `docs/API.md`.
+- Kubernetes deploy is intentionally outside `ph.sh` right now.
+  - Alternative: `helm` + `kubectl` via `docs/KUBERNETES_HELM_RUNBOOK.md`.
+
+## New Operator Checklist (After Deploy)
+
+If someone new just got access to a deployed environment, this is the fastest safe setup path:
+
+1. Confirm access + URLs (frontend dashboard URL and backend `/health` response).
+2. Confirm auth mode (key mode with `X-API-Key`/`X-Admin-Key` or Entra/hybrid login).
+3. Confirm LLM provider is healthy by running `bash scripts/ph.sh settings:check`.
+4. Confirm GitHub integration (token repo permissions + webhook delivery to `/webhook/github`).
+5. Run one validation cycle (trigger one known demo failure and verify a sensible PR/issue outcome).
+
+For exact command-level setup and troubleshooting, use:
+- `docs/LOCAL_DEMO_RUNBOOK.md`
+- `docs/CLI.md`
 
 ## MCP clarity (quick check)
 
