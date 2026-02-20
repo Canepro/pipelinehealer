@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 004655e -->
+<!-- LAST_VERIFIED: b05af6d -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -201,6 +201,24 @@ Theme: provider and platform extensibility.
    - Kubernetes deployment polish and environment profiles.
    - Cross-platform operator wrapper support (PowerShell-first path on Windows).
 
+## Decision Parking Lot (Researched, Not Committed)
+
+These items are researched and tracked, but not approved for build scope yet.
+
+### DP-001: GitHub Copilot SDK / Agent Integration Fit
+
+- Status: `Undecided` (`nice-to-have`, not in active release scope)
+- Why parked:
+  - We need to preserve PipelineHealer as the policy/audit control plane.
+  - Current MCP + GH-AW hybrid path already covers core diagnostics needs for submission.
+- Research summary:
+  - Legacy GitHub Copilot Extensions path is deprecated.
+  - Viable modern path is Copilot coding-agent task execution, optionally paired with MCP context.
+- Guardrails if adopted later:
+  - No bypass of PipelineHealer policy gates.
+  - All Copilot-assisted remediation actions must remain traceable in activity/issue evidence.
+  - Keep GitHub provider coupling optional (do not regress non-GitHub portability goals).
+
 ## Backlog Queue (Version-Mapped)
 
 | ID | Item | Recommended Target | Type | Priority | Status |
@@ -236,6 +254,7 @@ Theme: provider and platform extensibility.
 | `BL-029` | Azure deploy hardening option: `--secure-secrets` path in deploy tooling (`ph.sh` + redeploy script) with operator docs for secretref-backed runtime env | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
 | `BL-030` | GH-AW + GitHub MCP hybrid diagnostics ingestion mode (`GH_AW_INGESTION_MODE=hybrid`) across backend/UI/CLI/docs | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
 | `BL-031` | Passive backfill label-mismatch reliability fix (unlabeled fallback matching for ci-doctor findings) ([#35](https://github.com/Canepro/pipelinehealer/issues/35)) | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
+| `BL-032` | Copilot integration research track: evaluate coding-agent + MCP coexistence model without bypassing PipelineHealer governance | `TBD (post-submission)` | minor | Low | Research / Undecided |
 
 ## Definition of Done (Per Version)
 
