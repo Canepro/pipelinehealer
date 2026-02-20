@@ -353,7 +353,9 @@ BACKEND_URL="https://$BACKEND_FQDN"
 
 BACKEND_SET_ENV_VARS=()
 FRONTEND_SET_ENV_VARS=()
+# shellcheck disable=SC2034 # Populated dynamically and consumed via nameref in apply_containerapp_secrets.
 declare -A BACKEND_SECRET_VALUES=()
+# shellcheck disable=SC2034 # Populated dynamically and consumed via nameref in apply_containerapp_secrets.
 declare -A FRONTEND_SECRET_VALUES=()
 
 add_backend_env_var "API_AUTH_KEY" "$API_AUTH_KEY"
