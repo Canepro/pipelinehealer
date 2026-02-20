@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { KeyRound, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../api/client'
+import { AUTH_ENABLED } from '../auth/config'
 import {
   AdminControlsForm,
   RuntimePolicyBanner,
@@ -102,8 +103,10 @@ export default function SettingsPage() {
   const hasUnsavedChanges =
     lastSavedForm !== null && JSON.stringify(form) !== JSON.stringify(lastSavedForm)
   const settingsErrorMessage = error instanceof Error ? error.message : 'Unknown error'
+  const sessionAuthDisabledByBuild = useSessionAuth && !AUTH_ENABLED
   const showSessionRefreshHint =
     useSessionAuth &&
+    AUTH_ENABLED &&
     isError &&
     (() => {
       const normalized = settingsErrorMessage.toLowerCase()
@@ -244,14 +247,25 @@ export default function SettingsPage() {
                 setUseSessionAuth(true)
                 setAdminKey('')
               }}
-              disabled={isLoading}
+              disabled={isLoading || !AUTH_ENABLED}
             >
               {isLoading ? 'Loading...' : 'Use Login Session'}
             </Button>
           </div>
           <p className="mt-2 text-xs text-[var(--ph-muted)]">
-            Use either <code className="font-mono">X-Admin-Key</code> or a signed-in Entra role
-            with admin permissions.
+            {AUTH_ENABLED ? (
+              <>
+                Use either <code className="font-mono">X-Admin-Key</code> or a signed-in Entra role
+                with admin permissions.
+              </>
+            ) : (
+              <>
+                Session login is disabled in this frontend build
+                (<code className="font-mono">VITE_AUTH_MODE=none</code>). Use
+                <code className="font-mono">X-Admin-Key</code> or deploy a release image built with
+                Entra <code className="font-mono">VITE_ENTRA_*</code> values.
+              </>
+            )}
           </p>
         </CardContent>
       </Card>
@@ -280,6 +294,13 @@ export default function SettingsPage() {
               <p className="text-xs text-[var(--ph-muted)] mt-3">
                 Session may be stale. Try signing out, signing in again, or clearing site data and
                 retrying.
+              </p>
+            )}
+            {sessionAuthDisabledByBuild && (
+              <p className="text-xs text-[var(--ph-muted)] mt-3">
+                This frontend build cannot send Entra session tokens. Rebuild/release frontend with
+                <code className="mx-1 font-mono">VITE_AUTH_MODE=entra</code> and Entra
+                <code className="mx-1 font-mono">VITE_ENTRA_*</code> values.
               </p>
             )}
           </CardContent>

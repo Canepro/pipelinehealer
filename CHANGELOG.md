@@ -15,6 +15,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - `HEAD` Added backlog tracking for cross-platform operator support (`BL-026`, target `v0.5.0`) in `docs/FUTURE_PLAN.md`.
 - `HEAD` Ran a docs-only first-time-operator dry-run and tightened onboarding clarity: optional tool prerequisites (`Docker/Podman`, `jq`), explicit workflow trigger guidance (`ci.yml` + `gh workflow list`), and a copy-paste 10-minute operator verification path in `docs/CLI.md` and `README.md`.
 - `HEAD` Performed README housekeeping for submission phase: moved `Architecture` near the project baseline sections, expanded `Hackathon status` with team/collaboration guidance, and improved scan order for first-time readers.
+- `HEAD` Fixed Entra auth release drift: release workflow now validates and injects frontend `VITE_*` auth build args, Settings/Control Center now clearly signal when session auth is unavailable due `VITE_AUTH_MODE=none`, and release runbook now includes Entra build-variable prerequisites plus post-deploy bundle verification.
 
 ## [v0.2.7] - 2026-02-19
 

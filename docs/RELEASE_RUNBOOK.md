@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: 74e2d09 -->
+<!-- LAST_VERIFIED: ca5b69c -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -50,6 +50,18 @@ GitHub requirements:
 Optional repository variable:
 
 - `ACR_NAME` (defaults to `caneprophacr01`)
+
+Frontend auth build variables (set in repository/environment Variables when Entra login is expected in release images):
+
+- `VITE_AUTH_MODE` (`entra` or `none`; defaults to `none`)
+- `VITE_ENTRA_CLIENT_ID`
+- `VITE_ENTRA_API_SCOPE`
+- `VITE_ENTRA_AUTHORITY` or `VITE_ENTRA_TENANT_ID`
+- optional: `VITE_ENTRA_REDIRECT_URI`, `VITE_ENTRA_POST_LOGOUT_REDIRECT_URI`, `VITE_API_URL`, `VITE_API_TIMEOUT_MS`
+
+Important:
+- release frontend images are built at tag time; `VITE_*` values are build-time inputs.
+- if these are missing, the release image will run with `VITE_AUTH_MODE=none` and "Use Login Session" cannot authenticate.
 
 ## 1) Preflight (Required)
 
@@ -173,6 +185,16 @@ az acr repository show-tags -n <acr-name> --repository pipelinehealer-frontend -
 bash scripts/ph.sh deploy:release --release-version vX.Y.Z
 bash scripts/ph.sh status
 ```
+
+7. If Entra auth is expected, verify frontend bundle auth mode after deploy:
+
+```bash
+FRONTEND_URL="https://<frontend-fqdn>"
+JS_PATH="$(curl -fsSL "$FRONTEND_URL/" | sed -n 's/.*src=\"\\(\\/assets\\/index-[^\"]*\\.js\\)\".*/\\1/p' | head -n1)"
+curl -fsSL "${FRONTEND_URL}${JS_PATH}" | rg 'const dd=' | head -n1
+```
+
+Expected for Entra-enabled release: `const dd="entra"...`
 
 ## 7) Post-Release
 

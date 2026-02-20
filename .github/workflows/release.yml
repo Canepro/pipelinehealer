@@ -61,6 +61,40 @@ jobs:
             exit 1
           fi
 
+      - name: Validate frontend auth build variables
+        env:
+          VITE_AUTH_MODE: ${{ vars.VITE_AUTH_MODE || 'none' }}
+          VITE_ENTRA_TENANT_ID: ${{ vars.VITE_ENTRA_TENANT_ID || '' }}
+          VITE_ENTRA_CLIENT_ID: ${{ vars.VITE_ENTRA_CLIENT_ID || '' }}
+          VITE_ENTRA_AUTHORITY: ${{ vars.VITE_ENTRA_AUTHORITY || '' }}
+          VITE_ENTRA_API_SCOPE: ${{ vars.VITE_ENTRA_API_SCOPE || '' }}
+        run: |
+          set -euo pipefail
+          mode="$(echo "${VITE_AUTH_MODE:-none}" | tr '[:upper:]' '[:lower:]' | tr -d '\r\n' | xargs)"
+          if [[ "$mode" != "none" && "$mode" != "entra" ]]; then
+            echo "::error::Invalid VITE_AUTH_MODE='$VITE_AUTH_MODE'. Allowed values: none, entra."
+            exit 1
+          fi
+
+          if [[ "$mode" == "entra" ]]; then
+            missing=0
+            if [[ -z "${VITE_ENTRA_CLIENT_ID:-}" ]]; then
+              echo "::error::VITE_AUTH_MODE=entra requires VITE_ENTRA_CLIENT_ID."
+              missing=1
+            fi
+            if [[ -z "${VITE_ENTRA_API_SCOPE:-}" ]]; then
+              echo "::error::VITE_AUTH_MODE=entra requires VITE_ENTRA_API_SCOPE."
+              missing=1
+            fi
+            if [[ -z "${VITE_ENTRA_AUTHORITY:-}" && -z "${VITE_ENTRA_TENANT_ID:-}" ]]; then
+              echo "::error::VITE_AUTH_MODE=entra requires VITE_ENTRA_AUTHORITY or VITE_ENTRA_TENANT_ID."
+              missing=1
+            fi
+            if [[ "$missing" -ne 0 ]]; then
+              exit 1
+            fi
+          fi
+
       - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
@@ -134,6 +168,16 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
+          build-args: |
+            VITE_AUTH_MODE=${{ vars.VITE_AUTH_MODE || 'none' }}
+            VITE_ENTRA_TENANT_ID=${{ vars.VITE_ENTRA_TENANT_ID || '' }}
+            VITE_ENTRA_CLIENT_ID=${{ vars.VITE_ENTRA_CLIENT_ID || '' }}
+            VITE_ENTRA_AUTHORITY=${{ vars.VITE_ENTRA_AUTHORITY || '' }}
+            VITE_ENTRA_API_SCOPE=${{ vars.VITE_ENTRA_API_SCOPE || '' }}
+            VITE_ENTRA_REDIRECT_URI=${{ vars.VITE_ENTRA_REDIRECT_URI || '' }}
+            VITE_ENTRA_POST_LOGOUT_REDIRECT_URI=${{ vars.VITE_ENTRA_POST_LOGOUT_REDIRECT_URI || '' }}
+            VITE_API_URL=${{ vars.VITE_API_URL || '' }}
+            VITE_API_TIMEOUT_MS=${{ vars.VITE_API_TIMEOUT_MS || '15000' }}
           tags: |
             ${{ steps.acr.outputs.login_server }}/pipelinehealer-frontend:${{ steps.meta.outputs.release_tag }}
             ${{ steps.acr.outputs.login_server }}/pipelinehealer-frontend:${{ steps.meta.outputs.version }}

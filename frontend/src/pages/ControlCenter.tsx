@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner'
 import { api } from '../api/client'
 import type { LearningQueueItem, LearningQueueStatus } from '../api/client'
+import { AUTH_ENABLED } from '../auth/config'
 import { AuditTrailPanel } from '../components/settings'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -398,8 +399,10 @@ export default function ControlCenterPage() {
   })
 
   const settingsErrorMessage = settingsError instanceof Error ? settingsError.message : 'Unknown error'
+  const sessionAuthDisabledByBuild = useSessionAuth && !AUTH_ENABLED
   const showSessionRefreshHint =
     useSessionAuth &&
+    AUTH_ENABLED &&
     isSettingsError &&
     (() => {
       const normalized = settingsErrorMessage.toLowerCase()
@@ -574,13 +577,15 @@ export default function ControlCenterPage() {
                 setUseSessionAuth(true)
                 setAdminKey('')
               }}
-              disabled={settingsLoading}
+              disabled={settingsLoading || !AUTH_ENABLED}
             >
               {settingsLoading ? 'Loading...' : 'Use Login Session'}
             </Button>
           </div>
           <p className="mt-2 text-xs text-[var(--ph-muted)]">
-            Read-only page. Use Settings for configuration changes, then return here for governance checks.
+            {AUTH_ENABLED
+              ? 'Read-only page. Use Settings for configuration changes, then return here for governance checks.'
+              : 'Session login is disabled in this frontend build (VITE_AUTH_MODE=none). Use X-Admin-Key or deploy a release image built with VITE_AUTH_MODE=entra.'}
           </p>
         </CardContent>
       </Card>
@@ -611,6 +616,13 @@ export default function ControlCenterPage() {
             {showSessionRefreshHint && (
               <p className="mt-3 text-xs text-[var(--ph-muted)]">
                 Session may be stale. Try signing out, signing in again, or clearing site data and retrying.
+              </p>
+            )}
+            {sessionAuthDisabledByBuild && (
+              <p className="mt-3 text-xs text-[var(--ph-muted)]">
+                This frontend build cannot send Entra session tokens. Rebuild/release frontend with
+                <code className="mx-1 font-mono">VITE_AUTH_MODE=entra</code> and Entra
+                <code className="mx-1 font-mono">VITE_ENTRA_*</code> values.
               </p>
             )}
           </CardContent>
