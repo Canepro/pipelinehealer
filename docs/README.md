@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: 6da0e29 -->
+<!-- LAST_VERIFIED: 8662125 -->
 
 Use this index to find the right doc quickly.
 
@@ -31,6 +31,7 @@ Use this index to find the right doc quickly.
 - `FUTURE_PLAN.md` — version-targeted roadmap (current active target: `v0.3.0`; prior submission-readiness patch target closed)
 - `UI_PLAN.md` — UI maturity plan, principles, and weekly tracking through submission
 - `GH_AW_IMPLEMENTATION_TRACKER.md` — gh-aw research summary, Layer 1/2 checklists, decision log, and evidence
+- `JENKINS_BRIDGE_TECHNICAL_DESIGN.md` — design draft for `BL-034` Jenkins bridge ingestion (payload/auth/replay/API/tests)
 - `case-studies/` — real incident writeups showing detection, classification, and remediation outcomes
   - `case-studies/release-tag-mismatch-22163136636.md` — release tag/version mismatch incident handled by PipelineHealer
 - `screens/` — versioned UI proof screenshots used by Week 2 and Week 3 evidence checkpoints
