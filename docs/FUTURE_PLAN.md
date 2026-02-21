@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: c9b4d96 -->
+<!-- LAST_VERIFIED: e5242d1 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -170,6 +170,31 @@ Theme: complete learning-system operator workflow from candidate signal to safe 
    - `docs/LOCAL_DEMO_RUNBOOK.md`
    - `docs/features/04-learning-system.md`
 
+## Planned Target: `v0.3.1` (Minor)
+
+Theme: Jenkins-first repo onboarding bridge so non-GitHub-primary CI repos can still feed actionable failures into PipelineHealer safely.
+
+### Planned Scope
+
+1. Jenkins bridge ingestion path (recommended first)
+   - Add signed ingestion path for external CI failures (Jenkins) into PipelineHealer activity pipeline.
+   - Normalize payload shape (`repo`, `sha`, `branch`, `job_url`, `failed_stage`, compact logs, timestamp).
+2. Synthetic activity + diagnosis flow
+   - Create auditable synthetic activity records for Jenkins failures with explicit `source_selection_path=jenkins_bridge`.
+   - Run existing diagnosis/remediation logic in conservative mode (issue-first by default).
+3. Governance and safety controls
+   - Require repo allowlist checks (`PH_ALLOWED_REPOS` + optional provider-specific allowlist).
+   - Add signing secret validation + replay protection for bridge payloads.
+4. Operator verification path
+   - Add CLI/runbook checks for bridge health, recent bridge ingestions, and failed payload diagnostics.
+
+### Exit Criteria
+
+1. Jenkins failure payloads can create PipelineHealer activities without GitHub `workflow_run`.
+2. Bridge path is auditable with request IDs and source attribution.
+3. Repo/policy guardrails enforce least privilege by default.
+4. Docs include setup for Jenkins operators and rollback path.
+
 ## Planned Target: `v0.4.0` (Minor)
 
 Theme: MCP operational maturity + observability depth.
@@ -243,6 +268,24 @@ These items are researched and tracked, but not approved for build scope yet.
   - Rate-limit and retry with provider-specific backoff/429 handling.
   - Preserve audit trail for every outbound notification attempt/result.
 
+### DP-003: Jenkins Bridge Strategy for GitHub-Adjacent Repos
+
+- Status: `Planned` (recommended to start in `v0.3.1`)
+- Problem statement:
+  - Some onboarded repos are Jenkins-primary and may not emit GitHub `workflow_run` failures, so PipelineHealer receives no trigger despite webhook allowlisting.
+- Recommended option:
+  - Build a signed Jenkins bridge ingestion path into PipelineHealer first (`v0.3.1`) before full native Jenkins adapter work.
+- Why this option:
+  - Reuses existing diagnosis/remediation pipeline quickly.
+  - Preserves current policy/audit model.
+  - Avoids blocking on full provider abstraction before demo/operator value is realized.
+- Follow-on option (later):
+  - Native Jenkins provider adapter (`v0.5.x`) for richer capabilities (job replay, artifact retrieval, deeper stage metadata).
+- Guardrails:
+  - Signed payload verification + replay protection.
+  - Explicit source attribution (`jenkins_bridge`) in activity evidence.
+  - Issue-first default until confidence and idempotency behavior are validated.
+
 ## Backlog Queue (Version-Mapped)
 
 | ID | Item | Recommended Target | Type | Priority | Status |
@@ -280,6 +323,8 @@ These items are researched and tracked, but not approved for build scope yet.
 | `BL-031` | Passive backfill label-mismatch reliability fix (unlabeled fallback matching for ci-doctor findings) ([#35](https://github.com/Canepro/pipelinehealer/issues/35)) | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
 | `BL-032` | Copilot integration research track: evaluate coding-agent + MCP coexistence model without bypassing PipelineHealer governance | `TBD (post-submission)` | minor | Low | Research / Undecided |
 | `BL-033` | Multi-platform notifications research track: Slack/Teams/Rocket.Chat delivery model for non-admin stakeholders with auditable outbound events | `TBD (post-submission)` | minor | Medium | Research / Undecided |
+| `BL-034` | Jenkins bridge ingestion path: signed external CI failure payload -> synthetic PipelineHealer activity (`source_selection_path=jenkins_bridge`) with issue-first defaults | `v0.3.1` | minor | High | Planned |
+| `BL-035` | Native Jenkins provider adapter: deeper job metadata/log/artifact retrieval + rerun/governance parity with existing provider model | `v0.5.x` | minor | Medium | Queued |
 
 ## Definition of Done (Per Version)
 
