@@ -26,7 +26,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Multi-platform notifications research logged as `undecided` in roadmap (`docs/FUTURE_PLAN.md`, `DP-002` / `BL-033`) with phased rollout recommendation (Slack -> Teams -> Rocket.Chat) pending post-submission approval
 - Canary scope expanded (issue-only safe mode) to `canepro/portfolio_website-main`, `canepro/rocketchat-k8s`, and `canepro/central-observability-hub-stack`; Jenkins-primary repo coverage gap identified and now tracked as bridge-first plan (`DP-003`, `BL-034`, target `v0.3.1`)
 - Plan discipline lock active: implement remaining platform-extension work in this order `0.1 MCP completion -> 0.3 Control Center UX -> 0.4 model portability -> 0.2 learning system`; new items are queued in `docs/FUTURE_PLAN.md` backlog unless break/fix or security-critical
-- Release `v0.2.9` is the current submission baseline; submission freeze remains active (bugfix/docs/housekeeping only)
+- Release `v0.2.10` is the current submission baseline; submission freeze remains active (bugfix/docs/housekeeping only)
 - MCP observability upgraded: real per-call tool invocation counting, aggregate MCP latency, and enriched action-audit fields (`provider`, `latency_ms`, `success`, `error_class`); read-only runbook context retrieval (`fetch_runbook_context`) now adds `knowledge-mcp` evidence when available
 - Control Center governance route added: `/app/control-center` provides read-only runtime/auth/provider posture, MCP policy-effect matrix, and centralized audit timeline
 - Settings audit UX reworked: audit/trace now lives only in Control Center as a single governance source
@@ -80,9 +80,9 @@ This is the long-form project tracker for hackathon execution status, submission
 - Kubernetes portability gap tracked for open-source adopters:
   - clean-cluster installs can fail with `ErrImagePull` / `ImagePullBackOff` due to registry access constraints
   - tracking issue: [#37](https://github.com/Canepro/pipelinehealer/issues/37)
-- Settings persistence safety gap tracked for operators:
-  - partial `settings:persist` repo updates could unintentionally replace full `PH_ALLOWED_REPOS`
-  - hotfix issue: [#38](https://github.com/Canepro/pipelinehealer/issues/38), targeted for patch release `v0.2.10`
+- Settings persistence safety hardening released in `v0.2.10`:
+  - `settings:persist` now defaults to non-destructive repo updates (`--repos-add` / `--repos-remove`) with explicit destructive mode (`--repos-replace`)
+  - backend URL guardrails prevent malformed persistence targets; tracking issue [#38](https://github.com/Canepro/pipelinehealer/issues/38) is closed
 - Learning-system 0.2 governance slice started:
   - learning queue API + durable storage
   - Control Center candidate refresh and human decision actions

@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 9ab787c -->
+<!-- LAST_VERIFIED: e7eca10 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -34,6 +34,7 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.2.7` | Released | Submission-readiness/operator-clarity pass (MCP explanation, demo/runbook clarity, docs alignment) |
 | `v0.2.8` | Released | Release integrity hardening + docs/version drift cleanup for submission baseline |
 | `v0.2.9` | Released | GH-AW/MCP hybrid diagnostics mode + passive backfill matching reliability hardening |
+| `v0.2.10` | Released | Settings persistence safety hardening (`PH_ALLOWED_REPOS` mutation safety + URL guardrails) |
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
@@ -140,11 +141,11 @@ Theme: remove MCP vs GH-AW ingestion ambiguity by enabling combined evidence col
 3. Passive backfill regression coverage confirms late ci-doctor issue matching when labels drift.
 4. Release notes and changelog capture real Added/Changed/Fixed entries for `v0.2.9`.
 
-## Patch Track: `v0.2.10` (Unreleased)
+## Released Target: `v0.2.10` (Patch Safety Hardening)
 
 Theme: operator safety hardening for settings persistence and repo allowlist management.
 
-### Candidate Scope
+### Delivered Scope
 
 1. Allowlist mutation safety in `scripts/ph.sh`
    - default repo mutations to additive/remove semantics (`--repos-add`, `--repos-remove`)
@@ -154,7 +155,7 @@ Theme: operator safety hardening for settings persistence and repo allowlist man
    - avoid accidental `curl https:///api/...` fallback behavior
 3. Docs/changelog/release notes sync
    - update operator-facing examples and warnings in `README.md`, `docs/CLI.md`, and `docs/LOCAL_DEMO_RUNBOOK.md`
-   - track implementation and release scope in `BL-037` / [#38](https://github.com/Canepro/pipelinehealer/issues/38)
+   - implementation tracked in `BL-037` / [#38](https://github.com/Canepro/pipelinehealer/issues/38) (closed)
 
 ### Exit Criteria
 
@@ -353,7 +354,7 @@ These items are researched and tracked, but not approved for build scope yet.
 | `BL-034` | Jenkins bridge ingestion path: signed external CI failure payload -> synthetic PipelineHealer activity (`source_selection_path=jenkins_bridge`) with issue-first defaults | `v0.3.1` | minor | High | Planned |
 | `BL-035` | Native Jenkins provider adapter: deeper job metadata/log/artifact retrieval + rerun/governance parity with existing provider model | `v0.5.x` | minor | Medium | Queued |
 | `BL-036` | Public distribution hardening for Kubernetes portability: publish anonymous-pull image path and add clean-cluster pullability gate in release verification to block `ErrImagePull` (`401`/`403`) regressions ([#37](https://github.com/Canepro/pipelinehealer/issues/37)) | `v0.3.1` | patch | High | Planned |
-| `BL-037` | Settings persistence safety hardening: prevent accidental `PH_ALLOWED_REPOS` truncation via additive/remove semantics in `scripts/ph.sh` with explicit replace mode, plus backend URL resolution guardrails ([#38](https://github.com/Canepro/pipelinehealer/issues/38)) | `v0.2.10` | patch | High | In progress |
+| `BL-037` | Settings persistence safety hardening: prevent accidental `PH_ALLOWED_REPOS` truncation via additive/remove semantics in `scripts/ph.sh` with explicit replace mode, plus backend URL resolution guardrails ([#38](https://github.com/Canepro/pipelinehealer/issues/38)) | `v0.2.10` | patch | High | Completed (released in `v0.2.10`) |
 
 ## Definition of Done (Per Version)
 
