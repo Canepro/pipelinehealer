@@ -15,7 +15,8 @@ backend:
   replicaCount: 1
   image:
     # Use digest for immutable releases. If digest is set, tag is ignored.
-    repository: caneprophacr01.azurecr.io/pipelinehealer-backend
+    # GHCR public image path is the default for broad cluster compatibility.
+    repository: ghcr.io/canepro/pipelinehealer-backend
     digest: ""
     tag: ""
     pullPolicy: IfNotPresent
@@ -95,7 +96,8 @@ frontend:
   replicaCount: 1
   image:
     # Use digest for immutable releases. If digest is set, tag is ignored.
-    repository: caneprophacr01.azurecr.io/pipelinehealer-frontend
+    # GHCR public image path is the default for broad cluster compatibility.
+    repository: ghcr.io/canepro/pipelinehealer-frontend
     digest: ""
     tag: ""
     pullPolicy: IfNotPresent

@@ -1,6 +1,6 @@
 # PipelineHealer Hackathon Log
 
-**Last updated:** February 21, 2026
+**Last updated:** February 23, 2026
 
 This is the long-form project tracker for hackathon execution status, submission readiness, and milestone history.
 
@@ -77,6 +77,9 @@ This is the long-form project tracker for hackathon execution status, submission
 - Kubernetes portability added as a secondary target:
   - Helm chart shipped under `charts/pipelinehealer`
   - operator runbook added (`docs/KUBERNETES_HELM_RUNBOOK.md`)
+- Kubernetes portability gap tracked for open-source adopters:
+  - clean-cluster installs can fail with `ErrImagePull` / `ImagePullBackOff` due to registry access constraints
+  - tracking issue: [#37](https://github.com/Canepro/pipelinehealer/issues/37)
 - Learning-system 0.2 governance slice started:
   - learning queue API + durable storage
   - Control Center candidate refresh and human decision actions
@@ -270,6 +273,18 @@ This is the long-form project tracker for hackathon execution status, submission
   - surfaced MCP tool policy effect as configured vs effective outcomes
   - added Logs & Investigation quick-actions with direct runbook link and CLI copy helpers
   - consolidated audit timeline into one place (Control Center), with collapse, load-more, and JSON diff rendering
+
+### Feb 23, 2026
+
+- Reproduced Kubernetes install failure in a clean Kind environment:
+  - Helm release reported `deployed`, but backend/frontend pods remained in `ErrImagePull` / `ImagePullBackOff`
+  - pod events showed registry token authorization failures (`401 Unauthorized` / `403 Forbidden`)
+- Classified as a distribution/release readiness issue (image pullability), not a Helm templating bug.
+- Created tracking issue [#37](https://github.com/Canepro/pipelinehealer/issues/37).
+- Hardened operator docs with explicit pullability gates and top-level install-status warnings:
+  - `README.md`
+  - `docs/KUBERNETES_HELM_RUNBOOK.md`
+  - `docs/RELEASE_RUNBOOK.md`
 
 ### Feb 14, 2026
 

@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: e5242d1 -->
+<!-- LAST_VERIFIED: 07b1239 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -70,6 +70,10 @@ Theme: close the loop between operator verification and PipelineHealer learning,
 - Release helpers now synchronize `charts/pipelinehealer/Chart.yaml`.
 - GitHub OIDC release environment wiring documented and configured.
 - Release publish path validated for `v0.2.4` and `v0.2.5` after subscription/RBAC hardening.
+
+Known portability gap observed in local Kind validation (2026-02-23):
+- random-user-style Helm install can fail with `ErrImagePull`/`ImagePullBackOff` when default registry images are not anonymously pullable.
+- this is a distribution/release gate issue (image visibility + pullability), not a Helm templating issue.
 
 ## Released Target: `v0.2.7` (Submission Readiness + Operator Clarity)
 
@@ -325,6 +329,7 @@ These items are researched and tracked, but not approved for build scope yet.
 | `BL-033` | Multi-platform notifications research track: Slack/Teams/Rocket.Chat delivery model for non-admin stakeholders with auditable outbound events | `TBD (post-submission)` | minor | Medium | Research / Undecided |
 | `BL-034` | Jenkins bridge ingestion path: signed external CI failure payload -> synthetic PipelineHealer activity (`source_selection_path=jenkins_bridge`) with issue-first defaults | `v0.3.1` | minor | High | Planned |
 | `BL-035` | Native Jenkins provider adapter: deeper job metadata/log/artifact retrieval + rerun/governance parity with existing provider model | `v0.5.x` | minor | Medium | Queued |
+| `BL-036` | Public distribution hardening for Kubernetes portability: publish anonymous-pull image path and add clean-cluster pullability gate in release verification to block `ErrImagePull` (`401`/`403`) regressions ([#37](https://github.com/Canepro/pipelinehealer/issues/37)) | `v0.3.1` | patch | High | Planned |
 
 ## Definition of Done (Per Version)
 

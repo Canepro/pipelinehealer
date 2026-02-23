@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: f9eb981 -->
+<!-- LAST_VERIFIED: 07b1239 -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -20,7 +20,8 @@ Current release automation:
 - synced manifests: `backend/pyproject.toml`, `frontend/package.json`, `charts/pipelinehealer/Chart.yaml` (`version` + `appVersion`)
 - changelog source: `CHANGELOG.md`
 - release workflow trigger: git tag `vX.Y.Z`
-- release workflow output: GitHub release + ACR images for both tags (`vX.Y.Z` and `X.Y.Z`) + digest references
+- release workflow output: GitHub release + GHCR images for both tags (`vX.Y.Z` and `X.Y.Z`) + digest references (`release_images.md`)
+- optional release output (when Azure secrets are configured): mirrored ACR images for Azure promotion flows
 
 ## Choose Release Type
 
@@ -30,18 +31,11 @@ Current release automation:
 | `minor` | new features/capabilities, backward-compatible behavior additions |
 | `major` | breaking changes, removed/changed contracts |
 
-## GitHub/Azure Prerequisites (Required)
+## GitHub Prerequisites (Required)
 
 Configure these repository secrets for `.github/workflows/release.yml`:
 
-- `AZURE_CLIENT_ID`
-- `AZURE_TENANT_ID`
-- `AZURE_SUBSCRIPTION_ID`
-
-Service principal requirements:
-
-- Federated credential for this GitHub repo/environment workflow (OIDC)
-- `AcrPush` role on your target ACR
+- none required for GHCR publishing (workflow uses `GITHUB_TOKEN`)
 
 GitHub requirements:
 
@@ -50,6 +44,19 @@ GitHub requirements:
 Optional repository variable:
 
 - `ACR_NAME` (defaults to `caneprophacr01`)
+
+## Azure Prerequisites (Optional, ACR Mirror + Azure Promotion)
+
+If you want release workflow ACR mirror output and `deploy:release` Azure promotion, configure:
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+
+Service principal requirements (optional Azure path):
+
+- Federated credential for this GitHub repo/environment workflow (OIDC)
+- `AcrPush` role on your target ACR
 
 Frontend auth build variables (set in repository/environment Variables when Entra login is expected in release images):
 
@@ -172,14 +179,20 @@ git ls-remote --tags origin | grep "refs/tags/vX.Y.Z"
 2. Confirm GitHub Actions release workflow succeeded for that tag.
 3. Confirm GitHub Release notes match `CHANGELOG.md` release section and include `Container Images`.
 4. Confirm release asset `release_images.md` exists on the GitHub Release page.
-5. Confirm ACR has both semver tags for backend/frontend:
+5. Confirm GHCR has both semver tags for backend/frontend (public path):
+
+```bash
+echo "Check package versions under https://github.com/orgs/<org>/packages?repo_name=pipelinehealer"
+```
+
+6. Optional Azure check: confirm ACR has both semver tags for backend/frontend:
 
 ```bash
 az acr repository show-tags -n <acr-name> --repository pipelinehealer-backend --orderby time_desc -o tsv | head
 az acr repository show-tags -n <acr-name> --repository pipelinehealer-frontend --orderby time_desc -o tsv | head
 ```
 
-6. Promote the released images to Azure Container Apps (recommended deploy path):
+7. Optional Azure promotion: deploy released ACR images to Azure Container Apps:
 
 ```bash
 bash scripts/ph.sh deploy:release --release-version vX.Y.Z
@@ -192,7 +205,7 @@ Production hardening option:
 bash scripts/ph.sh deploy:release --release-version vX.Y.Z --secure-secrets
 ```
 
-7. If Entra auth is expected, verify frontend bundle auth mode after deploy:
+8. If Entra auth is expected, verify frontend bundle auth mode after deploy:
 
 ```bash
 FRONTEND_URL="https://<frontend-fqdn>"

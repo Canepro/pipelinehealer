@@ -6,7 +6,15 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Changed
+
+- Documented Kubernetes distribution risk for open-source adopters: Helm success alone is not sufficient when image pullability fails (`ErrImagePull` / `ImagePullBackOff`, registry token `401`/`403`).
+- Added explicit random-user pullability gate language to `README.md` and `docs/KUBERNETES_HELM_RUNBOOK.md`.
+- Added release verification guidance in `docs/RELEASE_RUNBOOK.md` to block portability claims when clean-cluster image pulls fail.
+
+### Fixed
+
+- Closed documentation ambiguity where Kubernetes/Helm could appear generally ready despite registry access constraints; now tracked via issue [#37](https://github.com/Canepro/pipelinehealer/issues/37).
 
 ## [v0.2.9] - 2026-02-20
 

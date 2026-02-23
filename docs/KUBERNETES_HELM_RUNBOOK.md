@@ -1,19 +1,31 @@
 # Kubernetes Helm Runbook
 
-<!-- LAST_VERIFIED: ac2b1d4 -->
+<!-- LAST_VERIFIED: 07b1239 -->
 
 This runbook adds Kubernetes as a secondary deployment target while keeping Azure Container Apps as the default path.
+
+## Stop: Read This First
+
+This project is open source, but Kubernetes install is **not automatically random-user-ready** in all environments yet.
+
+Do not treat Helm success output by itself as deployment success. `helm upgrade --install` can return `deployed` while workloads fail to pull images.
+
+Known failure signatures:
+- Pod status: `ErrImagePull` / `ImagePullBackOff`
+- Pod events with registry token failures (`401 Unauthorized`, `403 Forbidden`)
+
+Track status here: [#37](https://github.com/Canepro/pipelinehealer/issues/37)
 
 ## Scope
 
 - Primary production/demo path remains: Azure Container Apps (`bash scripts/ph.sh deploy`)
 - Secondary portability path: Helm chart at `charts/pipelinehealer`
 
-## Required vs Optional (AKS Adopters)
+## Required vs Optional (Cluster Adopters)
 
 | Goal | Required | Optional |
 |---|---|---|
-| Baseline AKS install (key auth) | Helm chart + cluster + registry access, backend secrets (`API_AUTH_KEY`, `ADMIN_API_KEY`, PAT, LLM key), image refs (tag or digest) | Entra config (`ENTRA_*`), frontend `VITE_ENTRA_*` |
+| Baseline cluster install (key auth) | Helm chart + cluster, backend secrets (`API_AUTH_KEY`, `ADMIN_API_KEY`, PAT, LLM key), image refs (tag or digest) reachable by nodes | Entra config (`ENTRA_*`), frontend `VITE_ENTRA_*` |
 | Entra login session in UI | Backend auth mode/config (`AUTH_MODE=hybrid` or `entra` + `ENTRA_*`) and frontend image built with `VITE_AUTH_MODE=entra` | Key headers for runtime API access when using strict `entra` |
 | Migration/testing posture (recommended) | `AUTH_MODE=hybrid` so both key and Entra session auth are valid | Move later to strict `AUTH_MODE=entra` after client rollout |
 
@@ -25,7 +37,7 @@ Important:
 
 - Kubernetes cluster (any CNCF-conformant distro)
 - `kubectl` + `helm` installed
-- Registry access to backend/frontend images
+- Node egress to GHCR (default) or credentials for your private registry override
 - A populated `values` override file with real secrets
 
 ## Chart Location
@@ -33,10 +45,28 @@ Important:
 - Chart: `charts/pipelinehealer`
 - Defaults: `charts/pipelinehealer/values.yaml`
 
+## Public OCI Chart (Recommended)
+
+When chart artifacts are available in GHCR, install directly from OCI:
+
+```bash
+helm upgrade --install pipelinehealer oci://ghcr.io/canepro/charts/pipelinehealer \
+  --version X.Y.Z \
+  --namespace pipelinehealer \
+  --create-namespace \
+  -f values.prod.yaml
+```
+
+If you are iterating locally from source, install from `./charts/pipelinehealer` as shown below.
+
 ## Quick Start
 
+Important:
+- A successful Helm release creation is necessary but not sufficient.
+- Rollout and image-pull verification are mandatory acceptance checks.
+
 1. Select image source.
-   - Recommended: immutable release digests from GitHub Release asset `release_images.md`.
+   - Recommended: immutable GHCR release digests from GitHub Release asset `release_images.md`.
    - Alternative: your own custom-built images.
 2. Create a values override file (example below).
 3. Install/upgrade:
@@ -68,7 +98,7 @@ curl -sS http://127.0.0.1:8000/health
 ```yaml
 backend:
   image:
-    repository: caneprophacr01.azurecr.io/pipelinehealer-backend
+    repository: ghcr.io/canepro/pipelinehealer-backend
     tag: "vX.Y.Z"
     digest: ""
   env:
@@ -93,7 +123,7 @@ backend:
 
 frontend:
   image:
-    repository: caneprophacr01.azurecr.io/pipelinehealer-frontend
+    repository: ghcr.io/canepro/pipelinehealer-frontend
     tag: "vX.Y.Z"
     digest: ""
 
@@ -109,7 +139,7 @@ ingress:
 
 If `digest` is set, the chart uses `repository@digest` and ignores `tag`.
 
-## Entra on AKS (Important)
+## Entra on Kubernetes (Important)
 
 To make `Use Login Session` work on AKS:
 
@@ -141,14 +171,41 @@ Use release digests for reproducible installs:
 ```yaml
 backend:
   image:
-    repository: caneprophacr01.azurecr.io/pipelinehealer-backend
+    repository: ghcr.io/canepro/pipelinehealer-backend
     digest: "sha256:<backend-digest-from-release_images.md>"
 
 frontend:
   image:
-    repository: caneprophacr01.azurecr.io/pipelinehealer-frontend
+    repository: ghcr.io/canepro/pipelinehealer-frontend
     digest: "sha256:<frontend-digest-from-release_images.md>"
 ```
+
+## Private Registry Override (Optional)
+
+If your cluster must pull from a private registry (for example ACR/ECR/GCR), override both image repositories and configure `imagePullSecrets`:
+
+```yaml
+imagePullSecrets:
+  - name: regcred
+
+backend:
+  image:
+    repository: <private-registry>/pipelinehealer-backend
+
+frontend:
+  image:
+    repository: <private-registry>/pipelinehealer-frontend
+```
+
+## Random-User Pullability Gate (Required)
+
+Before claiming "any user can set this up on Kubernetes", validate from a clean cluster:
+
+1. `kubectl -n pipelinehealer get pods` shows backend/frontend `Running` (no `ErrImagePull` / `ImagePullBackOff`).
+2. `kubectl -n pipelinehealer describe pod <pod>` has no token-fetch failures (`401 Unauthorized`, `403 Forbidden`).
+3. `kubectl -n pipelinehealer rollout status` succeeds for both deployments.
+
+If any gate fails, the setup is not random-user-ready and docs/release notes must state required registry access explicitly.
 
 Or pin by semver tag:
 
@@ -177,7 +234,7 @@ curl http://127.0.0.1:8000/health
 - Use repo allowlists (`PH_ALLOWED_REPOS`, `MCP_REPO_ALLOWLIST`) before enabling wider automation.
 - Use `docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md` for provider migration/rollback steps.
 
-## Common AKS Auth Pitfall
+## Common Auth Pitfall
 
 Symptom:
 - UI sign-in succeeds, but `/settings` or `/control-center` shows `401 Invalid or missing admin API key` when using session login.

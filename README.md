@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 004655e -->
+<!-- LAST_VERIFIED: 07b1239 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -36,6 +36,21 @@ This repository is the hackathon submission baseline, designed for continued pro
 - Deployment model: Azure-first, using immutable release images (`bash scripts/ph.sh deploy:release --release-version vX.Y.Z`)
 - Operator docs: `docs/DEMO_SCRIPT.md`, `docs/LOCAL_DEMO_RUNBOOK.md`, `docs/RELEASE_RUNBOOK.md`
 
+## Kubernetes Install Status (Important)
+
+As of **February 23, 2026**, Kubernetes/Helm setup exists, but random-user "clone + helm install" is **not yet guaranteed** in every environment.
+
+Why:
+- image pull success depends on registry/package accessibility from cluster nodes
+- Helm can report `STATUS: deployed` while pods still fail to start
+
+What failure looks like:
+- pod status: `ErrImagePull` / `ImagePullBackOff`
+- pod events: registry token failures like `401 Unauthorized` or `403 Forbidden`
+
+Treat Kubernetes as random-user-ready only after the pullability gate in `docs/KUBERNETES_HELM_RUNBOOK.md` passes on a clean cluster.
+Tracking issue: [#37](https://github.com/Canepro/pipelinehealer/issues/37).
+
 ### Evidence from a real incident
 
 PipelineHealer already caught and classified a real release-pipeline failure end to end:
@@ -49,7 +64,8 @@ PipelineHealer already caught and classified a real release-pipeline failure end
 Azure is the default deployment path for hackathon requirements, but the runtime is portable:
 - backend API commands can target any reachable backend via `PH_BACKEND_URL`
 - model provider can be Azure OpenAI or OpenAI-compatible (`LLM_PROVIDER`)
-- Kubernetes is supported via Helm as a secondary deployment target (`charts/pipelinehealer`)
+- Kubernetes is supported via Helm as a secondary deployment target (`charts/pipelinehealer`) with GHCR-first image defaults
+  - registry pullability remains a release gate for random-user installs; do not treat successful Helm output alone as proof
 
 ## Architecture
 
@@ -295,7 +311,7 @@ bash scripts/release.sh patch
 ```
 
 Tag-based release publishing is automated by `.github/workflows/release.yml` on `vX.Y.Z` tags.
-Each release tag publishes immutable ACR images for backend/frontend using both `vX.Y.Z` and `X.Y.Z` tags, plus digest references in release notes.
+Each release tag publishes immutable GHCR images for backend/frontend using both `vX.Y.Z` and `X.Y.Z` tags, plus digest references in `release_images.md` (ACR publish remains optional for Azure promotion flows).
 Recommended Azure promotion command after release: `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`.
 
 ## Security and governance defaults

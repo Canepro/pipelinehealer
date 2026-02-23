@@ -8,13 +8,14 @@ on:
 permissions:
   contents: write
   id-token: write
+  packages: write
 
 env:
   ACR_NAME: ${{ vars.ACR_NAME || 'caneprophacr01' }}
 
 jobs:
   publish:
-    name: Publish GitHub Release + ACR Images
+    name: Publish GitHub Release + Container Images
     runs-on: ubuntu-latest
     environment: release
     steps:
@@ -43,7 +44,8 @@ jobs:
           echo "version=$version" >>"$GITHUB_OUTPUT"
           echo "release_tag=$TAG_NAME" >>"$GITHUB_OUTPUT"
 
-      - name: Validate Azure OIDC secrets
+      - name: Resolve Azure ACR publish mode
+        id: azure_mode
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -53,12 +55,16 @@ jobs:
           missing=0
           for key in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
             if [[ -z "${!key:-}" ]]; then
-              echo "::error::Missing required repository secret: ${key}"
+              echo "::notice::Optional Azure secret missing: ${key}"
               missing=1
             fi
           done
-          if [[ "$missing" -ne 0 ]]; then
-            exit 1
+          if [[ "$missing" -eq 0 ]]; then
+            echo "enabled=true" >>"$GITHUB_OUTPUT"
+            echo "ACR publish enabled."
+          else
+            echo "enabled=false" >>"$GITHUB_OUTPUT"
+            echo "ACR publish disabled; GHCR public publish remains enabled."
           fi
 
       - name: Validate frontend auth build variables
@@ -95,7 +101,29 @@ jobs:
             fi
           fi
 
+      - name: Resolve GHCR namespace
+        id: ghcr
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          owner_lc="$(echo "${REPO_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          if [[ -z "$owner_lc" ]]; then
+            echo "Unable to resolve GitHub repository owner." >&2
+            exit 1
+          fi
+          echo "owner_lc=$owner_lc" >>"$GITHUB_OUTPUT"
+          echo "base=ghcr.io/${owner_lc}" >>"$GITHUB_OUTPUT"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Azure login (OIDC)
+        if: steps.azure_mode.outputs.enabled == 'true'
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -104,6 +132,7 @@ jobs:
 
       - name: Login to ACR
         id: acr
+        if: steps.azure_mode.outputs.enabled == 'true'
         env:
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
@@ -145,6 +174,44 @@ jobs:
           echo "$token" | docker login "$login_server" --username 00000000-0000-0000-0000-000000000000 --password-stdin
           echo "login_server=$login_server" >>"$GITHUB_OUTPUT"
 
+      - name: Prepare image tags
+        id: image_tags
+        env:
+          GHCR_BASE: ${{ steps.ghcr.outputs.base }}
+          ACR_ENABLED: ${{ steps.azure_mode.outputs.enabled }}
+          ACR_LOGIN_SERVER: ${{ steps.acr.outputs.login_server }}
+          RELEASE_TAG: ${{ steps.meta.outputs.release_tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          backend_tags="$(printf '%s\n%s' \
+            "${GHCR_BASE}/pipelinehealer-backend:${RELEASE_TAG}" \
+            "${GHCR_BASE}/pipelinehealer-backend:${VERSION}")"
+          frontend_tags="$(printf '%s\n%s' \
+            "${GHCR_BASE}/pipelinehealer-frontend:${RELEASE_TAG}" \
+            "${GHCR_BASE}/pipelinehealer-frontend:${VERSION}")"
+
+          if [[ "${ACR_ENABLED}" == "true" && -n "${ACR_LOGIN_SERVER}" ]]; then
+            backend_tags="$(printf '%s\n%s\n%s' \
+              "${backend_tags}" \
+              "${ACR_LOGIN_SERVER}/pipelinehealer-backend:${RELEASE_TAG}" \
+              "${ACR_LOGIN_SERVER}/pipelinehealer-backend:${VERSION}")"
+            frontend_tags="$(printf '%s\n%s\n%s' \
+              "${frontend_tags}" \
+              "${ACR_LOGIN_SERVER}/pipelinehealer-frontend:${RELEASE_TAG}" \
+              "${ACR_LOGIN_SERVER}/pipelinehealer-frontend:${VERSION}")"
+          fi
+
+          {
+            echo "backend<<EOF"
+            printf '%s\n' "${backend_tags}"
+            echo "EOF"
+            echo "frontend<<EOF"
+            printf '%s\n' "${frontend_tags}"
+            echo "EOF"
+          } >>"$GITHUB_OUTPUT"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -155,9 +222,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: |
-            ${{ steps.acr.outputs.login_server }}/pipelinehealer-backend:${{ steps.meta.outputs.release_tag }}
-            ${{ steps.acr.outputs.login_server }}/pipelinehealer-backend:${{ steps.meta.outputs.version }}
+          tags: ${{ steps.image_tags.outputs.backend }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -178,21 +243,64 @@ jobs:
             VITE_ENTRA_POST_LOGOUT_REDIRECT_URI=${{ vars.VITE_ENTRA_POST_LOGOUT_REDIRECT_URI || '' }}
             VITE_API_URL=${{ vars.VITE_API_URL || '' }}
             VITE_API_TIMEOUT_MS=${{ vars.VITE_API_TIMEOUT_MS || '15000' }}
-          tags: |
-            ${{ steps.acr.outputs.login_server }}/pipelinehealer-frontend:${{ steps.meta.outputs.release_tag }}
-            ${{ steps.acr.outputs.login_server }}/pipelinehealer-frontend:${{ steps.meta.outputs.version }}
+          tags: ${{ steps.image_tags.outputs.frontend }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Login to GHCR for Helm OCI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_TOKEN}" | helm registry login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+
+      - name: Publish Helm chart to GHCR OCI
+        id: helm_chart
+        env:
+          OWNER_LC: ${{ steps.ghcr.outputs.owner_lc }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          chart_archive="$(helm package charts/pipelinehealer --destination . | awk '{print $NF}')"
+          helm push "${chart_archive}" "oci://ghcr.io/${OWNER_LC}/charts"
+          echo "ref=oci://ghcr.io/${OWNER_LC}/charts/pipelinehealer:${VERSION}" >>"$GITHUB_OUTPUT"
+
       - name: Generate release image references
+        env:
+          GHCR_BASE: ${{ steps.ghcr.outputs.base }}
+          ACR_ENABLED: ${{ steps.azure_mode.outputs.enabled }}
+          ACR_LOGIN_SERVER: ${{ steps.acr.outputs.login_server }}
+          RELEASE_TAG: ${{ steps.meta.outputs.release_tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          BACKEND_DIGEST: ${{ steps.backend_image.outputs.digest }}
+          FRONTEND_DIGEST: ${{ steps.frontend_image.outputs.digest }}
+          HELM_CHART_REF: ${{ steps.helm_chart.outputs.ref }}
         run: |
           {
-            echo "- Backend tag (\`${{ steps.meta.outputs.release_tag }}\`): \`${{ steps.acr.outputs.login_server }}/pipelinehealer-backend:${{ steps.meta.outputs.release_tag }}\`"
-            echo "- Backend tag (\`${{ steps.meta.outputs.version }}\`): \`${{ steps.acr.outputs.login_server }}/pipelinehealer-backend:${{ steps.meta.outputs.version }}\`"
-            echo "- Backend digest: \`${{ steps.acr.outputs.login_server }}/pipelinehealer-backend@${{ steps.backend_image.outputs.digest }}\`"
-            echo "- Frontend tag (\`${{ steps.meta.outputs.release_tag }}\`): \`${{ steps.acr.outputs.login_server }}/pipelinehealer-frontend:${{ steps.meta.outputs.release_tag }}\`"
-            echo "- Frontend tag (\`${{ steps.meta.outputs.version }}\`): \`${{ steps.acr.outputs.login_server }}/pipelinehealer-frontend:${{ steps.meta.outputs.version }}\`"
-            echo "- Frontend digest: \`${{ steps.acr.outputs.login_server }}/pipelinehealer-frontend@${{ steps.frontend_image.outputs.digest }}\`"
+            echo "### GHCR (Public)"
+            echo "- Backend tag (\`${RELEASE_TAG}\`): \`${GHCR_BASE}/pipelinehealer-backend:${RELEASE_TAG}\`"
+            echo "- Backend tag (\`${VERSION}\`): \`${GHCR_BASE}/pipelinehealer-backend:${VERSION}\`"
+            echo "- Backend digest: \`${GHCR_BASE}/pipelinehealer-backend@${BACKEND_DIGEST}\`"
+            echo "- Frontend tag (\`${RELEASE_TAG}\`): \`${GHCR_BASE}/pipelinehealer-frontend:${RELEASE_TAG}\`"
+            echo "- Frontend tag (\`${VERSION}\`): \`${GHCR_BASE}/pipelinehealer-frontend:${VERSION}\`"
+            echo "- Frontend digest: \`${GHCR_BASE}/pipelinehealer-frontend@${FRONTEND_DIGEST}\`"
+            echo
+            echo "### Helm OCI (GHCR)"
+            echo "- Chart: \`${HELM_CHART_REF}\`"
+            if [[ "${ACR_ENABLED}" == "true" && -n "${ACR_LOGIN_SERVER}" ]]; then
+              echo
+              echo "### ACR (Optional Azure Mirror)"
+              echo "- Backend tag (\`${RELEASE_TAG}\`): \`${ACR_LOGIN_SERVER}/pipelinehealer-backend:${RELEASE_TAG}\`"
+              echo "- Backend tag (\`${VERSION}\`): \`${ACR_LOGIN_SERVER}/pipelinehealer-backend:${VERSION}\`"
+              echo "- Backend digest: \`${ACR_LOGIN_SERVER}/pipelinehealer-backend@${BACKEND_DIGEST}\`"
+              echo "- Frontend tag (\`${RELEASE_TAG}\`): \`${ACR_LOGIN_SERVER}/pipelinehealer-frontend:${RELEASE_TAG}\`"
+              echo "- Frontend tag (\`${VERSION}\`): \`${ACR_LOGIN_SERVER}/pipelinehealer-frontend:${VERSION}\`"
+              echo "- Frontend digest: \`${ACR_LOGIN_SERVER}/pipelinehealer-frontend@${FRONTEND_DIGEST}\`"
+            fi
           } > release_images.md
 
       - name: Extract release notes from CHANGELOG
