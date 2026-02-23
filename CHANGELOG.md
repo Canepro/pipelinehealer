@@ -6,7 +6,13 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Changed
+
+- `9f93ad4` Synced roadmap/log tracking docs to mark `v0.2.10` as released baseline and close `BL-037` tracking.
+
+### Fixed
+
+- Stabilized `backend/tests/test_agent_factory.py` compatibility tests by stubbing `agent_framework` through `sys.modules`, avoiding CI-only import failures caused by upstream observability dependency mismatch during monkeypatch resolution.
 
 ## [v0.2.10] - 2026-02-23
 

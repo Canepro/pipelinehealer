@@ -1,5 +1,8 @@
 """Compatibility tests for cloud agent creation helpers."""
 
+import sys
+import types
+
 from src.agents.base import _as_agent_compat
 
 
@@ -29,7 +32,11 @@ def test_as_agent_compat_falls_back_to_chat_agent(monkeypatch) -> None:
             self.instructions = instructions
             self.name = name
 
-    monkeypatch.setattr("agent_framework.ChatAgent", _FakeChatAgent, raising=False)
+    monkeypatch.setitem(
+        sys.modules,
+        "agent_framework",
+        types.SimpleNamespace(ChatAgent=_FakeChatAgent),
+    )
 
     client = _ClientWithoutAsAgent()
     result = _as_agent_compat(client, name="demo", instructions="test")
@@ -50,8 +57,11 @@ def test_as_agent_compat_falls_back_to_agent_when_chat_agent_missing(monkeypatch
             self.instructions = instructions
             self.name = name
 
-    monkeypatch.delattr("agent_framework.ChatAgent", raising=False)
-    monkeypatch.setattr("agent_framework.Agent", _FakeAgent, raising=False)
+    monkeypatch.setitem(
+        sys.modules,
+        "agent_framework",
+        types.SimpleNamespace(Agent=_FakeAgent),
+    )
 
     client = _ClientWithoutAsAgent()
     result = _as_agent_compat(client, name="demo", instructions="test")
