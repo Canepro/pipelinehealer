@@ -1,6 +1,6 @@
 # Feature: Auth And Access
 
-<!-- LAST_VERIFIED: a18e44e -->
+<!-- LAST_VERIFIED: eaa47f7 -->
 
 This guide explains how users authenticate to PipelineHealer and how admin-only actions are protected.
 

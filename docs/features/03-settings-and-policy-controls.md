@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: 879c051 -->
+<!-- LAST_VERIFIED: eaa47f7 -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 

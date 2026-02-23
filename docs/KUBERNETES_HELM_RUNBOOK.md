@@ -1,6 +1,6 @@
 # Kubernetes Helm Runbook
 
-<!-- LAST_VERIFIED: 879c051 -->
+<!-- LAST_VERIFIED: eaa47f7 -->
 
 This runbook adds Kubernetes as a secondary deployment target while keeping Azure Container Apps as the default path.
 

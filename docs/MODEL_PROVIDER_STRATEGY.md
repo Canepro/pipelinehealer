@@ -1,6 +1,6 @@
 # Model Provider Strategy
 
-<!-- LAST_VERIFIED: 647ddde -->
+<!-- LAST_VERIFIED: eaa47f7 -->
 
 PipelineHealer is Azure-first today for hackathon delivery and operational simplicity, but is being structured to avoid provider lock-in.
 

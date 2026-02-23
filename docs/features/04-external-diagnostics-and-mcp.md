@@ -1,6 +1,6 @@
 # Feature: External Diagnostics And MCP
 
-<!-- LAST_VERIFIED: dd885d8 -->
+<!-- LAST_VERIFIED: eaa47f7 -->
 
 This guide explains how PipelineHealer ingests external findings and how GitHub MCP is selected, gated, and verified in real runs.
 
