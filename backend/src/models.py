@@ -286,7 +286,10 @@ class AppSettingsView(BaseModel):
     environment: str
     storage_backend: str
     heal_mode: str
+    auto_apply_remediation: bool
     auto_create_pr: bool
+    auto_create_issue: bool
+    auto_retry_workflow: bool
     auto_create_tracking_issue_for_prs: bool
     max_remediation_attempts: int
     pipeline_step_timeout_seconds: float
@@ -338,7 +341,10 @@ class AdminSettingsUpdateRequest(BaseModel):
     """Admin runtime settings overrides (in-memory until process restart)."""
 
     heal_mode: str | None = None
+    auto_apply_remediation: bool | None = None
     auto_create_pr: bool | None = None
+    auto_create_issue: bool | None = None
+    auto_retry_workflow: bool | None = None
     auto_create_tracking_issue_for_prs: bool | None = None
     max_remediation_attempts: int | None = Field(default=None, ge=1, le=50)
     verify_webhook_signature_in_development: bool | None = None

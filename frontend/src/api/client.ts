@@ -120,7 +120,10 @@ export interface AppSettings {
   environment: string
   storage_backend: string
   heal_mode: string
+  auto_apply_remediation: boolean
   auto_create_pr: boolean
+  auto_create_issue: boolean
+  auto_retry_workflow: boolean
   auto_create_tracking_issue_for_prs: boolean
   max_remediation_attempts: number
   pipeline_step_timeout_seconds: number
@@ -200,8 +203,11 @@ export interface AdminSettingsAuditEntry {
 }
 
 export interface AdminSettingsUpdate {
-  heal_mode?: 'safe' | 'demo' | 'debug'
+  heal_mode?: 'safe' | 'demo' | 'freestyle' | 'debug'
+  auto_apply_remediation?: boolean
   auto_create_pr?: boolean
+  auto_create_issue?: boolean
+  auto_retry_workflow?: boolean
   auto_create_tracking_issue_for_prs?: boolean
   max_remediation_attempts?: number
   verify_webhook_signature_in_development?: boolean

@@ -466,10 +466,24 @@ export default function ControlCenterPage() {
 
   const remediationPolicySummary = (() => {
     if (!settings) return 'N/A'
-    if (!settings.auto_create_pr) return 'Issue-only path (automatic PR creation is disabled).'
-    if (settings.heal_mode === 'safe') return 'Safe mode: conservative PR path with policy gating.'
-    if (settings.heal_mode === 'demo') return 'Demo mode: aggressive automation for demonstrations.'
-    return 'Debug mode: safe behavior with increased diagnostic verbosity.'
+    if (!settings.auto_apply_remediation) {
+      return 'Plan-only mode: remediation actions are generated but not executed.'
+    }
+    const enabledActions: string[] = []
+    if (settings.auto_create_pr) enabledActions.push('PR')
+    if (settings.auto_create_issue) enabledActions.push('Issue')
+    if (settings.auto_retry_workflow) enabledActions.push('Retry')
+    const actionsLabel = enabledActions.length > 0 ? enabledActions.join(', ') : 'none'
+    if (settings.heal_mode === 'safe') {
+      return `Safe mode: conservative planning with execution enabled for [${actionsLabel}].`
+    }
+    if (settings.heal_mode === 'demo') {
+      return `Demo mode: aggressive planning with execution enabled for [${actionsLabel}].`
+    }
+    if (settings.heal_mode === 'freestyle') {
+      return `Freestyle mode: aggressive open-ended planning with execution enabled for [${actionsLabel}].`
+    }
+    return `Debug mode: safe planning with verbose diagnostics; execution enabled for [${actionsLabel}].`
   })()
 
   const mcpWriteSummary = (() => {
@@ -677,7 +691,19 @@ export default function ControlCenterPage() {
                   title="Runtime Posture"
                   items={[
                     { label: 'Heal mode', value: settings.heal_mode },
+                    {
+                      label: 'Auto-apply remediation',
+                      value: settings.auto_apply_remediation ? 'Yes' : 'No',
+                    },
                     { label: 'Auto-create PR', value: settings.auto_create_pr ? 'Yes' : 'No' },
+                    {
+                      label: 'Auto-create Issue',
+                      value: settings.auto_create_issue ? 'Yes' : 'No',
+                    },
+                    {
+                      label: 'Auto-retry Workflow',
+                      value: settings.auto_retry_workflow ? 'Yes' : 'No',
+                    },
                     { label: 'Max attempts', value: settings.max_remediation_attempts },
                     { label: 'Repo allowlist', value: settings.ph_allowed_repos.length },
                   ]}

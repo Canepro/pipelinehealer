@@ -19,8 +19,17 @@ export default function RuntimePolicyBanner({
             <h2 className="text-sm font-semibold text-[var(--ph-text)]">Active Policy</h2>
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline">Mode: {data.heal_mode}</Badge>
+              <Badge variant={data.auto_apply_remediation ? 'destructive' : 'success'}>
+                Apply: {data.auto_apply_remediation ? 'ON' : 'DRY-RUN'}
+              </Badge>
               <Badge variant={data.auto_create_pr ? 'destructive' : 'success'}>
-                PR Creation: {data.auto_create_pr ? 'ON' : 'OFF'}
+                PR: {data.auto_create_pr ? 'ON' : 'OFF'}
+              </Badge>
+              <Badge variant={data.auto_create_issue ? 'destructive' : 'success'}>
+                Issue: {data.auto_create_issue ? 'ON' : 'OFF'}
+              </Badge>
+              <Badge variant={data.auto_retry_workflow ? 'destructive' : 'success'}>
+                Retry: {data.auto_retry_workflow ? 'ON' : 'OFF'}
               </Badge>
               <Badge
                 variant={data.ph_allowed_repos.length > 0 ? 'success' : 'destructive'}

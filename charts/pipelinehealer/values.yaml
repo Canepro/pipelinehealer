@@ -43,7 +43,10 @@ backend:
     API_PORT: "8000"
 
     HEAL_MODE: safe
+    AUTO_APPLY_REMEDIATION: "true"
     AUTO_CREATE_PR: "true"
+    AUTO_CREATE_ISSUE: "true"
+    AUTO_RETRY_WORKFLOW: "true"
     AUTO_CREATE_TRACKING_ISSUE_FOR_PRS: "true"
     MAX_REMEDIATION_ATTEMPTS: "20"
 

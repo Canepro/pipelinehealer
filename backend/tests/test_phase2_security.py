@@ -842,6 +842,34 @@ async def test_admin_patch_accepts_hybrid_gh_aw_ingestion_mode(monkeypatch) -> N
 
 
 @pytest.mark.asyncio
+async def test_admin_patch_accepts_freestyle_and_runtime_action_toggles(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    response = await _patch_settings(
+        {
+            "heal_mode": "freestyle",
+            "auto_apply_remediation": False,
+            "auto_create_pr": False,
+            "auto_create_issue": True,
+            "auto_retry_workflow": False,
+        },
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["heal_mode"] == "freestyle"
+    assert body["auto_apply_remediation"] is False
+    assert body["auto_create_pr"] is False
+    assert body["auto_create_issue"] is True
+    assert body["auto_retry_workflow"] is False
+
+
+@pytest.mark.asyncio
 async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
@@ -850,7 +878,10 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
     env_file = tmp_path / ".env"
     env_file.write_text(
         "HEAL_MODE=safe\n"
+        "AUTO_APPLY_REMEDIATION=true\n"
         "AUTO_CREATE_PR=true\n"
+        "AUTO_CREATE_ISSUE=true\n"
+        "AUTO_RETRY_WORKFLOW=true\n"
         "GH_AW_TOOLS_ENABLED=false\n"
         "PH_ALLOWED_REPOS=\n",
         encoding="utf-8",
@@ -862,8 +893,11 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
 
     patch_response = await _patch_settings(
         {
-            "heal_mode": "demo",
+            "heal_mode": "freestyle",
+            "auto_apply_remediation": True,
             "auto_create_pr": False,
+            "auto_create_issue": False,
+            "auto_retry_workflow": False,
             "auto_create_tracking_issue_for_prs": False,
             "max_remediation_attempts": 9,
             "verify_webhook_signature_in_development": True,
@@ -914,8 +948,11 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
     assert "MCP_REPO_ALLOWLIST" in body["persisted_keys"]
 
     persisted_text = env_file.read_text(encoding="utf-8")
-    assert "HEAL_MODE=demo" in persisted_text
+    assert "HEAL_MODE=freestyle" in persisted_text
+    assert "AUTO_APPLY_REMEDIATION=true" in persisted_text
     assert "AUTO_CREATE_PR=false" in persisted_text
+    assert "AUTO_CREATE_ISSUE=false" in persisted_text
+    assert "AUTO_RETRY_WORKFLOW=false" in persisted_text
     assert "AUTO_CREATE_TRACKING_ISSUE_FOR_PRS=false" in persisted_text
     assert "MAX_REMEDIATION_ATTEMPTS=9" in persisted_text
     assert "VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT=true" in persisted_text

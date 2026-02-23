@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 9ab787c -->
+<!-- LAST_VERIFIED: 879c051 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -176,7 +176,7 @@ Webhook sync matches hooks by URL path suffix (`/webhook/github`), not just the 
 | `rollout:canary` | Configure issue-only canary mode for selected repos and attach webhooks |
 
 ```bash
-# Issue-only observation (default: HEAL_MODE=safe, AUTO_CREATE_PR=false)
+# Issue-only mode (default: HEAL_MODE=safe, AUTO_APPLY_REMEDIATION=true, AUTO_CREATE_PR=false, AUTO_CREATE_ISSUE=true, AUTO_RETRY_WORKFLOW=false)
 bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
 
 # Allow PR creation while still using allowlist
@@ -286,7 +286,7 @@ bash scripts/ph.sh settings:persist --from-settings --skip-redeploy
 bash scripts/ph.sh settings:persist --repos-add owner/repo1,owner/repo2
 bash scripts/ph.sh settings:persist --repos-remove owner/legacy-repo
 bash scripts/ph.sh settings:persist --repos-replace owner/repo1,owner/repo2
-bash scripts/ph.sh settings:persist --heal-mode safe --auto-create-pr false
+bash scripts/ph.sh settings:persist --heal-mode safe --auto-apply-remediation true --auto-create-pr false --auto-create-issue true --auto-retry-workflow false
 bash scripts/ph.sh settings:persist --gh-aw-tools-enabled true --gh-aw-ingestion-mode hybrid
 bash scripts/ph.sh settings:persist --external-diagnostics-wait-seconds 60 --external-diagnostics-poll-interval-seconds 15
 bash scripts/ph.sh settings:persist --mcp-enabled true --mcp-provider github --mcp-read-only true
@@ -306,8 +306,11 @@ bash scripts/ph.sh settings:persist --clear-mcp-repo-allowlist
 | `--repos-remove` | CSV | Remove entries from `PH_ALLOWED_REPOS` |
 | `--repos-replace` | CSV | Replace `PH_ALLOWED_REPOS` with the provided list (destructive) |
 | `--clear-repos` | — | Clear `PH_ALLOWED_REPOS` |
-| `--heal-mode` | `safe`, `demo`, `debug` | Set `HEAL_MODE` |
+| `--heal-mode` | `safe`, `demo`, `freestyle`, `debug` | Set `HEAL_MODE` |
+| `--auto-apply-remediation` | `true`, `false` | Set `AUTO_APPLY_REMEDIATION` |
 | `--auto-create-pr` | `true`, `false` | Set `AUTO_CREATE_PR` |
+| `--auto-create-issue` | `true`, `false` | Set `AUTO_CREATE_ISSUE` |
+| `--auto-retry-workflow` | `true`, `false` | Set `AUTO_RETRY_WORKFLOW` |
 | `--max-remediation-attempts` | int | Set `MAX_REMEDIATION_ATTEMPTS` |
 | `--pipeline-step-timeout-seconds` | float | Set `PIPELINE_STEP_TIMEOUT_SECONDS` |
 | `--external-diagnostics-wait-seconds` | float | Set `EXTERNAL_DIAGNOSTICS_WAIT_SECONDS` |
@@ -347,7 +350,7 @@ Examples:
 ```bash
 bash scripts/ph.sh settings:persist:verify --from-settings
 bash scripts/ph.sh settings:persist:verify --from-settings --skip-redeploy
-bash scripts/ph.sh settings:persist:verify --heal-mode safe --auto-create-pr false --skip-redeploy
+bash scripts/ph.sh settings:persist:verify --heal-mode safe --auto-apply-remediation true --auto-create-pr false --auto-create-issue true --auto-retry-workflow false --skip-redeploy
 ```
 
 ### Versioning and Release (Repo Maintenance)
@@ -441,7 +444,7 @@ The same action is available in the UI via the "Backfill Diagnostics" button on 
 
 - **Missing flag values**: All `--flag value` arguments are guarded by `require_arg`. Running `--repo` without a value produces `Error: --repo requires a value argument.` (exit 2) instead of a shell crash.
 - **Unknown arguments**: Unrecognized flags produce a clear message and exit 2.
-- **Enum validation**: `--heal-mode`, `--auto-create-pr`, `--gh-aw-tools-enabled`, `--gh-aw-ingestion-mode`, and `--mcp-provider` validate against allowed values before proceeding.
+- **Enum validation**: `--heal-mode`, `--auto-apply-remediation`, `--auto-create-pr`, `--auto-create-issue`, `--auto-retry-workflow`, `--gh-aw-tools-enabled`, `--gh-aw-ingestion-mode`, and `--mcp-provider` validate against allowed values before proceeding.
 - **Strict mode**: `set -euo pipefail` is enabled throughout. Log grep pipelines use `|| true` to remain tolerant of empty results.
 
 ## Local Mode

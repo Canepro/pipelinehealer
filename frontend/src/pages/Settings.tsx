@@ -42,7 +42,10 @@ export default function SettingsPage() {
     },
     mcp_repo_allowlist: [],
     heal_mode: 'safe',
+    auto_apply_remediation: true,
     auto_create_pr: true,
+    auto_create_issue: true,
+    auto_retry_workflow: true,
     auto_create_tracking_issue_for_prs: true,
     max_remediation_attempts: 3,
     verify_webhook_signature_in_development: false,
@@ -134,7 +137,10 @@ export default function SettingsPage() {
         mcp_tool_policies: form.mcp_tool_policies,
         mcp_repo_allowlist: form.mcp_repo_allowlist,
         heal_mode: form.heal_mode,
+        auto_apply_remediation: form.auto_apply_remediation,
         auto_create_pr: form.auto_create_pr,
+        auto_create_issue: form.auto_create_issue,
+        auto_retry_workflow: form.auto_retry_workflow,
         auto_create_tracking_issue_for_prs: form.auto_create_tracking_issue_for_prs,
         max_remediation_attempts: form.max_remediation_attempts,
         verify_webhook_signature_in_development: form.verify_webhook_signature_in_development,
@@ -365,7 +371,16 @@ export default function SettingsPage() {
               title="Runtime Posture"
               items={[
                 { label: 'Heal mode', value: data.heal_mode },
+                {
+                  label: 'Auto-apply remediation',
+                  value: data.auto_apply_remediation ? 'Yes' : 'No',
+                },
                 { label: 'Auto-create PR', value: data.auto_create_pr ? 'Yes' : 'No' },
+                { label: 'Auto-create Issue', value: data.auto_create_issue ? 'Yes' : 'No' },
+                {
+                  label: 'Auto-retry workflow',
+                  value: data.auto_retry_workflow ? 'Yes' : 'No',
+                },
                 { label: 'Max attempts', value: data.max_remediation_attempts },
               ]}
             />

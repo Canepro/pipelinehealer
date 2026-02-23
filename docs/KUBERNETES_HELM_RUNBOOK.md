@@ -1,6 +1,6 @@
 # Kubernetes Helm Runbook
 
-<!-- LAST_VERIFIED: 07b1239 -->
+<!-- LAST_VERIFIED: 879c051 -->
 
 This runbook adds Kubernetes as a secondary deployment target while keeping Azure Container Apps as the default path.
 
@@ -39,6 +39,10 @@ Important:
 - `kubectl` + `helm` installed
 - Node egress to GHCR (default) or credentials for your private registry override
 - A populated `values` override file with real secrets
+
+Important for open-source adopters:
+- Default chart images are GHCR-hosted. If anonymous pull is blocked for your selected tag/package visibility, pods fail with token `401/403` even when Helm reports `deployed`.
+- In that case, either use pullable public release images or configure `imagePullSecrets`/private registry mirroring before calling the setup random-user-ready.
 
 ## Chart Location
 
@@ -104,6 +108,10 @@ backend:
   env:
     ENVIRONMENT: production
     HEAL_MODE: safe
+    AUTO_APPLY_REMEDIATION: "true"
+    AUTO_CREATE_PR: "false"
+    AUTO_CREATE_ISSUE: "true"
+    AUTO_RETRY_WORKFLOW: "false"
     AUTH_MODE: hybrid
     # Optional for Entra session auth:
     # ENTRA_TENANT_ID: "<tenant-id>"

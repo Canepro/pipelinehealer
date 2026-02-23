@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 9ab787c -->
+<!-- LAST_VERIFIED: 879c051 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -319,8 +319,12 @@ Recommended Azure promotion command after release: `bash scripts/ph.sh deploy:re
 ## Security and governance defaults
 
 - `HEAL_MODE=safe`
+- execution and action controls are independent:
+  - `AUTO_APPLY_REMEDIATION` = global execution gate (`false` means plan-only dry-run)
+  - `AUTO_CREATE_PR`, `AUTO_CREATE_ISSUE`, `AUTO_RETRY_WORKFLOW` = per-action toggles
 - scoped repo allowlists for remediation
 - protected admin settings API with audit trail
 - settings UI uses one-step `Save & Persist` for durable config updates
+- Settings + Control Center expose the same runtime controls for operator verification
 - Entra + API key auth modes (`api_key`, `entra`, `hybrid`)
 - MCP defaults are safe (`MCP_ENABLED=false`, `MCP_READ_ONLY=true`)

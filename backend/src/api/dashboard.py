@@ -25,13 +25,13 @@ from ..models import (
     DashboardStats,
     FailureType,
     LearningPromotionReadiness,
-    LearningVerificationFeedbackRequest,
-    LearningVerificationFeedbackResponse,
-    LearningVerificationOutcome,
     LearningQueueDecisionRequest,
     LearningQueueItem,
     LearningQueueRefreshResponse,
     LearningQueueStatus,
+    LearningVerificationFeedbackRequest,
+    LearningVerificationFeedbackResponse,
+    LearningVerificationOutcome,
     LLMProviderHealthView,
     MCPProviderHealthView,
     RemediationStatus,
@@ -183,7 +183,10 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         environment=settings.environment,
         storage_backend=_get_storage_backend_name(storage),
         heal_mode=settings.heal_mode,
+        auto_apply_remediation=settings.auto_apply_remediation,
         auto_create_pr=settings.auto_create_pr,
+        auto_create_issue=settings.auto_create_issue,
+        auto_retry_workflow=settings.auto_retry_workflow,
         auto_create_tracking_issue_for_prs=settings.auto_create_tracking_issue_for_prs,
         max_remediation_attempts=settings.max_remediation_attempts,
         pipeline_step_timeout_seconds=settings.pipeline_step_timeout_seconds,
@@ -239,7 +242,10 @@ _admin_settings_audit: list[AdminSettingsAuditEntry] = []
 _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES = 200
 _MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = (
     ("heal_mode", "HEAL_MODE"),
+    ("auto_apply_remediation", "AUTO_APPLY_REMEDIATION"),
     ("auto_create_pr", "AUTO_CREATE_PR"),
+    ("auto_create_issue", "AUTO_CREATE_ISSUE"),
+    ("auto_retry_workflow", "AUTO_RETRY_WORKFLOW"),
     ("auto_create_tracking_issue_for_prs", "AUTO_CREATE_TRACKING_ISSUE_FOR_PRS"),
     ("max_remediation_attempts", "MAX_REMEDIATION_ATTEMPTS"),
     (
@@ -783,11 +789,14 @@ def _coerce_bool(value: Any) -> bool:
 def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
     if attr_name == "heal_mode":
         normalized = str(value).strip().lower()
-        if normalized not in {"safe", "demo", "debug"}:
+        if normalized not in {"safe", "demo", "freestyle", "debug"}:
             raise ValueError("invalid heal_mode")
         return normalized
     if attr_name in {
+        "auto_apply_remediation",
         "auto_create_pr",
+        "auto_create_issue",
+        "auto_retry_workflow",
         "auto_create_tracking_issue_for_prs",
         "verify_webhook_signature_in_development",
         "gh_aw_tools_enabled",
@@ -994,10 +1003,10 @@ async def update_app_settings(
 
     if "heal_mode" in changes:
         heal_mode = str(changes["heal_mode"]).strip().lower()
-        if heal_mode not in {"safe", "demo", "debug"}:
+        if heal_mode not in {"safe", "demo", "freestyle", "debug"}:
             raise HTTPException(
                 status_code=422,
-                detail="heal_mode must be one of: safe, demo, debug",
+                detail="heal_mode must be one of: safe, demo, freestyle, debug",
             )
         changes["heal_mode"] = heal_mode
 

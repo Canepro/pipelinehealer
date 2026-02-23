@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: 157ef45 -->
+<!-- LAST_VERIFIED: 879c051 -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -46,6 +46,20 @@ bash scripts/ph.sh settings:persist --from-settings
 Backend API calls used by Save & Persist:
 - `PATCH /api/settings`
 - `POST /api/settings/persist`
+
+## Runtime Action Control Model
+
+Settings and Control Center share the same runtime controls:
+- `heal_mode`: planning strategy (`safe`, `demo`, `freestyle`, `debug`)
+- `auto_apply_remediation`: global execution gate
+  - `false` => plan-only dry-run (no PR/issue/retry side effects)
+- `auto_create_pr`: allow PR artifact publishing
+- `auto_create_issue`: allow issue artifact publishing
+- `auto_retry_workflow`: allow workflow retry action
+
+This separation lets operators run mixed policies safely, for example:
+- issue-first canary: `auto_apply_remediation=true`, `auto_create_pr=false`, `auto_create_issue=true`, `auto_retry_workflow=false`
+- full dry-run audit mode: `auto_apply_remediation=false` (other action toggles are ignored until re-enabled)
 
 Learning queue API calls (Control Center):
 - `GET /api/settings/learning/queue`

@@ -14,8 +14,11 @@ export type SettingsFormState = {
   mcp_max_retries: number
   mcp_tool_policies: Record<string, 'disabled' | 'read_only' | 'write_with_approval' | 'auto'>
   mcp_repo_allowlist: string[]
-  heal_mode: 'safe' | 'demo' | 'debug'
+  heal_mode: 'safe' | 'demo' | 'freestyle' | 'debug'
+  auto_apply_remediation: boolean
   auto_create_pr: boolean
+  auto_create_issue: boolean
+  auto_retry_workflow: boolean
   auto_create_tracking_issue_for_prs: boolean
   max_remediation_attempts: number
   verify_webhook_signature_in_development: boolean
@@ -121,8 +124,18 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
             : 'write_with_approval',
   },
   mcp_repo_allowlist: data.mcp_repo_allowlist ?? [],
-  heal_mode: data.heal_mode === 'demo' ? 'demo' : data.heal_mode === 'debug' ? 'debug' : 'safe',
+  heal_mode:
+    data.heal_mode === 'demo'
+      ? 'demo'
+      : data.heal_mode === 'freestyle'
+        ? 'freestyle'
+        : data.heal_mode === 'debug'
+          ? 'debug'
+          : 'safe',
+  auto_apply_remediation: data.auto_apply_remediation,
   auto_create_pr: data.auto_create_pr,
+  auto_create_issue: data.auto_create_issue,
+  auto_retry_workflow: data.auto_retry_workflow,
   auto_create_tracking_issue_for_prs: data.auto_create_tracking_issue_for_prs,
   max_remediation_attempts: data.max_remediation_attempts,
   verify_webhook_signature_in_development: data.verify_webhook_signature_in_development,
@@ -182,11 +195,17 @@ export const formatAuditTimestampUtc = (timestamp: string) =>
 /** Descriptions for each setting field shown to users. */
 export const SETTING_DESCRIPTIONS: Record<string, string> = {
   heal_mode:
-    'Controls how aggressively PipelineHealer fixes failures. "safe" applies conservative fixes, "demo" is aggressive for demonstrations, "debug" adds verbose logging.',
+    'Controls how aggressively PipelineHealer plans fixes. "safe" is conservative, "demo" is aggressive for demonstrations, "freestyle" is aggressive open-ended automation, and "debug" uses safe behavior with verbose logging.',
+  auto_apply_remediation:
+    'Global execution gate. When off, PipelineHealer runs in dry-run plan mode and does not publish PRs/issues or retry workflows.',
   auto_create_pr:
-    'When enabled, PipelineHealer automatically creates pull requests with proposed fixes for CI failures.',
+    'Allows PipelineHealer to publish pull request artifacts when remediation selects create_pr.',
+  auto_create_issue:
+    'Allows PipelineHealer to publish issue artifacts when remediation selects create_issue or notify.',
+  auto_retry_workflow:
+    'Allows PipelineHealer to trigger retry of failed workflow jobs when remediation selects retry_workflow.',
   auto_create_tracking_issue_for_prs:
-    'Creates a GitHub issue to track each PR-based remediation and auto-closes it when the PR merges.',
+    'Creates a GitHub issue to track each PR-based remediation and auto-closes it when the PR merges (requires Auto-Create Issues).',
   max_remediation_attempts:
     'Maximum number of times PipelineHealer will retry fixing a single failure before giving up.',
   azure_openai_deployment_name:

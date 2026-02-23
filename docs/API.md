@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: dd885d8 -->
+<!-- LAST_VERIFIED: 879c051 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -456,7 +456,10 @@ Returns the current runtime configuration (non-secret values only).
   "environment": "production",
   "storage_backend": "cosmos_db",
   "heal_mode": "safe",
+  "auto_apply_remediation": true,
   "auto_create_pr": true,
+  "auto_create_issue": true,
+  "auto_retry_workflow": true,
   "auto_create_tracking_issue_for_prs": true,
   "max_remediation_attempts": 3,
   "pipeline_step_timeout_seconds": 120.0,
@@ -524,7 +527,10 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 ```json
 {
   "heal_mode": "debug",
+  "auto_apply_remediation": true,
   "auto_create_pr": false,
+  "auto_create_issue": true,
+  "auto_retry_workflow": false,
   "max_remediation_attempts": 5,
   "pipeline_step_timeout_seconds": 180.0,
   "log_prompt_max_chars": 20000,
@@ -540,8 +546,11 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 
 | Field | Type | Constraints |
 |-------|------|-------------|
-| `heal_mode` | string | `safe`, `demo`, or `debug` |
+| `heal_mode` | string | `safe`, `demo`, `freestyle`, or `debug` |
+| `auto_apply_remediation` | bool | Global execution gate (`false` = plan-only dry-run) |
 | `auto_create_pr` | bool | — |
+| `auto_create_issue` | bool | — |
+| `auto_retry_workflow` | bool | — |
 | `auto_create_tracking_issue_for_prs` | bool | — |
 | `max_remediation_attempts` | int | 1–50 |
 | `verify_webhook_signature_in_development` | bool | — |
@@ -678,7 +687,10 @@ Durably persists current mutable runtime settings so they survive backend restar
   "env_file": "",
   "persisted_keys": [
     "HEAL_MODE",
+    "AUTO_APPLY_REMEDIATION",
     "AUTO_CREATE_PR",
+    "AUTO_CREATE_ISSUE",
+    "AUTO_RETRY_WORKFLOW",
     "MAX_REMEDIATION_ATTEMPTS",
     "GH_AW_TOOLS_ENABLED",
     "GH_AW_INGESTION_MODE",
@@ -1213,7 +1225,7 @@ All error responses include a `detail` field:
 
 ```json
 {
-  "detail": "heal_mode must be one of: safe, demo, debug"
+  "detail": "heal_mode must be one of: safe, demo, freestyle, debug"
 }
 ```
 

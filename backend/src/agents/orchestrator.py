@@ -1575,8 +1575,8 @@ class OrchestratorAgent:
                 "default_branch": event.repository.default_branch,
             }
 
-            # Check if auto-creation is enabled
-            dry_run = not self._settings.auto_create_pr
+            # Global execution gate: when disabled, remediation runs in plan-only dry-run mode.
+            dry_run = not self._settings.auto_apply_remediation
 
             with tracer.start_as_current_span("pipeline.step.remediate") as span:
                 t2 = time.monotonic()

@@ -305,7 +305,15 @@ class Settings(BaseSettings):
         default="safe",
         description=(
             "Healing mode: 'safe' (conservative), 'demo' (aggressive, hackathon-friendly), "
-            "or 'debug' (same behavior as safe with verbose diagnostic logging)"
+            "'freestyle' (aggressive open-ended automation), or "
+            "'debug' (same behavior as safe with verbose diagnostic logging)"
+        ),
+    )
+    auto_apply_remediation: bool = Field(
+        default=True,
+        description=(
+            "Global execution gate. When false, PipelineHealer only plans remediation "
+            "actions (dry-run) and does not publish PRs/issues or retry workflows."
         ),
     )
     max_remediation_attempts: int = Field(
@@ -314,11 +322,25 @@ class Settings(BaseSettings):
     )
     auto_create_pr: bool = Field(
         default=True,
-        description="Automatically create PRs for fixes",
+        description="Allow publishing PR artifacts for remediation plans that choose create_pr",
+    )
+    auto_create_issue: bool = Field(
+        default=True,
+        description="Allow publishing issue artifacts for remediation plans that choose create_issue",
+    )
+    auto_retry_workflow: bool = Field(
+        default=True,
+        description=(
+            "Allow automatic rerun of failed workflow jobs for remediation plans that choose "
+            "retry_workflow"
+        ),
     )
     auto_create_tracking_issue_for_prs: bool = Field(
         default=True,
-        description="Create a tracking issue for PR-based remediations and close it automatically on merge",
+        description=(
+            "Create a tracking issue for PR-based remediations and close it automatically on merge "
+            "(requires auto_create_issue=true)"
+        ),
     )
     pipeline_step_timeout_seconds: float = Field(
         default=120.0,

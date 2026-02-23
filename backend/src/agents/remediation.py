@@ -161,6 +161,50 @@ class RemediationAgent:
             details=details,
         )
 
+    def _is_action_enabled(self, action: RemediationAction) -> bool:
+        """Return whether *action* is currently allowed by runtime settings."""
+        if action == RemediationAction.CREATE_PR:
+            return bool(self._settings.auto_create_pr)
+        if action in {RemediationAction.CREATE_ISSUE, RemediationAction.NOTIFY}:
+            return bool(self._settings.auto_create_issue)
+        if action == RemediationAction.RETRY_WORKFLOW:
+            return bool(self._settings.auto_retry_workflow)
+        return True
+
+    def _build_action_disabled_result(self, *, action: RemediationAction) -> RemediationResult:
+        """Return a consistent skip result when an action is policy-disabled."""
+        if action == RemediationAction.CREATE_PR:
+            reason_code = "ACTION_DISABLED_CREATE_PR"
+            detail = (
+                "PR publishing is disabled by runtime policy "
+                "(auto_create_pr=false)."
+            )
+        elif action in {RemediationAction.CREATE_ISSUE, RemediationAction.NOTIFY}:
+            reason_code = "ACTION_DISABLED_CREATE_ISSUE"
+            detail = (
+                "Issue publishing is disabled by runtime policy "
+                "(auto_create_issue=false)."
+            )
+        elif action == RemediationAction.RETRY_WORKFLOW:
+            reason_code = "ACTION_DISABLED_RETRY_WORKFLOW"
+            detail = (
+                "Workflow retries are disabled by runtime policy "
+                "(auto_retry_workflow=false)."
+            )
+        else:
+            reason_code = "ACTION_DISABLED_POLICY"
+            detail = "Action is disabled by runtime policy."
+
+        return RemediationResult(
+            success=True,
+            action_taken=RemediationAction.SKIP,
+            details={
+                "attempted_action": action.value,
+                "reason_code": reason_code,
+                "reason_detail": detail,
+            },
+        )
+
     async def remediate(
         self,
         diagnosis: Diagnosis,
@@ -265,6 +309,15 @@ class RemediationAgent:
         owner = repository_info.get("owner", {}).get("login", "")
         repo = repository_info.get("name", "")
         default_branch = repository_info.get("default_branch", "main")
+
+        if not self._is_action_enabled(plan.action):
+            logger.info(
+                "Skipping remediation action %s for %s/%s due to runtime policy",
+                plan.action.value,
+                owner,
+                repo,
+            )
+            return self._build_action_disabled_result(action=plan.action)
 
         if plan.action == RemediationAction.CREATE_PR:
             return await self._create_pull_request(
@@ -613,7 +666,7 @@ class RemediationAgent:
                     logger.info(f"Updated file: {file_path}")
 
             # Create tracking issue only after we know we can produce a real PR.
-            if self._settings.auto_create_tracking_issue_for_prs:
+            if self._settings.auto_create_tracking_issue_for_prs and self._settings.auto_create_issue:
                 try:
                     issue_title = f"[PipelineHealer] Auto-fix: {plan.pr_title or plan.description}"
                     issue_body = (
@@ -649,6 +702,12 @@ class RemediationAgent:
                         logger.info(f"Created tracking issue: {tracking_issue_url}")
                 except Exception as e:
                     logger.warning(f"Failed to create tracking issue (continuing): {e}")
+            elif self._settings.auto_create_tracking_issue_for_prs and not self._settings.auto_create_issue:
+                logger.info(
+                    "Skipping tracking issue creation for %s/%s because auto_create_issue=false",
+                    owner,
+                    repo,
+                )
 
             # Create the pull request
             pr_body = plan.pr_body or "Automated fix by PipelineHealer"
@@ -712,6 +771,9 @@ class RemediationAgent:
         reason: str,
     ) -> RemediationResult:
         """Create a fallback issue when PR-style remediation can't be applied safely."""
+        if not self._settings.auto_create_issue:
+            return self._build_action_disabled_result(action=RemediationAction.CREATE_ISSUE)
+
         fallback_issue_body = (
             "## Auto-fix Could Not Be Applied\n\n"
             "PipelineHealer planned to open an auto-fix PR, but it could not safely apply changes.\n\n"

@@ -363,6 +363,54 @@ async def test_orchestrator_uses_existing_activity_id() -> None:
 
 
 @pytest.mark.asyncio
+async def test_orchestrator_dry_run_is_controlled_by_auto_apply_remediation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AUTO_APPLY_REMEDIATION", "false")
+    monkeypatch.setenv("AUTO_CREATE_PR", "true")
+    reset_settings()
+
+    storage = InMemoryStorage()
+    gh = FakeGitHubTools()
+    orchestrator = OrchestratorAgent(github_tools=gh, storage=storage)
+
+    async def fake_analyze(owner: str, repo: str, run_id: int):
+        _ = owner, repo, run_id
+        return [
+            LogAnalysis(
+                job_id=1,
+                job_name="build",
+                raw_logs="FAIL",
+                error_lines=["FAIL"],
+                summary="failed",
+            )
+        ]
+
+    async def fake_diagnose(log_analyses, workflow_info=None, external_diagnostics=None):
+        _ = log_analyses, workflow_info, external_diagnostics
+        return Diagnosis(
+            failure_type=FailureType.TEST,
+            confidence=0.9,
+            root_cause="unit test failed",
+            is_auto_fixable=False,
+        )
+
+    seen: dict[str, bool] = {}
+
+    async def fake_remediate(diagnosis, repository_info, workflow_run_id, dry_run=False):
+        _ = diagnosis, repository_info, workflow_run_id
+        seen["dry_run"] = dry_run
+        return RemediationResult(success=True, action_taken=RemediationAction.CREATE_ISSUE)
+
+    orchestrator._log_analyzer.analyze = fake_analyze  # type: ignore[method-assign]
+    orchestrator._diagnosis_agent.diagnose = fake_diagnose  # type: ignore[method-assign]
+    orchestrator._remediation_agent.remediate = fake_remediate  # type: ignore[method-assign]
+
+    await orchestrator.process_workflow_failure(_make_event())
+    assert seen.get("dry_run") is True
+
+
+@pytest.mark.asyncio
 async def test_orchestrator_records_mcp_model_path_and_source_attribution(monkeypatch) -> None:
     monkeypatch.setenv("MCP_ENABLED", "true")
     monkeypatch.setenv("MCP_PROVIDER", "github")

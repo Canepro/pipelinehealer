@@ -352,6 +352,9 @@ export default function AdminControlsForm({
                     <SelectContent>
                       <SelectItem value="safe">Safe — Conservative fixes</SelectItem>
                       <SelectItem value="demo">Demo — Aggressive for demonstrations</SelectItem>
+                      <SelectItem value="freestyle">
+                        Freestyle — Aggressive open-ended automation
+                      </SelectItem>
                       <SelectItem value="debug">Debug — Safe + verbose logging</SelectItem>
                     </SelectContent>
                   </Select>
@@ -374,10 +377,28 @@ export default function AdminControlsForm({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <SwitchField
+                  label="Auto-Apply Remediation"
+                  field="auto_apply_remediation"
+                  checked={form.auto_apply_remediation}
+                  onChange={(v) => setForm((p) => ({ ...p, auto_apply_remediation: v }))}
+                />
+                <SwitchField
                   label="Auto-Create Pull Requests"
                   field="auto_create_pr"
                   checked={form.auto_create_pr}
                   onChange={(v) => setForm((p) => ({ ...p, auto_create_pr: v }))}
+                />
+                <SwitchField
+                  label="Auto-Create Issues"
+                  field="auto_create_issue"
+                  checked={form.auto_create_issue}
+                  onChange={(v) => setForm((p) => ({ ...p, auto_create_issue: v }))}
+                />
+                <SwitchField
+                  label="Auto-Retry Workflows"
+                  field="auto_retry_workflow"
+                  checked={form.auto_retry_workflow}
+                  onChange={(v) => setForm((p) => ({ ...p, auto_retry_workflow: v }))}
                 />
                 <SwitchField
                   label="Auto-Create Tracking Issues"

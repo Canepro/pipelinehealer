@@ -9,10 +9,15 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ### Changed
 
 - `9f93ad4` Synced roadmap/log tracking docs to mark `v0.2.10` as released baseline and close `BL-037` tracking.
+- Separated runtime execution controls so `AUTO_APPLY_REMEDIATION` gates dry-run vs execution while `AUTO_CREATE_PR`, `AUTO_CREATE_ISSUE`, and `AUTO_RETRY_WORKFLOW` independently gate output actions.
+- Extended Settings + Control Center runtime policy surfaces to expose and persist the new action toggles and `heal_mode=freestyle`.
+- Updated `scripts/ph.sh rollout:canary` to enforce explicit conservative canary defaults (issue-first, no retry) under the new control model.
+- Updated operator docs (`README`, `API`, `CLI`, `LOCAL_DEMO_RUNBOOK`, Kubernetes runbook, settings feature guide, future plan) for the `v0.2.11` control-surface and portability clarifications.
 
 ### Fixed
 
 - Stabilized `backend/tests/test_agent_factory.py` compatibility tests by stubbing `agent_framework` through `sys.modules`, avoiding CI-only import failures caused by upstream observability dependency mismatch during monkeypatch resolution.
+- Added regression coverage for settings persistence of new runtime action toggles and orchestrator dry-run gating driven by `AUTO_APPLY_REMEDIATION`.
 
 ## [v0.2.10] - 2026-02-23
 

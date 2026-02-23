@@ -56,9 +56,11 @@ class FixGenerators:
     def set_heal_mode(self, heal_mode: str) -> None:
         """Update healing mode without recreating the generator object."""
         normalized = (heal_mode or "safe").strip().lower()
-        self._heal_mode = normalized if normalized in {"safe", "demo", "debug"} else "safe"
+        self._heal_mode = (
+            normalized if normalized in {"safe", "demo", "freestyle", "debug"} else "safe"
+        )
         # debug behaves like safe for all remediation decisions
-        self._is_demo_mode = self._heal_mode == "demo"
+        self._is_demo_mode = self._heal_mode in {"demo", "freestyle"}
         self._is_debug_mode = self._heal_mode == "debug"
 
     async def generate_fix(

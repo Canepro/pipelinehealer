@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: e7eca10 -->
+<!-- LAST_VERIFIED: 879c051 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -35,6 +35,7 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.2.8` | Released | Release integrity hardening + docs/version drift cleanup for submission baseline |
 | `v0.2.9` | Released | GH-AW/MCP hybrid diagnostics mode + passive backfill matching reliability hardening |
 | `v0.2.10` | Released | Settings persistence safety hardening (`PH_ALLOWED_REPOS` mutation safety + URL guardrails) |
+| `v0.2.11` | Planned | Runtime control-surface separation + canary policy hardening + Kubernetes pullability docs clarity |
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
@@ -163,6 +164,33 @@ Theme: operator safety hardening for settings persistence and repo allowlist man
 2. Destructive replace remains available but explicit.
 3. Command output shows effective allowlist action (`merge`, `remove`, `replace`, `clear`).
 4. Release notes call out behavior change for operators.
+
+## Planned Target: `v0.2.11` (Patch Control-Surface Hardening)
+
+Theme: separate runtime execution controls cleanly for operators and close remaining portability/documentation gaps for random-user Kubernetes installs.
+
+### Planned Scope
+
+1. Runtime policy control separation
+   - decouple global execution gate from PR toggle:
+     - `AUTO_APPLY_REMEDIATION` controls dry-run vs execution
+     - `AUTO_CREATE_PR`, `AUTO_CREATE_ISSUE`, `AUTO_RETRY_WORKFLOW` control per-action outputs
+   - expose/update controls consistently across backend API, Settings UI, and Control Center summaries
+2. Canary behavior stabilization
+   - keep `rollout:canary` deterministic with explicit action toggles (issue-only default without retries)
+3. Kubernetes operator clarity
+   - highlight GHCR token/visibility failure mode (`ErrImagePull` `401/403`) and required pullability gate before portability claims
+   - track portability risk in issue [#37](https://github.com/Canepro/pipelinehealer/issues/37)
+4. Regression protection + docs sync
+   - add/update tests around settings persistence and orchestration dry-run gating
+   - update `README.md`, `docs/API.md`, `docs/CLI.md`, `docs/KUBERNETES_HELM_RUNBOOK.md`, and `docs/features/03-settings-and-policy-controls.md`
+
+### Exit Criteria
+
+1. Operators can set independent execution/output controls from Settings and see the same posture in Control Center.
+2. `rollout:canary` behavior remains conservative and explicit after control decoupling.
+3. Kubernetes portability docs clearly block false "Helm deployed = working" conclusions.
+4. Updated tests pass for settings persistence and remediation dry-run behavior.
 
 ## Active Target: `v0.3.0` (Minor)
 

@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 9ab787c -->
+<!-- LAST_VERIFIED: 879c051 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -458,6 +458,7 @@ bash scripts/ph.sh settings:check            # check current settings
 bash scripts/ph.sh settings:audit --limit 10  # view audit trail
 bash scripts/ph.sh settings:persist:verify --from-settings --skip-redeploy
 bash scripts/ph.sh settings:persist --repos-add owner/repo1,owner/repo2 --skip-redeploy
+bash scripts/ph.sh settings:persist --heal-mode safe --auto-apply-remediation true --auto-create-pr false --auto-create-issue true --auto-retry-workflow false --skip-redeploy
 bash scripts/ph.sh settings:persist --repos-remove owner/legacy-repo --skip-redeploy
 bash scripts/ph.sh logs --tail 100            # view backend logs (docker compose)
 bash scripts/ph.sh backfill                   # trigger diagnostics backfill
