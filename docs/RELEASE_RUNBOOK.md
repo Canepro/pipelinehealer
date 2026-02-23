@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: 07b1239 -->
+<!-- LAST_VERIFIED: 17b4782 -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -155,7 +155,7 @@ bash scripts/ph.sh deploy
 3. Verify warning debt status is documented in:
    - `docs/FUTURE_PLAN.md` (backlog status)
    - `CHANGELOG.md` (`Unreleased` entry)
-4. For `v0.2.3`, backend warning `agent-framework-core[all]` is tracked via issue [#17](https://github.com/Canepro/pipelinehealer/issues/17) and is allowed only as a documented exception.
+4. Historical warning exceptions must remain explicitly documented with linked issue IDs and a target version for closure (example legacy tracker: [#17](https://github.com/Canepro/pipelinehealer/issues/17)).
 
 ## 5) Commit, Tag, Push
 

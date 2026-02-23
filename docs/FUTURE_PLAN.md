@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 879c051 -->
+<!-- LAST_VERIFIED: 17b4782 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -35,7 +35,7 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.2.8` | Released | Release integrity hardening + docs/version drift cleanup for submission baseline |
 | `v0.2.9` | Released | GH-AW/MCP hybrid diagnostics mode + passive backfill matching reliability hardening |
 | `v0.2.10` | Released | Settings persistence safety hardening (`PH_ALLOWED_REPOS` mutation safety + URL guardrails) |
-| `v0.2.11` | Planned | Runtime control-surface separation + canary policy hardening + Kubernetes pullability docs clarity |
+| `v0.2.11` | Released | Runtime control-surface separation + canary policy hardening + Kubernetes pullability docs clarity |
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
@@ -165,11 +165,11 @@ Theme: operator safety hardening for settings persistence and repo allowlist man
 3. Command output shows effective allowlist action (`merge`, `remove`, `replace`, `clear`).
 4. Release notes call out behavior change for operators.
 
-## Planned Target: `v0.2.11` (Patch Control-Surface Hardening)
+## Released Target: `v0.2.11` (Patch Control-Surface Hardening)
 
 Theme: separate runtime execution controls cleanly for operators and close remaining portability/documentation gaps for random-user Kubernetes installs.
 
-### Planned Scope
+### Delivered Scope
 
 1. Runtime policy control separation
    - decouple global execution gate from PR toggle:
