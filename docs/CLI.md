@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: dd885d8 -->
+<!-- LAST_VERIFIED: 9ab787c -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -267,6 +267,11 @@ Behavior notes:
 - Command then calls `POST /api/settings/persist` with `skip_redeploy=true` to record durable persistence in backend storage/audit.
 - Local `.env` write + optional `deploy:env` redeploy still run as before.
 - If backend/API auth is unavailable, command falls back to local `.env` persistence only and prints an explicit unaudited warning.
+- Repo allowlist edits are safe by default:
+  - `--repos-add` (or alias `--repos`) merges into existing `PH_ALLOWED_REPOS`
+  - `--repos-remove` removes entries from existing `PH_ALLOWED_REPOS`
+  - `--repos-replace` is the only destructive full replacement mode
+  - tracking: [#38](https://github.com/Canepro/pipelinehealer/issues/38) (`v0.2.10` patch track)
 
 **Pull from live settings** (snapshots all mutable values):
 
@@ -278,7 +283,9 @@ bash scripts/ph.sh settings:persist --from-settings --skip-redeploy
 **Direct flags** (set specific values):
 
 ```bash
-bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2
+bash scripts/ph.sh settings:persist --repos-add owner/repo1,owner/repo2
+bash scripts/ph.sh settings:persist --repos-remove owner/legacy-repo
+bash scripts/ph.sh settings:persist --repos-replace owner/repo1,owner/repo2
 bash scripts/ph.sh settings:persist --heal-mode safe --auto-create-pr false
 bash scripts/ph.sh settings:persist --gh-aw-tools-enabled true --gh-aw-ingestion-mode hybrid
 bash scripts/ph.sh settings:persist --external-diagnostics-wait-seconds 60 --external-diagnostics-poll-interval-seconds 15
@@ -294,7 +301,10 @@ bash scripts/ph.sh settings:persist --clear-mcp-repo-allowlist
 | Flag | Values | Description |
 |------|--------|-------------|
 | `--from-settings` | — | Pull all mutable settings from live backend |
-| `--repos` | CSV | Set `PH_ALLOWED_REPOS` |
+| `--repos-add` | CSV | Add/merge entries into `PH_ALLOWED_REPOS` (safe default) |
+| `--repos` | CSV | Alias of `--repos-add` |
+| `--repos-remove` | CSV | Remove entries from `PH_ALLOWED_REPOS` |
+| `--repos-replace` | CSV | Replace `PH_ALLOWED_REPOS` with the provided list (destructive) |
 | `--clear-repos` | — | Clear `PH_ALLOWED_REPOS` |
 | `--heal-mode` | `safe`, `demo`, `debug` | Set `HEAL_MODE` |
 | `--auto-create-pr` | `true`, `false` | Set `AUTO_CREATE_PR` |

@@ -80,6 +80,9 @@ This is the long-form project tracker for hackathon execution status, submission
 - Kubernetes portability gap tracked for open-source adopters:
   - clean-cluster installs can fail with `ErrImagePull` / `ImagePullBackOff` due to registry access constraints
   - tracking issue: [#37](https://github.com/Canepro/pipelinehealer/issues/37)
+- Settings persistence safety gap tracked for operators:
+  - partial `settings:persist` repo updates could unintentionally replace full `PH_ALLOWED_REPOS`
+  - hotfix issue: [#38](https://github.com/Canepro/pipelinehealer/issues/38), targeted for patch release `v0.2.10`
 - Learning-system 0.2 governance slice started:
   - learning queue API + durable storage
   - Control Center candidate refresh and human decision actions
@@ -285,6 +288,9 @@ This is the long-form project tracker for hackathon execution status, submission
   - `README.md`
   - `docs/KUBERNETES_HELM_RUNBOOK.md`
   - `docs/RELEASE_RUNBOOK.md`
+- Identified allowlist mutation risk in `settings:persist`:
+  - partial repo updates could silently drop previously allowed repositories (causing webhook deliveries to be accepted but ignored at policy gate)
+  - added tracked hotfix scope in [#38](https://github.com/Canepro/pipelinehealer/issues/38): additive/remove repo mutation modes by default, explicit replace mode, and backend URL resolution guardrails.
 
 ### Feb 14, 2026
 

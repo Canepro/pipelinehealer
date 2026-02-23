@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 07b1239 -->
+<!-- LAST_VERIFIED: 9ab787c -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -228,6 +228,7 @@ From repo root:
 bash scripts/ph.sh help
 bash scripts/ph.sh settings:check
 bash scripts/ph.sh settings:persist:verify --from-settings --skip-redeploy
+bash scripts/ph.sh settings:persist --repos-add owner/repo1,owner/repo2 --skip-redeploy
 bash scripts/ph.sh deploy:release --release-version vX.Y.Z
 bash scripts/ph.sh deploy:env
 bash scripts/ph.sh status
@@ -236,6 +237,7 @@ bash scripts/ph.sh demo:e2e
 ```
 
 Use full command docs for flags and troubleshooting: `docs/CLI.md`.
+For repo allowlist safety: use `--repos-add` / `--repos-remove` by default; reserve `--repos-replace` for intentional full replacement (tracked in [#38](https://github.com/Canepro/pipelinehealer/issues/38)).
 
 ## `ph.sh` Platform Notes
 

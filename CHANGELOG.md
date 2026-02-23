@@ -11,10 +11,13 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - Documented Kubernetes distribution risk for open-source adopters: Helm success alone is not sufficient when image pullability fails (`ErrImagePull` / `ImagePullBackOff`, registry token `401`/`403`).
 - Added explicit random-user pullability gate language to `README.md` and `docs/KUBERNETES_HELM_RUNBOOK.md`.
 - Added release verification guidance in `docs/RELEASE_RUNBOOK.md` to block portability claims when clean-cluster image pulls fail.
+- Hardened `settings:persist` repo-scope behavior: `--repos` now aliases safe additive mode (`--repos-add`), with explicit `--repos-remove` and destructive `--repos-replace` modes.
+- Added backend URL validation in `scripts/ph.sh` settings persistence paths to avoid malformed API targets (for example `https:///api/...`) when Azure FQDN resolution fails.
 
 ### Fixed
 
 - Closed documentation ambiguity where Kubernetes/Helm could appear generally ready despite registry access constraints; now tracked via issue [#37](https://github.com/Canepro/pipelinehealer/issues/37).
+- Prevented accidental `PH_ALLOWED_REPOS` truncation during partial settings updates by introducing merge/remove semantics and explicit replace mode.
 
 ## [v0.2.9] - 2026-02-20
 

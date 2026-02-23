@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 004655e -->
+<!-- LAST_VERIFIED: 9ab787c -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -457,11 +457,17 @@ export PH_BACKEND_URL=http://127.0.0.1:8000
 bash scripts/ph.sh settings:check            # check current settings
 bash scripts/ph.sh settings:audit --limit 10  # view audit trail
 bash scripts/ph.sh settings:persist:verify --from-settings --skip-redeploy
+bash scripts/ph.sh settings:persist --repos-add owner/repo1,owner/repo2 --skip-redeploy
+bash scripts/ph.sh settings:persist --repos-remove owner/legacy-repo --skip-redeploy
 bash scripts/ph.sh logs --tail 100            # view backend logs (docker compose)
 bash scripts/ph.sh backfill                   # trigger diagnostics backfill
 ```
 
 **Works locally:** `settings:check`, `settings:audit`, `settings:persist` (`--skip-redeploy`), `settings:persist:verify` (`--skip-redeploy`), `audit:proof`, `backfill`, `logs`, `logs:raw`, `logs:grep`, `demo:proof`, `demo:reset`.
+
+Repo allowlist safety note:
+- default to `--repos-add` / `--repos-remove` for routine changes
+- use `--repos-replace` only when you intentionally want to overwrite the full list
 
 **Azure-only** (prints a clear error in local mode): `deploy`, `deploy:release`, `warm`, `lowcost`, `status`, `urls`, `webhook:*`, `rollout:canary`, `demo:e2e`.
 

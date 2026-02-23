@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 07b1239 -->
+<!-- LAST_VERIFIED: 9ab787c -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -139,6 +139,29 @@ Theme: remove MCP vs GH-AW ingestion ambiguity by enabling combined evidence col
 2. Activity diagnostics can include both `gh_aw_passive` and `github_mcp_direct` path metadata in one run.
 3. Passive backfill regression coverage confirms late ci-doctor issue matching when labels drift.
 4. Release notes and changelog capture real Added/Changed/Fixed entries for `v0.2.9`.
+
+## Patch Track: `v0.2.10` (Unreleased)
+
+Theme: operator safety hardening for settings persistence and repo allowlist management.
+
+### Candidate Scope
+
+1. Allowlist mutation safety in `scripts/ph.sh`
+   - default repo mutations to additive/remove semantics (`--repos-add`, `--repos-remove`)
+   - keep destructive replacement as explicit mode (`--repos-replace`)
+2. Runtime URL guardrails for settings persistence
+   - reject malformed backend URLs early
+   - avoid accidental `curl https:///api/...` fallback behavior
+3. Docs/changelog/release notes sync
+   - update operator-facing examples and warnings in `README.md`, `docs/CLI.md`, and `docs/LOCAL_DEMO_RUNBOOK.md`
+   - track implementation and release scope in `BL-037` / [#38](https://github.com/Canepro/pipelinehealer/issues/38)
+
+### Exit Criteria
+
+1. Partial repo updates no longer truncate `PH_ALLOWED_REPOS` by default.
+2. Destructive replace remains available but explicit.
+3. Command output shows effective allowlist action (`merge`, `remove`, `replace`, `clear`).
+4. Release notes call out behavior change for operators.
 
 ## Active Target: `v0.3.0` (Minor)
 
@@ -330,6 +353,7 @@ These items are researched and tracked, but not approved for build scope yet.
 | `BL-034` | Jenkins bridge ingestion path: signed external CI failure payload -> synthetic PipelineHealer activity (`source_selection_path=jenkins_bridge`) with issue-first defaults | `v0.3.1` | minor | High | Planned |
 | `BL-035` | Native Jenkins provider adapter: deeper job metadata/log/artifact retrieval + rerun/governance parity with existing provider model | `v0.5.x` | minor | Medium | Queued |
 | `BL-036` | Public distribution hardening for Kubernetes portability: publish anonymous-pull image path and add clean-cluster pullability gate in release verification to block `ErrImagePull` (`401`/`403`) regressions ([#37](https://github.com/Canepro/pipelinehealer/issues/37)) | `v0.3.1` | patch | High | Planned |
+| `BL-037` | Settings persistence safety hardening: prevent accidental `PH_ALLOWED_REPOS` truncation via additive/remove semantics in `scripts/ph.sh` with explicit replace mode, plus backend URL resolution guardrails ([#38](https://github.com/Canepro/pipelinehealer/issues/38)) | `v0.2.10` | patch | High | In progress |
 
 ## Definition of Done (Per Version)
 

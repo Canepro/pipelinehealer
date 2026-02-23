@@ -80,7 +80,9 @@ Examples:
   bash scripts/ph.sh demo:proof --repo owner/repo
   bash scripts/ph.sh settings:persist --from-settings
   bash scripts/ph.sh settings:persist:verify --from-settings
-  bash scripts/ph.sh settings:persist --repos owner/repo1,owner/repo2 --gh-aw-tools-enabled true --gh-aw-ingestion-mode hybrid
+  bash scripts/ph.sh settings:persist --repos-add owner/repo1,owner/repo2 --gh-aw-tools-enabled true --gh-aw-ingestion-mode hybrid
+  bash scripts/ph.sh settings:persist --repos-remove owner/legacy-repo
+  bash scripts/ph.sh settings:persist --repos-replace owner/repo1,owner/repo2 --skip-redeploy
   bash scripts/ph.sh audit:proof --limit 5
   bash scripts/ph.sh logs
   bash scripts/ph.sh logs:grep --pattern "debug-mode"
@@ -172,6 +174,11 @@ is_local_mode() {
   [[ -n "${PH_BACKEND_URL:-}" ]]
 }
 
+_validate_http_url() {
+  # Accept only fully-qualified http(s) base URLs without path/query fragments.
+  [[ "$1" =~ ^https?://[^/[:space:]]+$ ]]
+}
+
 require_azure() {
   if is_local_mode; then
     echo "Error: '$1' requires an Azure deployment. It does not apply in local mode (PH_BACKEND_URL is set)." >&2
@@ -183,7 +190,13 @@ require_azure() {
 resolve_backend_url() {
   if is_local_mode; then
     # Strip trailing slash for consistency
-    echo "${PH_BACKEND_URL%/}"
+    local local_url
+    local_url="${PH_BACKEND_URL%/}"
+    if ! _validate_http_url "$local_url"; then
+      echo "Invalid PH_BACKEND_URL: '$local_url' (expected http(s)://host[:port])" >&2
+      return 1
+    fi
+    echo "$local_url"
   else
     need_cmd az
     local fqdn
@@ -192,6 +205,10 @@ resolve_backend_url() {
       -n "$BACKEND_APP" \
       --query properties.configuration.ingress.fqdn \
       -o tsv | tr -d '\r\n')"
+    if [[ -z "$fqdn" ]]; then
+      echo "Failed to resolve backend FQDN for '$BACKEND_APP' in '$AZ_RESOURCE_GROUP'." >&2
+      return 1
+    fi
     echo "https://$fqdn"
   fi
 }
@@ -202,21 +219,33 @@ resolve_backend_fqdn() {
     exit 1
   fi
   need_cmd az
-  az containerapp show \
+  local fqdn
+  fqdn="$(az containerapp show \
     -g "$AZ_RESOURCE_GROUP" \
     -n "$BACKEND_APP" \
     --query properties.configuration.ingress.fqdn \
-    -o tsv | tr -d '\r\n'
+    -o tsv | tr -d '\r\n')"
+  if [[ -z "$fqdn" ]]; then
+    echo "Failed to resolve backend FQDN for '$BACKEND_APP' in '$AZ_RESOURCE_GROUP'." >&2
+    return 1
+  fi
+  echo "$fqdn"
 }
 
 resolve_frontend_fqdn() {
   require_azure "urls"
   need_cmd az
-  az containerapp show \
+  local fqdn
+  fqdn="$(az containerapp show \
     -g "$AZ_RESOURCE_GROUP" \
     -n "$FRONTEND_APP" \
     --query properties.configuration.ingress.fqdn \
-    -o tsv | tr -d '\r\n'
+    -o tsv | tr -d '\r\n')"
+  if [[ -z "$fqdn" ]]; then
+    echo "Failed to resolve frontend FQDN for '$FRONTEND_APP' in '$AZ_RESOURCE_GROUP'." >&2
+    return 1
+  fi
+  echo "$fqdn"
 }
 
 read_auth_keys() {
@@ -836,9 +865,27 @@ _persist_parse_args() {
   # Populate global locals from CLI arguments.
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --repos)
+      --repos|--repos-add)
         require_arg "$1" "${2-}"
-        _sp_repos_csv="$2"
+        if [[ -n "${_sp_repos_add_csv:-}" ]]; then
+          _sp_repos_add_csv="${_sp_repos_add_csv},$2"
+        else
+          _sp_repos_add_csv="$2"
+        fi
+        shift 2
+        ;;
+      --repos-remove)
+        require_arg "$1" "${2-}"
+        if [[ -n "${_sp_repos_remove_csv:-}" ]]; then
+          _sp_repos_remove_csv="${_sp_repos_remove_csv},$2"
+        else
+          _sp_repos_remove_csv="$2"
+        fi
+        shift 2
+        ;;
+      --repos-replace)
+        require_arg "$1" "${2-}"
+        _sp_repos_replace_csv="$2"
         shift 2
         ;;
       --clear-repos)
@@ -967,11 +1014,11 @@ _persist_parse_args() {
 
 _persist_validate() {
   # Check that the flag combination is valid and normalize values.
-  if [[ "$_sp_from_settings" != "1" && "$_sp_clear_repos" != "1" && "$_sp_clear_mcp_repo_allowlist" != "1" && -z "${_sp_repos_csv:-}" && -z "${_sp_heal_mode:-}" && -z "${_sp_auto_create_pr:-}" && -z "${_sp_max_remediation_attempts:-}" && -z "${_sp_pipeline_step_timeout_seconds:-}" && -z "${_sp_external_diagnostics_wait_seconds:-}" && -z "${_sp_external_diagnostics_poll_interval_seconds:-}" && -z "${_sp_gh_aw_tools_enabled:-}" && -z "${_sp_gh_aw_ingestion_mode:-}" && -z "${_sp_gh_aw_known_workflows:-}" && -z "${_sp_mcp_enabled:-}" && -z "${_sp_mcp_provider:-}" && -z "${_sp_mcp_read_only:-}" && -z "${_sp_mcp_timeout_seconds:-}" && -z "${_sp_mcp_max_retries:-}" && -z "${_sp_mcp_tool_policies:-}" && -z "${_sp_mcp_repo_allowlist:-}" && -z "${_sp_azure_openai_deployment_name:-}" && -z "${_sp_llm_model_analysis:-}" && -z "${_sp_llm_model_diagnosis:-}" && -z "${_sp_llm_model_remediation:-}" ]]; then
+  if [[ "$_sp_from_settings" != "1" && "$_sp_clear_repos" != "1" && "$_sp_clear_mcp_repo_allowlist" != "1" && -z "${_sp_repos_add_csv:-}" && -z "${_sp_repos_remove_csv:-}" && -z "${_sp_repos_replace_csv:-}" && -z "${_sp_heal_mode:-}" && -z "${_sp_auto_create_pr:-}" && -z "${_sp_max_remediation_attempts:-}" && -z "${_sp_pipeline_step_timeout_seconds:-}" && -z "${_sp_external_diagnostics_wait_seconds:-}" && -z "${_sp_external_diagnostics_poll_interval_seconds:-}" && -z "${_sp_gh_aw_tools_enabled:-}" && -z "${_sp_gh_aw_ingestion_mode:-}" && -z "${_sp_gh_aw_known_workflows:-}" && -z "${_sp_mcp_enabled:-}" && -z "${_sp_mcp_provider:-}" && -z "${_sp_mcp_read_only:-}" && -z "${_sp_mcp_timeout_seconds:-}" && -z "${_sp_mcp_max_retries:-}" && -z "${_sp_mcp_tool_policies:-}" && -z "${_sp_mcp_repo_allowlist:-}" && -z "${_sp_azure_openai_deployment_name:-}" && -z "${_sp_llm_model_analysis:-}" && -z "${_sp_llm_model_diagnosis:-}" && -z "${_sp_llm_model_remediation:-}" ]]; then
     echo "Usage: bash scripts/ph.sh settings:persist --from-settings [--skip-redeploy]" >&2
     echo "   or: bash scripts/ph.sh settings:persist <flags...> [--skip-redeploy]" >&2
     echo "" >&2
-    echo "Direct flags: --repos CSV  --clear-repos  --heal-mode MODE" >&2
+    echo "Direct flags: --repos-add CSV [alias: --repos]  --repos-remove CSV  --repos-replace CSV  --clear-repos  --heal-mode MODE" >&2
     echo "  --auto-create-pr true|false  --max-remediation-attempts N" >&2
     echo "  --pipeline-step-timeout-seconds N  --gh-aw-tools-enabled true|false" >&2
     echo "  --external-diagnostics-wait-seconds N  --external-diagnostics-poll-interval-seconds N" >&2
@@ -986,15 +1033,19 @@ _persist_validate() {
 
   if [[ "$_sp_from_settings" == "1" ]]; then
     local has_direct="0"
-    [[ "$_sp_clear_repos" == "1" || -n "${_sp_repos_csv:-}" || -n "${_sp_gh_aw_tools_enabled:-}" || -n "${_sp_gh_aw_ingestion_mode:-}" || -n "${_sp_gh_aw_known_workflows:-}" || -n "${_sp_external_diagnostics_wait_seconds:-}" || -n "${_sp_external_diagnostics_poll_interval_seconds:-}" || -n "${_sp_mcp_enabled:-}" || -n "${_sp_mcp_provider:-}" || -n "${_sp_mcp_read_only:-}" || -n "${_sp_mcp_timeout_seconds:-}" || -n "${_sp_mcp_max_retries:-}" || -n "${_sp_mcp_tool_policies:-}" || -n "${_sp_mcp_repo_allowlist:-}" || "$_sp_clear_mcp_repo_allowlist" == "1" || -n "${_sp_azure_openai_deployment_name:-}" || -n "${_sp_llm_model_analysis:-}" || -n "${_sp_llm_model_diagnosis:-}" || -n "${_sp_llm_model_remediation:-}" || -n "${_sp_heal_mode:-}" || -n "${_sp_auto_create_pr:-}" || -n "${_sp_max_remediation_attempts:-}" || -n "${_sp_pipeline_step_timeout_seconds:-}" ]] && has_direct="1"
+    [[ "$_sp_clear_repos" == "1" || -n "${_sp_repos_add_csv:-}" || -n "${_sp_repos_remove_csv:-}" || -n "${_sp_repos_replace_csv:-}" || -n "${_sp_gh_aw_tools_enabled:-}" || -n "${_sp_gh_aw_ingestion_mode:-}" || -n "${_sp_gh_aw_known_workflows:-}" || -n "${_sp_external_diagnostics_wait_seconds:-}" || -n "${_sp_external_diagnostics_poll_interval_seconds:-}" || -n "${_sp_mcp_enabled:-}" || -n "${_sp_mcp_provider:-}" || -n "${_sp_mcp_read_only:-}" || -n "${_sp_mcp_timeout_seconds:-}" || -n "${_sp_mcp_max_retries:-}" || -n "${_sp_mcp_tool_policies:-}" || -n "${_sp_mcp_repo_allowlist:-}" || "$_sp_clear_mcp_repo_allowlist" == "1" || -n "${_sp_azure_openai_deployment_name:-}" || -n "${_sp_llm_model_analysis:-}" || -n "${_sp_llm_model_diagnosis:-}" || -n "${_sp_llm_model_remediation:-}" || -n "${_sp_heal_mode:-}" || -n "${_sp_auto_create_pr:-}" || -n "${_sp_max_remediation_attempts:-}" || -n "${_sp_pipeline_step_timeout_seconds:-}" ]] && has_direct="1"
     if [[ "$has_direct" == "1" ]]; then
       echo "Use --from-settings by itself (optionally with --skip-redeploy)." >&2
       exit 2
     fi
   fi
 
-  if [[ "$_sp_clear_repos" == "1" && -n "${_sp_repos_csv:-}" ]]; then
-    echo "Use either --repos or --clear-repos, not both." >&2
+  if [[ "$_sp_clear_repos" == "1" && ( -n "${_sp_repos_add_csv:-}" || -n "${_sp_repos_remove_csv:-}" || -n "${_sp_repos_replace_csv:-}" ) ]]; then
+    echo "Use --clear-repos by itself (do not combine with --repos-add/--repos-remove/--repos-replace)." >&2
+    exit 2
+  fi
+  if [[ -n "${_sp_repos_replace_csv:-}" && ( -n "${_sp_repos_add_csv:-}" || -n "${_sp_repos_remove_csv:-}" ) ]]; then
+    echo "Use either --repos-replace or --repos-add/--repos-remove, not both." >&2
     exit 2
   fi
   if [[ "$_sp_clear_mcp_repo_allowlist" == "1" && -n "${_sp_mcp_repo_allowlist:-}" ]]; then
@@ -1131,6 +1182,116 @@ _persist_hydrate_from_live() {
   _sp_llm_model_remediation="$(echo "$settings_json" | jq -r '.llm_model_remediation // ""')"
 }
 
+_persist_extract_live_repos_csv() {
+  # Best-effort read of current runtime allowlist from /api/settings.
+  local settings_json
+  settings_json="$(fetch_settings_json)"
+  SETTINGS_JSON="$settings_json" python3 - <<'PY'
+import json
+import os
+
+
+def normalize(values):
+    normalized = []
+    seen = set()
+    for raw in values:
+        token = str(raw or "").strip().lower()
+        if not token or token in seen:
+            continue
+        seen.add(token)
+        normalized.append(token)
+    return normalized
+
+
+payload = json.loads(os.environ.get("SETTINGS_JSON", "{}"))
+repos = payload.get("ph_allowed_repos")
+if not isinstance(repos, list):
+    raise SystemExit(1)
+print(",".join(normalize(repos)))
+PY
+}
+
+_persist_resolve_repos_csv() {
+  # Compose final PH_ALLOWED_REPOS from add/remove/replace/clear semantics.
+  _sp_force_repos_patch="0"
+  _sp_repo_resolution_note=""
+
+  if [[ "$_sp_from_settings" == "1" ]]; then
+    [[ -n "${_sp_repos_csv:-}" ]] && _sp_force_repos_patch="1"
+    return 0
+  fi
+
+  local has_repo_direct="0"
+  [[ "$_sp_clear_repos" == "1" || -n "${_sp_repos_add_csv:-}" || -n "${_sp_repos_remove_csv:-}" || -n "${_sp_repos_replace_csv:-}" ]] && has_repo_direct="1"
+  if [[ "$has_repo_direct" != "1" ]]; then
+    return 0
+  fi
+
+  _sp_force_repos_patch="1"
+
+  local base_csv="" base_source="none"
+  if [[ "$_sp_clear_repos" != "1" && -z "${_sp_repos_replace_csv:-}" ]]; then
+    if base_csv="$(_persist_extract_live_repos_csv 2>/dev/null)"; then
+      base_source="live_api"
+    else
+      base_csv="$(read_env_key "PH_ALLOWED_REPOS")"
+      base_source="backend/.env"
+    fi
+  fi
+
+  _sp_repos_csv="$(
+    SP_REPO_BASE_CSV="$base_csv" \
+    SP_REPO_ADD_CSV="${_sp_repos_add_csv:-}" \
+    SP_REPO_REMOVE_CSV="${_sp_repos_remove_csv:-}" \
+    SP_REPO_REPLACE_CSV="${_sp_repos_replace_csv:-}" \
+    SP_REPO_CLEAR="${_sp_clear_repos:-0}" \
+    python3 - <<'PY'
+import os
+
+
+def csv_list(raw):
+    values = []
+    seen = set()
+    for item in (raw or "").split(","):
+        token = item.strip().lower()
+        if not token or token in seen:
+            continue
+        seen.add(token)
+        values.append(token)
+    return values
+
+
+clear = os.getenv("SP_REPO_CLEAR", "0") == "1"
+replace = csv_list(os.getenv("SP_REPO_REPLACE_CSV", ""))
+
+if clear:
+    result = []
+elif replace:
+    result = replace
+else:
+    base = csv_list(os.getenv("SP_REPO_BASE_CSV", ""))
+    add = csv_list(os.getenv("SP_REPO_ADD_CSV", ""))
+    remove = set(csv_list(os.getenv("SP_REPO_REMOVE_CSV", "")))
+    result = [repo for repo in base if repo not in remove]
+    for repo in add:
+        if repo in remove:
+            continue
+        if repo not in result:
+            result.append(repo)
+
+print(",".join(result))
+PY
+  )"
+
+  if [[ "$_sp_clear_repos" == "1" ]]; then
+    _sp_repo_resolution_note="PH_ALLOWED_REPOS action: clear"
+  elif [[ -n "${_sp_repos_replace_csv:-}" ]]; then
+    _sp_repo_resolution_note="PH_ALLOWED_REPOS action: replace (explicit)"
+  else
+    _sp_repo_resolution_note="PH_ALLOWED_REPOS action: merge (base=${base_source})"
+  fi
+}
+
 _try_read_auth_keys() {
   local api_key admin_key
   api_key="$(read_env_key "API_AUTH_KEY")"
@@ -1147,6 +1308,7 @@ _try_read_auth_keys() {
 _persist_build_patch_payload_json() {
   SP_REPOS_CSV="${_sp_repos_csv:-}" \
   SP_CLEAR_REPOS="${_sp_clear_repos:-0}" \
+  SP_FORCE_REPOS_PATCH="${_sp_force_repos_patch:-0}" \
   SP_HEAL_MODE="${_sp_heal_mode:-}" \
   SP_AUTO_CREATE_PR="${_sp_auto_create_pr:-}" \
   SP_MAX_REMEDIATION_ATTEMPTS="${_sp_max_remediation_attempts:-}" \
@@ -1222,7 +1384,8 @@ def parse_mcp_tool_policies(raw: str) -> dict[str, str]:
 payload: dict[str, object] = {}
 
 repos_csv = os.getenv("SP_REPOS_CSV", "")
-if os.getenv("SP_CLEAR_REPOS", "0") == "1" or repos_csv.strip():
+force_repos_patch = os.getenv("SP_FORCE_REPOS_PATCH", "0") == "1"
+if force_repos_patch or os.getenv("SP_CLEAR_REPOS", "0") == "1" or repos_csv.strip():
     payload["ph_allowed_repos"] = [] if os.getenv("SP_CLEAR_REPOS", "0") == "1" else csv_list(repos_csv)
 
 heal_mode = (os.getenv("SP_HEAL_MODE", "") or "").strip().lower()
@@ -1327,8 +1490,8 @@ _persist_patch_runtime_via_api() {
 
   local base_url
   base_url="$(resolve_backend_url 2>/dev/null || true)"
-  if [[ -z "$base_url" ]]; then
-    _sp_api_patch_note="Audit/API patch skipped: unable to resolve backend URL."
+  if [[ -z "$base_url" ]] || ! _validate_http_url "$base_url"; then
+    _sp_api_patch_note="Audit/API patch skipped: unable to resolve backend URL (got '${base_url:-<empty>}')."
     return 1
   fi
 
@@ -1370,8 +1533,8 @@ _persist_record_via_api() {
 
   local base_url
   base_url="$(resolve_backend_url 2>/dev/null || true)"
-  if [[ -z "$base_url" ]]; then
-    _sp_api_persist_note="Audit/API persist skipped: unable to resolve backend URL."
+  if [[ -z "$base_url" ]] || ! _validate_http_url "$base_url"; then
+    _sp_api_persist_note="Audit/API persist skipped: unable to resolve backend URL (got '${base_url:-<empty>}')."
     return 1
   fi
 
@@ -1396,7 +1559,7 @@ _persist_record_via_api() {
 _persist_write_env() {
   # Write populated _sp_ vars to backend/.env.
   local normalized_csv="${_sp_repos_csv:-}"
-  if [[ "$_sp_from_settings" == "1" || "$_sp_clear_repos" == "1" || -n "$normalized_csv" ]]; then
+  if [[ "$_sp_from_settings" == "1" || "$_sp_clear_repos" == "1" || -n "$normalized_csv" || "${_sp_force_repos_patch:-0}" == "1" ]]; then
     if [[ "$_sp_clear_repos" != "1" && -n "$normalized_csv" ]]; then
       normalized_csv="$(echo "$normalized_csv" | tr -d '[:space:]')"
     fi
@@ -1460,6 +1623,7 @@ _persist_write_env() {
 _persist_print_summary() {
   [[ -n "${_sp_api_patch_note:-}" ]] && echo "$_sp_api_patch_note"
   [[ -n "${_sp_api_persist_note:-}" ]] && echo "$_sp_api_persist_note"
+  [[ -n "${_sp_repo_resolution_note:-}" ]] && echo "$_sp_repo_resolution_note"
 
   if [[ "$_sp_from_settings" == "1" ]]; then
     echo "Persisted effective live mutable settings to backend/.env:"
@@ -1492,11 +1656,15 @@ _persist_print_summary() {
     echo "  LLM_MODEL_ANALYSIS=${_sp_llm_model_analysis:-<empty>}"
     echo "  LLM_MODEL_DIAGNOSIS=${_sp_llm_model_diagnosis:-<empty>}"
     echo "  LLM_MODEL_REMEDIATION=${_sp_llm_model_remediation:-<empty>}"
-  elif [[ "$_sp_clear_repos" == "1" ]]; then
-    echo "Persisted PH_ALLOWED_REPOS=<empty> to backend/.env"
   else
     echo "Persisted settings to backend/.env"
-    [[ -n "${_sp_repos_csv:-}" ]] && echo "  PH_ALLOWED_REPOS=${_sp_repos_csv}"
+    if [[ "${_sp_force_repos_patch:-0}" == "1" ]]; then
+      if [[ -n "${_sp_repos_csv:-}" ]]; then
+        echo "  PH_ALLOWED_REPOS=${_sp_repos_csv}"
+      else
+        echo "  PH_ALLOWED_REPOS=<empty>"
+      fi
+    fi
     [[ -n "${_sp_heal_mode:-}" ]] && echo "  HEAL_MODE=${_sp_heal_mode}"
     [[ -n "${_sp_auto_create_pr:-}" ]] && echo "  AUTO_CREATE_PR=${_sp_auto_create_pr}"
     [[ -n "${_sp_max_remediation_attempts:-}" ]] && echo "  MAX_REMEDIATION_ATTEMPTS=${_sp_max_remediation_attempts}"
@@ -1529,7 +1697,12 @@ _persist_print_summary() {
 cmd_settings_persist() {
   # State variables (shared across helpers via naming convention).
   _sp_repos_csv=""
+  _sp_repos_add_csv=""
+  _sp_repos_remove_csv=""
+  _sp_repos_replace_csv=""
   _sp_clear_repos="0"
+  _sp_force_repos_patch="0"
+  _sp_repo_resolution_note=""
   _sp_skip_redeploy="0"
   _sp_from_settings="0"
   _sp_gh_aw_tools_enabled=""
@@ -1568,6 +1741,7 @@ cmd_settings_persist() {
 
   _persist_parse_args "$@"
   _persist_validate
+  _persist_resolve_repos_csv
 
   local patch_succeeded="1"
   if [[ "$_sp_from_settings" == "1" ]]; then
