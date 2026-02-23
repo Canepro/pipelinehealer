@@ -6,6 +6,10 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
+- _No unreleased entries yet._
+
+## [v0.2.11] - 2026-02-23
+
 ### Changed
 
 - `9f93ad4` Synced roadmap/log tracking docs to mark `v0.2.10` as released baseline and close `BL-037` tracking.
