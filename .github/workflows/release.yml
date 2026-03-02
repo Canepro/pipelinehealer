@@ -269,6 +269,22 @@ jobs:
           helm push "${chart_archive}" "oci://ghcr.io/${OWNER_LC}/charts"
           echo "ref=oci://ghcr.io/${OWNER_LC}/charts/pipelinehealer:${VERSION}" >>"$GITHUB_OUTPUT"
 
+      - name: Verify GHCR anonymous pullability
+        env:
+          OWNER_LC: ${{ steps.ghcr.outputs.owner_lc }}
+          RELEASE_TAG: ${{ steps.meta.outputs.release_tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          BACKEND_DIGEST: ${{ steps.backend_image.outputs.digest }}
+          FRONTEND_DIGEST: ${{ steps.frontend_image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          bash scripts/release/check_ghcr_pullability.sh \
+            --owner-lc "${OWNER_LC}" \
+            --release-tag "${RELEASE_TAG}" \
+            --version "${VERSION}" \
+            --backend-digest "${BACKEND_DIGEST}" \
+            --frontend-digest "${FRONTEND_DIGEST}"
+
       - name: Generate release image references
         env:
           GHCR_BASE: ${{ steps.ghcr.outputs.base }}

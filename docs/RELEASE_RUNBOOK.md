@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: eaa47f7 -->
+<!-- LAST_VERIFIED: b20f2a6 -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -21,6 +21,7 @@ Current release automation:
 - changelog source: `CHANGELOG.md`
 - release workflow trigger: git tag `vX.Y.Z`
 - release workflow output: GitHub release + GHCR images for both tags (`vX.Y.Z` and `X.Y.Z`) + digest references (`release_images.md`)
+- release workflow gate: validates anonymous GHCR pullability for backend/frontend tags + digests and Helm chart tag before creating the GitHub release
 - optional release output (when Azure secrets are configured): mirrored ACR images for Azure promotion flows
 
 ## Choose Release Type
@@ -40,6 +41,7 @@ Configure these repository secrets for `.github/workflows/release.yml`:
 GitHub requirements:
 
 - Environment named `release` (used by `.github/workflows/release.yml`)
+- `gh` CLI authenticated for local verification helpers (`gh auth status`)
 
 Optional repository variable:
 
@@ -75,20 +77,12 @@ Important:
 Run from repo root:
 
 ```bash
-git status --short
-bash scripts/check_version_sync.sh
-bash scripts/release_scope_check.sh
+bash scripts/release_preflight.sh
 ```
-
-Requirements:
-- working tree is clean
-- version sync passes
-- release scope check passes (all commits since last tag are referenced in `CHANGELOG.md` `## [Unreleased]`)
-- you are on the intended branch (usually `main`)
 
 If there are pending commits for release notes, finish and push them first.
 
-Optional helper (prints the exact ordered commands used in this runbook):
+Optional helper (prints the full ordered command list used in this runbook):
 
 ```bash
 bash scripts/release_checklist.sh minor
@@ -170,29 +164,32 @@ Replace `X.Y.Z` with the generated version.
 
 ## 6) Verify Published Release
 
-1. Confirm tag exists remotely:
+Run the automated verifier:
 
 ```bash
-git ls-remote --tags origin | grep "refs/tags/vX.Y.Z"
+bash scripts/release_verify.sh vX.Y.Z
 ```
 
-2. Confirm GitHub Actions release workflow succeeded for that tag.
-3. Confirm GitHub Release notes match `CHANGELOG.md` release section and include `Container Images`.
-4. Confirm release asset `release_images.md` exists on the GitHub Release page.
-5. Confirm GHCR has both semver tags for backend/frontend (public path):
+`scripts/release_verify.sh` checks:
+- remote tag exists
+- GitHub release exists and includes `release_images.md`
+- release notes include `## Container Images`
+- release workflow run for the tag commit succeeded (unless `--skip-workflow-check` is provided)
+- anonymous GHCR pullability for backend/frontend (`vX.Y.Z`, `X.Y.Z`, and digests) and Helm chart `X.Y.Z`
 
-```bash
-echo "Check package versions under https://github.com/orgs/<org>/packages?repo_name=pipelinehealer"
-```
+Optional fallback/manual checks:
+- if `gh` API is unavailable in your environment, run `bash scripts/release_verify.sh vX.Y.Z --skip-workflow-check` and manually confirm the release workflow run is green.
+- in Actions logs, confirm `Verify GHCR anonymous pullability` is passed.
 
-6. Optional Azure check: confirm ACR has both semver tags for backend/frontend:
+Optional Azure checks:
+1. Confirm ACR has both semver tags for backend/frontend:
 
 ```bash
 az acr repository show-tags -n <acr-name> --repository pipelinehealer-backend --orderby time_desc -o tsv | head
 az acr repository show-tags -n <acr-name> --repository pipelinehealer-frontend --orderby time_desc -o tsv | head
 ```
 
-7. Optional Azure promotion: deploy released ACR images to Azure Container Apps:
+2. Deploy released ACR images to Azure Container Apps:
 
 ```bash
 bash scripts/ph.sh deploy:release --release-version vX.Y.Z
@@ -205,7 +202,7 @@ Production hardening option:
 bash scripts/ph.sh deploy:release --release-version vX.Y.Z --secure-secrets
 ```
 
-8. If Entra auth is expected, verify frontend bundle auth mode after deploy:
+3. If Entra auth is expected, verify frontend bundle auth mode after deploy:
 
 ```bash
 FRONTEND_URL="https://<frontend-fqdn>"
@@ -239,10 +236,10 @@ Avoid force-rewriting published tags unless absolutely necessary and team-approv
 
 ## Minimal Operator Checklist
 
-1. `git status --short` clean
+1. `bash scripts/release_preflight.sh`
 2. update `CHANGELOG.md` Unreleased
 3. `bash scripts/release.sh minor` (or patch/major)
 4. `bash scripts/check_version_sync.sh`
 5. sanity test/build
 6. commit + tag + push `--follow-tags`
-7. verify release workflow + GitHub release page
+7. `bash scripts/release_verify.sh vX.Y.Z`

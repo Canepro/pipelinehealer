@@ -1,6 +1,6 @@
 # PipelineHealer Hackathon Log
 
-**Last updated:** February 23, 2026
+**Last updated:** March 2, 2026
 
 This is the long-form project tracker for hackathon execution status, submission readiness, and milestone history.
 
@@ -22,10 +22,14 @@ This is the long-form project tracker for hackathon execution status, submission
 - GitHub Agentic Workflows Layer 1 (repo hygiene) merged to `main`; Layer 2 planning tracked in `docs/GH_AW_IMPLEMENTATION_TRACKER.md`
 - External diagnostics latency model updated to fast-path defaults (60s wait budget, 15s poll interval) with async backfill-first fallback
 - Hybrid diagnostics mode shipped in `v0.2.9`: `GH_AW_INGESTION_MODE=hybrid` now allows GH-AW passive findings and GitHub MCP context to coexist in a single activity with per-finding source-path metadata
-- Copilot integration research logged as `undecided`/nice-to-have in roadmap (`docs/FUTURE_PLAN.md`, `DP-001` / `BL-032`) pending post-submission prioritization
+- Agent handoff roadmap moved to phased delivery:
+  - `v0.3.0`: Activity Detail `Copy Context` + visible disabled `Assign to Agent` (`Coming Soon`)
+  - `v0.3.1`: functional `Assign to Agent` integration path (tracked under `BL-039`)
 - Multi-platform notifications research logged as `undecided` in roadmap (`docs/FUTURE_PLAN.md`, `DP-002` / `BL-033`) with phased rollout recommendation (Slack -> Teams -> Rocket.Chat) pending post-submission approval
 - Canary scope expanded (issue-only safe mode) to `canepro/portfolio_website-main`, `canepro/rocketchat-k8s`, and `canepro/central-observability-hub-stack`; Jenkins-primary repo coverage gap identified and now tracked as bridge-first plan (`DP-003`, `BL-034`, target `v0.3.1`)
-- Plan discipline lock active: implement remaining platform-extension work in this order `0.1 MCP completion -> 0.3 Control Center UX -> 0.4 model portability -> 0.2 learning system`; new items are queued in `docs/FUTURE_PLAN.md` backlog unless break/fix or security-critical
+- Release planning split is active:
+  - `v0.3.0` scope tracking issue: [#43](https://github.com/Canepro/pipelinehealer/issues/43) (`BL-036` + `BL-038`)
+  - `v0.3.1` scope tracking issue: [#44](https://github.com/Canepro/pipelinehealer/issues/44) (`BL-034` + `BL-039`)
 - Release `v0.2.11` is the current public baseline; submission freeze remains active (bugfix/docs/housekeeping only)
 - MCP observability upgraded: real per-call tool invocation counting, aggregate MCP latency, and enriched action-audit fields (`provider`, `latency_ms`, `success`, `error_class`); read-only runbook context retrieval (`fetch_runbook_context`) now adds `knowledge-mcp` evidence when available
 - Control Center governance route added: `/app/control-center` provides read-only runtime/auth/provider posture, MCP policy-effect matrix, and centralized audit timeline

@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: eaa47f7 -->
+<!-- LAST_VERIFIED: db5ad51 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -308,9 +308,10 @@ Project versions are synchronized across:
 Release helpers:
 
 ```bash
-bash scripts/check_version_sync.sh
-bash scripts/release_checklist.sh minor
-bash scripts/release.sh patch
+bash scripts/release_preflight.sh
+bash scripts/release_checklist.sh minor   # optional dry-run command list
+bash scripts/release.sh minor
+bash scripts/release_verify.sh vX.Y.Z
 ```
 
 Tag-based release publishing is automated by `.github/workflows/release.yml` on `vX.Y.Z` tags.

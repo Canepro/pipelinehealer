@@ -6,13 +6,16 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronRight,
+  Copy,
   ExternalLink,
   GitBranch,
   RefreshCw,
   FileCode,
   AlertTriangle,
+  Bot,
 } from 'lucide-react'
-import { api } from '../api/client'
+import { toast } from 'sonner'
+import { api, type Activity } from '../api/client'
 import StatusBadge from '../components/StatusBadge'
 import FailureTypeBadge from '../components/FailureTypeBadge'
 
@@ -370,6 +373,158 @@ function parseMcpActionResult(rawResult: string): McpActionOutcome {
   }
 }
 
+const COPY_CONTEXT_MAX_CHARS = 16 * 1024
+const COPY_CONTEXT_SECTION_ITEM_LIMIT = 6
+const COPY_CONTEXT_TRUNCATION_MARKER = '\n\n...truncated due to context size limit (16KB)...'
+
+function sanitizeSecretLikeText(input: string): string {
+  let output = input
+  output = output.replace(/\bgh[pousr]_[A-Za-z0-9]{20,}\b/g, '[REDACTED_GITHUB_TOKEN]')
+  output = output.replace(/\b(AIza[0-9A-Za-z\-_]{20,})\b/g, '[REDACTED_API_KEY]')
+  output = output.replace(
+    /(authorization\s*:\s*bearer\s+)[^\s"']+/gi,
+    '$1[REDACTED_TOKEN]',
+  )
+  output = output.replace(
+    /\b(api[_-]?key|token|secret|password|client[_-]?secret)\b(\s*[:=]\s*)["']?[^\s"']{8,}/gi,
+    '$1$2[REDACTED]',
+  )
+  return output
+}
+
+function clampText(value: unknown, maxChars = 280): string {
+  const normalized = String(value ?? '').replace(/\s+/g, ' ').trim()
+  if (!normalized) return 'N/A'
+  if (normalized.length <= maxChars) return normalized
+  return `${normalized.slice(0, maxChars)} ...truncated...`
+}
+
+function clampList<T>(items: T[], limit = COPY_CONTEXT_SECTION_ITEM_LIMIT): T[] {
+  if (items.length <= limit) return items
+  return items.slice(0, limit)
+}
+
+function finalizeContextPayload(rawPayload: string): string {
+  const redacted = sanitizeSecretLikeText(rawPayload)
+  if (redacted.length <= COPY_CONTEXT_MAX_CHARS) return redacted
+  const cutoff = Math.max(0, COPY_CONTEXT_MAX_CHARS - COPY_CONTEXT_TRUNCATION_MARKER.length)
+  return `${redacted.slice(0, cutoff)}${COPY_CONTEXT_TRUNCATION_MARKER}`
+}
+
+function buildActivityContext(activity: Activity): string {
+  const lines: string[] = []
+  const remediationMeta = getIssueProposalMeta(activity.remediation_result?.details)
+  const diagnostics = activity.external_diagnostics ?? []
+
+  lines.push('# PipelineHealer Activity Context')
+  lines.push('')
+  lines.push('## 1) Activity Identity')
+  lines.push(`- activity_id: ${activity.id}`)
+  lines.push(`- repository: ${activity.repository_name}`)
+  lines.push(`- workflow: ${activity.workflow_name}`)
+  lines.push(`- workflow_run_id: ${activity.workflow_run_id}`)
+  lines.push(`- status: ${activity.status}`)
+  lines.push(`- created_at: ${activity.created_at}`)
+  lines.push(`- updated_at: ${activity.updated_at}`)
+  lines.push(`- duration_seconds: ${typeof activity.duration_seconds === 'number' ? Math.round(activity.duration_seconds) : 'N/A'}`)
+
+  lines.push('')
+  lines.push('## 2) Diagnosis Summary')
+  lines.push(`- failure_type: ${activity.failure_type || 'not determined'}`)
+  if (activity.diagnosis) {
+    lines.push(`- diagnosis_source: ${activity.diagnosis.diagnosis_source || 'unknown'}`)
+    lines.push(`- confidence: ${Math.round(activity.diagnosis.confidence * 100)}%`)
+    lines.push(`- root_cause: ${clampText(activity.diagnosis.root_cause)}`)
+    lines.push(`- suggested_fix: ${clampText(activity.diagnosis.suggested_fix || 'N/A')}`)
+    lines.push(`- auto_fixable: ${activity.diagnosis.is_auto_fixable ? 'yes' : 'no'}`)
+    const files = clampList(activity.diagnosis.affected_files)
+    lines.push(`- affected_files_count: ${activity.diagnosis.affected_files.length}`)
+    lines.push('- affected_files_sample:')
+    if (files.length > 0) {
+      for (const file of files) {
+        lines.push(`  - ${clampText(file, 180)}`)
+      }
+    } else {
+      lines.push('  - none')
+    }
+  } else {
+    lines.push('- diagnosis: N/A')
+  }
+
+  lines.push('')
+  lines.push('## 3) Remediation Outcome')
+  if (activity.remediation_result) {
+    lines.push(`- success: ${activity.remediation_result.success ? 'yes' : 'no'}`)
+    lines.push(`- action_taken: ${activity.remediation_result.action_taken}`)
+    lines.push(`- issue_url: ${activity.remediation_result.issue_url || 'N/A'}`)
+    lines.push(`- pr_url: ${activity.remediation_result.pr_url || 'N/A'}`)
+    lines.push(`- reason_code: ${remediationMeta.reasonCode || 'N/A'}`)
+    lines.push(`- reason_detail: ${clampText(remediationMeta.reasonDetail || 'N/A')}`)
+    if (activity.remediation_result.error_message) {
+      lines.push(`- error_message: ${clampText(activity.remediation_result.error_message)}`)
+    }
+  } else {
+    lines.push('- remediation_result: N/A')
+  }
+
+  lines.push('')
+  lines.push('## 4) Failure Context')
+  lines.push(`- failing_job: ${activity.failure_context?.failing_job || 'N/A'}`)
+  lines.push(`- failing_step: ${activity.failure_context?.failing_step || 'N/A'}`)
+  lines.push(`- failing_command: ${clampText(activity.failure_context?.failing_command || 'N/A')}`)
+  lines.push(`- signal: ${clampText(activity.failure_context?.signal || 'N/A')}`)
+
+  lines.push('')
+  lines.push('## 5) External Diagnostics Summary')
+  lines.push(`- diagnostics_count: ${diagnostics.length}`)
+  if (diagnostics.length > 0) {
+    for (const [index, diagnostic] of clampList(diagnostics).entries()) {
+      lines.push(`- signal_${index + 1}:`)
+      lines.push(`  - source: ${diagnostic.source}`)
+      lines.push(`  - status: ${diagnostic.status}`)
+      lines.push(`  - confidence_delta: ${diagnostic.confidence_delta}`)
+      lines.push(`  - run_id: ${diagnostic.matched_run_id ?? 'N/A'}`)
+      lines.push(`  - findings_url: ${diagnostic.url || 'N/A'}`)
+      lines.push(`  - summary: ${clampText(diagnostic.summary || 'N/A')}`)
+    }
+    if (diagnostics.length > COPY_CONTEXT_SECTION_ITEM_LIMIT) {
+      lines.push(`- ...truncated... (${diagnostics.length - COPY_CONTEXT_SECTION_ITEM_LIMIT} additional signals omitted)`)
+    }
+  } else {
+    lines.push('- no external diagnostics captured')
+  }
+
+  lines.push('')
+  lines.push('## 6) MCP/LLM Observability Summary')
+  if (activity.mcp_model_path) {
+    lines.push(`- mcp_provider: ${activity.mcp_model_path.provider}`)
+    lines.push(`- mcp_enabled: ${activity.mcp_model_path.enabled}`)
+    lines.push(`- mcp_available: ${activity.mcp_model_path.available}`)
+    lines.push(`- mcp_reason: ${activity.mcp_model_path.reason || 'N/A'}`)
+    lines.push(`- mcp_tool_calls_total: ${Object.values(activity.mcp_model_path.tool_invocations ?? {}).reduce((total, count) => total + count, 0)}`)
+    lines.push(`- mcp_total_latency_ms: ${activity.mcp_model_path.total_latency_ms}`)
+  } else {
+    lines.push('- mcp: N/A')
+  }
+  if (activity.llm_model_path) {
+    lines.push(`- llm_provider: ${activity.llm_model_path.provider}`)
+    lines.push(`- llm_model: ${activity.llm_model_path.model}`)
+    lines.push(`- llm_fallback_used: ${activity.llm_model_path.fallback_used}`)
+    lines.push(`- llm_call_count: ${activity.llm_model_path.call_count}`)
+    lines.push(`- llm_total_latency_ms: ${activity.llm_model_path.total_latency_ms}`)
+  } else {
+    lines.push('- llm: N/A')
+  }
+
+  lines.push('')
+  lines.push('## 7) Operator Ask Template')
+  lines.push('- Propose a minimal safe fix for the root cause, with exact file-level changes.')
+  lines.push('- List verification steps for CI and local checks.')
+  lines.push('- Provide a rollback plan if the fix regresses behavior.')
+
+  return finalizeContextPayload(lines.join('\n'))
+}
+
 const DETAIL_SECTIONS: Array<{ key: string; label: string }> = [
   { key: 'summary', label: 'Summary' },
   { key: 'root_cause', label: 'Root Cause' },
@@ -698,11 +853,23 @@ export default function ActivityDetail() {
       failureContext?.failing_command ||
       failureContext?.signal,
   )
+  const handleCopyContext = async () => {
+    if (!navigator.clipboard?.writeText) {
+      toast.error('Clipboard API is not available in this browser')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(buildActivityContext(activity))
+      toast.success('Activity context copied')
+    } catch {
+      toast.error('Unable to copy activity context')
+    }
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center space-x-4">
           <Link
             to="/app/activities"
@@ -717,20 +884,42 @@ export default function ActivityDetail() {
             <p className="text-sm text-gray-500">{activity.id}</p>
           </div>
         </div>
-        {(activity.status === 'failed' || activity.status === 'skipped') && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)]/60 p-2">
           <button
-            onClick={() => retryMutation.mutate()}
-            disabled={retryMutation.isPending}
-            className="btn-primary flex items-center"
+            onClick={handleCopyContext}
+            className="inline-flex h-9 items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)] px-3 text-sm font-semibold text-[var(--ph-text)] transition-colors hover:bg-[color:var(--ph-surface)]"
           >
-            <RefreshCw
-              className={`h-4 w-4 mr-2 ${
-                retryMutation.isPending ? 'animate-spin' : ''
-              }`}
-            />
-            Retry
+            <Copy className="mr-2 h-4 w-4" />
+            Copy Context
           </button>
-        )}
+          <button
+            type="button"
+            aria-disabled="true"
+            onClick={(event) => event.preventDefault()}
+            title="Coming soon in v0.3.1: configurable IDE agent handoff."
+            className="inline-flex h-9 cursor-not-allowed items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)] px-3 text-sm font-semibold text-[var(--ph-text)] opacity-75"
+          >
+            <Bot className="mr-2 h-4 w-4" />
+            Assign to Agent
+            <span className="ml-2 inline-flex items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-surface)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ph-text)]">
+              Coming Soon
+            </span>
+          </button>
+          {(activity.status === 'failed' || activity.status === 'skipped') && (
+            <button
+              onClick={() => retryMutation.mutate()}
+              disabled={retryMutation.isPending}
+              className="inline-flex h-9 items-center rounded-md bg-[var(--ph-accent)] px-3 text-sm font-semibold text-white transition-colors hover:brightness-95 disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${
+                  retryMutation.isPending ? 'animate-spin' : ''
+                }`}
+              />
+              Retry
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Overview Card */}

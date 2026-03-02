@@ -105,6 +105,6 @@ When behavior changes, update docs using this checklist:
 **Bug fix**:
 1. Only update docs if the fix changes documented behavior.
 
-**After any commit**, verify the `<!-- LAST_VERIFIED: ... -->` comment near the top of each changed doc still matches HEAD. Update it if you edited the file.
+**After any commit that edits a user-facing doc**, update the `<!-- LAST_VERIFIED: ... -->` marker in that file to the short SHA you are certifying against (typically the latest stable baseline commit you validated for that doc), and keep it current whenever that doc is edited again.
 
 Internal/transient docs (`docs/HACKATHON_LOG.md`, `docs/FUTURE_PLAN.md`, `docs/GH_AW_IMPLEMENTATION_TRACKER.md`) are updated at author discretion — they are not user-facing.

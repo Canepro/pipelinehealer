@@ -93,8 +93,7 @@ fi
 echo
 echo "1) Preflight"
 echo "git status --short"
-echo "bash scripts/check_version_sync.sh"
-echo "bash scripts/release_scope_check.sh"
+echo "bash scripts/release_preflight.sh"
 echo
 echo "2) Update CHANGELOG.md under [Unreleased]"
 echo
@@ -119,3 +118,4 @@ echo
 echo "6) Verify publish"
 echo "git ls-remote --tags origin | grep \"refs/tags/${release_tag}\""
 echo "gh release view ${release_tag}"
+echo "bash scripts/release_verify.sh ${release_tag}"

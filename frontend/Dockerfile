@@ -1,5 +1,5 @@
 # PipelineHealer Frontend Dockerfile
-FROM oven/bun:1 as builder
+FROM docker.io/oven/bun:1 as builder
 
 WORKDIR /app
 
@@ -38,7 +38,7 @@ COPY . .
 RUN bun run build
 
 # Production stage
-FROM nginx:alpine
+FROM docker.io/library/nginx:alpine
 
 RUN apk add --no-cache gettext
 
