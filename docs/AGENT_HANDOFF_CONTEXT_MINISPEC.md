@@ -2,7 +2,7 @@
 
 <!-- LAST_VERIFIED: 44effc3 -->
 
-Status: Draft (doc-only, no implementation yet)
+Status: Phase 1 implemented in working branch (`Copy Context` + disabled `Assign to Agent`), Phase 2 pending
 Owner: PipelineHealer maintainers
 Scope target:
 - `v0.3.0`: `Copy Context` + disabled `Assign to Agent` `Coming Soon` affordance

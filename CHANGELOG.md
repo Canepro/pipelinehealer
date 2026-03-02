@@ -11,6 +11,8 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - Added `scripts/release/check_ghcr_pullability.sh` to validate anonymous GHCR pullability for backend/frontend release tags and digests, plus Helm OCI chart tags.
 - Added `scripts/release_preflight.sh` to enforce release preflight guardrails (clean tree/main branch/version sync/release scope/changelog readiness) with explicit override flags.
 - Added `scripts/release_verify.sh` to automate post-tag release verification (remote tag, release metadata/assets, release workflow success, and GHCR pullability gate replay).
+- Added Activity Detail `Copy Context` action that generates an AI-ready handoff bundle with deterministic section ordering, redaction, and a 16KB payload cap.
+- Added a visible disabled `Assign to Agent` action in Activity Detail with `Coming Soon` labeling for `v0.3.0` discoverability without backend coupling.
 
 ### Changed
 
