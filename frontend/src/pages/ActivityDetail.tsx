@@ -884,8 +884,11 @@ export default function ActivityDetail() {
             <p className="text-sm text-gray-500">{activity.id}</p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button onClick={handleCopyContext} className="btn-secondary inline-flex items-center">
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)]/60 p-2">
+          <button
+            onClick={handleCopyContext}
+            className="inline-flex h-9 items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)] px-3 text-sm font-semibold text-[var(--ph-text)] transition-colors hover:bg-[color:var(--ph-surface)]"
+          >
             <Copy className="mr-2 h-4 w-4" />
             Copy Context
           </button>
@@ -893,11 +896,11 @@ export default function ActivityDetail() {
             type="button"
             disabled
             title="Coming soon in v0.3.1: configurable IDE agent handoff."
-            className="btn-secondary inline-flex cursor-not-allowed items-center opacity-70"
+            className="inline-flex h-9 cursor-not-allowed items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)] px-3 text-sm font-semibold text-[var(--ph-text)] opacity-75"
           >
             <Bot className="mr-2 h-4 w-4" />
             Assign to Agent
-            <span className="ml-2 inline-flex items-center rounded-md bg-gray-200 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-700 dark:bg-gray-700 dark:text-gray-100">
+            <span className="ml-2 inline-flex items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-surface)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ph-text)]">
               Coming Soon
             </span>
           </button>
@@ -905,7 +908,7 @@ export default function ActivityDetail() {
             <button
               onClick={() => retryMutation.mutate()}
               disabled={retryMutation.isPending}
-              className="btn-primary flex items-center"
+              className="inline-flex h-9 items-center rounded-md bg-[var(--ph-accent)] px-3 text-sm font-semibold text-white transition-colors hover:brightness-95 disabled:opacity-50"
             >
               <RefreshCw
                 className={`h-4 w-4 mr-2 ${
