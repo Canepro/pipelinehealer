@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: eaa47f7 -->
+<!-- LAST_VERIFIED: b20f2a6 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -25,7 +25,7 @@ Important: execute with `bash scripts/...`, never `source` or `. scripts/...`.
 | Backend API | read/update runtime via API | No | No | Defaults to Azure backend; set `PH_BACKEND_URL` for local/non-Azure backend |
 | GitHub-only | inspect/reset demo artifacts | No | No | Uses `gh` only |
 | Local container ops | container logs + AOAI smoke | No | No | Requires local Docker/Podman compose stack |
-| Repo maintenance | version sync + release prep | No | No | Uses `scripts/check_version_sync.sh` and `scripts/release.sh` |
+| Repo maintenance | version sync + release prep/verification | No | No | Uses `scripts/release_preflight.sh`, `scripts/release.sh`, and `scripts/release_verify.sh` |
 
 Quick examples:
 
@@ -40,7 +40,7 @@ bash scripts/ph.sh deploy:release --release-version vX.Y.Z
 bash scripts/ph.sh demo:proof --repo owner/repo --limit 10
 
 # Repo maintenance scope
-bash scripts/check_version_sync.sh
+bash scripts/release_preflight.sh
 ```
 
 Kubernetes deploy path is intentionally kept outside `scripts/ph.sh` right now to avoid cloud-lock assumptions in the CLI. Use Helm runbook commands directly.
@@ -359,22 +359,25 @@ These helper scripts are intentionally separate from `scripts/ph.sh`.
 
 | Command | Description |
 |---------|-------------|
+| `bash scripts/release_preflight.sh` | Runs release guardrails (clean tree/main branch/version sync/release scope/changelog Unreleased) |
 | `bash scripts/check_version_sync.sh` | Verifies `VERSION`, backend, frontend, and Helm chart versions match |
-| `bash scripts/release_checklist.sh [bump]` | Prints ordered release commands (dry-run, no file changes) |
+| `bash scripts/release_checklist.sh [bump]` | Optional dry-run printout of the full release command sequence |
 | `bash scripts/release.sh <patch|minor|major|x.y.z>` | Bumps versions and prepares `CHANGELOG.md` release section |
+| `bash scripts/release_verify.sh vX.Y.Z` | Verifies published tag/release/workflow and reruns anonymous GHCR pullability gate |
 
 ```bash
-bash scripts/check_version_sync.sh
-bash scripts/release_checklist.sh minor
-bash scripts/release.sh patch
+bash scripts/release_preflight.sh
+bash scripts/release_checklist.sh minor   # optional
+bash scripts/release.sh minor
+bash scripts/release_verify.sh vX.Y.Z
 ```
 
 Suggested release flow:
-1. Confirm working tree is clean and CI is green.
-2. Run `bash scripts/release.sh patch` (or `minor`/`major`).
+1. Run `bash scripts/release_preflight.sh`.
+2. Run `bash scripts/release.sh minor` (or `patch`/`major`).
 3. Edit release notes in `CHANGELOG.md` under the new `vX.Y.Z` section.
 4. Commit release files (including `charts/pipelinehealer/Chart.yaml`), tag `vX.Y.Z`, then push with `--follow-tags`.
-5. Verify release includes `Container Images` notes and `release_images.md` asset with digest references.
+5. Run `bash scripts/release_verify.sh vX.Y.Z`.
 
 For full release prep through post-release verification, use `docs/RELEASE_RUNBOOK.md`.
 
