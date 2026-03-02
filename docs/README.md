@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: eaa47f7 -->
+<!-- LAST_VERIFIED: 44effc3 -->
 
 Use this index to find the right doc quickly.
 
@@ -30,6 +30,7 @@ Use this index to find the right doc quickly.
 - `HACKATHON_LOG.md` — current phase status, submission checklist, and milestone history
 - `FUTURE_PLAN.md` — version-targeted roadmap (current active target: `v0.3.0`; prior submission-readiness patch target closed)
 - `UI_PLAN.md` — UI maturity plan, principles, and weekly tracking through submission
+- `AGENT_HANDOFF_CONTEXT_MINISPEC.md` — draft design for Activity Detail `Copy Context` + optional `Assign to Agent` handoff integration
 - `GH_AW_IMPLEMENTATION_TRACKER.md` — gh-aw research summary, Layer 1/2 checklists, decision log, and evidence
 - `JENKINS_BRIDGE_TECHNICAL_DESIGN.md` — design draft for `BL-034` Jenkins bridge ingestion (payload/auth/replay/API/tests)
 - `case-studies/` — real incident writeups showing detection, classification, and remediation outcomes
