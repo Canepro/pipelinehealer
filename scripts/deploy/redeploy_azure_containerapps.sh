@@ -244,6 +244,43 @@ read_env_key() {
   grep -E "^${key}=" "$ENV_FILE" | tail -n1 | cut -d= -f2- | tr -d '\r\n' || true
 }
 
+resolve_local_compose_image_ref() {
+  local service="$1"
+  local project_basename project_dash project_underscore
+  local candidate
+  local -a candidates=()
+
+  project_basename="$(basename "$REPO_ROOT")"
+  project_dash="$(printf '%s' "$project_basename" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-')"
+  project_underscore="$(printf '%s' "$project_basename" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_' '_')"
+
+  # Cover docker/podman compose naming differences (dash vs underscore, localhost prefix).
+  candidates+=(
+    "pipelinehealer-${service}:latest"
+    "pipelinehealer_${service}:latest"
+    "localhost/pipelinehealer-${service}:latest"
+    "localhost/pipelinehealer_${service}:latest"
+    "${project_dash}-${service}:latest"
+    "${project_underscore}_${service}:latest"
+    "localhost/${project_dash}-${service}:latest"
+    "localhost/${project_underscore}_${service}:latest"
+  )
+
+  for candidate in "${candidates[@]}"; do
+    if "$CONTAINER_ENGINE" image inspect "$candidate" >/dev/null 2>&1; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  echo "Unable to locate locally built image for service '$service'." >&2
+  echo "Checked candidates:" >&2
+  for candidate in "${candidates[@]}"; do
+    echo "  - $candidate" >&2
+  done
+  return 1
+}
+
 array_contains() {
   local needle="$1"
   shift
@@ -466,9 +503,19 @@ prune_acr_repository() {
   local -a delete_pairs=()
 
   while IFS=$'\t' read -r tag digest; do
-    [[ -z "$tag" || -z "$digest" ]] && continue
+    tag="$(printf '%s' "$tag" | tr -d '\r\n')"
+    digest="$(printf '%s' "$digest" | tr -d '\r\n')"
+    digest="${digest%%\?*}"
+    [[ -z "$tag" ]] && continue
+
+    if [[ -n "$digest" && ! "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+      digest=""
+    fi
+
     if [[ "$index" -lt "$retain_count" || "$tag" == "latest" || "$tag" == "$keep_tag" || "$tag" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
-      keep_digests["$digest"]=1
+      if [[ -n "$digest" ]]; then
+        keep_digests["$digest"]=1
+      fi
       keep_count=$((keep_count + 1))
     else
       delete_pairs+=("${tag}"$'\t'"${digest}")
@@ -489,6 +536,14 @@ prune_acr_repository() {
   for pair in "${delete_pairs[@]}"; do
     tag="${pair%%$'\t'*}"
     digest="${pair#*$'\t'}"
+    if [[ -z "$digest" ]]; then
+      if az acr repository untag -n "$acr_name" --image "$repo:$tag" >/dev/null 2>&1; then
+        removed_tag_refs=$((removed_tag_refs + 1))
+      else
+        failures=$((failures + 1))
+      fi
+      continue
+    fi
     if [[ -n "${keep_digests[$digest]:-}" ]]; then
       if az acr repository untag -n "$acr_name" --image "$repo:$tag" >/dev/null 2>&1; then
         removed_tag_refs=$((removed_tag_refs + 1))
@@ -611,8 +666,12 @@ if [[ "$MODE" == "full" ]]; then
   (
     cd "$REPO_ROOT"
     "$CONTAINER_ENGINE" compose --env-file "$COMPOSE_ENV_FILE" build backend frontend
-    "$CONTAINER_ENGINE" tag pipelinehealer-backend:latest  "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
-    "$CONTAINER_ENGINE" tag pipelinehealer-frontend:latest "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
+    backend_local_image="$(resolve_local_compose_image_ref backend)"
+    frontend_local_image="$(resolve_local_compose_image_ref frontend)"
+    echo "Local backend image : $backend_local_image"
+    echo "Local frontend image: $frontend_local_image"
+    "$CONTAINER_ENGINE" tag "$backend_local_image"  "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
+    "$CONTAINER_ENGINE" tag "$frontend_local_image" "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
     "$CONTAINER_ENGINE" push "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
     "$CONTAINER_ENGINE" push "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
   )

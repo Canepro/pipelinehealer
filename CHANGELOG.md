@@ -20,6 +20,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - Hardened `.github/workflows/release.yml` to block GitHub release creation when anonymous GHCR pullability fails.
 - Updated release documentation/checklist surfaces (`README.md`, `docs/CLI.md`, `docs/RELEASE_RUNBOOK.md`, `scripts/release_checklist.sh`) to use the new preflight and post-release verification automation paths.
 - Qualified frontend Docker base images (`docker.io/oven/bun:1`, `docker.io/library/nginx:alpine`) to avoid short-name resolution failures in mixed Docker/Podman/WSL deploy environments.
+- Hardened Azure full deploy image retagging to auto-detect local compose build image names across dash/underscore and optional `localhost/` prefixes before pushing to ACR, and sanitized ACR prune digest parsing to avoid malformed delete refs.
 
 ## [v0.2.11] - 2026-02-23
 
