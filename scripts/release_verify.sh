@@ -124,20 +124,40 @@ print(f"PASS GitHub release: {data.get('url')}")
 PY
 
 if [[ "$skip_workflow_check" -eq 0 ]]; then
-  runs_json="$(gh api "/repos/${owner_repo}/actions/workflows/release.yml/runs?per_page=30")"
+  runs_json="$(gh api --paginate "/repos/${owner_repo}/actions/workflows/release.yml/runs?per_page=100")"
   RUNS_JSON="$runs_json" TAG_SHA="$tag_sha" python3 - <<'PY'
 import json
 import os
 
-runs = json.loads(os.environ.get("RUNS_JSON", "{}")).get("workflow_runs", [])
 tag_sha = os.environ.get("TAG_SHA", "").strip()
+raw = os.environ.get("RUNS_JSON", "")
+
+decoder = json.JSONDecoder()
+pages = []
+idx = 0
+while idx < len(raw):
+    while idx < len(raw) and raw[idx].isspace():
+        idx += 1
+    if idx >= len(raw):
+        break
+    page, next_idx = decoder.raw_decode(raw, idx)
+    pages.append(page)
+    idx = next_idx
+
+runs = []
+for page in pages:
+    if isinstance(page, dict):
+        runs.extend(page.get("workflow_runs", []))
+
 candidate = None
 for run in runs:
     if str(run.get("head_sha", "")).strip() == tag_sha and run.get("event") == "push":
         candidate = run
         break
 if candidate is None:
-    raise SystemExit("Verification failed: no release workflow run found for tag commit.")
+    raise SystemExit(
+        "Verification failed: no release workflow run found for tag commit across paginated history."
+    )
 conclusion = (candidate.get("conclusion") or "").strip().lower()
 status = (candidate.get("status") or "").strip().lower()
 if status != "completed" or conclusion != "success":

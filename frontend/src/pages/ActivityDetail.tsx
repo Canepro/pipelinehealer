@@ -894,7 +894,8 @@ export default function ActivityDetail() {
           </button>
           <button
             type="button"
-            disabled
+            aria-disabled="true"
+            onClick={(event) => event.preventDefault()}
             title="Coming soon in v0.3.1: configurable IDE agent handoff."
             className="inline-flex h-9 cursor-not-allowed items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)] px-3 text-sm font-semibold text-[var(--ph-text)] opacity-75"
           >

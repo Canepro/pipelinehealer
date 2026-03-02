@@ -142,9 +142,15 @@ check_manifest() {
   local accept="$4"
   local label="$5"
   local ref_path
+  local image_ref
   local code
 
   ref_path="${ref//:/%3A}"
+  if [[ "$ref" == sha256:* ]]; then
+    image_ref="ghcr.io/${repository}@${ref}"
+  else
+    image_ref="ghcr.io/${repository}:${ref}"
+  fi
   code="$(
     curl -sS -o /dev/null -w '%{http_code}' \
       -H "Authorization: Bearer ${token}" \
@@ -153,11 +159,11 @@ check_manifest() {
   )"
 
   if [[ "$code" == "200" ]]; then
-    echo "PASS ${label}: ghcr.io/${repository}:${ref}"
+    echo "PASS ${label}: ${image_ref}"
     return 0
   fi
 
-  echo "::error::FAIL ${label}: ghcr.io/${repository}:${ref} returned HTTP ${code}."
+  echo "::error::FAIL ${label}: ${image_ref} returned HTTP ${code}."
   return 1
 }
 
