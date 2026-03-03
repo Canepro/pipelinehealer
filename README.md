@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: d0bd771 -->
+<!-- LAST_VERIFIED: 59a9fc3 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -24,6 +24,49 @@ PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies 
 - Current release baseline: [`v0.3.1`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1)
 - Next scoped target: `v0.3.2` ([#44](https://github.com/Canepro/pipelinehealer/issues/44))
 - Demo runbook: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
+
+## Beginner Path (First 10 Minutes)
+
+If this is your first run, start local with default key auth and no Entra setup.
+
+1. Create env file:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+2. In `backend/.env`, set only:
+- one LLM path (`AZURE_OPENAI_*` or `OPENAI_COMPATIBLE_*`)
+- `GITHUB_PERSONAL_ACCESS_TOKEN`
+
+3. Start backend (Terminal A):
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+uvicorn src.main:app --reload --port 8000
+```
+
+4. Start frontend (Terminal B):
+
+```bash
+cd frontend
+bun install
+bun run dev
+```
+
+5. Verify:
+- `curl -sS http://127.0.0.1:8000/health` returns `{\"status\":\"healthy\"}`
+- open `http://127.0.0.1:5173`
+
+Defaults are already beginner-safe in `.env.example`:
+- `HEAL_MODE=safe`
+- `AUTH_MODE=api_key`
+- `VITE_AUTH_MODE=none`
+
+For managed deployment and full demo ops, use [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md).
 
 ## Why PipelineHealer
 
@@ -146,7 +189,7 @@ cp backend/.env.example backend/.env
   - OpenAI-compatible: `LLM_PROVIDER=openai_compatible`, `OPENAI_COMPATIBLE_BASE_URL`, `OPENAI_COMPATIBLE_MODEL`, `OPENAI_COMPATIBLE_API_KEY`
 - set GitHub token: `GITHUB_PERSONAL_ACCESS_TOKEN`
 
-3. Run backend and frontend:
+3. Run backend and frontend in separate terminals:
 
 ```bash
 cd backend

@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 1f53853 -->
+<!-- LAST_VERIFIED: 59a9fc3 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -11,6 +11,26 @@ For dedicated feature-by-feature docs, see `docs/features/README.md`.
 - A running backend (FastAPI) and frontend (React dashboard) on your machine
 - A webhook bridge so GitHub can notify your local backend when a workflow fails
 - PipelineHealer automatically analyzing failures and creating PRs or Issues
+
+## Fastest First Run (Beginner Defaults)
+
+Use this path if you are new and want the least setup friction:
+
+1. Copy env template: `cp backend/.env.example backend/.env`
+2. Fill only required values:
+   - one LLM path (`AZURE_OPENAI_*` or `OPENAI_COMPATIBLE_*`)
+   - `GITHUB_PERSONAL_ACCESS_TOKEN`
+3. Keep default auth/runtime values for first run:
+   - `AUTH_MODE=api_key`
+   - `VITE_AUTH_MODE=none`
+   - `HEAL_MODE=safe`
+4. Start backend (host-native) and frontend (`bun run dev`).
+5. Verify health at `http://127.0.0.1:8000/health` and open `http://127.0.0.1:5173`.
+
+For first run, skip optional sections unless needed:
+- Entra login
+- MCP diagnostics tuning
+- Azure deploy and release commands
 
 ---
 
@@ -260,6 +280,8 @@ bash scripts/ph.sh settings:check | jq '.mcp_enabled,.mcp_provider,.mcp_read_onl
 ## Step 3 — Start the Backend
 
 You have two options. Pick whichever suits you:
+
+Recommended for beginners: Option A (host-native) first, then Option B later if you want containerized parity.
 
 ### Option A: Host-native (no Docker needed)
 
