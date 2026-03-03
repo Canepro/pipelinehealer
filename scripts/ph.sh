@@ -38,7 +38,7 @@ Usage:
 Commands:
   deploy            Full Azure redeploy (build/push/update/verify)
   deploy:release    Azure redeploy from existing ACR release images (no local build)
-  deploy:env        Update runtime env vars only (no image rebuild)
+  deploy:env        Update runtime env vars only (backend + frontend, no image rebuild)
   deploy:bg         Run redeploy in background and write log to /tmp/ph-deploy-<rg>/
   deploy:logs       Follow detached redeploy logs
   deploy:status     Show detached redeploy process status

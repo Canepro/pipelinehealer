@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 30d0daf -->
+<!-- LAST_VERIFIED: 1f53853 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -168,6 +168,11 @@ bash scripts/ph.sh logs
 ```
 
 Full CLI reference: [docs/CLI.md](docs/CLI.md)
+
+Runtime config note:
+- containerized frontend config (`VITE_*`, including Entra settings) is runtime-driven
+- use `bash scripts/ph.sh deploy:env` to apply backend/frontend env changes without rebuilding images
+- full `deploy` is only needed when code/image contents changed
 
 ## 2-Minute Demo Path
 

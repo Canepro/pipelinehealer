@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 4ec8637 -->
+<!-- LAST_VERIFIED: 1f53853 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -108,6 +108,7 @@ Theme: lock submission baseline integrity by ensuring release/auth wiring matche
 
 1. Release auth/build guardrails
    - Validate required frontend auth build variables in release workflow for Entra-mode releases.
+   - Historical implementation note: superseded by runtime-first frontend config in `BL-043` (`v0.3.1`).
    - Document release-environment prerequisites for deterministic frontend auth behavior.
 2. AKS/operator runbook hardening
    - Clarify required vs optional settings for Kubernetes deployments.
@@ -119,7 +120,7 @@ Theme: lock submission baseline integrity by ensuring release/auth wiring matche
 ### Exit Criteria
 
 1. Tagged release publishes successfully and appears on GitHub release page.
-2. Release workflow fails early when required Entra frontend build variables are missing.
+2. Release workflow fails early when required Entra frontend build variables are missing (historical `v0.2.8` criterion; superseded by runtime config in `BL-043`).
 3. Core operator docs and README consistently point to `v0.2.8` as submission baseline (or use `vX.Y.Z` placeholders where appropriate).
 4. No contradictory release-version statements in user-facing docs.
 
@@ -415,6 +416,7 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-040` | Release umbrella tracking for bundled `v0.3.0` scope (`BL-036`, `BL-038`) ([#43](https://github.com/Canepro/pipelinehealer/issues/43)) | `v0.3.0` | patch | High | Completed (released in `v0.3.0`) |
 | `BL-041` | Release umbrella tracking for bundled `v0.3.1` integration scope (`BL-034`, `BL-039`) ([#44](https://github.com/Canepro/pipelinehealer/issues/44)) | `v0.3.1` | patch | High | Tracking (active) |
 | `BL-042` | Platform-neutral Kubernetes deployment profiles + docs guidance (`values.quickstart.yaml`, `values.production.yaml`) with optional installer automation follow-up ([#51](https://github.com/Canepro/pipelinehealer/issues/51)) | `TBD (post-submission, no release cut required)` | patch | High | Planned |
+| `BL-043` | Frontend runtime-config decoupling: make containerized `VITE_*` settings runtime-first across frontend/Helm/Azure deploy tooling and remove build-arg coupling in release path | `v0.3.1` | patch | High | In Progress |
 
 ## Definition of Done (Per Version)
 

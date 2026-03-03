@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 78822fc -->
+<!-- LAST_VERIFIED: 1f53853 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -251,7 +251,7 @@ bash scripts/ph.sh settings:check
 `401 Invalid bearer token` after successful Entra login:
 
 - Confirm backend `AUTH_MODE` and `ENTRA_*` values are synced (`bash scripts/ph.sh deploy:env`).
-- If frontend `VITE_ENTRA_*` changed, publish a new release and deploy it (`bash scripts/ph.sh deploy:release --release-version "$RELEASE_TAG"`).
+- If frontend `VITE_ENTRA_*` changed, sync runtime env (`bash scripts/ph.sh deploy:env`) and hard refresh browser cache.
 
 `Client error '403 Forbidden' for GitHub issue/PR creation`:
 

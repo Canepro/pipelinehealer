@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: 1f53853 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -116,7 +116,7 @@ PowerShell-only environments (no bash): run the same GitHub checks with `gh`, an
 |---------|-------------|
 | `deploy` | Full Azure redeploy (build, push, update, verify) |
 | `deploy:release` | Azure redeploy from existing ACR release images by digest (no local build) |
-| `deploy:env` | Sync backend runtime env vars only (no image rebuild) |
+| `deploy:env` | Sync runtime env vars only (backend + frontend, no image rebuild) |
 | `deploy:bg` | Run redeploy in background |
 | `deploy:logs` | Follow detached redeploy logs |
 | `deploy:status` | Show detached redeploy process status |
@@ -147,8 +147,8 @@ Important:
 - Production hardening option: append `--secure-secrets` to `deploy`, `deploy:release`, or `deploy:env` to store sensitive values as Container App secrets and bind env vars via `secretref`.
 - Optional naming control for secret mode: `--secret-prefix <prefix>` (default `ph`).
 - `deploy:release` resolves ACR digests and deploys immutable image references (`repository@sha256:...`).
-- Use `deploy:env` when changing backend runtime values (for example `AUTH_MODE`, `ENTRA_*`, policy settings).
-- Use full `deploy` for local iteration when frontend `VITE_*` values changed, because those are build-time inputs.
+- Use `deploy:env` for runtime-only config changes on backend or frontend (for example `AUTH_MODE`, `ENTRA_*`, `VITE_*`, policy settings).
+- Use full `deploy` only when image contents changed (source code, Dockerfile, dependencies).
 - Full `deploy` prunes old local ACR-tagged images and old ACR tags/manifests by default.
 - Protected from pruning: `latest`, current deploy tag, and semver-like tags (for example `v0.2.3`).
 - `--acr-retain-tags <n>` keeps the newest `n` tags per repo (`0` disables ACR pruning).

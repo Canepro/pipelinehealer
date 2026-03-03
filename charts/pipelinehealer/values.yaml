@@ -122,6 +122,18 @@ frontend:
   env:
     # Optional explicit backend URL. Leave empty to auto-target backend Service.
     BACKEND_UPSTREAM: ""
+    # Frontend runtime auth/api config (no frontend image rebuild required).
+    VITE_AUTH_MODE: none
+    VITE_ENTRA_TENANT_ID: ""
+    VITE_ENTRA_CLIENT_ID: ""
+    VITE_ENTRA_AUTHORITY: ""
+    VITE_ENTRA_API_SCOPE: ""
+    VITE_ENTRA_REDIRECT_URI: ""
+    VITE_ENTRA_POST_LOGOUT_REDIRECT_URI: ""
+    VITE_API_URL: ""
+    # Browser-visible fallback header for direct API URL mode; avoid for sensitive deployments.
+    VITE_API_AUTH_KEY: ""
+    VITE_API_TIMEOUT_MS: "15000"
 
   # Secret runtime config for frontend.
   secretEnv:

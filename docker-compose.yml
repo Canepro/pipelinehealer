@@ -65,24 +65,23 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        # Build-time Vite values are baked into the frontend bundle.
-        - VITE_AUTH_MODE=${VITE_AUTH_MODE:-none}
-        - VITE_ENTRA_TENANT_ID=${VITE_ENTRA_TENANT_ID:-}
-        - VITE_ENTRA_CLIENT_ID=${VITE_ENTRA_CLIENT_ID:-}
-        - VITE_ENTRA_AUTHORITY=${VITE_ENTRA_AUTHORITY:-}
-        - VITE_ENTRA_API_SCOPE=${VITE_ENTRA_API_SCOPE:-}
-        - VITE_ENTRA_REDIRECT_URI=${VITE_ENTRA_REDIRECT_URI:-}
-        - VITE_ENTRA_POST_LOGOUT_REDIRECT_URI=${VITE_ENTRA_POST_LOGOUT_REDIRECT_URI:-}
-        - VITE_API_URL=${VITE_API_URL:-}
-        - VITE_API_AUTH_KEY=${VITE_API_AUTH_KEY:-}
-        - VITE_API_TIMEOUT_MS=${VITE_API_TIMEOUT_MS:-15000}
     ports:
       - "3000:3000"
     environment:
       # Runtime reverse-proxy target used by Nginx in the frontend container.
       - BACKEND_UPSTREAM=${FRONTEND_BACKEND_UPSTREAM:-http://backend:8000}
       - API_AUTH_KEY=${API_AUTH_KEY:-}
+      # Runtime frontend config (overrides build defaults without image rebuild).
+      - VITE_AUTH_MODE=${VITE_AUTH_MODE:-none}
+      - VITE_ENTRA_TENANT_ID=${VITE_ENTRA_TENANT_ID:-}
+      - VITE_ENTRA_CLIENT_ID=${VITE_ENTRA_CLIENT_ID:-}
+      - VITE_ENTRA_AUTHORITY=${VITE_ENTRA_AUTHORITY:-}
+      - VITE_ENTRA_API_SCOPE=${VITE_ENTRA_API_SCOPE:-}
+      - VITE_ENTRA_REDIRECT_URI=${VITE_ENTRA_REDIRECT_URI:-}
+      - VITE_ENTRA_POST_LOGOUT_REDIRECT_URI=${VITE_ENTRA_POST_LOGOUT_REDIRECT_URI:-}
+      - VITE_API_URL=${VITE_API_URL:-}
+      - VITE_API_AUTH_KEY=${VITE_API_AUTH_KEY:-}
+      - VITE_API_TIMEOUT_MS=${VITE_API_TIMEOUT_MS:-15000}
     depends_on:
       - backend
     networks:

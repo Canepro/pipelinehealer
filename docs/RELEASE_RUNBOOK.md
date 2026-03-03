@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: 1f53853 -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -60,7 +60,7 @@ Service principal requirements (optional Azure path):
 - Federated credential for this GitHub repo/environment workflow (OIDC)
 - `AcrPush` role on your target ACR
 
-Frontend auth build variables (set in repository/environment Variables when Entra login is expected in release images):
+Frontend runtime auth variables (set in deploy-time env when Entra login is expected):
 
 - `VITE_AUTH_MODE` (`entra` or `none`; defaults to `none`)
 - `VITE_ENTRA_CLIENT_ID`
@@ -69,8 +69,8 @@ Frontend auth build variables (set in repository/environment Variables when Entr
 - optional: `VITE_ENTRA_REDIRECT_URI`, `VITE_ENTRA_POST_LOGOUT_REDIRECT_URI`, `VITE_API_URL`, `VITE_API_TIMEOUT_MS`
 
 Important:
-- release frontend images are built at tag time; `VITE_*` values are build-time inputs.
-- if these are missing, the release image will run with `VITE_AUTH_MODE=none` and "Use Login Session" cannot authenticate.
+- release frontend images are runtime-configurable for `VITE_*` values.
+- missing deploy-time `VITE_*` env keeps runtime defaults (`VITE_AUTH_MODE=none`), so "Use Login Session" stays disabled.
 
 ## 1) Preflight (Required)
 
@@ -202,15 +202,14 @@ Production hardening option:
 bash scripts/ph.sh deploy:release --release-version vX.Y.Z --secure-secrets
 ```
 
-3. If Entra auth is expected, verify frontend bundle auth mode after deploy:
+3. If Entra auth is expected, verify frontend runtime auth config after deploy:
 
 ```bash
 FRONTEND_URL="https://<frontend-fqdn>"
-JS_PATH="$(curl -fsSL "$FRONTEND_URL/" | sed -n 's/.*src=\"\\(\\/assets\\/index-[^\"]*\\.js\\)\".*/\\1/p' | head -n1)"
-curl -fsSL "${FRONTEND_URL}${JS_PATH}" | rg 'const dd=' | head -n1
+curl -fsSL "${FRONTEND_URL}/runtime-config.js" | rg 'VITE_AUTH_MODE|VITE_ENTRA_CLIENT_ID|VITE_ENTRA_API_SCOPE'
 ```
 
-Expected for Entra-enabled release: `const dd="entra"...`
+Expected for Entra-enabled release: `VITE_AUTH_MODE: "entra"` with matching Entra keys.
 
 ## 7) Post-Release
 

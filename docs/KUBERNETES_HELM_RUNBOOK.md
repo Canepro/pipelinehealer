@@ -1,6 +1,6 @@
 # Kubernetes Helm Runbook
 
-<!-- LAST_VERIFIED: 4ec8637 -->
+<!-- LAST_VERIFIED: 1f53853 -->
 
 This runbook adds Kubernetes as a secondary deployment target while keeping Azure Container Apps as the default path.
 
@@ -25,13 +25,13 @@ Portability hardening tracker [#37](https://github.com/Canepro/pipelinehealer/is
 
 | Goal | Required | Optional |
 |---|---|---|
-| Baseline cluster install (key auth) | Helm chart + cluster, backend secrets (`API_AUTH_KEY`, `ADMIN_API_KEY`, PAT, LLM key), image refs (tag or digest) reachable by nodes | Entra config (`ENTRA_*`), frontend `VITE_ENTRA_*` |
-| Entra login session in UI | Backend auth mode/config (`AUTH_MODE=hybrid` or `entra` + `ENTRA_*`) and frontend image built with `VITE_AUTH_MODE=entra` | Key headers for runtime API access when using strict `entra` |
+| Baseline cluster install (key auth) | Helm chart + cluster, backend secrets (`API_AUTH_KEY`, `ADMIN_API_KEY`, PAT, LLM key), image refs (tag or digest) reachable by nodes | Entra config (`ENTRA_*`), frontend `VITE_*` runtime env |
+| Entra login session in UI | Backend auth mode/config (`AUTH_MODE=hybrid` or `entra` + `ENTRA_*`) and frontend runtime env `VITE_AUTH_MODE=entra` + required `VITE_ENTRA_*` | Key headers for runtime API access when using strict `entra` |
 | Migration/testing posture (recommended) | `AUTH_MODE=hybrid` so both key and Entra session auth are valid | Move later to strict `AUTH_MODE=entra` after client rollout |
 
 Important:
 - Backend auth config is runtime (`values.yaml`/Secret/ConfigMap).
-- Frontend `VITE_*` auth config is build-time image input, not runtime.
+- Frontend `VITE_*` auth/api config is runtime (`values.yaml` -> ConfigMap/Secret -> container env).
 
 ## Prerequisites
 
@@ -145,6 +145,13 @@ frontend:
     repository: ghcr.io/canepro/pipelinehealer-frontend
     tag: "vX.Y.Z"
     digest: ""
+  env:
+    VITE_AUTH_MODE: none
+    # Optional for Entra session auth:
+    # VITE_AUTH_MODE: entra
+    # VITE_ENTRA_CLIENT_ID: "<spa-app-id>"
+    # VITE_ENTRA_API_SCOPE: "api://<api-app-id>/PipelineHealer.Access"
+    # VITE_ENTRA_AUTHORITY: "https://login.microsoftonline.com/<tenant-or-domain>"
 
 ingress:
   enabled: true
@@ -165,23 +172,22 @@ To make `Use Login Session` work on AKS:
 1. Backend runtime must allow bearer auth:
    - `AUTH_MODE=hybrid` (recommended rollout/testing) or `AUTH_MODE=entra`
    - correct `ENTRA_*` values in backend environment
-2. Frontend image must be built with Entra enabled:
+2. Frontend runtime env must enable Entra:
    - `VITE_AUTH_MODE=entra`
    - `VITE_ENTRA_CLIENT_ID`
    - `VITE_ENTRA_API_SCOPE`
    - `VITE_ENTRA_AUTHORITY` or `VITE_ENTRA_TENANT_ID`
 
-If frontend image was built with `VITE_AUTH_MODE=none`, session login will not work even when backend Entra runtime is correct.
+If runtime env keeps `VITE_AUTH_MODE=none`, session login will not work even when backend Entra runtime is correct.
 
-### Verify frontend auth mode from deployed image
+### Verify frontend runtime auth mode from deployed app
 
 ```bash
 kubectl -n pipelinehealer port-forward svc/pipelinehealer-frontend 3000:3000
-JS_PATH="$(curl -fsSL http://127.0.0.1:3000/ | sed -n 's/.*src=\"\\(\\/assets\\/index-[^\"]*\\.js\\)\".*/\\1/p' | head -n1)"
-curl -fsSL "http://127.0.0.1:3000${JS_PATH}" | rg 'const dd=' | head -n1
+curl -fsSL http://127.0.0.1:3000/runtime-config.js | rg 'VITE_AUTH_MODE|VITE_ENTRA_CLIENT_ID|VITE_ENTRA_API_SCOPE'
 ```
 
-Expected for Entra-enabled image: `const dd="entra"...`
+Expected for Entra-enabled runtime config: `VITE_AUTH_MODE: "entra"` with matching Entra keys.
 
 ## Version Pinning (Recommended)
 
@@ -248,7 +254,7 @@ curl http://127.0.0.1:8000/health
 ## Operational Notes
 
 - Frontend still proxies `/api` to backend via `BACKEND_UPSTREAM`.
-- For Entra session auth, image build-time `VITE_*` values must already be present in the frontend image.
+- For Entra session auth, set frontend runtime `VITE_*` values in Helm overrides; no image rebuild is required.
 - Keep `MCP_ENABLED=false` and `MCP_READ_ONLY=true` by default for first rollout.
 - Use repo allowlists (`PH_ALLOWED_REPOS`, `MCP_REPO_ALLOWLIST`) before enabling wider automation.
 - Use `docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md` for provider migration/rollback steps.
@@ -259,12 +265,14 @@ Symptom:
 - UI sign-in succeeds, but `/settings` or `/control-center` shows `401 Invalid or missing admin API key` when using session login.
 
 Root cause:
-- Frontend image built with `VITE_AUTH_MODE=none` while backend is configured for Entra/hybrid.
+- Frontend runtime env still has `VITE_AUTH_MODE=none` while backend is configured for Entra/hybrid.
 
 Fix:
-1. Rebuild/publish frontend image with `VITE_AUTH_MODE=entra` and required `VITE_ENTRA_*`.
-2. Update Helm values to that new frontend image tag/digest.
-3. `helm upgrade --install ...` and re-verify with bundle check above.
+1. Set frontend runtime env in values:
+   - `VITE_AUTH_MODE=entra`
+   - required `VITE_ENTRA_*`
+2. `helm upgrade --install ...` with updated values.
+3. Re-verify with `runtime-config.js` check above.
 
 ## Rollback
 

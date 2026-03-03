@@ -106,7 +106,7 @@ export default function SettingsPage() {
   const hasUnsavedChanges =
     lastSavedForm !== null && JSON.stringify(form) !== JSON.stringify(lastSavedForm)
   const settingsErrorMessage = error instanceof Error ? error.message : 'Unknown error'
-  const sessionAuthDisabledByBuild = useSessionAuth && !AUTH_ENABLED
+  const sessionAuthDisabledByConfig = useSessionAuth && !AUTH_ENABLED
   const showSessionRefreshHint =
     useSessionAuth &&
     AUTH_ENABLED &&
@@ -266,10 +266,10 @@ export default function SettingsPage() {
               </>
             ) : (
               <>
-                Session login is disabled in this frontend build
+                Session login is disabled in this deployment
                 (<code className="font-mono">VITE_AUTH_MODE=none</code>). Use
-                <code className="font-mono">X-Admin-Key</code> or deploy a release image built with
-                Entra <code className="font-mono">VITE_ENTRA_*</code> values.
+                <code className="font-mono">X-Admin-Key</code> or set frontend runtime
+                <code className="font-mono">VITE_ENTRA_*</code> values and redeploy env.
               </>
             )}
           </p>
@@ -302,11 +302,11 @@ export default function SettingsPage() {
                 retrying.
               </p>
             )}
-            {sessionAuthDisabledByBuild && (
+            {sessionAuthDisabledByConfig && (
               <p className="text-xs text-[var(--ph-muted)] mt-3">
-                This frontend build cannot send Entra session tokens. Rebuild/release frontend with
-                <code className="mx-1 font-mono">VITE_AUTH_MODE=entra</code> and Entra
-                <code className="mx-1 font-mono">VITE_ENTRA_*</code> values.
+                Session tokens are disabled by runtime config. Set
+                <code className="mx-1 font-mono">VITE_AUTH_MODE=entra</code> and required
+                <code className="mx-1 font-mono">VITE_ENTRA_*</code> env vars, then redeploy env.
               </p>
             )}
           </CardContent>
