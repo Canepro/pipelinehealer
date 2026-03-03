@@ -1,12 +1,12 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 1f53853 -->
+<!-- LAST_VERIFIED: 3116334 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Try_It-brightgreen)](https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io)
 [![Azure](https://img.shields.io/badge/Azure-Deployed-blue)](https://azure.microsoft.com)
-[![Release](https://img.shields.io/badge/Release-v0.3.0-blue)](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0)
+[![Release](https://img.shields.io/badge/Release-v0.3.1-blue)](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies controlled remediation:
@@ -21,8 +21,8 @@ PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies 
 
 - Public repository: `https://github.com/Canepro/pipelinehealer`
 - Live deployment: Azure Container Apps (backend + frontend)
-- Current release baseline: [`v0.3.0`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0)
-- Next scoped target: `v0.3.1` ([#44](https://github.com/Canepro/pipelinehealer/issues/44))
+- Current release baseline: [`v0.3.1`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1)
+- Next scoped target: `v0.3.2` ([#44](https://github.com/Canepro/pipelinehealer/issues/44))
 - Demo runbook: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
 
 ## Why PipelineHealer
@@ -34,7 +34,13 @@ CI failures create repetitive triage work and slow delivery. PipelineHealer redu
 - universal failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
 - idempotent artifacts (find-or-create PR/issue reuse)
 
-## What Shipped In v0.3.0
+## What Shipped In v0.3.1
+
+- frontend runtime-first config for containerized deployments (`VITE_*` via `/runtime-config.js`)
+- no-rebuild config updates through runtime env sync paths (ACA/Helm/compose)
+- release workflow/frontend image decoupled from auth build-arg coupling
+
+## Previously Shipped In v0.3.0
 
 - Activity Detail `Copy Context` for one-click AI-ready handoff payloads (bounded + redacted)
 - visible disabled `Assign to Agent` affordance (`Coming Soon`) for discoverability
@@ -43,11 +49,11 @@ CI failures create repetitive triage work and slow delivery. PipelineHealer redu
   - backend/frontend digests
   - Helm chart OCI tag (`X.Y.Z`)
 
-Release notes: [CHANGELOG.md](CHANGELOG.md) and [v0.3.0 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0)
+Release notes: [CHANGELOG.md](CHANGELOG.md), [v0.3.1 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1), and [v0.3.0 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0)
 
 ## Kubernetes Portability Status
 
-As of March 3, 2026 (`v0.3.0`), random-user image pullability regressions are gated in release automation.
+As of March 3, 2026 (`v0.3.1`), random-user image pullability regressions are gated in release automation.
 
 - previous portability gap issue [#37](https://github.com/Canepro/pipelinehealer/issues/37) is closed
 - Helm success output alone is still not sufficient proof; verify rollout and image pulls on clean clusters

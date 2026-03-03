@@ -1,12 +1,12 @@
 # Agent Handoff + Copy Context Mini-Spec
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: 3116334 -->
 
-Status: Phase 0/1 released in `v0.3.0` (`Copy Context` + disabled `Assign to Agent`), Phase 2 pending (`v0.3.1`)
+Status: Phase 0/1 released in `v0.3.0` (`Copy Context` + disabled `Assign to Agent`), Phase 2 pending (`v0.3.2`)
 Owner: PipelineHealer maintainers
 Scope target:
 - `v0.3.0`: `Copy Context` + disabled `Assign to Agent` `Coming Soon` affordance
-- `v0.3.1`: functional agent handoff integration (`copy_only`/`webhook`)
+- `v0.3.2`: functional agent handoff integration (`copy_only`/`webhook`)
 
 ## Problem
 
@@ -49,7 +49,7 @@ Why first:
 - low regression risk
 - immediate user value
 
-### Phase 2: `Assign to Agent` (`v0.3.1`, configurable integration)
+### Phase 2: `Assign to Agent` (`v0.3.2`, configurable integration)
 
 Add a pluggable handoff path with disabled-by-default behavior.
 
@@ -68,7 +68,7 @@ Controls:
 - `Copy Context` button: always available when activity is loaded.
 - `Assign to Agent` button:
   - `v0.3.0`: visible, disabled, marked `Coming Soon`
-  - `v0.3.1`: enabled only when connector mode is configured
+  - `v0.3.2`: enabled only when connector mode is configured
 
 Feedback:
 - success/failure toast for each action.

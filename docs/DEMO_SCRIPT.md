@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 1f53853 -->
+<!-- LAST_VERIFIED: 3116334 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -19,7 +19,7 @@ Related docs:
 Default values used in this runbook:
 
 ```bash
-export RELEASE_TAG="${RELEASE_TAG:-v0.3.0}"
+export RELEASE_TAG="${RELEASE_TAG:-v0.3.1}"
 export DEMO_REPO="${DEMO_REPO:-Canepro/pipelinehealer-demo}"
 ```
 

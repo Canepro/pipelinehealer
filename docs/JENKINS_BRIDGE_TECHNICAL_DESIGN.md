@@ -1,10 +1,10 @@
 # BL-034 Technical Design: Jenkins Bridge Ingestion
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: 3116334 -->
 
 Status: Draft (design only, no implementation in this document)  
 Backlog: `BL-034`  
-Target: `v0.3.1` (planned)  
+Target: `v0.3.2` (planned)  
 Related issue: [#36](https://github.com/Canepro/pipelinehealer/issues/36)
 
 ## Why This Exists

@@ -24,13 +24,16 @@ This is the long-form project tracker for hackathon execution status, submission
 - Hybrid diagnostics mode shipped in `v0.2.9`: `GH_AW_INGESTION_MODE=hybrid` now allows GH-AW passive findings and GitHub MCP context to coexist in a single activity with per-finding source-path metadata
 - Agent handoff roadmap moved to phased delivery:
   - `v0.3.0`: Activity Detail `Copy Context` + visible disabled `Assign to Agent` (`Coming Soon`)
-  - `v0.3.1`: functional `Assign to Agent` integration path (tracked under `BL-039`)
+  - `v0.3.2`: functional `Assign to Agent` integration path (tracked under `BL-039`)
 - Multi-platform notifications research logged as `undecided` in roadmap (`docs/FUTURE_PLAN.md`, `DP-002` / `BL-033`) with phased rollout recommendation (Slack -> Teams -> Rocket.Chat) pending post-submission approval
-- Canary scope expanded (issue-only safe mode) to `canepro/portfolio_website-main`, `canepro/rocketchat-k8s`, and `canepro/central-observability-hub-stack`; Jenkins-primary repo coverage gap identified and now tracked as bridge-first plan (`DP-003`, `BL-034`, target `v0.3.1`)
+- Canary scope expanded (issue-only safe mode) to `canepro/portfolio_website-main`, `canepro/rocketchat-k8s`, and `canepro/central-observability-hub-stack`; Jenkins-primary repo coverage gap identified and now tracked as bridge-first plan (`DP-003`, `BL-034`, target `v0.3.2`)
 - Release planning split is active:
   - `v0.3.0` scope tracking issue: [#43](https://github.com/Canepro/pipelinehealer/issues/43) (`BL-036` + `BL-038`)
-  - `v0.3.1` scope tracking issue: [#44](https://github.com/Canepro/pipelinehealer/issues/44) (`BL-034` + `BL-039`)
-- Release `v0.3.0` is the current public baseline; `v0.3.1` is now the active integration target
+  - `v0.3.2` scope tracking issue: [#44](https://github.com/Canepro/pipelinehealer/issues/44) (`BL-034` + `BL-039`)
+- Release `v0.3.1` is the current public baseline; `v0.3.2` is now the active integration target
+- `v0.3.1` runtime-config decoupling shipped:
+  - release published: `https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1`
+  - runtime-first frontend config tracked in [#54](https://github.com/Canepro/pipelinehealer/issues/54)
 - `v0.3.0` release hardening + AI-handoff UX baseline shipped:
   - release published: `https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0`
   - portability gap issue [#37](https://github.com/Canepro/pipelinehealer/issues/37) closed

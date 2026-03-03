@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 1f53853 -->
+<!-- LAST_VERIFIED: 3116334 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -37,6 +37,7 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.2.10` | Released | Settings persistence safety hardening (`PH_ALLOWED_REPOS` mutation safety + URL guardrails) |
 | `v0.2.11` | Released | Runtime control-surface separation + canary policy hardening + Kubernetes pullability docs clarity |
 | `v0.3.0` | Released | Activity Detail AI handoff UX baseline (`Copy Context` + disabled `Assign to Agent`) + anonymous GHCR pullability gate hardening |
+| `v0.3.1` | Released | Frontend runtime-config decoupling for containerized `VITE_*` settings + deploy/workflow/docs alignment |
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
@@ -218,7 +219,7 @@ Theme: operator handoff UX baseline + Kubernetes portability release hardening.
 4. No regressions in existing Activity Detail actions (`Retry`, `Backfill Diagnostics`).
 5. Release docs and changelog match shipped behavior.
 
-## Active Target: `v0.3.1` (Minor)
+## Active Target: `v0.3.2` (Minor)
 
 Theme: integration activation for non-GitHub CI ingestion and agent handoff.
 
@@ -241,7 +242,7 @@ Theme: integration activation for non-GitHub CI ingestion and agent handoff.
 3. Integration failures are non-blocking for core activity workflows.
 4. API/docs/runbooks are aligned with shipped integration behavior.
 
-## Planned Target: `v0.3.2` (Minor)
+## Planned Target: `v0.3.3` (Minor)
 
 Theme: complete learning-system operator workflow from candidate signal to safe activation, including lower-friction verification capture.
 
@@ -314,7 +315,7 @@ These items are researched and tracked; some have scoped phased rollout while ot
 
 - Status: `Phased rollout`:
   - `v0.3.0`: discoverability UI (`Assign to Agent` shown as disabled `Coming Soon`)
-  - `v0.3.1`: functional handoff integration (`copy_only`/`webhook`)
+  - `v0.3.2`: functional handoff integration (`copy_only`/`webhook`)
 - Draft mini-spec for scoped, non-breaking handoff UX:
   - `docs/AGENT_HANDOFF_CONTEXT_MINISPEC.md`
 - Why parked:
@@ -354,11 +355,11 @@ These items are researched and tracked; some have scoped phased rollout while ot
 
 ### DP-003: Jenkins Bridge Strategy for GitHub-Adjacent Repos
 
-- Status: `Planned` (recommended to start in `v0.3.1`)
+- Status: `Planned` (recommended to start in `v0.3.2`)
 - Problem statement:
   - Some onboarded repos are Jenkins-primary and may not emit GitHub `workflow_run` failures, so PipelineHealer receives no trigger despite webhook allowlisting.
 - Recommended option:
-  - Build a signed Jenkins bridge ingestion path into PipelineHealer first (`v0.3.1`) before full native Jenkins adapter work.
+  - Build a signed Jenkins bridge ingestion path into PipelineHealer first (`v0.3.2`) before full native Jenkins adapter work.
 - Why this option:
   - Reuses existing diagnosis/remediation pipeline quickly.
   - Preserves current policy/audit model.
@@ -374,9 +375,9 @@ These items are researched and tracked; some have scoped phased rollout while ot
 
 | ID | Item | Recommended Target | Type | Priority | Status |
 |---|---|---|---|---|---|
-| `BL-001` | Learning retrieval-before-diagnosis/remediation | `v0.3.2` | minor | High | Planned |
-| `BL-002` | Learning candidate edit API/UI + audit metadata | `v0.3.2` | minor | High | Planned |
-| `BL-003` | Learning simulation/preview controls in Control Center | `v0.3.2` | minor | High | Planned |
+| `BL-001` | Learning retrieval-before-diagnosis/remediation | `v0.3.3` | minor | High | Planned |
+| `BL-002` | Learning candidate edit API/UI + audit metadata | `v0.3.3` | minor | High | Planned |
+| `BL-003` | Learning simulation/preview controls in Control Center | `v0.3.3` | minor | High | Planned |
 | `BL-004` | MCP policy visualization + approval UX completion | `v0.4.0` | minor | Medium | Planned |
 | `BL-005` | Token/cost telemetry and degradation alerts | `v0.4.0` | minor | Medium | Planned |
 | `BL-006` | In-app investigation/log viewer (bounded) | `v0.4.x` | patch/minor | Medium | Queued |
@@ -398,25 +399,25 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-022` | Demo verification output clarity (`mcp_tool_calls_total` vs passive-only counters) | `v0.2.7` | patch | High | Completed (in `main`) |
 | `BL-023` | Docs/runbook MCP interpretation hardening for non-expert operators | `v0.2.7` | patch | High | Completed (in `main`) |
 | `BL-024` | Release baseline alignment (`v0.2.7`) across README/CLI/runbooks | `v0.2.7` | patch | Medium | Completed (in `main`) |
-| `BL-025` | Accuracy-assessment bridge: ingest structured GitHub issue verification comments into `learning/feedback` with audit traceability | `v0.3.2` | minor | High | Planned |
+| `BL-025` | Accuracy-assessment bridge: ingest structured GitHub issue verification comments into `learning/feedback` with audit traceability | `v0.3.3` | minor | High | Planned |
 | `BL-026` | Cross-platform operator support: PowerShell wrapper + non-Azure deploy wrapper strategy for `ph` commands | `v0.5.0` | minor | Medium | Planned |
 | `BL-027` | AKS/Helm onboarding hardening: explicit required-vs-optional auth paths, Entra build-time vs runtime guardrails, and post-deploy auth verification checklist ([#32](https://github.com/Canepro/pipelinehealer/issues/32)) | `v0.3.0` | patch | Medium | Completed (in `main`) |
 | `BL-028` | Submission-baseline drift control (`v0.2.8`): release auth build-var gating + docs version alignment pass | `v0.2.8` | patch | High | Completed (in `main`) |
 | `BL-029` | Azure deploy hardening option: `--secure-secrets` path in deploy tooling (`ph.sh` + redeploy script) with operator docs for secretref-backed runtime env | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
 | `BL-030` | GH-AW + GitHub MCP hybrid diagnostics ingestion mode (`GH_AW_INGESTION_MODE=hybrid`) across backend/UI/CLI/docs | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
 | `BL-031` | Passive backfill label-mismatch reliability fix (unlabeled fallback matching for ci-doctor findings) ([#35](https://github.com/Canepro/pipelinehealer/issues/35)) | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
-| `BL-032` | Copilot integration research track: evaluate coding-agent + MCP coexistence model without bypassing PipelineHealer governance | `v0.3.1` | minor | Medium | Planned (phased via `BL-038`/`BL-039`) |
+| `BL-032` | Copilot integration research track: evaluate coding-agent + MCP coexistence model without bypassing PipelineHealer governance | `v0.3.2` | minor | Medium | Planned (phased via `BL-038`/`BL-039`) |
 | `BL-033` | Multi-platform notifications research track: Slack/Teams/Rocket.Chat delivery model for non-admin stakeholders with auditable outbound events | `TBD (post-submission)` | minor | Medium | Research / Undecided |
-| `BL-034` | Jenkins bridge ingestion path: signed external CI failure payload -> synthetic PipelineHealer activity (`source_selection_path=jenkins_bridge`) with issue-first defaults | `v0.3.1` | minor | High | Planned |
+| `BL-034` | Jenkins bridge ingestion path: signed external CI failure payload -> synthetic PipelineHealer activity (`source_selection_path=jenkins_bridge`) with issue-first defaults ([#36](https://github.com/Canepro/pipelinehealer/issues/36)) | `v0.3.2` | minor | High | Planned |
 | `BL-035` | Native Jenkins provider adapter: deeper job metadata/log/artifact retrieval + rerun/governance parity with existing provider model | `v0.5.x` | minor | Medium | Queued |
 | `BL-036` | Public distribution hardening for Kubernetes portability: publish anonymous-pull image path and add clean-cluster pullability gate in release verification to block `ErrImagePull` (`401`/`403`) regressions ([#37](https://github.com/Canepro/pipelinehealer/issues/37)) | `v0.3.0` | patch | High | Completed (released in `v0.3.0`) |
 | `BL-037` | Settings persistence safety hardening: prevent accidental `PH_ALLOWED_REPOS` truncation via additive/remove semantics in `scripts/ph.sh` with explicit replace mode, plus backend URL resolution guardrails ([#38](https://github.com/Canepro/pipelinehealer/issues/38)) | `v0.2.10` | patch | High | Completed (released in `v0.2.10`) |
 | `BL-038` | Activity Detail one-click `Copy Context` for AI-ready handoff payloads with bounded size + redaction, plus disabled `Assign to Agent` `Coming Soon` affordance ([#41](https://github.com/Canepro/pipelinehealer/issues/41)) | `v0.3.0` | patch | High | Completed (released in `v0.3.0`) |
-| `BL-039` | Activity Detail `Assign to Agent` integration (`copy_only` + optional `webhook`) with audit-safe handoff controls ([#42](https://github.com/Canepro/pipelinehealer/issues/42)) | `v0.3.1` | minor | Medium | Planned |
+| `BL-039` | Activity Detail `Assign to Agent` integration (`copy_only` + optional `webhook`) with audit-safe handoff controls ([#42](https://github.com/Canepro/pipelinehealer/issues/42)) | `v0.3.2` | minor | Medium | Planned |
 | `BL-040` | Release umbrella tracking for bundled `v0.3.0` scope (`BL-036`, `BL-038`) ([#43](https://github.com/Canepro/pipelinehealer/issues/43)) | `v0.3.0` | patch | High | Completed (released in `v0.3.0`) |
-| `BL-041` | Release umbrella tracking for bundled `v0.3.1` integration scope (`BL-034`, `BL-039`) ([#44](https://github.com/Canepro/pipelinehealer/issues/44)) | `v0.3.1` | patch | High | Tracking (active) |
-| `BL-042` | Platform-neutral Kubernetes deployment profiles + docs guidance (`values.quickstart.yaml`, `values.production.yaml`) with optional installer automation follow-up ([#51](https://github.com/Canepro/pipelinehealer/issues/51)) | `TBD (post-submission, no release cut required)` | patch | High | Planned |
-| `BL-043` | Frontend runtime-config decoupling: make containerized `VITE_*` settings runtime-first across frontend/Helm/Azure deploy tooling and remove build-arg coupling in release path | `v0.3.1` | patch | High | In Progress |
+| `BL-041` | Release umbrella tracking for bundled integration scope (`BL-034`, `BL-039`) ([#44](https://github.com/Canepro/pipelinehealer/issues/44)) | `v0.3.2` | patch | High | Tracking (active) |
+| `BL-042` | Platform-neutral Kubernetes deployment profiles + docs guidance (`values.quickstart.yaml`, `values.production.yaml`) with optional installer automation follow-up ([#51](https://github.com/Canepro/pipelinehealer/issues/51)) | `TBD (post-submission, no release cut required)` | patch | High | Completed (in `main`) |
+| `BL-043` | Frontend runtime-config decoupling: make containerized `VITE_*` settings runtime-first across frontend/Helm/Azure deploy tooling and remove build-arg coupling in release path ([#54](https://github.com/Canepro/pipelinehealer/issues/54)) | `v0.3.1` | patch | High | Completed (released in `v0.3.1`) |
 
 ## Definition of Done (Per Version)
 
