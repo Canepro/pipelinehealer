@@ -1,6 +1,6 @@
 # PipelineHealer Hackathon Log
 
-**Last updated:** March 2, 2026
+**Last updated:** March 3, 2026
 
 This is the long-form project tracker for hackathon execution status, submission readiness, and milestone history.
 
@@ -30,7 +30,12 @@ This is the long-form project tracker for hackathon execution status, submission
 - Release planning split is active:
   - `v0.3.0` scope tracking issue: [#43](https://github.com/Canepro/pipelinehealer/issues/43) (`BL-036` + `BL-038`)
   - `v0.3.1` scope tracking issue: [#44](https://github.com/Canepro/pipelinehealer/issues/44) (`BL-034` + `BL-039`)
-- Release `v0.2.11` is the current public baseline; submission freeze remains active (bugfix/docs/housekeeping only)
+- Release `v0.3.0` is the current public baseline; `v0.3.1` is now the active integration target
+- `v0.3.0` release hardening + AI-handoff UX baseline shipped:
+  - release published: `https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0`
+  - portability gap issue [#37](https://github.com/Canepro/pipelinehealer/issues/37) closed
+  - handoff UX issue [#41](https://github.com/Canepro/pipelinehealer/issues/41) closed
+  - release umbrella issue [#43](https://github.com/Canepro/pipelinehealer/issues/43) closed
 - MCP observability upgraded: real per-call tool invocation counting, aggregate MCP latency, and enriched action-audit fields (`provider`, `latency_ms`, `success`, `error_class`); read-only runbook context retrieval (`fetch_runbook_context`) now adds `knowledge-mcp` evidence when available
 - Control Center governance route added: `/app/control-center` provides read-only runtime/auth/provider posture, MCP policy-effect matrix, and centralized audit timeline
 - Settings audit UX reworked: audit/trace now lives only in Control Center as a single governance source
