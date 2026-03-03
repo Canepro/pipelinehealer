@@ -17,7 +17,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - Updated Helm defaults to expose frontend `VITE_*` runtime env values via chart values/configmaps.
 - Updated release workflow to stop enforcing frontend auth build args at image build time.
 - Updated operator docs/runbooks/README/CLI to reflect runtime config behavior and runtime verification via `runtime-config.js`.
-- Release-scope carry-forward commit references (post-`v0.2.11` lineage guardrail): `eaa47f7`, `44effc3`, `5afcdf6`, `9daf25e`, `c6e47b9`, `30d0daf`, `78822fc`, `4ec8637`.
+- Release-scope carry-forward commit references (post-`v0.2.11` lineage guardrail): `eaa47f7`, `44effc3`, `5afcdf6`, `9daf25e`, `c6e47b9`, `30d0daf`, `78822fc`, `4ec8637`, `1f53853`.
 
 ## [v0.3.0] - 2026-03-02
 
