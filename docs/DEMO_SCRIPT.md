@@ -1,10 +1,10 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: 78822fc -->
 
 Use this as the only doc during recording day. It includes:
 
-- exact commands to run (copy-paste ready, no placeholders)
+- exact commands to run (copy-paste ready with safe defaults)
 - checks to confirm each step
 - fast fallback commands
 - final 2-minute SHOW/TELL script
@@ -15,6 +15,13 @@ Related docs:
 - `docs/HACKATHON_LOG.md` for submission checklist and milestone status
 - `docs/API.md` for full API endpoint reference and best practices
 - `docs/CLI.md` for the full CLI command reference
+
+Default values used in this runbook:
+
+```bash
+export RELEASE_TAG="${RELEASE_TAG:-v0.3.0}"
+export DEMO_REPO="${DEMO_REPO:-Canepro/pipelinehealer-demo}"
+```
 
 ## Demo Flow (3-4 Minutes)
 
@@ -31,8 +38,13 @@ Run from repo root:
 
 ```bash
 cd /mnt/d/repos/pipelinehealer
+git status --short
+git fetch origin main
+git checkout main
 git pull --ff-only origin main
-bash scripts/ph.sh deploy:release --release-version vX.Y.Z
+gh auth status
+az account show --output table
+bash scripts/ph.sh deploy:release --release-version "$RELEASE_TAG"
 bash scripts/ph.sh warm
 bash scripts/ph.sh status
 bash scripts/ph.sh settings:check
@@ -43,6 +55,7 @@ Pass checks:
 - `status` shows both apps with `MinReplicas` = `1`
 - `settings:check` returns JSON (not `401`)
 - response includes expected runtime values (for example `github_auth_mode`, `max_remediation_attempts`, `azure_openai_api_version`)
+- `git status --short` is empty (or only known intentional files)
 
 If `settings:check` fails with `401`:
 
@@ -56,7 +69,7 @@ If `deploy:release` fails due Azure auth/session context:
 ```bash
 az account show
 az login
-bash scripts/ph.sh deploy:release --release-version vX.Y.Z
+bash scripts/ph.sh deploy:release --release-version "$RELEASE_TAG"
 ```
 
 ## 2) Optional Clean Slate for Demo Repo
@@ -72,7 +85,7 @@ Pass check:
 ## 3) Main E2E Demo Command (Use On Camera)
 
 ```bash
-bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180
+bash scripts/ph.sh demo:e2e --repo "$DEMO_REPO" --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180
 ```
 
 What this command does:
@@ -99,7 +112,7 @@ Pass checks in output:
 Rehearsal-only strict gate:
 
 ```bash
-bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 300 --strict
+bash scripts/ph.sh demo:e2e --repo "$DEMO_REPO" --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 300 --strict
 ```
 
 ### Single Failure Type (faster, focused demo)
@@ -107,19 +120,19 @@ bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout
 If you only want to show one failure type on camera:
 
 ```bash
-gh workflow run ci.yml --repo Canepro/pipelinehealer-demo --field failure_type=dependency
+gh workflow run CI --repo "$DEMO_REPO" --field failure_type=dependency
 ```
 
 Then verify:
 
 ```bash
-bash scripts/ph.sh demo:proof --repo Canepro/pipelinehealer-demo --limit 5
+bash scripts/ph.sh demo:proof --repo "$DEMO_REPO" --limit 5
 ```
 
 ## 4) Verification Commands (If You Need Extra Proof)
 
 ```bash
-bash scripts/ph.sh demo:proof --repo Canepro/pipelinehealer-demo --limit 10
+bash scripts/ph.sh demo:proof --repo "$DEMO_REPO" --limit 10
 bash scripts/ph.sh urls
 bash scripts/ph.sh settings:check
 bash scripts/ph.sh audit:proof --limit 5
@@ -176,7 +189,7 @@ TELL: PipelineHealer listens for `workflow_run.completed` failures, then runs a 
 SHOW: Terminal running:
 
 ```bash
-bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180
+bash scripts/ph.sh demo:e2e --repo "$DEMO_REPO" --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180
 ```
 
 SHOW: Output with webhook sync, workflow/activity output, and dashboard updating in real time.
@@ -206,8 +219,8 @@ TELL: PipelineHealer is not just an AI that opens PRs. It is an AI-governed reme
 Merge or close demo artifacts if needed:
 
 ```bash
-gh pr list -R Canepro/pipelinehealer-demo
-gh issue list -R Canepro/pipelinehealer-demo --state open
+gh pr list -R "$DEMO_REPO"
+gh issue list -R "$DEMO_REPO" --state open
 ```
 
 Return to low-cost mode:
@@ -238,7 +251,7 @@ bash scripts/ph.sh settings:check
 `401 Invalid bearer token` after successful Entra login:
 
 - Confirm backend `AUTH_MODE` and `ENTRA_*` values are synced (`bash scripts/ph.sh deploy:env`).
-- If frontend `VITE_ENTRA_*` changed, publish a new release and deploy it (`bash scripts/ph.sh deploy:release --release-version vX.Y.Z`).
+- If frontend `VITE_ENTRA_*` changed, publish a new release and deploy it (`bash scripts/ph.sh deploy:release --release-version "$RELEASE_TAG"`).
 
 `Client error '403 Forbidden' for GitHub issue/PR creation`:
 
@@ -249,7 +262,7 @@ bash scripts/ph.sh settings:check
 
 ```bash
 gh auth status
-gh issue create -R <owner>/<repo> -t "PipelineHealer auth test" -b "test"
+gh issue create -R "$DEMO_REPO" -t "PipelineHealer auth test" -b "test"
 ```
 
 - Ensure `GITHUB_PERSONAL_ACCESS_TOKEN` in `backend/.env` is correct, then sync:
