@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: 1f53853 -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -91,14 +91,16 @@ Use `deploy:release` for Azure production/staging promotion:
 - best match for release-driven operations
 - add `--secure-secrets` to store sensitive runtime values as Container App secrets + `secretref` mappings
 
-Use `deploy:env` when only backend runtime env changed:
+Use `deploy:env` when runtime env changed:
 - auth mode and Entra backend vars
+- frontend runtime vars (`VITE_*`)
 - policy values
 - MCP/backend controls
 - use `deploy:env --secure-secrets` when rotating or hardening secrets
 
-Use full `deploy` for development/hotfix iterations when frontend build-time vars changed:
-- any `VITE_*` auth/config values
+Use full `deploy` for development/hotfix iterations when image contents changed:
+- frontend/backend source changes
+- dependency or Dockerfile changes
 
 ## Safe Rollout Tips
 
@@ -110,7 +112,7 @@ Use full `deploy` for development/hotfix iterations when frontend build-time var
 ## Common Mistakes
 
 - Running Azure-only CLI commands while in local mode (`PH_BACKEND_URL` set).
-- Expecting frontend changes after `deploy:env` only.
+- Expecting code changes after `deploy:env` only.
 - Running long test commands without timeout wrappers.
 
 ## Related Docs

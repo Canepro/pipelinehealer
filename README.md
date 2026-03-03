@@ -1,12 +1,12 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 30d0daf -->
+<!-- LAST_VERIFIED: 5a3c85c -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Try_It-brightgreen)](https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io)
 [![Azure](https://img.shields.io/badge/Azure-Deployed-blue)](https://azure.microsoft.com)
-[![Release](https://img.shields.io/badge/Release-v0.3.0-blue)](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0)
+[![Release](https://img.shields.io/badge/Release-v0.3.1-blue)](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies controlled remediation:
@@ -21,9 +21,96 @@ PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies 
 
 - Public repository: `https://github.com/Canepro/pipelinehealer`
 - Live deployment: Azure Container Apps (backend + frontend)
-- Current release baseline: [`v0.3.0`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0)
-- Next scoped target: `v0.3.1` ([#44](https://github.com/Canepro/pipelinehealer/issues/44))
+- Current release baseline: [`v0.3.1`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1)
+- Next scoped target: `v0.3.2` ([#44](https://github.com/Canepro/pipelinehealer/issues/44))
 - Demo runbook: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
+
+## Beginner Path (First 10 Minutes)
+
+If this is your first run, start local with default key auth and no Entra setup.
+
+1. Create env file:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+2. In `backend/.env`, set only:
+- one LLM path (`AZURE_OPENAI_*` or `OPENAI_COMPATIBLE_*`)
+- `GITHUB_PERSONAL_ACCESS_TOKEN`
+
+3. Start backend (Terminal A):
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+uvicorn src.main:app --reload --port 8000
+```
+
+4. Start frontend (Terminal B):
+
+```bash
+cd frontend
+bun install
+bun run dev
+```
+
+5. Verify:
+- `curl -sS http://127.0.0.1:8000/health` returns `{\"status\":\"healthy\"}`
+- open `http://127.0.0.1:5173`
+
+Defaults are already beginner-safe in `.env.example`:
+- `HEAL_MODE=safe`
+- `AUTH_MODE=api_key`
+- `VITE_AUTH_MODE=none`
+
+For managed deployment and full demo ops, use [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md).
+
+## Deployment Command Cheat Sheet
+
+Pick the path that matches your environment:
+
+1. Azure Container Apps (recommended managed path)
+
+```bash
+# Runtime/env-only update (no image rebuild)
+bash scripts/ph.sh deploy:env
+
+# Promote a published release by tag
+bash scripts/ph.sh deploy:release --release-version vX.Y.Z
+
+# Full rebuild + redeploy from local source
+bash scripts/ph.sh deploy
+```
+
+2. Kubernetes (Helm)
+
+```bash
+# Install or update from chart source
+helm upgrade --install pipelinehealer ./charts/pipelinehealer \
+  --namespace pipelinehealer \
+  --create-namespace \
+  -f values.production.yaml
+
+# Verify rollout
+kubectl -n pipelinehealer rollout status deploy/pipelinehealer-backend
+kubectl -n pipelinehealer rollout status deploy/pipelinehealer-frontend
+```
+
+3. Local containers (Docker/Podman)
+
+```bash
+docker compose --env-file backend/.env build backend frontend
+docker compose --env-file backend/.env up -d backend frontend
+# Podman: replace `docker compose` with `podman compose`
+```
+
+Detailed docs:
+- Azure + local operations: [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md)
+- Kubernetes/Helm: [docs/KUBERNETES_HELM_RUNBOOK.md](docs/KUBERNETES_HELM_RUNBOOK.md)
+- Full CLI command reference: [docs/CLI.md](docs/CLI.md)
 
 ## Why PipelineHealer
 
@@ -34,7 +121,13 @@ CI failures create repetitive triage work and slow delivery. PipelineHealer redu
 - universal failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
 - idempotent artifacts (find-or-create PR/issue reuse)
 
-## What Shipped In v0.3.0
+## What Shipped In v0.3.1
+
+- frontend runtime-first config for containerized deployments (`VITE_*` via `/runtime-config.js`)
+- no-rebuild config updates through runtime env sync paths (ACA/Helm/compose)
+- release workflow/frontend image decoupled from auth build-arg coupling
+
+## Previously Shipped In v0.3.0
 
 - Activity Detail `Copy Context` for one-click AI-ready handoff payloads (bounded + redacted)
 - visible disabled `Assign to Agent` affordance (`Coming Soon`) for discoverability
@@ -43,11 +136,11 @@ CI failures create repetitive triage work and slow delivery. PipelineHealer redu
   - backend/frontend digests
   - Helm chart OCI tag (`X.Y.Z`)
 
-Release notes: [CHANGELOG.md](CHANGELOG.md) and [v0.3.0 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0)
+Release notes: [CHANGELOG.md](CHANGELOG.md), [v0.3.1 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1), and [v0.3.0 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0)
 
 ## Kubernetes Portability Status
 
-As of March 3, 2026 (`v0.3.0`), random-user image pullability regressions are gated in release automation.
+As of March 3, 2026 (`v0.3.1`), random-user image pullability regressions are gated in release automation.
 
 - previous portability gap issue [#37](https://github.com/Canepro/pipelinehealer/issues/37) is closed
 - Helm success output alone is still not sufficient proof; verify rollout and image pulls on clean clusters
@@ -85,7 +178,8 @@ flowchart LR
   end
 
   subgraph GOV["Governance Surface"]
-    UI["Admin Settings UI"]
+    UI["Frontend UI<br/>(Dashboard / Activities / Settings)"]
+    RTC["Runtime Config<br/>/runtime-config.js"]
     CC["Control Center"]
     API["/api/settings*"]
     AUD["Settings Audit Trail"]
@@ -112,6 +206,7 @@ flowchart LR
   OR -. MCP tool calls .-> MCP
   MCP -. enrichment .-> DG
 
+  RTC --> UI
   UI --> API --> OR
   CC --> API
   API --> BF
@@ -138,7 +233,7 @@ cp backend/.env.example backend/.env
   - OpenAI-compatible: `LLM_PROVIDER=openai_compatible`, `OPENAI_COMPATIBLE_BASE_URL`, `OPENAI_COMPATIBLE_MODEL`, `OPENAI_COMPATIBLE_API_KEY`
 - set GitHub token: `GITHUB_PERSONAL_ACCESS_TOKEN`
 
-3. Run backend and frontend:
+3. Run backend and frontend in separate terminals:
 
 ```bash
 cd backend
@@ -168,6 +263,11 @@ bash scripts/ph.sh logs
 ```
 
 Full CLI reference: [docs/CLI.md](docs/CLI.md)
+
+Runtime config note:
+- containerized frontend config (`VITE_*`, including Entra settings) is runtime-driven
+- use `bash scripts/ph.sh deploy:env` to apply backend/frontend env changes without rebuilding images
+- full `deploy` is only needed when code/image contents changed
 
 ## 2-Minute Demo Path
 

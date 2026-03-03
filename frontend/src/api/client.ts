@@ -1,6 +1,8 @@
-const API_BASE = import.meta.env.VITE_API_URL || ''
-const API_AUTH_KEY = import.meta.env.VITE_API_AUTH_KEY || ''
-const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || '15000')
+import { readFrontendConfig, readFrontendConfigNumber } from '@/runtimeConfig'
+
+const API_BASE = readFrontendConfig('VITE_API_URL')
+const API_AUTH_KEY = readFrontendConfig('VITE_API_AUTH_KEY')
+const API_TIMEOUT_MS = readFrontendConfigNumber('VITE_API_TIMEOUT_MS', 15000)
 
 type AuthTokenProvider = () => Promise<string | null>
 let authTokenProvider: AuthTokenProvider | null = null

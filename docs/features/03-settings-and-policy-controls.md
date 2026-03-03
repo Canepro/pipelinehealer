@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: 1f53853 -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -146,8 +146,8 @@ curl -X PATCH \
 
 ## Common Mistakes
 
-- Changing `VITE_*` then using only `deploy:env`:
-  - frontend config is build-time, use full `deploy`.
+- Updating frontend `VITE_*` runtime values without refreshing browser cache:
+  - run `deploy:env`, then hard refresh to pick up latest `runtime-config.js`.
 - Large multi-setting edits without request ID:
   - harder to trace/rollback.
 - Leaving allowlists empty in production:

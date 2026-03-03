@@ -109,6 +109,19 @@ BACKEND_RUNTIME_ENV_KEYS=(
   "AZURE_OPENAI_CHAT_API_VERSION"
 )
 
+FRONTEND_RUNTIME_ENV_KEYS=(
+  "VITE_AUTH_MODE"
+  "VITE_ENTRA_TENANT_ID"
+  "VITE_ENTRA_CLIENT_ID"
+  "VITE_ENTRA_AUTHORITY"
+  "VITE_ENTRA_API_SCOPE"
+  "VITE_ENTRA_REDIRECT_URI"
+  "VITE_ENTRA_POST_LOGOUT_REDIRECT_URI"
+  "VITE_API_URL"
+  "VITE_API_AUTH_KEY"
+  "VITE_API_TIMEOUT_MS"
+)
+
 BACKEND_SECRET_ENV_KEYS=(
   "API_AUTH_KEY"
   "ADMIN_API_KEY"
@@ -329,8 +342,9 @@ add_backend_env_var() {
 add_frontend_env_var() {
   local key="$1"
   local value="$2"
+  local allow_empty="${3:-0}"
   local secret_name
-  [[ -z "${value:-}" ]] && return 0
+  [[ -z "${value:-}" && "$allow_empty" != "1" ]] && return 0
   if [[ "$USE_SECRET_REFS" == "1" ]] && array_contains "$key" "${FRONTEND_SECRET_ENV_KEYS[@]}"; then
     secret_name="$(secret_name_for_key "fe" "$key")"
     FRONTEND_SECRET_VALUES["$secret_name"]="$value"
@@ -405,6 +419,18 @@ done
 
 add_frontend_env_var "BACKEND_UPSTREAM" "$BACKEND_URL"
 add_frontend_env_var "API_AUTH_KEY" "$API_AUTH_KEY"
+for key in "${FRONTEND_RUNTIME_ENV_KEYS[@]}"; do
+  value="$(read_env_key "$key")"
+  case "$key" in
+    VITE_AUTH_MODE)
+      [[ -z "${value:-}" ]] && value="none"
+      ;;
+    VITE_API_TIMEOUT_MS)
+      [[ -z "${value:-}" ]] && value="15000"
+      ;;
+  esac
+  add_frontend_env_var "$key" "$value" "1"
+done
 
 detect_engine() {
   if [[ "$CONTAINER_ENGINE" == "podman" || "$CONTAINER_ENGINE" == "docker" ]]; then

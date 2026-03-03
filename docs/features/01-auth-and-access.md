@@ -1,6 +1,6 @@
 # Feature: Auth And Access
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: 1f53853 -->
 
 This guide explains how users authenticate to PipelineHealer and how admin-only actions are protected.
 
@@ -18,7 +18,8 @@ Short answer: no, not for baseline usage.
 - Baseline repo adoption can run with key auth (`api_key`) or migration-safe `hybrid`.
 - Entra is needed only if you want Microsoft sign-in session flows in the UI.
 - `hybrid` means both auth methods are valid at once (keys + Entra session), and is recommended during testing/migration.
-- Release maintainers must set frontend `VITE_ENTRA_*` vars at build time for Entra-enabled images.
+- Frontend `VITE_*` auth vars are runtime env values for container deployments (Helm/ACA/compose).
+  - static-hosting fallback still exists (`import.meta.env`) for non-container builds.
 
 ## Quick Start
 
@@ -95,7 +96,7 @@ Frontend:
   - Verify exact tenant ID; prefer explicit `VITE_ENTRA_AUTHORITY` with primary domain.
 - UI shows 401 after sign-in:
   - Run `bash scripts/ph.sh deploy:env` for backend auth changes.
-  - If `VITE_*` changed, run full `bash scripts/ph.sh deploy`.
+  - If frontend `VITE_*` changed, run `bash scripts/ph.sh deploy:env`.
 - Settings page says invalid admin key while using session:
   - Session can be stale; re-login or clear site data.
 

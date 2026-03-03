@@ -8,6 +8,24 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - _No unreleased entries yet._
 
+## [v0.3.1] - 2026-03-03
+
+### Added
+
+- Added frontend runtime config bootstrap (`/runtime-config.js`) so container deployments can change `VITE_*` values without rebuilding frontend images.
+- Added runtime config env sync for Azure deploy automation (`scripts/deploy/redeploy_azure_containerapps.sh`) covering frontend auth/API `VITE_*` keys.
+
+### Changed
+
+- Switched frontend auth/API client config resolution to runtime-first (`window.__PH_RUNTIME_CONFIG__`) with build-time fallback for non-container static builds.
+- Updated Helm defaults to expose frontend `VITE_*` runtime env values via chart values/configmaps.
+- Updated release workflow to stop enforcing frontend auth build args at image build time.
+- Updated operator docs/runbooks/README/CLI to reflect runtime config behavior and runtime verification via `runtime-config.js`.
+- Core implementation commit reference: `ef93651`.
+- Changelog guardrail alignment commit reference: `d120386`.
+- Additional guardrail alignment commit reference: `2d75f85`.
+- Release-scope carry-forward commit references (post-`v0.2.11` lineage guardrail): `eaa47f7`, `44effc3`, `5afcdf6`, `9daf25e`, `c6e47b9`, `30d0daf`, `78822fc`, `4ec8637`, `1f53853`.
+
 ## [v0.3.0] - 2026-03-02
 
 ### Added

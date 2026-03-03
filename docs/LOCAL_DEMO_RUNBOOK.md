@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: 59a9fc3 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -11,6 +11,26 @@ For dedicated feature-by-feature docs, see `docs/features/README.md`.
 - A running backend (FastAPI) and frontend (React dashboard) on your machine
 - A webhook bridge so GitHub can notify your local backend when a workflow fails
 - PipelineHealer automatically analyzing failures and creating PRs or Issues
+
+## Fastest First Run (Beginner Defaults)
+
+Use this path if you are new and want the least setup friction:
+
+1. Copy env template: `cp backend/.env.example backend/.env`
+2. Fill only required values:
+   - one LLM path (`AZURE_OPENAI_*` or `OPENAI_COMPATIBLE_*`)
+   - `GITHUB_PERSONAL_ACCESS_TOKEN`
+3. Keep default auth/runtime values for first run:
+   - `AUTH_MODE=api_key`
+   - `VITE_AUTH_MODE=none`
+   - `HEAL_MODE=safe`
+4. Start backend (host-native) and frontend (`bun run dev`).
+5. Verify health at `http://127.0.0.1:8000/health` and open `http://127.0.0.1:5173`.
+
+For first run, skip optional sections unless needed:
+- Entra login
+- MCP diagnostics tuning
+- Azure deploy and release commands
 
 ---
 
@@ -45,7 +65,7 @@ Important command scope rule:
 - `settings:check`, `settings:audit`, `settings:persist`, `settings:persist:verify`, `audit:proof`, `backfill` work with any reachable backend URL via `PH_BACKEND_URL`.
 - `demo:proof` and `demo:reset` are GitHub-only (`gh`), backend independent.
 - For Kubernetes, use the Helm guide: `docs/KUBERNETES_HELM_RUNBOOK.md`.
-  - If Entra session login is required on Kubernetes, ensure frontend image was built with `VITE_AUTH_MODE=entra` and required `VITE_ENTRA_*` values (build-time inputs).
+  - If Entra session login is required on Kubernetes, set frontend runtime env `VITE_AUTH_MODE=entra` plus required `VITE_ENTRA_*` values in Helm values.
 
 ### `ph.sh` Platform Clarification
 
@@ -180,8 +200,8 @@ VITE_ENTRA_AUTHORITY=https://login.microsoftonline.com/<tenant-or-primary-domain
 
 For Entra config changes:
 
-- backend-only auth changes: `bash scripts/ph.sh deploy:env`
-- frontend `VITE_*` changes: publish a new release, then run `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`
+- backend or frontend runtime env changes: `bash scripts/ph.sh deploy:env`
+- image/code changes: `bash scripts/ph.sh deploy` (or `deploy:release` for release images)
 
 #### Beginner-friendly Entra portal checklist
 
@@ -212,7 +232,7 @@ Troubleshooting quick map:
 
 - `AADSTS50011`: add exact redirect URI shown in error details.
 - `AADSTS90002`: tenant identifier mismatch; verify tenant and use explicit authority with primary domain.
-- `401 Invalid bearer token` after login: sync backend `ENTRA_*` via `deploy:env`; if `VITE_*` changed, publish and deploy a new release image.
+- `401 Invalid bearer token` after login: sync backend/frontend runtime auth env via `deploy:env`.
 
 ### Optional: Enable MCP diagnostics path
 
@@ -242,9 +262,9 @@ bash scripts/ph.sh settings:check | jq '.mcp_enabled,.mcp_provider,.mcp_read_onl
 - Missing SPA redirect URI with `/app` path:
   - Symptom: `AADSTS50011` mismatch for `https://<frontend-fqdn>/app`
   - Fix: add both `https://<frontend-fqdn>` and `https://<frontend-fqdn>/app` in SPA redirect URIs.
-- Frontend `VITE_*` values changed but only env-sync deploy was used:
-  - Symptom: old login behavior/config remains in browser app
-  - Fix: publish a new release, then run `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`.
+- Frontend `VITE_*` values changed but browser still served stale runtime config:
+  - Symptom: old login behavior/config remains in browser app (usually stale browser cache)
+  - Fix: run `bash scripts/ph.sh deploy:env`, then hard refresh or clear site data.
 - Backend still on key mode during migration:
   - Symptom: bearer login succeeds but API acts like key-only
   - Fix: set `AUTH_MODE=hybrid` (or `entra`) and run `bash scripts/ph.sh deploy:env`.
@@ -260,6 +280,8 @@ bash scripts/ph.sh settings:check | jq '.mcp_enabled,.mcp_provider,.mcp_read_onl
 ## Step 3 — Start the Backend
 
 You have two options. Pick whichever suits you:
+
+Recommended for beginners: Option A (host-native) first, then Option B later if you want containerized parity.
 
 ### Option A: Host-native (no Docker needed)
 

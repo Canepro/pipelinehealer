@@ -1,20 +1,20 @@
+import { readFrontendConfig } from '@/runtimeConfig'
+
 export type AuthMode = 'none' | 'entra'
 
-const rawMode = String(import.meta.env.VITE_AUTH_MODE || 'none')
-  .trim()
-  .toLowerCase()
+const rawMode = readFrontendConfig('VITE_AUTH_MODE', 'none').toLowerCase()
 
 export const AUTH_MODE: AuthMode = rawMode === 'entra' ? 'entra' : 'none'
 export const AUTH_ENABLED = AUTH_MODE === 'entra'
 
-export const ENTRA_TENANT_ID = String(import.meta.env.VITE_ENTRA_TENANT_ID || '').trim()
-export const ENTRA_CLIENT_ID = String(import.meta.env.VITE_ENTRA_CLIENT_ID || '').trim()
-export const ENTRA_AUTHORITY = String(import.meta.env.VITE_ENTRA_AUTHORITY || '').trim()
-export const ENTRA_API_SCOPE = String(import.meta.env.VITE_ENTRA_API_SCOPE || '').trim()
-export const ENTRA_REDIRECT_URI = String(import.meta.env.VITE_ENTRA_REDIRECT_URI || '').trim()
-export const ENTRA_POST_LOGOUT_REDIRECT_URI = String(
-  import.meta.env.VITE_ENTRA_POST_LOGOUT_REDIRECT_URI || ''
-).trim()
+export const ENTRA_TENANT_ID = readFrontendConfig('VITE_ENTRA_TENANT_ID')
+export const ENTRA_CLIENT_ID = readFrontendConfig('VITE_ENTRA_CLIENT_ID')
+export const ENTRA_AUTHORITY = readFrontendConfig('VITE_ENTRA_AUTHORITY')
+export const ENTRA_API_SCOPE = readFrontendConfig('VITE_ENTRA_API_SCOPE')
+export const ENTRA_REDIRECT_URI = readFrontendConfig('VITE_ENTRA_REDIRECT_URI')
+export const ENTRA_POST_LOGOUT_REDIRECT_URI = readFrontendConfig(
+  'VITE_ENTRA_POST_LOGOUT_REDIRECT_URI'
+)
 
 export const resolvedAuthority =
   ENTRA_AUTHORITY || (ENTRA_TENANT_ID ? `https://login.microsoftonline.com/${ENTRA_TENANT_ID}` : '')
