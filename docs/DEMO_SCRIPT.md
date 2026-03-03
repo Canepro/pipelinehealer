@@ -165,8 +165,8 @@ Enriched activities show an "External Findings Details" collapsible panel in Act
 ## 5) 2-Minute Recording Script (Final)
 
 Timing sanity check (March 3, 2026):
-- core `TELL` script (excluding optional insert) is ~147 words
-- at ~110-130 WPM, spoken narration is ~68-80 seconds
+- core `TELL` script (excluding optional insert) is ~127 words
+- at ~110-130 WPM, spoken narration is ~59-69 seconds
 - keep transitions/clicks concise; treat the optional differentiator as a swap-in, not an add-on, to stay under 2:00
 
 ### 0:00-0:15
