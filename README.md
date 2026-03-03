@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 3116334 -->
+<!-- LAST_VERIFIED: d0bd771 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -91,7 +91,8 @@ flowchart LR
   end
 
   subgraph GOV["Governance Surface"]
-    UI["Admin Settings UI"]
+    UI["Frontend UI<br/>(Dashboard / Activities / Settings)"]
+    RTC["Runtime Config<br/>/runtime-config.js"]
     CC["Control Center"]
     API["/api/settings*"]
     AUD["Settings Audit Trail"]
@@ -118,6 +119,7 @@ flowchart LR
   OR -. MCP tool calls .-> MCP
   MCP -. enrichment .-> DG
 
+  RTC --> UI
   UI --> API --> OR
   CC --> API
   API --> BF

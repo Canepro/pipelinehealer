@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 3116334 -->
+<!-- LAST_VERIFIED: d0bd771 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -164,6 +164,11 @@ Enriched activities show an "External Findings Details" collapsible panel in Act
 
 ## 5) 2-Minute Recording Script (Final)
 
+Timing sanity check (March 3, 2026):
+- core `TELL` script (excluding optional insert) is ~147 words
+- at ~110-130 WPM, spoken narration is ~68-80 seconds
+- keep transitions/clicks concise; treat the optional differentiator as a swap-in, not an add-on, to stay under 2:00
+
 ### 0:00-0:15
 
 SHOW: Failed GitHub Actions run, red CI status indicator.
@@ -174,7 +179,7 @@ TELL: CI failures slow delivery and interrupt engineering flow. PipelineHealer i
 
 SHOW: GitHub repository, you coding, and AI assistant workflow notes.
 
-TELL: I built this project solo, using AI-assisted development to reduce repetitive DevOps triage and make incident response faster and clearer.
+TELL: We built PipelineHealer with AI-assisted development to reduce repetitive DevOps triage and make incident response faster, clearer, and safer.
 
 ### 0:30-0:50
 
@@ -194,7 +199,7 @@ bash scripts/ph.sh demo:e2e --repo "$DEMO_REPO" --triggers dependency,lint,test,
 
 SHOW: Output with webhook sync, workflow/activity output, and dashboard updating in real time.
 
-TELL: This command syncs webhooks, triggers failures, and shows PipelineHealer detecting, analyzing, and remediating issues automatically, either by opening a fix PR or creating a structured GitHub Issue for manual follow-up. When GitHub's ci-doctor also analyzes the failure, PipelineHealer ingests those findings and shows them in a structured External Findings panel. All steps are tracked in the dashboard.
+TELL: This command syncs webhooks, triggers failures, and shows PipelineHealer detect, diagnose, and remediate automatically. Deterministic fixes become PRs; uncertain cases become structured issues. If ci-doctor findings arrive, they are ingested and shown in External Findings with full traceability.
 
 ### 1:30-2:00
 
