@@ -1,12 +1,12 @@
 # Kubernetes Helm Runbook
 
-<!-- LAST_VERIFIED: eaa47f7 -->
+<!-- LAST_VERIFIED: c6e47b9 -->
 
 This runbook adds Kubernetes as a secondary deployment target while keeping Azure Container Apps as the default path.
 
 ## Stop: Read This First
 
-This project is open source, but Kubernetes install is **not automatically random-user-ready** in all environments yet.
+This project is open source, and release portability is validated via anonymous-pullability gates at release time.
 
 Do not treat Helm success output by itself as deployment success. `helm upgrade --install` can return `deployed` while workloads fail to pull images.
 
@@ -14,7 +14,7 @@ Known failure signatures:
 - Pod status: `ErrImagePull` / `ImagePullBackOff`
 - Pod events with registry token failures (`401 Unauthorized`, `403 Forbidden`)
 
-Track status here: [#37](https://github.com/Canepro/pipelinehealer/issues/37)
+Portability hardening tracker [#37](https://github.com/Canepro/pipelinehealer/issues/37) is closed in `v0.3.0`.
 
 ## Scope
 

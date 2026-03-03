@@ -1,6 +1,6 @@
 # Pre-Deploy Placeholder Audit
 
-<!-- LAST_VERIFIED: eaa47f7 -->
+<!-- LAST_VERIFIED: c6e47b9 -->
 
 Use this checklist before `azd up`, before major public demos, and before final submission recording.
 

@@ -1,6 +1,6 @@
 # BL-034 Technical Design: Jenkins Bridge Ingestion
 
-<!-- LAST_VERIFIED: 8662125 -->
+<!-- LAST_VERIFIED: c6e47b9 -->
 
 Status: Draft (design only, no implementation in this document)  
 Backlog: `BL-034`  

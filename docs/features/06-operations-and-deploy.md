@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: eaa47f7 -->
+<!-- LAST_VERIFIED: c6e47b9 -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 

@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 9daf25e -->
+<!-- LAST_VERIFIED: c6e47b9 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -181,7 +181,7 @@ Theme: separate runtime execution controls cleanly for operators and close remai
    - keep `rollout:canary` deterministic with explicit action toggles (issue-only default without retries)
 3. Kubernetes operator clarity
    - highlight GHCR token/visibility failure mode (`ErrImagePull` `401/403`) and required pullability gate before portability claims
-   - track portability risk in issue [#37](https://github.com/Canepro/pipelinehealer/issues/37)
+   - portability risk tracked in issue [#37](https://github.com/Canepro/pipelinehealer/issues/37) (closed in `v0.3.0`)
 4. Regression protection + docs sync
    - add/update tests around settings persistence and orchestration dry-run gating
    - update `README.md`, `docs/API.md`, `docs/CLI.md`, `docs/KUBERNETES_HELM_RUNBOOK.md`, and `docs/features/03-settings-and-policy-controls.md`

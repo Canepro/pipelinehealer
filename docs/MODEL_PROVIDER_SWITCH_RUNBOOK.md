@@ -1,6 +1,6 @@
 # Model Provider Switch Runbook
 
-<!-- LAST_VERIFIED: eaa47f7 -->
+<!-- LAST_VERIFIED: c6e47b9 -->
 
 This runbook covers safe switching between model providers and fast rollback.
 

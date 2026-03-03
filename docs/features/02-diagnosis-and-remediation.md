@@ -1,6 +1,6 @@
 # Feature: Diagnosis And Remediation
 
-<!-- LAST_VERIFIED: eaa47f7 -->
+<!-- LAST_VERIFIED: c6e47b9 -->
 
 This guide explains how PipelineHealer moves from failed workflow logs to safe remediation artifacts.
 
