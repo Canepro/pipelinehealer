@@ -1,6 +1,6 @@
 # Kubernetes Helm Runbook
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: 4ec8637 -->
 
 This runbook adds Kubernetes as a secondary deployment target while keeping Azure Container Apps as the default path.
 
@@ -49,6 +49,17 @@ Important for open-source adopters:
 - Chart: `charts/pipelinehealer`
 - Defaults: `charts/pipelinehealer/values.yaml`
 
+## Deployment Profile Naming (Platform-Neutral)
+
+Use profile names that describe intent, not cluster distro/tooling:
+
+- `values.quickstart.yaml`: fast local/lab onboarding profile (non-production)
+- `values.production.yaml`: hardened production profile
+- optional overlays: `values.<env>.yaml` for team/environment-specific deltas
+
+Avoid naming that implies single-platform support (for example `values.kind.*.yaml`).
+PipelineHealer supports Kubernetes generally; profile names should communicate posture, not vendor/runtime.
+
 ## Public OCI Chart (Recommended)
 
 When chart artifacts are available in GHCR, install directly from OCI:
@@ -58,7 +69,7 @@ helm upgrade --install pipelinehealer oci://ghcr.io/canepro/charts/pipelineheale
   --version X.Y.Z \
   --namespace pipelinehealer \
   --create-namespace \
-  -f values.prod.yaml
+  -f values.production.yaml
 ```
 
 If you are iterating locally from source, install from `./charts/pipelinehealer` as shown below.
@@ -79,7 +90,7 @@ Important:
 helm upgrade --install pipelinehealer ./charts/pipelinehealer \
   --namespace pipelinehealer \
   --create-namespace \
-  -f values.prod.yaml
+  -f values.production.yaml
 ```
 
 4. Verify rollout:
@@ -223,7 +234,7 @@ helm upgrade --install pipelinehealer ./charts/pipelinehealer \
   --create-namespace \
   --set backend.image.tag=vX.Y.Z \
   --set frontend.image.tag=vX.Y.Z \
-  -f values.prod.yaml
+  -f values.production.yaml
 ```
 
 ## Port-Forward Validation (No Ingress)
