@@ -6,6 +6,10 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
+- _No unreleased entries yet._
+
+## [v0.3.0] - 2026-03-02
+
 ### Added
 
 - Added `scripts/release/check_ghcr_pullability.sh` to validate anonymous GHCR pullability for backend/frontend release tags and digests, plus Helm OCI chart tags.
