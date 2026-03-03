@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: 9daf25e -->
+<!-- LAST_VERIFIED: c6e47b9 -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 

@@ -88,7 +88,7 @@ This is the long-form project tracker for hackathon execution status, submission
   - operator runbook added (`docs/KUBERNETES_HELM_RUNBOOK.md`)
 - Kubernetes portability gap tracked for open-source adopters:
   - clean-cluster installs can fail with `ErrImagePull` / `ImagePullBackOff` due to registry access constraints
-  - tracking issue: [#37](https://github.com/Canepro/pipelinehealer/issues/37)
+  - tracking issue: [#37](https://github.com/Canepro/pipelinehealer/issues/37) (closed in `v0.3.0`)
 - Settings persistence safety hardening released in `v0.2.10`:
   - `settings:persist` now defaults to non-destructive repo updates (`--repos-add` / `--repos-remove`) with explicit destructive mode (`--repos-replace`)
   - backend URL guardrails prevent malformed persistence targets; tracking issue [#38](https://github.com/Canepro/pipelinehealer/issues/38) is closed
