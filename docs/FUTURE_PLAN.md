@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: a437be5 -->
+<!-- LAST_VERIFIED: 9daf25e -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -36,6 +36,7 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.2.9` | Released | GH-AW/MCP hybrid diagnostics mode + passive backfill matching reliability hardening |
 | `v0.2.10` | Released | Settings persistence safety hardening (`PH_ALLOWED_REPOS` mutation safety + URL guardrails) |
 | `v0.2.11` | Released | Runtime control-surface separation + canary policy hardening + Kubernetes pullability docs clarity |
+| `v0.3.0` | Released | Activity Detail AI handoff UX baseline (`Copy Context` + disabled `Assign to Agent`) + anonymous GHCR pullability gate hardening |
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
@@ -192,11 +193,11 @@ Theme: separate runtime execution controls cleanly for operators and close remai
 3. Kubernetes portability docs clearly block false "Helm deployed = working" conclusions.
 4. Updated tests pass for settings persistence and remediation dry-run behavior.
 
-## Active Target: `v0.3.0` (Minor)
+## Released Target: `v0.3.0` (Minor)
 
 Theme: operator handoff UX baseline + Kubernetes portability release hardening.
 
-### Must-Have Scope
+### Delivered Scope
 
 1. Activity Detail copy-handoff baseline (`BL-038`)
    - Add `Copy Context` action with bounded, redacted payload output.
@@ -216,11 +217,11 @@ Theme: operator handoff UX baseline + Kubernetes portability release hardening.
 4. No regressions in existing Activity Detail actions (`Retry`, `Backfill Diagnostics`).
 5. Release docs and changelog match shipped behavior.
 
-## Planned Target: `v0.3.1` (Minor)
+## Active Target: `v0.3.1` (Minor)
 
 Theme: integration activation for non-GitHub CI ingestion and agent handoff.
 
-### Planned Scope
+### Must-Have Scope
 
 1. Jenkins bridge ingestion (`BL-034`)
    - Add signed ingestion path for external CI failures (Jenkins) into PipelineHealer activity pipeline.
@@ -407,12 +408,12 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-033` | Multi-platform notifications research track: Slack/Teams/Rocket.Chat delivery model for non-admin stakeholders with auditable outbound events | `TBD (post-submission)` | minor | Medium | Research / Undecided |
 | `BL-034` | Jenkins bridge ingestion path: signed external CI failure payload -> synthetic PipelineHealer activity (`source_selection_path=jenkins_bridge`) with issue-first defaults | `v0.3.1` | minor | High | Planned |
 | `BL-035` | Native Jenkins provider adapter: deeper job metadata/log/artifact retrieval + rerun/governance parity with existing provider model | `v0.5.x` | minor | Medium | Queued |
-| `BL-036` | Public distribution hardening for Kubernetes portability: publish anonymous-pull image path and add clean-cluster pullability gate in release verification to block `ErrImagePull` (`401`/`403`) regressions ([#37](https://github.com/Canepro/pipelinehealer/issues/37)) | `v0.3.0` | patch | High | In progress (working branch) |
+| `BL-036` | Public distribution hardening for Kubernetes portability: publish anonymous-pull image path and add clean-cluster pullability gate in release verification to block `ErrImagePull` (`401`/`403`) regressions ([#37](https://github.com/Canepro/pipelinehealer/issues/37)) | `v0.3.0` | patch | High | Completed (released in `v0.3.0`) |
 | `BL-037` | Settings persistence safety hardening: prevent accidental `PH_ALLOWED_REPOS` truncation via additive/remove semantics in `scripts/ph.sh` with explicit replace mode, plus backend URL resolution guardrails ([#38](https://github.com/Canepro/pipelinehealer/issues/38)) | `v0.2.10` | patch | High | Completed (released in `v0.2.10`) |
-| `BL-038` | Activity Detail one-click `Copy Context` for AI-ready handoff payloads with bounded size + redaction, plus disabled `Assign to Agent` `Coming Soon` affordance ([#41](https://github.com/Canepro/pipelinehealer/issues/41)) | `v0.3.0` | patch | High | In progress (working branch) |
+| `BL-038` | Activity Detail one-click `Copy Context` for AI-ready handoff payloads with bounded size + redaction, plus disabled `Assign to Agent` `Coming Soon` affordance ([#41](https://github.com/Canepro/pipelinehealer/issues/41)) | `v0.3.0` | patch | High | Completed (released in `v0.3.0`) |
 | `BL-039` | Activity Detail `Assign to Agent` integration (`copy_only` + optional `webhook`) with audit-safe handoff controls ([#42](https://github.com/Canepro/pipelinehealer/issues/42)) | `v0.3.1` | minor | Medium | Planned |
-| `BL-040` | Release umbrella tracking for bundled `v0.3.0` scope (`BL-036`, `BL-038`) ([#43](https://github.com/Canepro/pipelinehealer/issues/43)) | `v0.3.0` | patch | High | Tracking |
-| `BL-041` | Release umbrella tracking for bundled `v0.3.1` integration scope (`BL-034`, `BL-039`) ([#44](https://github.com/Canepro/pipelinehealer/issues/44)) | `v0.3.1` | patch | High | Tracking |
+| `BL-040` | Release umbrella tracking for bundled `v0.3.0` scope (`BL-036`, `BL-038`) ([#43](https://github.com/Canepro/pipelinehealer/issues/43)) | `v0.3.0` | patch | High | Completed (released in `v0.3.0`) |
+| `BL-041` | Release umbrella tracking for bundled `v0.3.1` integration scope (`BL-034`, `BL-039`) ([#44](https://github.com/Canepro/pipelinehealer/issues/44)) | `v0.3.1` | patch | High | Tracking (active) |
 
 ## Definition of Done (Per Version)
 

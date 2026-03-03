@@ -1,8 +1,8 @@
 # Agent Handoff + Copy Context Mini-Spec
 
-<!-- LAST_VERIFIED: 44effc3 -->
+<!-- LAST_VERIFIED: 9daf25e -->
 
-Status: Phase 1 implemented in working branch (`Copy Context` + disabled `Assign to Agent`), Phase 2 pending
+Status: Phase 0/1 released in `v0.3.0` (`Copy Context` + disabled `Assign to Agent`), Phase 2 pending (`v0.3.1`)
 Owner: PipelineHealer maintainers
 Scope target:
 - `v0.3.0`: `Copy Context` + disabled `Assign to Agent` `Coming Soon` affordance

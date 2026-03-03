@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: db5ad51 -->
+<!-- LAST_VERIFIED: 9daf25e -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -30,27 +30,26 @@ CI failures create repetitive triage work. PipelineHealer shortens time-to-under
 
 This repository started as a hackathon submission baseline and continues as an actively maintained open-source release line.
 
-## Current Release Baseline (v0.2.11)
+## Current Release Baseline (v0.3.0)
 
-- Release baseline: [`v0.2.11`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.2.11)
+- Release baseline: [`v0.3.0`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0)
 - Historical submission baseline: `v0.2.9`
 - Deployment model: Azure-first, using immutable release images (`bash scripts/ph.sh deploy:release --release-version vX.Y.Z`)
 - Operator docs: `docs/DEMO_SCRIPT.md`, `docs/LOCAL_DEMO_RUNBOOK.md`, `docs/RELEASE_RUNBOOK.md`
+- Next target: `v0.3.1` integration scope ([#44](https://github.com/Canepro/pipelinehealer/issues/44))
 
 ## Kubernetes Install Status (Important)
 
-As of **February 23, 2026**, Kubernetes/Helm setup exists, but random-user "clone + helm install" is **not yet guaranteed** in every environment.
+As of **March 3, 2026** (`v0.3.0`), release publishing now enforces anonymous pullability checks for:
+- backend/frontend image tags (`vX.Y.Z` and `X.Y.Z`)
+- backend/frontend image digests
+- Helm chart OCI tag (`X.Y.Z`)
 
-Why:
-- image pull success depends on registry/package accessibility from cluster nodes
-- Helm can report `STATUS: deployed` while pods still fail to start
+This closes the previous random-user portability regression tracked in [#37](https://github.com/Canepro/pipelinehealer/issues/37) (now closed), where Helm could report `deployed` while pods still failed with `ErrImagePull` (`401`/`403`).
 
-What failure looks like:
-- pod status: `ErrImagePull` / `ImagePullBackOff`
-- pod events: registry token failures like `401 Unauthorized` or `403 Forbidden`
-
-Treat Kubernetes as random-user-ready only after the pullability gate in `docs/KUBERNETES_HELM_RUNBOOK.md` passes on a clean cluster.
-Tracking issue: [#37](https://github.com/Canepro/pipelinehealer/issues/37).
+Still recommended for operators:
+- prefer published release tags over local ad-hoc images for shared/public installs
+- run the pullability gate in release verification before claiming clean-cluster portability
 
 ### Evidence from a real incident
 
