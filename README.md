@@ -1,71 +1,59 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: 30d0daf -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Try_It-brightgreen)](https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io)
 [![Azure](https://img.shields.io/badge/Azure-Deployed-blue)](https://azure.microsoft.com)
+[![Release](https://img.shields.io/badge/Release-v0.3.0-blue)](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies policy-aware remediation:
-- deterministic fixes can open or reuse pull requests
+PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies controlled remediation:
+- deterministic fixes open or reuse pull requests
 - ambiguous or risky cases open structured issues instead of unsafe edits
-- every action is auditable, explainable, and traceable to run evidence
+- all actions are auditable, explainable, and tied to concrete run evidence
 
 ![Dashboard — processed count, safety gating ratios, failure type breakdown, and explainability snapshot](docs/screens/dashboard.png)
 ![Landing page — policy-aware remediation overview and operational snapshot](docs/screens/Pipelinehealer-Landing_Page.png)
 
-## Why this project
+## Hackathon Snapshot
 
-CI failures create repetitive triage work. PipelineHealer shortens time-to-understanding with controlled automation:
-- multi-agent flow (analyze -> diagnose -> remediate)
-- safety-first defaults (`HEAL_MODE=safe`)
-- explainability (`diagnosis_source`, reason codes, evidence)
+- Public repository: `https://github.com/Canepro/pipelinehealer`
+- Live deployment: Azure Container Apps (backend + frontend)
+- Current release baseline: [`v0.3.0`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0)
+- Next scoped target: `v0.3.1` ([#44](https://github.com/Canepro/pipelinehealer/issues/44))
+- Demo runbook: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
+
+## Why PipelineHealer
+
+CI failures create repetitive triage work and slow delivery. PipelineHealer reduces mean-time-to-understanding and mean-time-to-remediation with a safety-first flow:
+- Analyze -> Diagnose -> Remediate agent pipeline
+- policy gates (`HEAL_MODE`, per-action toggles, repo allowlists)
+- explainability fields (`diagnosis_source`, reason codes, source attribution)
 - universal failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
-- artifact idempotency (find-or-create PR/issue reuse)
-- task-level model routing (`analysis`, `diagnosis`, `remediation`) with provider-default fallback
-- learning queue governance with promotion-readiness gates and audited force activation
-- operator UX for fast triage (Dashboard snapshot, Activity Detail deep evidence, sectioned Control Center governance)
+- idempotent artifacts (find-or-create PR/issue reuse)
 
-This repository started as a hackathon submission baseline and continues as an actively maintained open-source release line.
+## What Shipped In v0.3.0
 
-## Current Release Baseline (v0.3.0)
+- Activity Detail `Copy Context` for one-click AI-ready handoff payloads (bounded + redacted)
+- visible disabled `Assign to Agent` affordance (`Coming Soon`) for discoverability
+- release hardening with anonymous GHCR pullability gating for:
+  - backend/frontend tags (`vX.Y.Z` and `X.Y.Z`)
+  - backend/frontend digests
+  - Helm chart OCI tag (`X.Y.Z`)
 
-- Release baseline: [`v0.3.0`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0)
-- Historical submission baseline: `v0.2.9`
-- Deployment model: Azure-first, using immutable release images (`bash scripts/ph.sh deploy:release --release-version vX.Y.Z`)
-- Operator docs: `docs/DEMO_SCRIPT.md`, `docs/LOCAL_DEMO_RUNBOOK.md`, `docs/RELEASE_RUNBOOK.md`
-- Next target: `v0.3.1` integration scope ([#44](https://github.com/Canepro/pipelinehealer/issues/44))
+Release notes: [CHANGELOG.md](CHANGELOG.md) and [v0.3.0 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0)
 
-## Kubernetes Install Status (Important)
+## Kubernetes Portability Status
 
-As of **March 3, 2026** (`v0.3.0`), release publishing now enforces anonymous pullability checks for:
-- backend/frontend image tags (`vX.Y.Z` and `X.Y.Z`)
-- backend/frontend image digests
-- Helm chart OCI tag (`X.Y.Z`)
+As of March 3, 2026 (`v0.3.0`), random-user image pullability regressions are gated in release automation.
 
-This closes the previous random-user portability regression tracked in [#37](https://github.com/Canepro/pipelinehealer/issues/37) (now closed), where Helm could report `deployed` while pods still failed with `ErrImagePull` (`401`/`403`).
+- previous portability gap issue [#37](https://github.com/Canepro/pipelinehealer/issues/37) is closed
+- Helm success output alone is still not sufficient proof; verify rollout and image pulls on clean clusters
+- recommended operator path: use published release images and run release verification gates
 
-Still recommended for operators:
-- prefer published release tags over local ad-hoc images for shared/public installs
-- run the pullability gate in release verification before claiming clean-cluster portability
-
-### Evidence from a real incident
-
-PipelineHealer already caught and classified a real release-pipeline failure end to end:
-- Activity: `f92ee7d9-dd2f-4e32-8edd-c2b44ee0cae3`
-- Workflow run: `#22163136636` (version/tag mismatch)
-- Incident issue: [#15](https://github.com/Canepro/pipelinehealer/issues/15)
-- Case-study PR: [#16](https://github.com/Canepro/pipelinehealer/pull/16)
-- Full write-up: [`docs/case-studies/release-tag-mismatch-22163136636.md`](docs/case-studies/release-tag-mismatch-22163136636.md)
-- Corrective release: [`v0.2.1`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.2.1)
-
-Azure is the default deployment path for hackathon requirements, but the runtime is portable:
-- backend API commands can target any reachable backend via `PH_BACKEND_URL`
-- model provider can be Azure OpenAI or OpenAI-compatible (`LLM_PROVIDER`)
-- Kubernetes is supported via Helm as a secondary deployment target (`charts/pipelinehealer`) with GHCR-first image defaults
-  - registry pullability remains a release gate for random-user installs; do not treat successful Helm output alone as proof
+Operational runbook: [docs/KUBERNETES_HELM_RUNBOOK.md](docs/KUBERNETES_HELM_RUNBOOK.md)
 
 ## Architecture
 
@@ -136,61 +124,22 @@ flowchart LR
   OR --> ST
 ```
 
-## Hackathon status
-
-- Public repo + live Azure deployment
-- Multi-agent implementation with explainability and governance
-- Demo flow and operator runbooks documented
-- Team: currently maintained by a solo builder (Canepro / Vincent)
-- Collaboration welcome: open an issue or PR proposal, and align implementation to a target version in `docs/FUTURE_PLAN.md`
-
-## Documentation
-
-### Start here
-- [Feature Guides](docs/features/README.md) — dedicated per-feature usage docs (beginner to expert)
-- [Local + Azure Runbook](docs/LOCAL_DEMO_RUNBOOK.md) — full setup and operations
-- [CLI Reference](docs/CLI.md) — canonical `scripts/ph.sh` command reference
-- [API Reference](docs/API.md) — endpoints, models, auth, best practices
-
-### Additional
-- [Demo Script](docs/DEMO_SCRIPT.md)
-- [Logs & Investigation](docs/LOGS_AND_INVESTIGATION.md)
-- [Model Provider Strategy](docs/MODEL_PROVIDER_STRATEGY.md)
-- [Model Provider Switch Runbook](docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md)
-- [Learning System Plan](docs/LEARNING_SYSTEM_PLAN.md)
-- [Kubernetes Helm Runbook](docs/KUBERNETES_HELM_RUNBOOK.md)
-- [Release Runbook](docs/RELEASE_RUNBOOK.md)
-- [Case Studies](docs/case-studies/release-tag-mismatch-22163136636.md)
-- [Changelog](CHANGELOG.md)
-- [Settings & Policy Feature Guide](docs/features/03-settings-and-policy-controls.md)
-- [Explainability & Observability Guide](docs/features/05-explainability-and-observability.md)
-- [Future Plan](docs/FUTURE_PLAN.md)
-- [Contributing](CONTRIBUTING.md)
-- [Security](SECURITY.md)
-- [Docs Index](docs/README.md)
-
-## Quick start
+## Quick Start (Local)
 
 1. Copy env template:
+
 ```bash
 cp backend/.env.example backend/.env
 ```
 
 2. Set minimum required values in `backend/.env`:
-- Pick one LLM path:
-  - Azure OpenAI:
-    - `AZURE_OPENAI_ENDPOINT`
-    - `AZURE_OPENAI_DEPLOYMENT_NAME`
-    - `AZURE_OPENAI_API_KEY`
-  - OpenAI-compatible:
-    - `LLM_PROVIDER=openai_compatible`
-    - `OPENAI_COMPATIBLE_BASE_URL`
-    - `OPENAI_COMPATIBLE_MODEL`
-    - `OPENAI_COMPATIBLE_API_KEY`
-- Set GitHub access token:
-  - `GITHUB_PERSONAL_ACCESS_TOKEN`
+- choose one LLM path
+  - Azure OpenAI: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT_NAME`, `AZURE_OPENAI_API_KEY`
+  - OpenAI-compatible: `LLM_PROVIDER=openai_compatible`, `OPENAI_COMPATIBLE_BASE_URL`, `OPENAI_COMPATIBLE_MODEL`, `OPENAI_COMPATIBLE_API_KEY`
+- set GitHub token: `GITHUB_PERSONAL_ACCESS_TOKEN`
 
-3. Run locally (host-native):
+3. Run backend and frontend:
+
 ```bash
 cd backend
 uv pip install --system -e ".[dev]"
@@ -203,129 +152,85 @@ bun install
 bun run dev
 ```
 
-For full local and Docker paths, use `docs/LOCAL_DEMO_RUNBOOK.md`.
+For Docker/Azure/Kubernetes paths: [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md)
 
-### Required vs Optional (For New Repo Users)
-
-If someone installs PipelineHealer from this repo, these are the practical setup paths:
-
-| Setup path | Required | Not required |
-|---|---|---|
-| Basic local install (recommended first run) | Python/Bun/GitHub CLI, one LLM provider path, `GITHUB_PERSONAL_ACCESS_TOKEN` | All `ENTRA_*`, all `VITE_ENTRA_*` |
-| Entra login in UI (`Use Login Session`) | Backend auth config (`AUTH_MODE=entra` or `hybrid` + `ENTRA_*`), frontend build with `VITE_AUTH_MODE=entra` + required `VITE_ENTRA_*` | `X-Admin-Key` for session-auth flows |
-| Release maintainer publishing Entra-enabled images | GitHub release environment vars: `VITE_AUTH_MODE=entra`, `VITE_ENTRA_CLIENT_ID`, `VITE_ENTRA_API_SCOPE`, and `VITE_ENTRA_AUTHORITY` or `VITE_ENTRA_TENANT_ID` | Custom redirect/logout vars unless needed by your tenant setup |
-
-Important:
-- Entra is optional for adopting PipelineHealer.
-- `AUTH_MODE=hybrid` supports both key headers and Entra bearer sessions in the same deployment (recommended during migration/testing).
-- `VITE_*` values are build-time frontend inputs; changing them requires a new release image.
-
-## One-command ops
+## One-Command Ops
 
 From repo root:
 
 ```bash
 bash scripts/ph.sh help
-bash scripts/ph.sh settings:check
-bash scripts/ph.sh settings:persist:verify --from-settings --skip-redeploy
-bash scripts/ph.sh settings:persist --repos-add owner/repo1,owner/repo2 --skip-redeploy
-bash scripts/ph.sh deploy:release --release-version vX.Y.Z
-bash scripts/ph.sh deploy:env
 bash scripts/ph.sh status
-bash scripts/ph.sh logs
+bash scripts/ph.sh settings:check
+bash scripts/ph.sh deploy:release --release-version vX.Y.Z
 bash scripts/ph.sh demo:e2e
+bash scripts/ph.sh logs
 ```
 
-Use full command docs for flags and troubleshooting: `docs/CLI.md`.
-For repo allowlist safety: use `--repos-add` / `--repos-remove` by default; reserve `--repos-replace` for intentional full replacement (tracked in [#38](https://github.com/Canepro/pipelinehealer/issues/38)).
+Full CLI reference: [docs/CLI.md](docs/CLI.md)
 
-## `ph.sh` Platform Notes
+## 2-Minute Demo Path
 
-`scripts/ph.sh` is a bash-first operator CLI.
+- Recording script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
+- On-camera E2E command:
 
-- Recommended: Linux, macOS, or Windows via WSL2.
-- Windows PowerShell-only environments are not first-class for `ph.sh` today.
-  - Alternative: run equivalent `az`/`gh` commands and backend API calls from `docs/API.md`.
-- Kubernetes deploy is intentionally outside `ph.sh` right now.
-  - Alternative: `helm` + `kubectl` via `docs/KUBERNETES_HELM_RUNBOOK.md`.
-
-## New Operator Checklist (After Deploy)
-
-If someone new just got access to a deployed environment, use this 5-step proof path.
-
-1. Set backend URL and check health:
 ```bash
-BACKEND_URL="https://<your-backend-url>"
-curl -sS "$BACKEND_URL/health"
-```
-Expected: `{"status":"healthy"}`.
-
-2. Validate runtime settings visibility:
-```bash
-PH_BACKEND_URL="$BACKEND_URL" bash scripts/ph.sh settings:check
-```
-PowerShell-only fallback: call `GET /api/settings` directly (see `docs/API.md`) with required auth headers.
-
-3. Validate GitHub access + target repo:
-```bash
-gh auth status
-gh repo view <owner>/<repo> >/dev/null
+bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180
 ```
 
-4. Trigger one deterministic failure:
-```bash
-gh workflow run ci.yml -R <owner>/<repo> -f failure_type=dependency
-```
+- Proof command:
 
-5. Verify PipelineHealer outcome:
 ```bash
 bash scripts/ph.sh demo:proof --repo <owner>/<repo> --limit 5
 ```
-Expected: new activity plus a remediation PR or a structured issue (depending on policy/failure type).
 
-For exact command-level setup and troubleshooting, use:
-- `docs/LOCAL_DEMO_RUNBOOK.md`
-- `docs/CLI.md`
+## Security And Governance Defaults
 
-## MCP clarity (quick check)
+- `HEAL_MODE=safe`
+- independent execution/action toggles:
+  - `AUTO_APPLY_REMEDIATION` (global execution gate)
+  - `AUTO_CREATE_PR`, `AUTO_CREATE_ISSUE`, `AUTO_RETRY_WORKFLOW` (per-action outputs)
+- protected settings APIs (`X-API-Key`; admin routes require `X-Admin-Key` in non-development)
+- auditable settings changes and remediation traces
+- MCP defaults: `MCP_ENABLED=false`, `MCP_READ_ONLY=true`
 
-If you are asking "is MCP actually working?", use this rule:
-- `MCP Tool Calls > 0` in Activity Detail means direct MCP tools were invoked for that activity.
-- `MCP Tool Calls = 0` does not automatically mean broken MCP. In passive `gh_aw` mode, diagnostics can still be ingested without direct MCP tool calls.
-- In hybrid mode (`GH_AW_INGESTION_MODE=hybrid`), both GH-AW and MCP findings can appear in the same activity.
-- Check `Source Attribution` + `source_selection_path` to see the path per finding (`gh_aw_passive`, `github_mcp_direct`, or `github_mcp_blocked`).
-- For a terminal proof run from CLI, use `bash scripts/ph.sh demo:e2e --strict` and review the printed MCP summary counters.
+Security policy: [SECURITY.md](SECURITY.md)
 
-## Versioning and release
+## Versioning And Release
 
-Project versions are synchronized across:
+Version sources are synchronized across:
 - `VERSION`
 - `backend/pyproject.toml`
 - `frontend/package.json`
-- `charts/pipelinehealer/Chart.yaml` (`version` + `appVersion`)
+- `charts/pipelinehealer/Chart.yaml` (`version`, `appVersion`)
 
 Release helpers:
 
 ```bash
 bash scripts/release_preflight.sh
-bash scripts/release_checklist.sh minor   # optional dry-run command list
+bash scripts/release_checklist.sh minor
 bash scripts/release.sh minor
 bash scripts/release_verify.sh vX.Y.Z
 ```
 
-Tag-based release publishing is automated by `.github/workflows/release.yml` on `vX.Y.Z` tags.
-Each release tag publishes immutable GHCR images for backend/frontend using both `vX.Y.Z` and `X.Y.Z` tags, plus digest references in `release_images.md` (ACR publish remains optional for Azure promotion flows).
-Recommended Azure promotion command after release: `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`.
+Release runbook: [docs/RELEASE_RUNBOOK.md](docs/RELEASE_RUNBOOK.md)
 
-## Security and governance defaults
+## Documentation Map
 
-- `HEAL_MODE=safe`
-- execution and action controls are independent:
-  - `AUTO_APPLY_REMEDIATION` = global execution gate (`false` means plan-only dry-run)
-  - `AUTO_CREATE_PR`, `AUTO_CREATE_ISSUE`, `AUTO_RETRY_WORKFLOW` = per-action toggles
-- scoped repo allowlists for remediation
-- protected admin settings API with audit trail
-- settings UI uses one-step `Save & Persist` for durable config updates
-- Settings + Control Center expose the same runtime controls for operator verification
-- Entra + API key auth modes (`api_key`, `entra`, `hybrid`)
-- MCP defaults are safe (`MCP_ENABLED=false`, `MCP_READ_ONLY=true`)
+- [Docs Index](docs/README.md)
+- [Feature Guides](docs/features/README.md)
+- [API Reference](docs/API.md)
+- [CLI Reference](docs/CLI.md)
+- [Local + Azure Runbook](docs/LOCAL_DEMO_RUNBOOK.md)
+- [Kubernetes Helm Runbook](docs/KUBERNETES_HELM_RUNBOOK.md)
+- [Logs & Investigation](docs/LOGS_AND_INVESTIGATION.md)
+- [Future Plan](docs/FUTURE_PLAN.md)
+- [Changelog](CHANGELOG.md)
+
+## Contributing
+
+Contributions are welcome. For workflow, quality gates, and docs policy:
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [AGENTS.md](AGENTS.md)
+
+When proposing changes, include target version alignment (`docs/FUTURE_PLAN.md`) and release-note intent (`Added`, `Changed`, or `Fixed`).
