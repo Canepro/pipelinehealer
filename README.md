@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 59a9fc3 -->
+<!-- LAST_VERIFIED: 5a3c85c -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -67,6 +67,50 @@ Defaults are already beginner-safe in `.env.example`:
 - `VITE_AUTH_MODE=none`
 
 For managed deployment and full demo ops, use [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md).
+
+## Deployment Command Cheat Sheet
+
+Pick the path that matches your environment:
+
+1. Azure Container Apps (recommended managed path)
+
+```bash
+# Runtime/env-only update (no image rebuild)
+bash scripts/ph.sh deploy:env
+
+# Promote a published release by tag
+bash scripts/ph.sh deploy:release --release-version vX.Y.Z
+
+# Full rebuild + redeploy from local source
+bash scripts/ph.sh deploy
+```
+
+2. Kubernetes (Helm)
+
+```bash
+# Install or update from chart source
+helm upgrade --install pipelinehealer ./charts/pipelinehealer \
+  --namespace pipelinehealer \
+  --create-namespace \
+  -f values.production.yaml
+
+# Verify rollout
+kubectl -n pipelinehealer rollout status deploy/pipelinehealer-backend
+kubectl -n pipelinehealer rollout status deploy/pipelinehealer-frontend
+```
+
+3. Local containers (Docker/Podman)
+
+```bash
+docker compose --env-file backend/.env build backend frontend
+docker compose --env-file backend/.env up -d backend frontend
+# Podman: replace `docker compose` with `podman compose`
+```
+
+Detailed docs:
+- Azure + local operations: [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md)
+- Kubernetes/Helm: [docs/KUBERNETES_HELM_RUNBOOK.md](docs/KUBERNETES_HELM_RUNBOOK.md)
+- Full CLI command reference: [docs/CLI.md](docs/CLI.md)
 
 ## Why PipelineHealer
 
