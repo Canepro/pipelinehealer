@@ -201,6 +201,20 @@ class Settings(BaseSettings):
         default="development",
         description="Application environment (development, staging, production)",
     )
+    storage_mode: str = Field(
+        default="",
+        description=(
+            "Storage backend mode: memory or cosmos. "
+            "When empty, defaults to memory in development and cosmos otherwise."
+        ),
+    )
+    allow_in_memory_storage_in_non_development: bool = Field(
+        default=False,
+        description=(
+            "Allow explicit in-memory storage in non-development environments. "
+            "Intended for demo/evaluation only."
+        ),
+    )
     log_level: str = Field(
         default="INFO",
         description="Logging level",
@@ -512,6 +526,17 @@ class Settings(BaseSettings):
         normalized = value.strip().lower()
         if normalized not in {"api_key", "entra", "hybrid"}:
             raise ValueError("AUTH_MODE must be one of: api_key, entra, hybrid")
+        return normalized
+
+    @field_validator("storage_mode")
+    @classmethod
+    def validate_storage_mode(cls, value: str) -> str:
+        """Validate storage mode selection."""
+        normalized = value.strip().lower()
+        if not normalized:
+            return ""
+        if normalized not in {"memory", "cosmos"}:
+            raise ValueError("STORAGE_MODE must be one of: memory, cosmos")
         return normalized
 
     @field_validator("llm_provider")

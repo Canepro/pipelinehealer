@@ -284,6 +284,7 @@ class AppSettingsView(BaseModel):
     """Non-secret runtime settings exposed to the frontend settings page."""
 
     environment: str
+    storage_mode: str
     storage_backend: str
     heal_mode: str
     auto_apply_remediation: bool

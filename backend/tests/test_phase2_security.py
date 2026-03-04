@@ -75,6 +75,12 @@ async def _get_mcp_provider_health(headers: dict[str, str] | None = None) -> htt
         return await client.get("/api/settings/mcp/provider-health", headers=headers or {})
 
 
+async def _get_health() -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.get("/health")
+
+
 async def _post_settings_persist(
     payload: dict[str, object] | None = None,
     headers: dict[str, str] | None = None,
@@ -568,6 +574,7 @@ async def test_settings_endpoint_includes_gh_aw_fields(monkeypatch) -> None:
     data = response.json()
     assert data["gh_aw_tools_enabled"] is True
     assert data["gh_aw_ingestion_mode"] == "passive"
+    assert data["storage_mode"] == "memory"
     assert data["gh_aw_known_workflows"] == [
         "ci-doctor",
         "schema-consistency-checker",
@@ -731,6 +738,20 @@ async def test_settings_exposes_mcp_provider_health(monkeypatch) -> None:
     assert body["enabled"] is True
     assert body["available"] is False
     assert body["reason"] == "missing_github_token"
+
+
+@pytest.mark.asyncio
+async def test_health_exposes_environment_and_storage_backend(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    reset_settings()
+    app.state.storage = InMemoryStorage()
+
+    response = await _get_health()
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "healthy"
+    assert body["environment"] == "development"
+    assert body["storage_backend"] == "in_memory"
 
 
 @pytest.mark.asyncio

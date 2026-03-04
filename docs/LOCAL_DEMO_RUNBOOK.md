@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 59a9fc3 -->
+<!-- LAST_VERIFIED: ecbd99a -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -165,9 +165,17 @@ GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxxxxxx # your PAT with repo + workflow scope
 
 # Healing behavior
 HEAL_MODE=safe                              # safe is recommended for getting started
+
+# Storage posture
+STORAGE_MODE=memory                         # local/dev default (ephemeral)
 ```
 
 > **That's it for getting started.** Everything else in `.env` has sensible defaults. You can tune optional settings later — see the full list in `backend/.env.example`.
+
+Non-development storage guardrail:
+- For durable deploys, set `STORAGE_MODE=cosmos` and configure `COSMOS_DB_ENDPOINT`.
+- Startup fails fast in non-development if durable storage is required but missing.
+- Use `ALLOW_IN_MEMORY_STORAGE_IN_NON_DEVELOPMENT=true` only for explicit demo/evaluation opt-in.
 
 Optional external diagnostics fast-path tuning:
 

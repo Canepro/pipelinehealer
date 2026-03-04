@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: ecbd99a -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -86,7 +86,9 @@ Unauthenticated health check.
 
 ```json
 {
-  "status": "healthy"
+  "status": "healthy",
+  "environment": "production",
+  "storage_backend": "cosmos_db"
 }
 ```
 
@@ -454,6 +456,7 @@ Returns the current runtime configuration (non-secret values only).
 ```json
 {
   "environment": "production",
+  "storage_mode": "cosmos",
   "storage_backend": "cosmos_db",
   "heal_mode": "safe",
   "auto_apply_remediation": true,
@@ -1204,9 +1207,14 @@ For provider switching and rollback operations, use `docs/MODEL_PROVIDER_SWITCH_
 
 ### 9. Storage Considerations
 
-- **Azure Cosmos DB** (`cosmos_db`): used in production. Activities persist across restarts.
-- **In-Memory** (`in_memory`): used in development (`ENVIRONMENT=development`). Activities reset on restart.
-- Admin settings audit trail is persisted to Cosmos DB when available, with in-memory fallback (capped at 200 entries in memory).
+- Runtime config exposes both `storage_mode` (intent) and `storage_backend` (active implementation).
+- Supported storage modes:
+  - `memory`: ephemeral storage, recommended for local development/demo only.
+  - `cosmos`: durable storage using Azure Cosmos DB.
+- Non-development guardrail:
+  - Startup fails fast when durable mode is expected but Cosmos endpoint is not configured.
+  - Explicit non-development memory mode requires `ALLOW_IN_MEMORY_STORAGE_IN_NON_DEVELOPMENT=true`.
+- Admin settings audit trail is persisted to durable storage when available, with in-memory fallback buffer for local/dev paths.
 
 ### 10. Error Handling Patterns
 

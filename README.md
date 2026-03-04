@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 8ca4b99 -->
+<!-- LAST_VERIFIED: ecbd99a -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -76,6 +76,7 @@ Defaults are already beginner-safe in `.env.example`:
 - `HEAL_MODE=safe`
 - `AUTH_MODE=api_key`
 - `VITE_AUTH_MODE=none`
+- `STORAGE_MODE=memory` (development default)
 
 For managed deployment and full demo ops, use [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md).
 
@@ -122,6 +123,11 @@ Detailed docs:
 - Azure + local operations: [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md)
 - Kubernetes/Helm: [docs/KUBERNETES_HELM_RUNBOOK.md](docs/KUBERNETES_HELM_RUNBOOK.md)
 - Full CLI command reference: [docs/CLI.md](docs/CLI.md)
+
+Persistence guardrail for non-development deployments:
+- Use `STORAGE_MODE=cosmos` with `COSMOS_DB_ENDPOINT` configured.
+- Non-development startup now fails fast when durable storage is required but missing.
+- Explicit non-development in-memory mode is blocked unless you set `ALLOW_IN_MEMORY_STORAGE_IN_NON_DEVELOPMENT=true` for demo/evaluation.
 
 ## Why PipelineHealer
 

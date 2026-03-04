@@ -116,6 +116,17 @@ def _get_storage_backend_name(storage: ActivityStorage | None) -> str:
     return storage_class.lower()
 
 
+def _get_storage_mode_name(storage: ActivityStorage | None, environment: str) -> str:
+    """Return effective storage mode name using active backend when available."""
+    backend = _get_storage_backend_name(storage)
+    if backend == "in_memory":
+        return "memory"
+    if backend == "cosmos_db":
+        return "cosmos"
+    # Fallback for cases where storage has not been initialized yet.
+    return "memory" if environment == "development" else "cosmos"
+
+
 def _safe_settings_allowlist(raw_repos: list[str]) -> list[str]:
     """Best-effort normalization for settings view without crashing on bad env values."""
     try:
@@ -181,6 +192,7 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
 
     return AppSettingsView(
         environment=settings.environment,
+        storage_mode=_get_storage_mode_name(storage, settings.environment),
         storage_backend=_get_storage_backend_name(storage),
         heal_mode=settings.heal_mode,
         auto_apply_remediation=settings.auto_apply_remediation,

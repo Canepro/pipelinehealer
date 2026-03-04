@@ -120,6 +120,7 @@ export interface TimelineData {
 
 export interface AppSettings {
   environment: string
+  storage_mode: string
   storage_backend: string
   heal_mode: string
   auto_apply_remediation: boolean

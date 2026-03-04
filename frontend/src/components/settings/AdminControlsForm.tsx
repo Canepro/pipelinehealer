@@ -1296,9 +1296,10 @@ export default function AdminControlsForm({
                   <Separator />
 
                   <h4 className="text-sm font-medium text-[var(--ph-text)]">Runtime Info</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                     <StatusChip label="Environment" value={data.environment} />
                     <StatusChip label="Storage" value={data.storage_backend} />
+                    <StatusChip label="Storage Mode" value={data.storage_mode} />
                     <StatusChip label="Heal Mode" value={data.heal_mode} />
                     <StatusChip
                       label="Max Attempts"

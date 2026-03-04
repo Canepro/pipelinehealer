@@ -20,6 +20,9 @@ from ..tools.github_tools import GitHubTools
 
 logger = logging.getLogger(__name__)
 
+_STORAGE_MODE_MEMORY = "memory"
+_STORAGE_MODE_COSMOS = "cosmos"
+
 
 class PipelineHealerWorkflow:
     """Main workflow for the PipelineHealer system.
@@ -307,12 +310,8 @@ def create_workflow(
     # Create GitHub tools
     github_tools = GitHubTools()
 
-    # Create storage
-    # Default to in-memory storage when Cosmos isn't configured, even if ENVIRONMENT is set.
-    if use_in_memory or settings.environment == "development" or not settings.cosmos_db_endpoint:
-        storage: ActivityStorage = InMemoryStorage()
-    else:
-        storage = ActivityStorage()
+    # Create storage using explicit mode selection with non-development durability guardrails.
+    storage = create_storage(settings=settings, use_in_memory=use_in_memory)
 
     # Create credential
     credential = DefaultAzureCredential()
@@ -322,3 +321,56 @@ def create_workflow(
         storage=storage,
         azure_credential=credential,
     )
+
+
+def resolve_storage_mode(settings: Any, *, use_in_memory: bool = False) -> str:
+    """Resolve effective storage mode from settings and startup override.
+
+    Rules:
+    - ``use_in_memory=True`` always selects memory (used by tests/local dev startup path).
+    - explicit ``STORAGE_MODE`` wins when provided.
+    - default is ``memory`` for development and ``cosmos`` otherwise.
+    - non-development ``memory`` requires explicit opt-in.
+    - ``cosmos`` requires ``COSMOS_DB_ENDPOINT``.
+    """
+    environment = str(getattr(settings, "environment", "development")).strip().lower()
+    configured_mode = str(getattr(settings, "storage_mode", "")).strip().lower()
+
+    if use_in_memory:
+        return _STORAGE_MODE_MEMORY
+
+    mode = configured_mode or (
+        _STORAGE_MODE_MEMORY if environment == "development" else _STORAGE_MODE_COSMOS
+    )
+
+    if mode == _STORAGE_MODE_MEMORY:
+        allow_non_dev_memory = bool(
+            getattr(settings, "allow_in_memory_storage_in_non_development", False)
+        )
+        if environment != "development" and not allow_non_dev_memory:
+            raise RuntimeError(
+                "Refusing to start with in-memory storage in non-development. "
+                "Set STORAGE_MODE=cosmos for durable storage, or set "
+                "ALLOW_IN_MEMORY_STORAGE_IN_NON_DEVELOPMENT=true for explicit demo/local opt-in."
+            )
+        return mode
+
+    if mode == _STORAGE_MODE_COSMOS:
+        cosmos_endpoint = str(getattr(settings, "cosmos_db_endpoint", "")).strip()
+        if not cosmos_endpoint:
+            raise RuntimeError(
+                "STORAGE_MODE=cosmos requires COSMOS_DB_ENDPOINT. "
+                "Configure Cosmos DB for durable storage before starting in non-development."
+            )
+        return mode
+
+    # Defensive fallback; validator should prevent unknown values.
+    raise RuntimeError(f"Unsupported STORAGE_MODE '{mode}'")
+
+
+def create_storage(settings: Any, *, use_in_memory: bool = False) -> ActivityStorage:
+    """Build the storage implementation for the resolved storage mode."""
+    mode = resolve_storage_mode(settings, use_in_memory=use_in_memory)
+    if mode == _STORAGE_MODE_MEMORY:
+        return InMemoryStorage()
+    return ActivityStorage()
