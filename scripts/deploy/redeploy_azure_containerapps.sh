@@ -257,6 +257,11 @@ read_env_key() {
   grep -E "^${key}=" "$ENV_FILE" | tail -n1 | cut -d= -f2- | tr -d '\r\n' || true
 }
 
+env_key_is_present() {
+  local key="$1"
+  grep -qE "^${key}=" "$ENV_FILE"
+}
+
 resolve_local_compose_image_ref() {
   local service="$1"
   local project_basename project_dash project_underscore
@@ -420,6 +425,10 @@ done
 add_frontend_env_var "BACKEND_UPSTREAM" "$BACKEND_URL"
 add_frontend_env_var "API_AUTH_KEY" "$API_AUTH_KEY"
 for key in "${FRONTEND_RUNTIME_ENV_KEYS[@]}"; do
+  # Keep deploy:env non-destructive for older env files: only sync keys explicitly present.
+  if ! env_key_is_present "$key"; then
+    continue
+  fi
   value="$(read_env_key "$key")"
   case "$key" in
     VITE_AUTH_MODE)

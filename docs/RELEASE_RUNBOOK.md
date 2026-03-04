@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: 1f53853 -->
+<!-- LAST_VERIFIED: 1c1f8fc -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -70,7 +70,8 @@ Frontend runtime auth variables (set in deploy-time env when Entra login is expe
 
 Important:
 - release frontend images are runtime-configurable for `VITE_*` values.
-- missing deploy-time `VITE_*` env keeps runtime defaults (`VITE_AUTH_MODE=none`), so "Use Login Session" stays disabled.
+- `deploy:env` only syncs frontend `VITE_*` keys that are explicitly present in your env file; omitted keys keep their existing Container App values.
+- if a `VITE_*` key is omitted on first deployment, frontend entrypoint defaults still apply (for example `VITE_AUTH_MODE=none`).
 
 ## 1) Preflight (Required)
 

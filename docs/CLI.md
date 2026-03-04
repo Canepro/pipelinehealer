@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 1f53853 -->
+<!-- LAST_VERIFIED: 1c1f8fc -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -148,6 +148,7 @@ Important:
 - Optional naming control for secret mode: `--secret-prefix <prefix>` (default `ph`).
 - `deploy:release` resolves ACR digests and deploys immutable image references (`repository@sha256:...`).
 - Use `deploy:env` for runtime-only config changes on backend or frontend (for example `AUTH_MODE`, `ENTRA_*`, `VITE_*`, policy settings).
+- `deploy:env` only syncs frontend `VITE_*` keys that are explicitly present in your env file; missing keys are left unchanged on Azure Container Apps.
 - Use full `deploy` only when image contents changed (source code, Dockerfile, dependencies).
 - Full `deploy` prunes old local ACR-tagged images and old ACR tags/manifests by default.
 - Protected from pruning: `latest`, current deploy tag, and semver-like tags (for example `v0.2.3`).

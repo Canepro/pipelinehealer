@@ -6,7 +6,9 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Fixed
+
+- Prevented `deploy:env` from clearing existing frontend runtime config when newer `VITE_*` keys are omitted from `backend/.env` during Azure env sync (issue [#55](https://github.com/Canepro/pipelinehealer/issues/55)).
 
 ## [v0.3.1] - 2026-03-03
 

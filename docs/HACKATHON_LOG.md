@@ -126,10 +126,10 @@ This is the long-form project tracker for hackathon execution status, submission
 - [x] Project description (features/problem/technologies) in `README.md`
 - [ ] Demo video (2 min max)
 - [x] Architecture diagram (Mermaid in `README.md`)
-- [ ] Microsoft Learn profile URL(s) captured for all participants:
+- [x] Microsoft Learn profile URL(s) captured for all participants:
   - Vincent Mogah: `https://learn.microsoft.com/en-us/users/canepro0084/`
   - Logeshwaran R: `https://learn.microsoft.com/en-in/users/logeshwaranr-5820/`
-  - Goziechukwu Chima-Duru: `PENDING (add profile URL before final submission lock)`
+  - Goziechukwu Chima-Duru: `https://learn.microsoft.com/en-us/users/GozieChimaDuru-2688`
 
 ## Current Working Defaults
 
