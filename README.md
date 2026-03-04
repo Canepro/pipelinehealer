@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: a123192 -->
+<!-- LAST_VERIFIED: 8ca4b99 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -23,6 +23,8 @@ PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies 
 - Live deployment: Azure Container Apps (backend + frontend)
 - Current release baseline: [`v0.3.1`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1)
 - Next scoped target: `v0.3.2` ([#44](https://github.com/Canepro/pipelinehealer/issues/44))
+- `v0.3.2` freeze-required scope: `#36` (Jenkins bridge), `#42` (Assign-to-Agent), `#57` (storage posture hardening)
+- OSS-friendly durable storage path: `#58` (PostgreSQL adapter) is stretch-only for `v0.3.2` and defaults to `v0.3.3` if risk is high
 - Demo runbook: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
 
 ## Example Remediation Stories
@@ -137,6 +139,13 @@ CI failures create repetitive triage work and slow delivery. PipelineHealer redu
 - Operational traceability: every action links to run evidence, reason codes, and policy state.
 - Deployment flexibility: same control model across Azure, Kubernetes, and local container paths.
 
+## v0.3.2 Freeze Guardrails (Planned)
+
+- Required scope is locked to `#36/#42/#57` to protect submission reliability.
+- `#58` starts only after required scope is code-complete, CI-green, and docs-synced.
+- Storage extensibility work must remain adapter-scoped and additive (no core workflow rewrites).
+- If stretch scope impacts confidence close to freeze, it is deferred to `v0.3.3`.
+
 ## What Shipped In v0.3.1
 
 - frontend runtime-first config for containerized deployments (`VITE_*` via `/runtime-config.js`)
@@ -193,7 +202,7 @@ flowchart TB
   end
 
   subgraph DATA["State and Evidence"]
-    DB[("Cosmos DB / InMemory")]
+    DB[("Cosmos DB / InMemory<br/>PostgreSQL planned")]
     EXP["Explainability Metadata<br/>source path, reason codes"]
   end
 

@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 1c1f8fc -->
+<!-- LAST_VERIFIED: 8ca4b99 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -231,16 +231,30 @@ Theme: integration activation for non-GitHub CI ingestion and agent handoff.
 2. `Assign to Agent` functional handoff (`BL-039`)
    - Activate the `Coming Soon` control with configured handoff modes (`copy_only`/`webhook`).
    - Keep disabled-by-default runtime behavior and auditable request correlation.
-3. Governance and operator verification
+3. Storage posture hardening (`BL-045`)
+   - Enforce explicit storage mode contract and non-development durability guardrails.
+   - Fail fast in non-development when durable storage is required but not configured.
+   - Preserve explicit local/demo in-memory opt-in with operator-visible active backend surface.
+4. Governance and operator verification
    - Require allowlist, signing, and replay guardrails for bridge/handoff paths.
    - Add CLI/runbook checks for integration health and failure diagnostics.
+
+### Stretch Scope (Only After Must-Have Scope Is Green)
+
+1. OSS-friendly PostgreSQL durable adapter (`BL-046`)
+   - Add `PostgresStorage` as an adapter-only implementation path.
+   - Keep orchestration and core workflow logic backend-agnostic.
+   - Require parity tests across active adapters before any release inclusion.
+2. Freeze risk control
+   - If parity/migration/CI confidence is not strong, defer `BL-046` to `v0.3.3` with no partial rollout.
 
 ### Exit Criteria
 
 1. Jenkins payloads can create auditable activities without GitHub `workflow_run`.
 2. Assign-to-Agent handoff is functional when configured and safe when not configured.
-3. Integration failures are non-blocking for core activity workflows.
-4. API/docs/runbooks are aligned with shipped integration behavior.
+3. Non-development deploys cannot run accidentally on ephemeral in-memory storage.
+4. Integration failures are non-blocking for core activity workflows.
+5. API/docs/runbooks are aligned with shipped integration behavior.
 
 ## Planned Target: `v0.3.3` (Minor)
 
@@ -415,10 +429,12 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-038` | Activity Detail one-click `Copy Context` for AI-ready handoff payloads with bounded size + redaction, plus disabled `Assign to Agent` `Coming Soon` affordance ([#41](https://github.com/Canepro/pipelinehealer/issues/41)) | `v0.3.0` | patch | High | Completed (released in `v0.3.0`) |
 | `BL-039` | Activity Detail `Assign to Agent` integration (`copy_only` + optional `webhook`) with audit-safe handoff controls ([#42](https://github.com/Canepro/pipelinehealer/issues/42)) | `v0.3.2` | minor | Medium | Planned |
 | `BL-040` | Release umbrella tracking for bundled `v0.3.0` scope (`BL-036`, `BL-038`) ([#43](https://github.com/Canepro/pipelinehealer/issues/43)) | `v0.3.0` | patch | High | Completed (released in `v0.3.0`) |
-| `BL-041` | Release umbrella tracking for bundled integration scope (`BL-034`, `BL-039`) ([#44](https://github.com/Canepro/pipelinehealer/issues/44)) | `v0.3.2` | patch | High | Tracking (active) |
+| `BL-041` | Release umbrella tracking for `v0.3.2` freeze scope (`BL-034`, `BL-039`, `BL-045`) and guarded stretch tracking (`BL-046`) ([#44](https://github.com/Canepro/pipelinehealer/issues/44)) | `v0.3.2` | patch | High | Tracking (active) |
 | `BL-042` | Platform-neutral Kubernetes deployment profiles + docs guidance (`values.quickstart.yaml`, `values.production.yaml`) with optional installer automation follow-up ([#51](https://github.com/Canepro/pipelinehealer/issues/51)) | `TBD (post-submission, no release cut required)` | patch | High | Completed (in `main`) |
 | `BL-043` | Frontend runtime-config decoupling: make containerized `VITE_*` settings runtime-first across frontend/Helm/Azure deploy tooling and remove build-arg coupling in release path ([#54](https://github.com/Canepro/pipelinehealer/issues/54)) | `v0.3.1` | patch | High | Completed (released in `v0.3.1`) |
 | `BL-044` | Azure env-sync regression fix: keep existing frontend runtime config when `VITE_*` keys are omitted from env input during `deploy:env` ([#55](https://github.com/Canepro/pipelinehealer/issues/55)) | `v0.3.2` | patch | High | Planned |
+| `BL-045` | Storage posture hardening: explicit storage mode + non-development durability guardrail with fail-fast misconfiguration behavior ([#57](https://github.com/Canepro/pipelinehealer/issues/57)) | `v0.3.2` | patch | High | Planned |
+| `BL-046` | PostgreSQL durable storage adapter (OSS-friendly persistence path) with adapter-contract parity requirements ([#58](https://github.com/Canepro/pipelinehealer/issues/58)) | `v0.3.2` (stretch) / `v0.3.3` (fallback) | minor | Medium | Planned (stretch-gated) |
 
 ## Definition of Done (Per Version)
 
