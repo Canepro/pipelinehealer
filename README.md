@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: fff16a3 -->
+<!-- LAST_VERIFIED: 9742e94 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -27,11 +27,12 @@ PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies 
 
 ## Example Remediation Story
 
-Representative public artifacts from the demo repository:
-- Structured issue (manual-review path): [pipelinehealer-demo#90](https://github.com/Canepro/pipelinehealer-demo/issues/90)
-- Deterministic fix PR (auto-remediation path): [pipelinehealer-demo#91](https://github.com/Canepro/pipelinehealer-demo/pull/91)
+Recent public artifacts from the demo repository (same failure run):
+- Diagnostics evidence (CI doctor): [pipelinehealer-demo#122](https://github.com/Canepro/pipelinehealer-demo/issues/122)
+- PipelineHealer tracking issue: [pipelinehealer-demo#120](https://github.com/Canepro/pipelinehealer-demo/issues/120)
+- Auto-generated deterministic fix PR: [pipelinehealer-demo#121](https://github.com/Canepro/pipelinehealer-demo/pull/121)
 
-Story flow: one failed workflow run was diagnosed, captured as a structured issue for traceability, and resolved through a bounded fix PR.
+Story flow: external diagnostics captured failure context, PipelineHealer opened a traceable issue, and then generated a bounded remediation PR.
 
 ## Beginner Path (First 10 Minutes)
 
