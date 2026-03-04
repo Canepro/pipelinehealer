@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 7da4787 -->
+<!-- LAST_VERIFIED: a123192 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -32,11 +32,11 @@ PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies 
 | Cross-repo operator-reviewed path (production-style) | Issue: [rocketchat-app-logs-viewer#16](https://github.com/Canepro/rocketchat-app-logs-viewer/issues/16) -> Fix PR: [rocketchat-app-logs-viewer#17](https://github.com/Canepro/rocketchat-app-logs-viewer/pull/17) |
 | Deterministic auto-fix path (demo fixture) | Diagnostics: [pipelinehealer-demo#122](https://github.com/Canepro/pipelinehealer-demo/issues/122) -> Tracking issue: [pipelinehealer-demo#120](https://github.com/Canepro/pipelinehealer-demo/issues/120) -> Auto-generated fix PR: [pipelinehealer-demo#121](https://github.com/Canepro/pipelinehealer-demo/pull/121) |
 
-Story flow: PipelineHealer captures failure evidence, opens a traceable issue, and drives either human-reviewed remediation or deterministic fix PR generation.
+Story flow: PipelineHealer captures failure evidence, opens a traceable issue, and then drives either human-reviewed remediation or deterministic fix PR generation.
 
 ## Beginner Path (First 10 Minutes)
 
-If this is your first run, start local with default key auth and no Entra setup.
+For first-time evaluation, start local with default key authentication and no Entra setup.
 
 1. Create env file:
 
@@ -123,8 +123,8 @@ Detailed docs:
 
 ## Why PipelineHealer
 
-CI failures create repetitive triage work and slow delivery. PipelineHealer reduces mean-time-to-understanding and mean-time-to-remediation with a safety-first flow:
-- Analyze -> Diagnose -> Remediate agent pipeline
+CI failures create repetitive triage work and slow delivery. PipelineHealer reduces mean time to understanding and remediation with a safety-first flow:
+- Analyze -> Diagnose -> Remediate
 - policy gates (`HEAL_MODE`, per-action toggles, repo allowlists)
 - explainability fields (`diagnosis_source`, reason codes, source attribution)
 - universal failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
@@ -165,6 +165,8 @@ As of March 3, 2026 (`v0.3.1`), random-user image pullability regressions are ga
 Operational runbook: [docs/KUBERNETES_HELM_RUNBOOK.md](docs/KUBERNETES_HELM_RUNBOOK.md)
 
 ## Architecture
+
+The diagrams below show system boundaries and runtime decision flow.
 
 ```mermaid
 flowchart TB
@@ -247,7 +249,7 @@ sequenceDiagram
   OR-->>WH: accepted and tracked
 ```
 
-## Developer Setup (Alternative)
+## Developer Setup (uv Variant)
 
 If you already completed the **Beginner Path**, this is the equivalent backend startup using `uv`:
 
@@ -259,7 +261,7 @@ uvicorn src.main:app --reload
 
 For full local/Azure/Kubernetes run paths, use [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md).
 
-## One-Command Ops
+## One-Command Operations
 
 From repo root:
 
@@ -274,12 +276,12 @@ bash scripts/ph.sh logs
 
 Full CLI reference: [docs/CLI.md](docs/CLI.md)
 
-Runtime config note:
+Runtime config notes:
 - containerized frontend config (`VITE_*`, including Entra settings) is runtime-driven
 - use `bash scripts/ph.sh deploy:env` to apply backend/frontend env changes without rebuilding images
 - full `deploy` is only needed when code/image contents changed
 
-## 2-Minute Demo Path
+## Two-Minute Demo Path
 
 - Recording script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
 - On-camera E2E command:
@@ -294,7 +296,7 @@ bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout
 bash scripts/ph.sh demo:proof --repo <owner>/<repo> --limit 5
 ```
 
-## Security And Governance Defaults
+## Security and Governance Defaults
 
 - `HEAL_MODE=safe`
 - independent execution/action toggles:
@@ -306,7 +308,7 @@ bash scripts/ph.sh demo:proof --repo <owner>/<repo> --limit 5
 
 Security policy: [SECURITY.md](SECURITY.md)
 
-## Versioning And Release
+## Versioning and Release
 
 Version sources are synchronized across:
 - `VERSION`
