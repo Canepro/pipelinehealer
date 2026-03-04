@@ -148,6 +148,26 @@ class Settings(BaseSettings):
         default="",
         description="GitHub webhook secret for validation",
     )
+    jenkins_bridge_enabled: bool = Field(
+        default=False,
+        description="Enable signed Jenkins bridge webhook ingestion",
+    )
+    jenkins_bridge_shared_secret: str = Field(
+        default="",
+        description="Shared secret used to verify Jenkins bridge HMAC signatures",
+    )
+    jenkins_bridge_max_skew_seconds: int = Field(
+        default=300,
+        description="Maximum allowed timestamp skew for Jenkins bridge requests",
+    )
+    jenkins_bridge_replay_ttl_seconds: int = Field(
+        default=86400,
+        description="Replay window TTL for Jenkins bridge nonce/delivery tracking",
+    )
+    jenkins_bridge_max_body_bytes: int = Field(
+        default=524288,
+        description="Maximum accepted Jenkins bridge request body size in bytes",
+    )
     github_personal_access_token: str = Field(
         default="",
         description="GitHub personal access token (recommended for local dev)",
@@ -360,6 +380,33 @@ class Settings(BaseSettings):
         default=120.0,
         description="Per-step timeout (seconds) for analyze/diagnose/remediate orchestration steps",
     )
+    agent_handoff_enabled: bool = Field(
+        default=False,
+        description="Enable optional Assign-to-Agent handoff API",
+    )
+    agent_handoff_mode: str = Field(
+        default="copy_only",
+        description="Agent handoff mode: copy_only or webhook",
+    )
+    agent_handoff_webhook_url: str = Field(
+        default="",
+        description="Webhook target URL used when AGENT_HANDOFF_MODE=webhook",
+    )
+    agent_handoff_webhook_allowlist: Annotated[list[str], NoDecode] = Field(
+        default_factory=list,
+        description=(
+            "Allowed webhook hostnames for agent handoff. "
+            "When set, AGENT_HANDOFF_WEBHOOK_URL host must be in this allowlist."
+        ),
+    )
+    agent_handoff_timeout_seconds: float = Field(
+        default=8.0,
+        description="Timeout budget for outbound Assign-to-Agent webhook delivery",
+    )
+    agent_handoff_max_retries: int = Field(
+        default=1,
+        description="Maximum retries for transient Assign-to-Agent webhook failures",
+    )
     github_api_max_retries: int = Field(
         default=3,
         description="Maximum GitHub API retries for retryable failures (429/5xx and transient network errors)",
@@ -427,6 +474,22 @@ class Settings(BaseSettings):
             return [repo.strip() for repo in text.split(",") if repo.strip()]
         if isinstance(value, list):
             return [str(repo).strip() for repo in value if str(repo).strip()]
+        return value
+
+    @field_validator("agent_handoff_webhook_allowlist", mode="before")
+    @classmethod
+    def parse_agent_handoff_webhook_allowlist(cls, value: Any) -> Any:
+        """Allow handoff webhook allowlist from JSON arrays or comma-separated env values."""
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return []
+            if text.startswith("["):
+                parsed = json.loads(text)
+                return [str(item).strip().lower() for item in parsed if str(item).strip()]
+            return [host.strip().lower() for host in text.split(",") if host.strip()]
+        if isinstance(value, list):
+            return [str(host).strip().lower() for host in value if str(host).strip()]
         return value
 
     @field_validator("mcp_tool_policies", mode="before")
@@ -528,6 +591,15 @@ class Settings(BaseSettings):
             raise ValueError("AUTH_MODE must be one of: api_key, entra, hybrid")
         return normalized
 
+    @field_validator("agent_handoff_mode")
+    @classmethod
+    def validate_agent_handoff_mode(cls, value: str) -> str:
+        """Validate agent handoff mode."""
+        normalized = value.strip().lower()
+        if normalized not in {"copy_only", "webhook"}:
+            raise ValueError("AGENT_HANDOFF_MODE must be one of: copy_only, webhook")
+        return normalized
+
     @field_validator("storage_mode")
     @classmethod
     def validate_storage_mode(cls, value: str) -> str:
@@ -602,6 +674,48 @@ class Settings(BaseSettings):
             raise ValueError(
                 "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS must be > 0 and <= 120 seconds"
             )
+        return value
+
+    @field_validator("agent_handoff_timeout_seconds")
+    @classmethod
+    def validate_agent_handoff_timeout_seconds(cls, value: float) -> float:
+        """Validate bounded timeout for outbound handoff webhook requests."""
+        if value <= 0.0 or value > 30.0:
+            raise ValueError("AGENT_HANDOFF_TIMEOUT_SECONDS must be > 0 and <= 30 seconds")
+        return value
+
+    @field_validator("agent_handoff_max_retries")
+    @classmethod
+    def validate_agent_handoff_max_retries(cls, value: int) -> int:
+        """Validate bounded retry count for outbound handoff webhook requests."""
+        if value < 0 or value > 5:
+            raise ValueError("AGENT_HANDOFF_MAX_RETRIES must be between 0 and 5")
+        return value
+
+    @field_validator("jenkins_bridge_max_skew_seconds")
+    @classmethod
+    def validate_jenkins_bridge_max_skew_seconds(cls, value: int) -> int:
+        """Validate timestamp skew guardrail for Jenkins bridge ingress."""
+        if value < 1 or value > 3600:
+            raise ValueError("JENKINS_BRIDGE_MAX_SKEW_SECONDS must be between 1 and 3600")
+        return value
+
+    @field_validator("jenkins_bridge_replay_ttl_seconds")
+    @classmethod
+    def validate_jenkins_bridge_replay_ttl_seconds(cls, value: int) -> int:
+        """Validate replay window TTL for Jenkins bridge ingress."""
+        if value < 60 or value > 7 * 24 * 3600:
+            raise ValueError(
+                "JENKINS_BRIDGE_REPLAY_TTL_SECONDS must be between 60 and 604800"
+            )
+        return value
+
+    @field_validator("jenkins_bridge_max_body_bytes")
+    @classmethod
+    def validate_jenkins_bridge_max_body_bytes(cls, value: int) -> int:
+        """Validate request body cap for Jenkins bridge ingress."""
+        if value < 1024 or value > 4 * 1024 * 1024:
+            raise ValueError("JENKINS_BRIDGE_MAX_BODY_BYTES must be between 1024 and 4194304")
         return value
 
     @field_validator("azure_openai_endpoint")

@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: ecbd99a -->
+<!-- LAST_VERIFIED: 78eaef7 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -151,6 +151,16 @@ CI failures create repetitive triage work and slow delivery. PipelineHealer redu
 - `#58` starts only after required scope is code-complete, CI-green, and docs-synced.
 - Storage extensibility work must remain adapter-scoped and additive (no core workflow rewrites).
 - If stretch scope impacts confidence close to freeze, it is deferred to `v0.3.3`.
+
+## v0.3.2 Integration Scope (Current)
+
+- Signed Jenkins bridge ingestion endpoint for Jenkins-primary CI paths: `POST /webhook/jenkins`
+- Assign-to-Agent handoff integration with runtime-safe modes:
+  - `copy_only` (audited, no network delivery)
+  - `webhook` (bounded timeout/retry + destination allowlist)
+- Explicit storage posture guardrails:
+  - non-development fail-fast when durable storage is required but missing
+  - explicit non-development in-memory mode requires opt-in
 
 ## What Shipped In v0.3.1
 

@@ -97,6 +97,22 @@ export interface Activity {
     }>
   }
   remediation_result?: RemediationResult
+  source_selection_path?: string | null
+  source_delivery_id?: string | null
+  source_metadata?: Record<string, unknown>
+  agent_handoff_audit?: Array<{
+    status: 'copied' | 'queued' | 'failed' | 'disabled'
+    mode: 'copy_only' | 'webhook'
+    actor?: string | null
+    request_id?: string | null
+    created_at: string
+    context_chars: number
+    context_sha256: string
+    context_preview: string
+    delivery_id?: string | null
+    destination_host?: string | null
+    error?: string | null
+  }>
   created_at: string
   updated_at: string
   duration_seconds?: number
@@ -151,6 +167,11 @@ export interface AppSettings {
   gh_aw_known_workflows: string[]
   external_diagnostics_wait_seconds: number
   external_diagnostics_poll_interval_seconds: number
+  agent_handoff_enabled: boolean
+  agent_handoff_mode: 'copy_only' | 'webhook'
+  agent_handoff_webhook_configured: boolean
+  agent_handoff_timeout_seconds: number
+  agent_handoff_max_retries: number
   ph_allowed_repos: string[]
   cors_allowed_origins: string[]
   cors_allow_origin_regex: string
@@ -193,6 +214,24 @@ export interface MCPProviderHealth {
   reason: string
   message: string
   configured_tools: string[]
+}
+
+export interface AgentHandoffConfig {
+  enabled: boolean
+  mode: 'copy_only' | 'webhook'
+  webhook_configured: boolean
+  timeout_seconds: number
+  max_retries: number
+  reason: string
+}
+
+export interface AgentHandoffResponse {
+  status: 'copied' | 'queued' | 'failed' | 'disabled'
+  mode: 'copy_only' | 'webhook'
+  activity_id: string
+  delivery_id?: string
+  message: string
+  request_id?: string
 }
 
 export interface AdminSettingsAuditEntry {
@@ -509,6 +548,15 @@ export const api = {
   },
   
   getActivity: (id: string) => fetchJson<Activity>(`/api/activities/${id}`),
+  getAgentHandoffConfig: () => fetchJson<AgentHandoffConfig>('/api/agent-handoff/config'),
+  assignActivityToAgent: (
+    id: string,
+    payload: { mode?: 'copy_only' | 'webhook'; context: string; context_format?: string }
+  ) =>
+    fetchJson<AgentHandoffResponse>(`/api/activities/${id}/agent-handoff`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   
   getTimeline: (days = 7) => fetchJson<TimelineData>(`/api/timeline?days=${days}`),
   

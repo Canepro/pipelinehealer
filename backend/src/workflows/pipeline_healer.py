@@ -12,6 +12,7 @@ from ..agents.orchestrator import OrchestratorAgent
 from ..config import get_settings
 from ..models import (
     ActivityRecord,
+    JenkinsBridgePayload,
     RemediationStatus,
     WorkflowRunEvent,
 )
@@ -205,6 +206,73 @@ class PipelineHealerWorkflow:
                 return "completed"
         else:
             return "running"
+
+    async def start_bridge_failure(
+        self,
+        payload: JenkinsBridgePayload,
+        *,
+        request_id: str | None = None,
+    ) -> str:
+        """Start processing a signed Jenkins bridge payload asynchronously."""
+        synthetic_activity = ActivityRecord(
+            repositoryId=f"jenkins:{payload.repository.lower()}",
+            repository_name=payload.repository,
+            workflow_run_id=int(payload.job.build_number),
+            workflow_name=payload.job.name or "Jenkins Job",
+            status=RemediationStatus.PENDING,
+            source_selection_path="jenkins_bridge",
+            source_delivery_id=payload.delivery_id,
+            source_metadata={
+                "provider": "jenkins",
+                "job_url": payload.job.url,
+                "build_number": payload.job.build_number,
+                "branch": payload.branch,
+                "commit_sha": payload.commit_sha,
+                "request_id": request_id,
+            },
+        )
+        activity_id = await self._storage.create_activity(synthetic_activity)
+
+        task = asyncio.create_task(
+            self._process_bridge_payload(payload, activity_id),
+            name=f"heal-jenkins-{activity_id}",
+        )
+        self._running_tasks[activity_id] = task
+        task.add_done_callback(lambda t: self._running_tasks.pop(activity_id, None))
+        logger.info("Started Jenkins bridge workflow: %s (delivery=%s)", activity_id, payload.delivery_id)
+        return activity_id
+
+    async def _process_bridge_payload(
+        self,
+        payload: JenkinsBridgePayload,
+        activity_id: str,
+    ) -> ActivityRecord:
+        """Process Jenkins bridge payload using orchestrator diagnosis/remediation flow."""
+        try:
+            return await self._orchestrator.process_bridge_failure(
+                payload,
+                activity_id=activity_id,
+            )
+        except Exception as exc:
+            logger.exception("Bridge workflow processing failed: %s", exc)
+            activity = await self._storage.get_activity(activity_id)
+            if activity is None:
+                activity = ActivityRecord(
+                    id=activity_id,
+                    repositoryId=f"jenkins:{payload.repository.lower()}",
+                    repository_name=payload.repository,
+                    workflow_run_id=int(payload.job.build_number),
+                    workflow_name=payload.job.name or "Jenkins Job",
+                    status=RemediationStatus.FAILED,
+                    error=str(exc),
+                    source_selection_path="jenkins_bridge",
+                    source_delivery_id=payload.delivery_id,
+                )
+            else:
+                activity.status = RemediationStatus.FAILED
+                activity.error = str(exc)
+            await self._storage.update_activity(activity)
+            return activity
 
     @property
     def storage(self) -> ActivityStorage:

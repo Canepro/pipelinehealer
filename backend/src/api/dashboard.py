@@ -10,6 +10,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+from uuid import uuid4
+
+import httpx
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
@@ -21,6 +24,12 @@ from ..models import (
     AdminSettingsPersistRequest,
     AdminSettingsPersistResponse,
     AdminSettingsUpdateRequest,
+    AgentHandoffAuditEntry,
+    AgentHandoffConfigView,
+    AgentHandoffMode,
+    AgentHandoffRequest,
+    AgentHandoffResponse,
+    AgentHandoffStatus,
     AppSettingsView,
     DashboardStats,
     FailureType,
@@ -46,6 +55,7 @@ from .security import get_request_principal, require_admin_key, require_api_key
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["dashboard"], dependencies=[Depends(require_api_key)])
 _REPO_FULL_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+_AGENT_HANDOFF_MAX_AUDIT_ENTRIES = 30
 
 
 def _normalize_repo_full_name(raw_value: Any) -> str:
@@ -225,6 +235,11 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         external_diagnostics_poll_interval_seconds=(
             settings.external_diagnostics_poll_interval_seconds
         ),
+        agent_handoff_enabled=settings.agent_handoff_enabled,
+        agent_handoff_mode=settings.agent_handoff_mode,
+        agent_handoff_webhook_configured=bool(settings.agent_handoff_webhook_url),
+        agent_handoff_timeout_seconds=settings.agent_handoff_timeout_seconds,
+        agent_handoff_max_retries=settings.agent_handoff_max_retries,
         ph_allowed_repos=_safe_settings_allowlist(settings.ph_allowed_repos),
         cors_allowed_origins=settings.cors_allowed_origins,
         cors_allow_origin_regex=settings.cors_allow_origin_regex,
@@ -943,6 +958,109 @@ def _truncate_output(raw: str, limit: int = 280) -> str:
     if len(text) <= limit:
         return text
     return text[: limit - 3] + "..."
+
+
+def _sanitize_handoff_context(input_text: str) -> str:
+    """Redact common secret patterns from handoff context payloads."""
+    output = input_text
+    output = re.sub(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b", "[REDACTED_GITHUB_TOKEN]", output)
+    output = re.sub(
+        r"(authorization\s*:\s*bearer\s+)[^\s\"']+",
+        r"\1[REDACTED_TOKEN]",
+        output,
+        flags=re.IGNORECASE,
+    )
+    output = re.sub(
+        r"\b(api[_-]?key|token|secret|password|client[_-]?secret)\b(\s*[:=]\s*)[^\s\"']{8,}",
+        r"\1\2[REDACTED]",
+        output,
+        flags=re.IGNORECASE,
+    )
+    return output
+
+
+def _handoff_context_preview(context: str, max_chars: int = 280) -> str:
+    sanitized = re.sub(r"\s+", " ", context).strip()
+    if len(sanitized) <= max_chars:
+        return sanitized
+    return sanitized[: max_chars - 3] + "..."
+
+
+def _handoff_actor(request: Request, x_admin_key: str | None) -> str | None:
+    principal = get_request_principal(request)
+    if principal is not None:
+        return f"entra:{principal.subject[:24]}"
+    if x_admin_key:
+        return _build_admin_settings_actor_fingerprint(request=request, x_admin_key=x_admin_key)
+    return "api_client"
+
+
+def _agent_handoff_config_view() -> AgentHandoffConfigView:
+    settings = get_settings()
+    mode = AgentHandoffMode(settings.agent_handoff_mode)
+    webhook_configured = bool(settings.agent_handoff_webhook_url.strip())
+    if not settings.agent_handoff_enabled:
+        return AgentHandoffConfigView(
+            enabled=False,
+            mode=mode,
+            webhook_configured=webhook_configured,
+            timeout_seconds=settings.agent_handoff_timeout_seconds,
+            max_retries=settings.agent_handoff_max_retries,
+            reason="disabled_by_runtime",
+        )
+    if mode == AgentHandoffMode.WEBHOOK and not webhook_configured:
+        return AgentHandoffConfigView(
+            enabled=True,
+            mode=mode,
+            webhook_configured=False,
+            timeout_seconds=settings.agent_handoff_timeout_seconds,
+            max_retries=settings.agent_handoff_max_retries,
+            reason="missing_webhook_url",
+        )
+    return AgentHandoffConfigView(
+        enabled=True,
+        mode=mode,
+        webhook_configured=webhook_configured,
+        timeout_seconds=settings.agent_handoff_timeout_seconds,
+        max_retries=settings.agent_handoff_max_retries,
+        reason="ok",
+    )
+
+
+def _is_allowed_handoff_host(hostname: str, allowlist: list[str]) -> bool:
+    if not allowlist:
+        return True
+    normalized_host = hostname.strip().lower()
+    return normalized_host in {item.strip().lower() for item in allowlist if item.strip()}
+
+
+async def _deliver_handoff_webhook(
+    *,
+    url: str,
+    payload: dict[str, Any],
+    timeout_seconds: float,
+    max_retries: int,
+) -> tuple[bool, str | None]:
+    """Deliver handoff payload with bounded retry for transient failures."""
+    timeout = httpx.Timeout(timeout_seconds)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        for attempt in range(max_retries + 1):
+            try:
+                response = await client.post(url, json=payload)
+            except httpx.RequestError as exc:
+                if attempt >= max_retries:
+                    return False, f"{type(exc).__name__}"
+                await asyncio.sleep(0.2 * (attempt + 1))
+                continue
+
+            if response.status_code >= 500 and attempt < max_retries:
+                await asyncio.sleep(0.2 * (attempt + 1))
+                continue
+
+            if response.status_code >= 400:
+                return False, f"http_{response.status_code}"
+            return True, None
+    return False, "delivery_failed"
 
 
 async def _start_env_only_redeploy_background() -> tuple[bool, str]:
@@ -1732,6 +1850,190 @@ async def get_activity(activity_id: str, storage: ActivityStorage = Depends(get_
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.get("/agent-handoff/config", response_model=AgentHandoffConfigView)
+async def get_agent_handoff_config() -> AgentHandoffConfigView:
+    """Return runtime-safe Assign-to-Agent integration configuration."""
+    return _agent_handoff_config_view()
+
+
+@router.post(
+    "/activities/{activity_id}/agent-handoff",
+    response_model=AgentHandoffResponse,
+)
+async def assign_activity_to_agent(
+    activity_id: str,
+    payload: AgentHandoffRequest,
+    request: Request,
+    storage: ActivityStorage = Depends(get_storage),
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
+) -> AgentHandoffResponse:
+    """Submit one activity handoff request in copy-only or webhook mode.
+
+    This endpoint is intentionally non-blocking for activity page operations:
+    it records failed attempts in activity audit metadata and returns a
+    structured response instead of raising server errors for delivery failures.
+    """
+    activity = await storage.get_activity(activity_id)
+    if activity is None:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    settings = get_settings()
+    effective_mode = payload.mode or AgentHandoffMode(settings.agent_handoff_mode)
+    request_id = getattr(request.state, "request_id", None)
+    actor = _handoff_actor(request, x_admin_key)
+    sanitized_context = _sanitize_handoff_context(payload.context)
+    context_hash = hashlib.sha256(sanitized_context.encode("utf-8")).hexdigest()
+
+    if not settings.agent_handoff_enabled:
+        audit = AgentHandoffAuditEntry(
+            status=AgentHandoffStatus.DISABLED,
+            mode=effective_mode,
+            actor=actor,
+            request_id=request_id,
+            context_chars=len(sanitized_context),
+            context_sha256=context_hash,
+            context_preview=_handoff_context_preview(sanitized_context),
+            error="disabled_by_runtime",
+        )
+        activity.agent_handoff_audit.append(audit)
+        activity.agent_handoff_audit = activity.agent_handoff_audit[-_AGENT_HANDOFF_MAX_AUDIT_ENTRIES:]
+        await storage.update_activity(activity)
+        return AgentHandoffResponse(
+            status=AgentHandoffStatus.DISABLED,
+            mode=effective_mode,
+            activity_id=activity.id,
+            message="Assign-to-Agent is disabled by runtime configuration",
+            request_id=request_id,
+        )
+
+    if effective_mode == AgentHandoffMode.COPY_ONLY:
+        audit = AgentHandoffAuditEntry(
+            status=AgentHandoffStatus.COPIED,
+            mode=effective_mode,
+            actor=actor,
+            request_id=request_id,
+            context_chars=len(sanitized_context),
+            context_sha256=context_hash,
+            context_preview=_handoff_context_preview(sanitized_context),
+        )
+        activity.agent_handoff_audit.append(audit)
+        activity.agent_handoff_audit = activity.agent_handoff_audit[-_AGENT_HANDOFF_MAX_AUDIT_ENTRIES:]
+        await storage.update_activity(activity)
+        return AgentHandoffResponse(
+            status=AgentHandoffStatus.COPIED,
+            mode=effective_mode,
+            activity_id=activity.id,
+            message="Context copied-only handoff recorded",
+            request_id=request_id,
+        )
+
+    webhook_url = settings.agent_handoff_webhook_url.strip()
+    if not webhook_url:
+        audit = AgentHandoffAuditEntry(
+            status=AgentHandoffStatus.FAILED,
+            mode=effective_mode,
+            actor=actor,
+            request_id=request_id,
+            context_chars=len(sanitized_context),
+            context_sha256=context_hash,
+            context_preview=_handoff_context_preview(sanitized_context),
+            error="missing_webhook_url",
+        )
+        activity.agent_handoff_audit.append(audit)
+        activity.agent_handoff_audit = activity.agent_handoff_audit[-_AGENT_HANDOFF_MAX_AUDIT_ENTRIES:]
+        await storage.update_activity(activity)
+        return AgentHandoffResponse(
+            status=AgentHandoffStatus.FAILED,
+            mode=effective_mode,
+            activity_id=activity.id,
+            message="Webhook mode configured without AGENT_HANDOFF_WEBHOOK_URL",
+            request_id=request_id,
+        )
+
+    parsed = urlparse(webhook_url)
+    host = (parsed.hostname or "").strip().lower()
+    if parsed.scheme not in {"http", "https"} or not host:
+        raise HTTPException(status_code=422, detail="Invalid AGENT_HANDOFF_WEBHOOK_URL")
+    if not _is_allowed_handoff_host(host, settings.agent_handoff_webhook_allowlist):
+        audit = AgentHandoffAuditEntry(
+            status=AgentHandoffStatus.FAILED,
+            mode=effective_mode,
+            actor=actor,
+            request_id=request_id,
+            context_chars=len(sanitized_context),
+            context_sha256=context_hash,
+            context_preview=_handoff_context_preview(sanitized_context),
+            destination_host=host,
+            error="destination_not_allowlisted",
+        )
+        activity.agent_handoff_audit.append(audit)
+        activity.agent_handoff_audit = activity.agent_handoff_audit[-_AGENT_HANDOFF_MAX_AUDIT_ENTRIES:]
+        await storage.update_activity(activity)
+        return AgentHandoffResponse(
+            status=AgentHandoffStatus.FAILED,
+            mode=effective_mode,
+            activity_id=activity.id,
+            message=f"Webhook destination host '{host}' is not allowlisted",
+            request_id=request_id,
+        )
+
+    delivery_id = f"handoff:{activity.id}:{uuid4()}"
+    outbound_payload = {
+        "delivery_id": delivery_id,
+        "request_id": request_id,
+        "activity": {
+            "id": activity.id,
+            "repository": activity.repository_name,
+            "workflow_name": activity.workflow_name,
+            "workflow_run_id": activity.workflow_run_id,
+            "status": activity.status.value,
+            "failure_type": activity.failure_type.value if activity.failure_type else None,
+        },
+        "context_format": payload.context_format,
+        "context": sanitized_context,
+        "sent_at": utcnow().isoformat(),
+    }
+    delivered, error_code = await _deliver_handoff_webhook(
+        url=webhook_url,
+        payload=outbound_payload,
+        timeout_seconds=settings.agent_handoff_timeout_seconds,
+        max_retries=settings.agent_handoff_max_retries,
+    )
+    status_value = AgentHandoffStatus.QUEUED if delivered else AgentHandoffStatus.FAILED
+    audit = AgentHandoffAuditEntry(
+        status=status_value,
+        mode=effective_mode,
+        actor=actor,
+        request_id=request_id,
+        context_chars=len(sanitized_context),
+        context_sha256=context_hash,
+        context_preview=_handoff_context_preview(sanitized_context),
+        delivery_id=delivery_id,
+        destination_host=host,
+        error=error_code,
+    )
+    activity.agent_handoff_audit.append(audit)
+    activity.agent_handoff_audit = activity.agent_handoff_audit[-_AGENT_HANDOFF_MAX_AUDIT_ENTRIES:]
+    await storage.update_activity(activity)
+    if delivered:
+        return AgentHandoffResponse(
+            status=AgentHandoffStatus.QUEUED,
+            mode=effective_mode,
+            activity_id=activity.id,
+            delivery_id=delivery_id,
+            message="Handoff delivered to configured webhook",
+            request_id=request_id,
+        )
+    return AgentHandoffResponse(
+        status=AgentHandoffStatus.FAILED,
+        mode=effective_mode,
+        activity_id=activity.id,
+        delivery_id=delivery_id,
+        message=f"Handoff delivery failed ({error_code or 'unknown_error'})",
+        request_id=request_id,
+    )
+
+
 @router.get("/repositories", response_model=list[dict[str, Any]])
 async def get_repositories(storage: ActivityStorage = Depends(get_storage)) -> list[dict[str, Any]]:
     """Get list of repositories with activity counts."""
@@ -1836,3 +2138,9 @@ async def backfill_diagnostics(
     except Exception as e:
         logger.exception(f"Backfill sweep failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
+    AgentHandoffAuditEntry,
+    AgentHandoffConfigView,
+    AgentHandoffMode,
+    AgentHandoffRequest,
+    AgentHandoffResponse,
+    AgentHandoffStatus,

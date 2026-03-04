@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: ecbd99a -->
+<!-- LAST_VERIFIED: 78eaef7 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -168,6 +168,12 @@ HEAL_MODE=safe                              # safe is recommended for getting st
 
 # Storage posture
 STORAGE_MODE=memory                         # local/dev default (ephemeral)
+
+# Assign-to-Agent (optional)
+AGENT_HANDOFF_ENABLED=false
+AGENT_HANDOFF_MODE=copy_only               # copy_only | webhook
+AGENT_HANDOFF_WEBHOOK_URL=                 # required only for webhook mode
+AGENT_HANDOFF_WEBHOOK_ALLOWLIST=
 ```
 
 > **That's it for getting started.** Everything else in `.env` has sensible defaults. You can tune optional settings later — see the full list in `backend/.env.example`.
@@ -176,6 +182,18 @@ Non-development storage guardrail:
 - For durable deploys, set `STORAGE_MODE=cosmos` and configure `COSMOS_DB_ENDPOINT`.
 - Startup fails fast in non-development if durable storage is required but missing.
 - Use `ALLOW_IN_MEMORY_STORAGE_IN_NON_DEVELOPMENT=true` only for explicit demo/evaluation opt-in.
+
+Optional Jenkins bridge ingestion config:
+
+```dotenv
+JENKINS_BRIDGE_ENABLED=false
+JENKINS_BRIDGE_SHARED_SECRET=
+JENKINS_BRIDGE_MAX_SKEW_SECONDS=300
+JENKINS_BRIDGE_REPLAY_TTL_SECONDS=86400
+JENKINS_BRIDGE_MAX_BODY_BYTES=524288
+```
+
+Enable Jenkins bridge only when you are receiving signed `POST /webhook/jenkins` payloads from a trusted bridge sender.
 
 Optional external diagnostics fast-path tuning:
 

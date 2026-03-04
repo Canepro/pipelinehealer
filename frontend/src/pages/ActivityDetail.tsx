@@ -62,6 +62,7 @@ function formatSourceSelectionPath(path: string): string {
     gh_aw_passive: 'GitHub Agentic Workflows (passive)',
     github_mcp_direct: 'GitHub MCP (direct)',
     github_mcp_blocked: 'GitHub MCP blocked by policy/provider',
+    jenkins_bridge: 'Jenkins Bridge',
   }
   const normalized = path.trim().toLowerCase()
   if (known[normalized]) return known[normalized]
@@ -769,6 +770,10 @@ export default function ActivityDetail() {
     queryFn: () => api.getActivity(id!),
     enabled: !!id,
   })
+  const { data: handoffConfig } = useQuery({
+    queryKey: ['agent-handoff-config'],
+    queryFn: () => api.getAgentHandoffConfig(),
+  })
 
   const retryMutation = useMutation({
     mutationFn: () => api.retryActivity(id!),
@@ -779,6 +784,13 @@ export default function ActivityDetail() {
 
   const backfillMutation = useMutation({
     mutationFn: () => api.backfillDiagnostics(24),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity', id] })
+    },
+  })
+  const handoffMutation = useMutation({
+    mutationFn: (payload: { mode?: 'copy_only' | 'webhook'; context: string; context_format?: string }) =>
+      api.assignActivityToAgent(id!, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activity', id] })
     },
@@ -865,6 +877,49 @@ export default function ActivityDetail() {
       toast.error('Unable to copy activity context')
     }
   }
+  const assignEnabled =
+    Boolean(handoffConfig?.enabled) &&
+    (handoffConfig?.mode === 'copy_only' || Boolean(handoffConfig?.webhook_configured))
+  const handleAssignToAgent = async () => {
+    if (!handoffConfig) {
+      toast.error('Assign-to-Agent configuration is unavailable')
+      return
+    }
+    const context = buildActivityContext(activity)
+    if (handoffConfig.mode === 'copy_only') {
+      if (!navigator.clipboard?.writeText) {
+        toast.error('Clipboard API is not available in this browser')
+        return
+      }
+      try {
+        await navigator.clipboard.writeText(context)
+      } catch {
+        toast.error('Unable to copy handoff context')
+        return
+      }
+    }
+    handoffMutation.mutate(
+      {
+        mode: handoffConfig.mode,
+        context,
+        context_format: 'markdown',
+      },
+      {
+        onSuccess: (result) => {
+          if (result.status === 'queued' || result.status === 'copied') {
+            toast.success(result.message || 'Assign-to-Agent handoff submitted')
+          } else if (result.status === 'disabled') {
+            toast.info(result.message || 'Assign-to-Agent is disabled')
+          } else {
+            toast.error(result.message || 'Assign-to-Agent handoff failed')
+          }
+        },
+        onError: (err) => {
+          toast.error(err instanceof Error ? err.message : 'Assign-to-Agent handoff failed')
+        },
+      },
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -894,16 +949,25 @@ export default function ActivityDetail() {
           </button>
           <button
             type="button"
-            aria-disabled="true"
-            onClick={(event) => event.preventDefault()}
-            title="Coming soon in v0.3.1: configurable IDE agent handoff."
-            className="inline-flex h-9 cursor-not-allowed items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)] px-3 text-sm font-semibold text-[var(--ph-text)] opacity-75"
+            aria-disabled={!assignEnabled || handoffMutation.isPending}
+            disabled={!assignEnabled || handoffMutation.isPending}
+            onClick={handleAssignToAgent}
+            title={
+              assignEnabled
+                ? `Assign-to-Agent (${handoffConfig?.mode ?? 'copy_only'})`
+                : 'Assign-to-Agent is disabled by runtime configuration.'
+            }
+            className={`inline-flex h-9 items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)] px-3 text-sm font-semibold text-[var(--ph-text)] ${
+              !assignEnabled || handoffMutation.isPending ? 'cursor-not-allowed opacity-75' : 'transition-colors hover:bg-[color:var(--ph-surface)]'
+            }`}
           >
             <Bot className="mr-2 h-4 w-4" />
             Assign to Agent
-            <span className="ml-2 inline-flex items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-surface)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ph-text)]">
-              Coming Soon
-            </span>
+            {!assignEnabled && (
+              <span className="ml-2 inline-flex items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-surface)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ph-text)]">
+                Coming Soon
+              </span>
+            )}
           </button>
           {(activity.status === 'failed' || activity.status === 'skipped') && (
             <button

@@ -29,6 +29,7 @@ from ..models import (
     ExternalDiagnostic,
     ExternalDiagnosticStatus,
     FailureContext,
+    JenkinsBridgePayload,
     LogAnalysis,
     MCPActionAuditEntry,
     MCPModelPath,
@@ -1650,6 +1651,158 @@ class OrchestratorAgent:
                 src_logger.setLevel(prev_level)
                 for handler, level in prev_handler_levels:
                     handler.setLevel(level)
+
+    async def process_bridge_failure(
+        self,
+        payload: JenkinsBridgePayload,
+        *,
+        activity_id: str | None = None,
+    ) -> ActivityRecord:
+        """Process a signed Jenkins bridge failure payload.
+
+        This path reuses diagnosis/remediation agents while avoiding dependency
+        on GitHub Actions run logs.
+        """
+        repository_full_name = payload.repository.strip()
+        if "/" in repository_full_name:
+            owner, repo = repository_full_name.split("/", 1)
+        else:
+            owner, repo = "", repository_full_name
+        synthetic_run_id = int(payload.job.build_number)
+        activity: ActivityRecord | None = None
+        if activity_id:
+            activity = await self._storage.get_activity(activity_id)
+        if activity is None:
+            activity = ActivityRecord(
+                id=activity_id or "",
+                repositoryId=f"jenkins:{repository_full_name.lower()}",
+                repository_name=repository_full_name,
+                workflow_run_id=synthetic_run_id,
+                workflow_name=payload.job.name or "Jenkins Job",
+                status=RemediationStatus.PENDING,
+                source_selection_path="jenkins_bridge",
+                source_delivery_id=payload.delivery_id,
+                source_metadata={
+                    "provider": "jenkins",
+                    "job_url": payload.job.url,
+                    "build_number": payload.job.build_number,
+                    "branch": payload.branch,
+                    "commit_sha": payload.commit_sha,
+                },
+            )
+            created = await self._storage.create_activity(activity)
+            activity.id = created
+
+        try:
+            activity.status = RemediationStatus.ANALYZING
+            await self._storage.update_activity(activity)
+
+            raw_logs = (
+                payload.failure.log_excerpt.strip()
+                or payload.failure.summary.strip()
+                or "Jenkins bridge payload did not include log excerpt."
+            )
+            error_lines = [
+                line.strip()
+                for line in raw_logs.splitlines()
+                if line.strip()
+            ][:20]
+            log_analyses = [
+                LogAnalysis(
+                    job_id=max(1, payload.job.build_number),
+                    job_name=payload.job.name,
+                    raw_logs=raw_logs,
+                    error_lines=error_lines,
+                    key_events=[payload.failure.summary.strip()],
+                    summary=payload.failure.summary.strip(),
+                )
+            ]
+
+            activity.status = RemediationStatus.DIAGNOSING
+            bridge_diagnostic = ExternalDiagnostic(
+                source="jenkins-bridge",
+                status=ExternalDiagnosticStatus.AVAILABLE,
+                summary="Jenkins bridge payload ingested for diagnosis/remediation flow",
+                url=payload.job.url,
+                matched_run_id=synthetic_run_id,
+                confidence_delta=0.0,
+                metadata={
+                    "source_selection_path": "jenkins_bridge",
+                    "source_selection_reason": "jenkins_bridge_ingest",
+                    "delivery_id": payload.delivery_id,
+                },
+            )
+            activity.external_diagnostics = [bridge_diagnostic]
+            await self._storage.update_activity(activity)
+
+            workflow_info = {
+                "owner": owner,
+                "repo": repo,
+                "run_id": synthetic_run_id,
+                "name": payload.job.name,
+                "branch": payload.branch,
+                "head_sha": payload.commit_sha,
+                "conclusion": payload.job.result,
+                "source_selection_path": "jenkins_bridge",
+                "jenkins_job_url": payload.job.url,
+                "jenkins_delivery_id": payload.delivery_id,
+            }
+            diagnosis = await self._run_with_timeout(
+                step_name="Diagnose",
+                coro=self._diagnosis_agent.diagnose(
+                    log_analyses,
+                    workflow_info=workflow_info,
+                    external_diagnostics=activity.external_diagnostics,
+                ),
+            )
+            diagnosis_details = dict(diagnosis.error_details or {})
+            diagnosis_details.setdefault("source_selection_path", "jenkins_bridge")
+            diagnosis_details.setdefault("jenkins_job_url", payload.job.url)
+            diagnosis_details.setdefault("jenkins_delivery_id", payload.delivery_id)
+            diagnosis.error_details = diagnosis_details
+            activity.diagnosis = diagnosis
+            activity.failure_type = diagnosis.failure_type
+            activity.failure_context = FailureContext(
+                failing_job=payload.job.name.strip() or None,
+                failing_step=(payload.failure.stage.strip() or payload.failure.step.strip() or None),
+                failing_command=(payload.failure.command.strip() or None),
+                signal=(payload.failure.summary.strip() or None),
+            )
+
+            activity.status = RemediationStatus.REMEDIATING
+            await self._storage.update_activity(activity)
+
+            repository_info = {
+                "id": 0,
+                "name": repo,
+                "full_name": repository_full_name,
+                "owner": {"login": owner},
+                "default_branch": payload.branch or "main",
+            }
+            dry_run = not self._settings.auto_apply_remediation
+            result = await self._run_with_timeout(
+                step_name="Remediate",
+                coro=self._remediation_agent.remediate(
+                    diagnosis=diagnosis,
+                    repository_info=repository_info,
+                    workflow_run_id=synthetic_run_id,
+                    dry_run=dry_run,
+                ),
+            )
+            activity.remediation_result = result
+            if result.success:
+                activity.status = RemediationStatus.COMPLETED
+            else:
+                activity.status = RemediationStatus.FAILED
+                activity.error = result.error_message
+            await self._storage.update_activity(activity)
+            return activity
+        except Exception as exc:
+            logger.exception("Jenkins bridge pipeline failed: %s", exc)
+            activity.status = RemediationStatus.FAILED
+            activity.error = str(exc)
+            await self._storage.update_activity(activity)
+            return activity
 
     async def get_status(self, activity_id: str) -> ActivityRecord | None:
         """Get the status of a healing activity.
