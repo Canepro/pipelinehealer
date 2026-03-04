@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 5a3c85c -->
+<!-- LAST_VERIFIED: fff16a3 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -24,6 +24,14 @@ PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies 
 - Current release baseline: [`v0.3.1`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1)
 - Next scoped target: `v0.3.2` ([#44](https://github.com/Canepro/pipelinehealer/issues/44))
 - Demo runbook: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
+
+## Example Remediation Story
+
+Representative public artifacts from the demo repository:
+- Structured issue (manual-review path): [pipelinehealer-demo#90](https://github.com/Canepro/pipelinehealer-demo/issues/90)
+- Deterministic fix PR (auto-remediation path): [pipelinehealer-demo#91](https://github.com/Canepro/pipelinehealer-demo/pull/91)
+
+Story flow: one failed workflow run was diagnosed, captured as a structured issue for traceability, and resolved through a bounded fix PR.
 
 ## Beginner Path (First 10 Minutes)
 
