@@ -61,6 +61,22 @@ class ExternalDiagnosticStatus(StrEnum):
     ERROR = "error"
 
 
+class AgentHandoffMode(StrEnum):
+    """Supported Assign-to-Agent handoff modes."""
+
+    COPY_ONLY = "copy_only"
+    WEBHOOK = "webhook"
+
+
+class AgentHandoffStatus(StrEnum):
+    """Handoff request outcome status values."""
+
+    COPIED = "copied"
+    QUEUED = "queued"
+    FAILED = "failed"
+    DISABLED = "disabled"
+
+
 # =============================================================================
 # GitHub Webhook Models
 # =============================================================================
@@ -113,6 +129,49 @@ class WorkflowRunEvent(BaseModel):
     workflow_run: GitHubWorkflowRun
     repository: GitHubRepository
     sender: dict[str, Any]
+
+
+class JenkinsBridgeJob(BaseModel):
+    """Jenkins bridge job descriptor."""
+
+    name: str
+    url: str
+    build_number: int
+    result: str
+    duration_ms: int | None = None
+
+
+class JenkinsBridgeFailure(BaseModel):
+    """Jenkins bridge failure payload section."""
+
+    stage: str = ""
+    step: str = ""
+    command: str = ""
+    summary: str
+    log_excerpt: str = Field(default="", max_length=20000)
+
+
+class JenkinsBridgeArtifact(BaseModel):
+    """Jenkins bridge artifact reference."""
+
+    name: str
+    url: str
+
+
+class JenkinsBridgePayload(BaseModel):
+    """Signed Jenkins bridge ingest payload."""
+
+    schema_version: str = "1.0"
+    provider: str
+    delivery_id: str
+    sent_at: datetime
+    repository: str
+    branch: str
+    commit_sha: str = Field(default="", pattern=r"^[0-9a-fA-F]{40}$|^$")
+    job: JenkinsBridgeJob
+    failure: JenkinsBridgeFailure
+    artifacts: list[JenkinsBridgeArtifact] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 # =============================================================================
@@ -253,6 +312,10 @@ class ActivityRecord(BaseModel):
     mcp_model_path: MCPModelPath | None = None
     remediation_result: RemediationResult | None = None
     external_diagnostics: list[ExternalDiagnostic] = Field(default_factory=list)
+    source_selection_path: str | None = None
+    source_delivery_id: str | None = None
+    source_metadata: dict[str, Any] = Field(default_factory=dict)
+    agent_handoff_audit: list["AgentHandoffAuditEntry"] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
     duration_seconds: float | None = None
@@ -284,6 +347,7 @@ class AppSettingsView(BaseModel):
     """Non-secret runtime settings exposed to the frontend settings page."""
 
     environment: str
+    storage_mode: str
     storage_backend: str
     heal_mode: str
     auto_apply_remediation: bool
@@ -314,6 +378,11 @@ class AppSettingsView(BaseModel):
     gh_aw_known_workflows: list[str]
     external_diagnostics_wait_seconds: float
     external_diagnostics_poll_interval_seconds: float
+    agent_handoff_enabled: bool
+    agent_handoff_mode: str
+    agent_handoff_webhook_configured: bool
+    agent_handoff_timeout_seconds: float
+    agent_handoff_max_retries: int
     ph_allowed_repos: list[str]
     cors_allowed_origins: list[str]
     cors_allow_origin_regex: str
@@ -402,6 +471,52 @@ class MCPProviderHealthView(BaseModel):
     reason: str
     message: str
     configured_tools: list[str] = Field(default_factory=list)
+
+
+class AgentHandoffConfigView(BaseModel):
+    """Runtime-safe handoff config exposed to activity views."""
+
+    enabled: bool
+    mode: AgentHandoffMode
+    webhook_configured: bool
+    timeout_seconds: float
+    max_retries: int
+    reason: str = "ok"
+
+
+class AgentHandoffRequest(BaseModel):
+    """Request payload for Assign-to-Agent handoff."""
+
+    mode: AgentHandoffMode | None = None
+    context: str = Field(min_length=1, max_length=20000)
+    context_format: str = "markdown"
+
+
+class AgentHandoffResponse(BaseModel):
+    """API response for Assign-to-Agent handoff requests."""
+
+    status: AgentHandoffStatus
+    mode: AgentHandoffMode
+    activity_id: str
+    delivery_id: str | None = None
+    message: str = ""
+    request_id: str | None = None
+
+
+class AgentHandoffAuditEntry(BaseModel):
+    """Audit record for one Assign-to-Agent handoff attempt."""
+
+    status: AgentHandoffStatus
+    mode: AgentHandoffMode
+    actor: str | None = None
+    request_id: str | None = None
+    created_at: datetime = Field(default_factory=utcnow)
+    context_chars: int = 0
+    context_sha256: str = ""
+    context_preview: str = ""
+    delivery_id: str | None = None
+    destination_host: str | None = None
+    error: str | None = None
 
 
 class LearningQueueStatus(StrEnum):

@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: 78eaef7 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -86,7 +86,9 @@ Unauthenticated health check.
 
 ```json
 {
-  "status": "healthy"
+  "status": "healthy",
+  "environment": "production",
+  "storage_backend": "cosmos_db"
 }
 ```
 
@@ -151,6 +153,46 @@ Receives GitHub `workflow_run` webhook events. This is the primary ingest point 
 {
   "status": "pong",
   "delivery_id": "github-delivery-uuid"
+}
+```
+
+#### `POST /webhook/jenkins`
+
+Receives signed Jenkins bridge payloads when `JENKINS_BRIDGE_ENABLED=true`.
+
+Required headers:
+
+- `X-PH-Bridge-Provider: jenkins`
+- `X-PH-Bridge-Timestamp: <unix_epoch_seconds>`
+- `X-PH-Bridge-Nonce: <unique_nonce>`
+- `X-PH-Bridge-Signature: sha256=<hmac>`
+
+Behavior:
+
+- Verifies HMAC signature using `JENKINS_BRIDGE_SHARED_SECRET`.
+- Enforces timestamp skew (`JENKINS_BRIDGE_MAX_SKEW_SECONDS`) and replay protections.
+- Enforces `PH_ALLOWED_REPOS` allowlist before processing.
+- Starts a synthetic activity path with `source_selection_path=jenkins_bridge`.
+
+**Response** `200 OK` (processing):
+
+```json
+{
+  "status": "processing",
+  "activity_id": "uuid-string",
+  "source": "jenkins_bridge",
+  "repository": "owner/repo",
+  "delivery_id": "jenkins:job/path#1234"
+}
+```
+
+**Response** `200 OK` (ignored duplicate):
+
+```json
+{
+  "status": "ignored",
+  "reason": "duplicate_delivery",
+  "delivery_id": "jenkins:job/path#1234"
 }
 ```
 
@@ -341,6 +383,61 @@ Returns a single activity record by ID.
 
 **Response** `404 Not Found`: `{"detail": "Activity not found"}`
 
+#### `GET /api/agent-handoff/config`
+
+Returns runtime-safe Assign-to-Agent integration config used by Activity Detail UI.
+
+**Auth**: `X-API-Key`
+
+**Response** `200 OK`:
+
+```json
+{
+  "enabled": true,
+  "mode": "webhook",
+  "webhook_configured": true,
+  "timeout_seconds": 8.0,
+  "max_retries": 1,
+  "reason": "ok"
+}
+```
+
+#### `POST /api/activities/{activity_id}/agent-handoff`
+
+Submit one Assign-to-Agent handoff request in `copy_only` or `webhook` mode.
+
+**Auth**: `X-API-Key`
+
+**Request body**:
+
+```json
+{
+  "mode": "webhook",
+  "context": "# PipelineHealer Activity Context ...",
+  "context_format": "markdown"
+}
+```
+
+Behavior:
+
+- Applies redaction-safe context handling before audit/delivery.
+- `copy_only`: records auditable handoff event only (no network call).
+- `webhook`: sends bounded outbound POST with timeout/retry and destination allowlist checks.
+- Returns structured failure responses for delivery errors (non-blocking to activity page operations).
+
+**Response** `200 OK`:
+
+```json
+{
+  "status": "queued",
+  "mode": "webhook",
+  "activity_id": "uuid-string",
+  "delivery_id": "handoff:uuid:uuid",
+  "message": "Handoff delivered to configured webhook",
+  "request_id": "request-id"
+}
+```
+
 #### `POST /api/activities/{activity_id}/retry`
 
 Triggers a GitHub re-run of failed jobs for the given activity. The original activity record is **not** modified — it retains its `failed` status and error details as a historical record. When the re-run completes, a new `workflow_run.completed` webhook creates a fresh activity record for the retry attempt.
@@ -454,6 +551,7 @@ Returns the current runtime configuration (non-secret values only).
 ```json
 {
   "environment": "production",
+  "storage_mode": "cosmos",
   "storage_backend": "cosmos_db",
   "heal_mode": "safe",
   "auto_apply_remediation": true,
@@ -498,6 +596,11 @@ Returns the current runtime configuration (non-secret values only).
   "gh_aw_known_workflows": ["ci-doctor", "schema-consistency-checker", "breaking-change-checker"],
   "external_diagnostics_wait_seconds": 60.0,
   "external_diagnostics_poll_interval_seconds": 15.0,
+  "agent_handoff_enabled": false,
+  "agent_handoff_mode": "copy_only",
+  "agent_handoff_webhook_configured": false,
+  "agent_handoff_timeout_seconds": 8.0,
+  "agent_handoff_max_retries": 1,
   "cors_allowed_origins": ["http://localhost:3000", "http://localhost:5173"],
   "cors_allow_origin_regex": "https://.*\\.azurecontainerapps\\.io",
   "azure_openai_endpoint": "https://your-resource.cognitiveservices.azure.com/",
@@ -1204,9 +1307,14 @@ For provider switching and rollback operations, use `docs/MODEL_PROVIDER_SWITCH_
 
 ### 9. Storage Considerations
 
-- **Azure Cosmos DB** (`cosmos_db`): used in production. Activities persist across restarts.
-- **In-Memory** (`in_memory`): used in development (`ENVIRONMENT=development`). Activities reset on restart.
-- Admin settings audit trail is persisted to Cosmos DB when available, with in-memory fallback (capped at 200 entries in memory).
+- Runtime config exposes both `storage_mode` (intent) and `storage_backend` (active implementation).
+- Supported storage modes:
+  - `memory`: ephemeral storage, recommended for local development/demo only.
+  - `cosmos`: durable storage using Azure Cosmos DB.
+- Non-development guardrail:
+  - Startup fails fast when durable mode is expected but Cosmos endpoint is not configured.
+  - Explicit non-development memory mode requires `ALLOW_IN_MEMORY_STORAGE_IN_NON_DEVELOPMENT=true`.
+- Admin settings audit trail is persisted to durable storage when available, with in-memory fallback buffer for local/dev paths.
 
 ### 10. Error Handling Patterns
 

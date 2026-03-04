@@ -1,6 +1,6 @@
 # PipelineHealer Hackathon Log
 
-**Last updated:** March 3, 2026
+**Last updated:** March 4, 2026
 
 This is the long-form project tracker for hackathon execution status, submission readiness, and milestone history.
 
@@ -29,7 +29,11 @@ This is the long-form project tracker for hackathon execution status, submission
 - Canary scope expanded (issue-only safe mode) to `canepro/portfolio_website-main`, `canepro/rocketchat-k8s`, and `canepro/central-observability-hub-stack`; Jenkins-primary repo coverage gap identified and now tracked as bridge-first plan (`DP-003`, `BL-034`, target `v0.3.2`)
 - Release planning split is active:
   - `v0.3.0` scope tracking issue: [#43](https://github.com/Canepro/pipelinehealer/issues/43) (`BL-036` + `BL-038`)
-  - `v0.3.2` scope tracking issue: [#44](https://github.com/Canepro/pipelinehealer/issues/44) (`BL-034` + `BL-039`)
+  - `v0.3.2` scope tracking issue: [#44](https://github.com/Canepro/pipelinehealer/issues/44) (required: `BL-034` + `BL-039` + `BL-045`; stretch-gated: `BL-046`)
+- `v0.3.2` freeze guardrails are now explicit:
+  - required scope locked to `#36/#42/#57` for submission reliability
+  - `#58` (PostgreSQL adapter) starts only after required scope is complete, CI green, and docs synced
+  - storage extensibility remains adapter-scoped only (no core workflow rewrites during freeze)
 - Release `v0.3.1` is the current public baseline; `v0.3.2` is now the active integration target
 - `v0.3.1` runtime-config decoupling shipped:
   - release published: `https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1`

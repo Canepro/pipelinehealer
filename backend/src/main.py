@@ -41,6 +41,18 @@ logger = structlog.get_logger(__name__)
 _BACKFILL_INTERVAL_SECONDS = 600  # 10 minutes
 
 
+def _resolve_storage_backend_name(storage: object | None) -> str:
+    """Return a stable storage backend identifier for operator-facing health data."""
+    if storage is None:
+        return "unknown"
+    storage_class = type(storage).__name__
+    if storage_class == "InMemoryStorage":
+        return "in_memory"
+    if storage_class == "ActivityStorage":
+        return "cosmos_db"
+    return storage_class.lower()
+
+
 class RequestIdMiddleware:
     """Attach/preserve request IDs without relying on BaseHTTPMiddleware."""
 
@@ -194,7 +206,12 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health() -> dict[str, str]:
         """Health check endpoint."""
-        return {"status": "healthy"}
+        storage = getattr(app.state, "storage", None)
+        return {
+            "status": "healthy",
+            "environment": settings.environment,
+            "storage_backend": _resolve_storage_backend_name(storage),
+        }
 
     return app
 
