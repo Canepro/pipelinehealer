@@ -9,6 +9,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ### Fixed
 
 - Prevented `deploy:env` from clearing existing frontend runtime config when newer `VITE_*` keys are omitted from `backend/.env` during Azure env sync (issue [#55](https://github.com/Canepro/pipelinehealer/issues/55)).
+- Added Entra runtime guardrail for Azure deploy env sync: when frontend auth resolves to `VITE_AUTH_MODE=entra`, deployment now fails fast if required `VITE_ENTRA_*` keys are missing from both env input and existing frontend app config.
 
 ## [v0.3.1] - 2026-03-03
 

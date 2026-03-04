@@ -262,6 +262,99 @@ env_key_is_present() {
   grep -qE "^${key}=" "$ENV_FILE"
 }
 
+read_frontend_app_env_value() {
+  local key="$1"
+  az containerapp show \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$FRONTEND_APP" \
+    --query "properties.template.containers[0].env[?name=='${key}'].value | [0]" \
+    -o tsv 2>/dev/null | tr -d '\r\n' || true
+}
+
+read_frontend_app_env_secretref() {
+  local key="$1"
+  az containerapp show \
+    -g "$AZ_RESOURCE_GROUP" \
+    -n "$FRONTEND_APP" \
+    --query "properties.template.containers[0].env[?name=='${key}'].secretRef | [0]" \
+    -o tsv 2>/dev/null | tr -d '\r\n' || true
+}
+
+frontend_effective_env_is_set() {
+  local key="$1"
+  local value secret_ref
+  if env_key_is_present "$key"; then
+    value="$(read_env_key "$key")"
+    [[ -n "${value:-}" ]]
+    return $?
+  fi
+  value="$(read_frontend_app_env_value "$key")"
+  if [[ -n "${value:-}" ]]; then
+    return 0
+  fi
+  secret_ref="$(read_frontend_app_env_secretref "$key")"
+  [[ -n "${secret_ref:-}" ]]
+}
+
+resolve_frontend_auth_mode() {
+  local value secret_ref
+  if env_key_is_present "VITE_AUTH_MODE"; then
+    value="$(read_env_key "VITE_AUTH_MODE")"
+    if [[ -z "${value:-}" ]]; then
+      echo "none"
+      return 0
+    fi
+    printf '%s\n' "$value" | tr '[:upper:]' '[:lower:]'
+    return 0
+  fi
+
+  value="$(read_frontend_app_env_value "VITE_AUTH_MODE")"
+  if [[ -n "${value:-}" ]]; then
+    printf '%s\n' "$value" | tr '[:upper:]' '[:lower:]'
+    return 0
+  fi
+
+  secret_ref="$(read_frontend_app_env_secretref "VITE_AUTH_MODE")"
+  if [[ -n "${secret_ref:-}" ]]; then
+    # Auth mode is secret-backed; guard cannot reliably validate mode-specific keys.
+    echo "__secretref__"
+    return 0
+  fi
+
+  # Frontend entrypoint default when mode is omitted.
+  echo "none"
+}
+
+validate_frontend_entra_runtime_env() {
+  local auth_mode
+  local -a missing_keys=()
+
+  auth_mode="$(resolve_frontend_auth_mode)"
+  if [[ "$auth_mode" != "entra" ]]; then
+    return 0
+  fi
+
+  if ! frontend_effective_env_is_set "VITE_ENTRA_CLIENT_ID"; then
+    missing_keys+=("VITE_ENTRA_CLIENT_ID")
+  fi
+  if ! frontend_effective_env_is_set "VITE_ENTRA_API_SCOPE"; then
+    missing_keys+=("VITE_ENTRA_API_SCOPE")
+  fi
+  if ! frontend_effective_env_is_set "VITE_ENTRA_AUTHORITY" \
+    && ! frontend_effective_env_is_set "VITE_ENTRA_TENANT_ID"; then
+    missing_keys+=("VITE_ENTRA_AUTHORITY or VITE_ENTRA_TENANT_ID")
+  fi
+
+  if [[ "${#missing_keys[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  echo "Frontend Entra runtime configuration is incomplete for VITE_AUTH_MODE=entra." >&2
+  echo "Missing required values: ${missing_keys[*]}." >&2
+  echo "Set these keys in $ENV_FILE or ensure they already exist on frontend app '$FRONTEND_APP' before deploy." >&2
+  exit 1
+}
+
 resolve_local_compose_image_ref() {
   local service="$1"
   local project_basename project_dash project_underscore
@@ -440,6 +533,7 @@ for key in "${FRONTEND_RUNTIME_ENV_KEYS[@]}"; do
   esac
   add_frontend_env_var "$key" "$value" "1"
 done
+validate_frontend_entra_runtime_env
 
 detect_engine() {
   if [[ "$CONTAINER_ENGINE" == "podman" || "$CONTAINER_ENGINE" == "docker" ]]; then
