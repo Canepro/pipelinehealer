@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 6e64b15 -->
+<!-- LAST_VERIFIED: 7da4787 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -130,6 +130,13 @@ CI failures create repetitive triage work and slow delivery. PipelineHealer redu
 - universal failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
 - idempotent artifacts (find-or-create PR/issue reuse)
 
+## Professional Value
+
+- Faster triage: failure context is normalized into consistent signals and evidence.
+- Safer automation: deterministic fixes can be auto-proposed while risky paths stay review-first.
+- Operational traceability: every action links to run evidence, reason codes, and policy state.
+- Deployment flexibility: same control model across Azure, Kubernetes, and local container paths.
+
 ## What Shipped In v0.3.1
 
 - frontend runtime-first config for containerized deployments (`VITE_*` via `/runtime-config.js`)
@@ -160,89 +167,89 @@ Operational runbook: [docs/KUBERNETES_HELM_RUNBOOK.md](docs/KUBERNETES_HELM_RUNB
 ## Architecture
 
 ```mermaid
-flowchart LR
-  subgraph CI["CI Sources"]
-    GH["GitHub Actions<br/>workflow_run.completed"]
+flowchart TB
+  subgraph EXT["External Systems"]
+    GH["GitHub Actions"]
+    GHAW["GH-AW findings<br/>ci-doctor / breaking-change"]
+    MCP["GitHub MCP provider<br/>optional, read-only default"]
   end
 
-  subgraph PH["PipelineHealer Core"]
-    WH["/webhook/github"]
-    OR["Orchestrator"]
-    LA["Log Analyzer"]
-    DG["Diagnosis<br/>(Pattern -> LLM fallback)"]
-    RM["Remediation<br/>(policy-gated)"]
-    BF["Background Diagnostics Backfill<br/>every 10 min"]
-    ST[("Cosmos DB / In-Memory")]
+  subgraph CTRL["PipelineHealer Control Plane"]
+    WH["Webhook Ingress<br/>/webhook/github"]
+    ORCH["Orchestrator"]
+    ANA["Log Analyzer"]
+    DIA["Diagnosis Engine<br/>rules first, LLM fallback"]
+    REM["Remediation Engine<br/>policy-gated"]
+    BF["Backfill Worker<br/>eventual diagnostics sync"]
   end
 
-  subgraph EXT["External Diagnostics"]
-    AW["GH-AW findings<br/>(ci-doctor + breaking-change-checker)"]
-    MCP["GitHub MCP Provider<br/>(optional, read-only default)"]
+  subgraph GOV["Policy and Operator Surface"]
+    UI["Dashboard / Activities / Settings"]
+    API["Settings API<br/>/api/settings*"]
+    AUD["Audit Trail"]
+    LRN["Learning Queue + Promotion Gates"]
   end
 
-  subgraph LEARN["Learning Governance"]
-    LQ["Learning Queue<br/>candidate/approved/active"]
-    LG["Promotion Readiness Gates<br/>status + occurrence + success-rate + sample-size"]
-    FP["Force Activate<br/>(explicit, audited)"]
-  end
-
-  subgraph GOV["Governance Surface"]
-    UI["Frontend UI<br/>(Dashboard / Activities / Settings)"]
-    RTC["Runtime Config<br/>/runtime-config.js"]
-    CC["Control Center"]
-    API["/api/settings*"]
-    AUD["Settings Audit Trail"]
-    EXP["Explainability + Model Path"]
+  subgraph DATA["State and Evidence"]
+    DB[("Cosmos DB / InMemory")]
+    EXP["Explainability Metadata<br/>source path, reason codes"]
   end
 
   subgraph OUT["GitHub Outcomes"]
-    PR["Create / Reuse PR"]
-    IS["Create / Reuse Issue"]
-    RR["Re-run Failed Jobs"]
+    PR["Create or Reuse PR"]
+    IS["Create or Reuse Issue"]
+    RR["Retry Failed Jobs"]
   end
 
-  GH --> WH --> OR
-  OR --> LA --> DG --> RM
-  RM --> PR
-  RM --> IS
-  RM --> RR
+  GH --> WH --> ORCH
+  ORCH --> ANA --> DIA --> REM
+  REM --> PR
+  REM --> IS
+  REM --> RR
 
-  GH -. run context .-> AW
-  AW -. external findings .-> DG
-  BF --> OR
-  BF --> ST
-  OR -. poll/enrich .-> AW
-  OR -. MCP tool calls .-> MCP
-  MCP -. enrichment .-> DG
+  ORCH -. enrich .-> GHAW
+  GHAW -. findings .-> DIA
+  ORCH -. tool calls .-> MCP
+  MCP -. context .-> DIA
 
-  RTC --> UI
-  UI --> API --> OR
-  CC --> API
-  API --> BF
-  OR --> LQ
-  LQ --> LG
-  LG --> RM
-  FP --> RM
+  UI --> API --> ORCH
   API --> AUD
-  OR --> EXP
-  OR --> ST
+  ORCH --> LRN
+  BF --> ORCH
+  BF --> DB
+  ORCH --> DB
+  ORCH --> EXP
 ```
 
-## Quick Start (Local)
+### Failure Processing Flow
 
-1. Copy env template:
+```mermaid
+sequenceDiagram
+  participant GH as GitHub Actions
+  participant WH as Webhook API
+  participant OR as Orchestrator
+  participant DI as Diagnosis
+  participant RM as Remediation
+  participant DB as Storage
+  participant OUT as GitHub Artifacts
 
-```bash
-cp backend/.env.example backend/.env
+  GH->>WH: workflow_run.completed (failure)
+  WH->>OR: normalized event
+  OR->>DI: logs + context + policy snapshot
+  DI-->>OR: diagnosis + confidence + evidence
+  OR->>RM: remediation request (policy-gated)
+  alt deterministic and allowed
+    RM->>OUT: create or reuse PR
+  else ambiguous, low confidence, or restricted
+    RM->>OUT: create or reuse issue (review-first)
+  end
+  OR->>DB: persist activity, diagnostics, decisions
+  OR-->>WH: accepted and tracked
 ```
 
-2. Set minimum required values in `backend/.env`:
-- choose one LLM path
-  - Azure OpenAI: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT_NAME`, `AZURE_OPENAI_API_KEY`
-  - OpenAI-compatible: `LLM_PROVIDER=openai_compatible`, `OPENAI_COMPATIBLE_BASE_URL`, `OPENAI_COMPATIBLE_MODEL`, `OPENAI_COMPATIBLE_API_KEY`
-- set GitHub token: `GITHUB_PERSONAL_ACCESS_TOKEN`
+## Developer Setup (Alternative)
 
-3. Run backend and frontend in separate terminals:
+If you already completed the **Beginner Path**, this is the equivalent backend startup using `uv`:
 
 ```bash
 cd backend
@@ -250,13 +257,7 @@ uv pip install --system -e ".[dev]"
 uvicorn src.main:app --reload
 ```
 
-```bash
-cd frontend
-bun install
-bun run dev
-```
-
-For Docker/Azure/Kubernetes paths: [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md)
+For full local/Azure/Kubernetes run paths, use [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md).
 
 ## One-Command Ops
 
