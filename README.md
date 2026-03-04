@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 9742e94 -->
+<!-- LAST_VERIFIED: 6e64b15 -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -25,14 +25,14 @@ PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies 
 - Next scoped target: `v0.3.2` ([#44](https://github.com/Canepro/pipelinehealer/issues/44))
 - Demo runbook: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
 
-## Example Remediation Story
+## Example Remediation Stories
 
-Recent public artifacts from the demo repository (same failure run):
-- Diagnostics evidence (CI doctor): [pipelinehealer-demo#122](https://github.com/Canepro/pipelinehealer-demo/issues/122)
-- PipelineHealer tracking issue: [pipelinehealer-demo#120](https://github.com/Canepro/pipelinehealer-demo/issues/120)
-- Auto-generated deterministic fix PR: [pipelinehealer-demo#121](https://github.com/Canepro/pipelinehealer-demo/pull/121)
+| Path | Evidence |
+|------|----------|
+| Cross-repo operator-reviewed path (production-style) | Issue: [rocketchat-app-logs-viewer#16](https://github.com/Canepro/rocketchat-app-logs-viewer/issues/16) -> Fix PR: [rocketchat-app-logs-viewer#17](https://github.com/Canepro/rocketchat-app-logs-viewer/pull/17) |
+| Deterministic auto-fix path (demo fixture) | Diagnostics: [pipelinehealer-demo#122](https://github.com/Canepro/pipelinehealer-demo/issues/122) -> Tracking issue: [pipelinehealer-demo#120](https://github.com/Canepro/pipelinehealer-demo/issues/120) -> Auto-generated fix PR: [pipelinehealer-demo#121](https://github.com/Canepro/pipelinehealer-demo/pull/121) |
 
-Story flow: external diagnostics captured failure context, PipelineHealer opened a traceable issue, and then generated a bounded remediation PR.
+Story flow: PipelineHealer captures failure evidence, opens a traceable issue, and drives either human-reviewed remediation or deterministic fix PR generation.
 
 ## Beginner Path (First 10 Minutes)
 
