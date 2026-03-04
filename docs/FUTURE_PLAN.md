@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 3116334 -->
+<!-- LAST_VERIFIED: 1c1f8fc -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -418,6 +418,7 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-041` | Release umbrella tracking for bundled integration scope (`BL-034`, `BL-039`) ([#44](https://github.com/Canepro/pipelinehealer/issues/44)) | `v0.3.2` | patch | High | Tracking (active) |
 | `BL-042` | Platform-neutral Kubernetes deployment profiles + docs guidance (`values.quickstart.yaml`, `values.production.yaml`) with optional installer automation follow-up ([#51](https://github.com/Canepro/pipelinehealer/issues/51)) | `TBD (post-submission, no release cut required)` | patch | High | Completed (in `main`) |
 | `BL-043` | Frontend runtime-config decoupling: make containerized `VITE_*` settings runtime-first across frontend/Helm/Azure deploy tooling and remove build-arg coupling in release path ([#54](https://github.com/Canepro/pipelinehealer/issues/54)) | `v0.3.1` | patch | High | Completed (released in `v0.3.1`) |
+| `BL-044` | Azure env-sync regression fix: keep existing frontend runtime config when `VITE_*` keys are omitted from env input during `deploy:env` ([#55](https://github.com/Canepro/pipelinehealer/issues/55)) | `v0.3.2` | patch | High | Planned |
 
 ## Definition of Done (Per Version)
 
