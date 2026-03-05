@@ -13,7 +13,6 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import httpx
-
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
 from ..config import get_settings
@@ -989,12 +988,10 @@ def _handoff_context_preview(context: str, max_chars: int = 280) -> str:
     return sanitized[: max_chars - 3] + "..."
 
 
-def _handoff_actor(request: Request, x_admin_key: str | None) -> str | None:
+def _handoff_actor(request: Request) -> str | None:
     principal = get_request_principal(request)
     if principal is not None:
         return f"entra:{principal.subject[:24]}"
-    if x_admin_key:
-        return _build_admin_settings_actor_fingerprint(request=request, x_admin_key=x_admin_key)
     return "api_client"
 
 
@@ -1868,7 +1865,6 @@ async def assign_activity_to_agent(
     payload: AgentHandoffRequest,
     request: Request,
     storage: ActivityStorage = Depends(get_storage),
-    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
 ) -> AgentHandoffResponse:
     """Submit one activity handoff request in copy-only or webhook mode.
 
@@ -1883,7 +1879,7 @@ async def assign_activity_to_agent(
     settings = get_settings()
     effective_mode = payload.mode or AgentHandoffMode(settings.agent_handoff_mode)
     request_id = getattr(request.state, "request_id", None)
-    actor = _handoff_actor(request, x_admin_key)
+    actor = _handoff_actor(request)
     sanitized_context = _sanitize_handoff_context(payload.context)
     context_hash = hashlib.sha256(sanitized_context.encode("utf-8")).hexdigest()
 
@@ -2141,9 +2137,3 @@ async def backfill_diagnostics(
     except Exception as e:
         logger.exception(f"Backfill sweep failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
-    AgentHandoffAuditEntry,
-    AgentHandoffConfigView,
-    AgentHandoffMode,
-    AgentHandoffRequest,
-    AgentHandoffResponse,
-    AgentHandoffStatus,

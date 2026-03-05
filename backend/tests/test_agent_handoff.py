@@ -25,10 +25,19 @@ async def _get_handoff_config() -> httpx.Response:
         return await client.get("/api/agent-handoff/config")
 
 
-async def _post_handoff(activity_id: str, payload: dict[str, object]) -> httpx.Response:
+async def _post_handoff(
+    activity_id: str,
+    payload: dict[str, object],
+    *,
+    headers: dict[str, str] | None = None,
+) -> httpx.Response:
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        return await client.post(f"/api/activities/{activity_id}/agent-handoff", json=payload)
+        return await client.post(
+            f"/api/activities/{activity_id}/agent-handoff",
+            json=payload,
+            headers=headers or {},
+        )
 
 
 @pytest.fixture
@@ -151,3 +160,36 @@ async def test_webhook_handoff_success_returns_queued(
     body = response.json()
     assert body["status"] == "queued"
     assert body["delivery_id"].startswith("handoff:")
+
+
+@pytest.mark.asyncio
+async def test_handoff_actor_does_not_trust_raw_admin_key_header(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "copy_only")
+    reset_settings()
+
+    activity = ActivityRecord(
+        repositoryId="1",
+        repository_name="canepro/pipelinehealer-demo",
+        workflow_run_id=126,
+        workflow_name="CI",
+        status=RemediationStatus.COMPLETED,
+    )
+    activity_id = await _storage.create_activity(activity)
+    response = await _post_handoff(
+        activity_id,
+        {"context": "context text"},
+        headers={"X-Admin-Key": "spoofed-value"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "copied"
+
+    updated = await _storage.get_activity(activity_id)
+    assert updated is not None
+    assert len(updated.agent_handoff_audit) == 1
+    assert updated.agent_handoff_audit[0].actor == "api_client"

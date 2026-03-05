@@ -187,7 +187,16 @@ Behavior:
 }
 ```
 
-**Response** `200 OK` (ignored duplicate):
+**Response** `200 OK` (ignored duplicate nonce):
+
+```json
+{
+  "status": "ignored",
+  "reason": "duplicate_nonce"
+}
+```
+
+**Response** `200 OK` (ignored duplicate delivery):
 
 ```json
 {

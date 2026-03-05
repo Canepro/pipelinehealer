@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhook", tags=["webhook"])
 _jenkins_nonce_replay: dict[str, float] = {}
 _jenkins_delivery_replay: dict[str, float] = {}
+_JENKINS_REPLAY_MAX_ENTRIES = 10_000
 
 
 def verify_github_signature(payload: bytes, signature: str, secret: str) -> bool:
@@ -59,6 +60,17 @@ def _cleanup_replay_store(now_epoch: float, ttl_seconds: int) -> None:
     for key, seen_at in list(_jenkins_delivery_replay.items()):
         if seen_at < cutoff:
             _jenkins_delivery_replay.pop(key, None)
+    _trim_replay_store(_jenkins_nonce_replay, _JENKINS_REPLAY_MAX_ENTRIES)
+    _trim_replay_store(_jenkins_delivery_replay, _JENKINS_REPLAY_MAX_ENTRIES)
+
+
+def _trim_replay_store(store: dict[str, float], max_entries: int) -> None:
+    """Bound replay stores to avoid unbounded memory growth under high ingress volume."""
+    overflow = len(store) - max_entries
+    if overflow <= 0:
+        return
+    for key, _ in sorted(store.items(), key=lambda item: item[1])[:overflow]:
+        store.pop(key, None)
 
 
 def _build_jenkins_canonical_string(
@@ -286,17 +298,21 @@ async def handle_jenkins_bridge_webhook(
     if skew > settings.jenkins_bridge_max_skew_seconds:
         raise HTTPException(status_code=429, detail="Bridge timestamp outside allowed skew window")
 
+    nonce = x_ph_bridge_nonce.strip()
+    if not nonce:
+        raise HTTPException(status_code=422, detail="Missing bridge nonce header")
+
     _cleanup_replay_store(now_epoch, settings.jenkins_bridge_replay_ttl_seconds)
-    nonce_key = f"jenkins:{x_ph_bridge_nonce.strip()}"
+    nonce_key = f"jenkins:{nonce}"
     if nonce_key in _jenkins_nonce_replay:
-        return {"status": "ignored", "reason": "duplicate_delivery", "delivery_id": None}
+        return {"status": "ignored", "reason": "duplicate_nonce"}
 
     if not _verify_jenkins_bridge_signature(
         body=body,
         method=request.method,
         path=request.url.path,
         timestamp=x_ph_bridge_timestamp.strip(),
-        nonce=x_ph_bridge_nonce.strip(),
+        nonce=nonce,
         signature=x_ph_bridge_signature.strip(),
         secret=settings.jenkins_bridge_shared_secret,
     ):
@@ -321,13 +337,20 @@ async def handle_jenkins_bridge_webhook(
             "delivery_id": payload.delivery_id,
         }
 
+    try:
+        activity_id = await workflow.start_bridge_failure(
+            payload,
+            request_id=getattr(request.state, "request_id", None),
+        )
+    except Exception as exc:
+        logger.exception("Failed to enqueue Jenkins bridge payload: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to enqueue Jenkins bridge payload") from exc
+
+    now_epoch = time.time()
+    _cleanup_replay_store(now_epoch, settings.jenkins_bridge_replay_ttl_seconds)
     _jenkins_nonce_replay[nonce_key] = now_epoch
     _jenkins_delivery_replay[delivery_key] = now_epoch
 
-    activity_id = await workflow.start_bridge_failure(
-        payload,
-        request_id=getattr(request.state, "request_id", None),
-    )
     return {
         "status": "processing",
         "activity_id": activity_id,
