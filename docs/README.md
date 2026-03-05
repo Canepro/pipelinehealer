@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: 8ca4b99 -->
+<!-- LAST_VERIFIED: 310d40e -->
 
 Use this index to find the right doc quickly.
 
@@ -28,11 +28,11 @@ Use this index to find the right doc quickly.
 ### Tier 3 — Internal/Transient (author discretion; archive post-submission)
 
 - `HACKATHON_LOG.md` — current phase status, submission checklist, milestone history, and freeze tracking notes
-- `FUTURE_PLAN.md` — version-targeted roadmap (active `v0.3.2` scope: `BL-034/BL-039/BL-045`; `BL-046` tracked as stretch/fallback)
+- `FUTURE_PLAN.md` — version-targeted roadmap (active `v0.3.2` scope includes `BL-034/BL-039/BL-045`, with `BL-046` implementation tracked via PR/issue status)
 - `UI_PLAN.md` — UI maturity plan, principles, and weekly tracking through submission
 - `AGENT_HANDOFF_CONTEXT_MINISPEC.md` — draft design for Activity Detail `Copy Context` + optional `Assign to Agent` handoff integration
 - `GH_AW_IMPLEMENTATION_TRACKER.md` — gh-aw research summary, Layer 1/2 checklists, decision log, and evidence
-- `JENKINS_BRIDGE_TECHNICAL_DESIGN.md` — design draft for `BL-034` Jenkins bridge ingestion (payload/auth/replay/API/tests)
+- `JENKINS_BRIDGE_TECHNICAL_DESIGN.md` — Jenkins bridge design and implementation-reference notes (`BL-034`)
 - `case-studies/` — real incident writeups showing detection, classification, and remediation outcomes
   - `case-studies/release-tag-mismatch-22163136636.md` — release tag/version mismatch incident handled by PipelineHealer
 - `screens/` — versioned UI proof screenshots used by Week 2 and Week 3 evidence checkpoints

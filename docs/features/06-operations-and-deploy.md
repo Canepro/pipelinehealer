@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: 1f53853 -->
+<!-- LAST_VERIFIED: 310d40e -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -74,7 +74,7 @@ PipelineHealer is Azure-first for hackathon delivery, but not Azure-locked.
   - OpenAI-compatible: `LLM_PROVIDER=openai_compatible`
 - Storage:
   - local/dev fallback: in-memory
-  - cloud durability: Cosmos DB when configured
+  - durable backends: Cosmos DB (`STORAGE_MODE=cosmos`) or PostgreSQL (`STORAGE_MODE=postgres`)
 - Auth:
   - `api_key`, `entra`, or `hybrid`
 

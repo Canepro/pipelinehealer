@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: 1f53853 -->
+<!-- LAST_VERIFIED: 310d40e -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -34,7 +34,10 @@ This guide explains runtime controls, persistence behavior, and governance guard
 - Settings UI `Save & Persist` updates runtime and then performs durable persistence.
 - Runtime settings apply immediately.
 - Persisted settings survive restarts/redeploys.
-- In Azure, persistence is Cosmos DB-backed.
+- Persistence uses the configured durable backend:
+  - `cosmos` via `COSMOS_DB_ENDPOINT`
+  - `postgres` via `POSTGRES_DSN`
+  - with in-memory fallback only for explicit local/dev/demo paths
 
 API and CLI equivalents:
 ```bash

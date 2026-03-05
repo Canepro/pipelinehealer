@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: a729475 -->
+<!-- LAST_VERIFIED: 310d40e -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -150,11 +150,11 @@ CI failures create repetitive triage work and slow delivery. PipelineHealer redu
 - Required scope is locked to `#36/#42/#57` to protect submission reliability.
 - `#58` (PostgreSQL adapter) was implemented adapter-first after required scope completion.
 - Storage extensibility work must remain adapter-scoped and additive (no core workflow rewrites).
-- If stretch scope impacts confidence close to freeze, it is deferred to `v0.3.3`.
 
 ## v0.3.2 Integration Scope (Current)
 
 - Signed Jenkins bridge ingestion endpoint for Jenkins-primary CI paths: `POST /webhook/jenkins`
+- Jenkins bridge replay protection hardened for concurrent ingress (atomic nonce/delivery reservation path).
 - Assign-to-Agent handoff integration with runtime-safe modes:
   - `copy_only` (audited, no network delivery)
   - `webhook` (bounded timeout/retry + destination allowlist)

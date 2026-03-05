@@ -1,6 +1,6 @@
 # Kubernetes Helm Runbook
 
-<!-- LAST_VERIFIED: f022bcf -->
+<!-- LAST_VERIFIED: 310d40e -->
 
 This runbook adds Kubernetes as a secondary deployment target while keeping Azure Container Apps as the default path.
 
@@ -184,6 +184,7 @@ Recommended durable storage choices:
 2. `STORAGE_MODE=cosmos` + `COSMOS_DB_ENDPOINT` (Azure-managed path)
 
 Avoid `STORAGE_MODE=memory` in non-development except explicit demo/evaluation cases.
+Chart default note: `backend.env.STORAGE_MODE` is intentionally empty by default so backend environment-based mode resolution remains authoritative.
 
 ## Entra on Kubernetes (Important)
 

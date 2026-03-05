@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: a729475 -->
+<!-- LAST_VERIFIED: 310d40e -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -171,6 +171,7 @@ Behavior:
 
 - Verifies HMAC signature using `JENKINS_BRIDGE_SHARED_SECRET`.
 - Enforces timestamp skew (`JENKINS_BRIDGE_MAX_SKEW_SECONDS`) and replay protections.
+- Replay protection is atomic for concurrent requests (in-flight nonce/delivery reservations prevent TOCTOU duplicate bypass).
 - Enforces `PH_ALLOWED_REPOS` allowlist before processing.
 - Starts a synthetic activity path with `source_selection_path=jenkins_bridge`.
 - Uses issue-first output by default for bridge events; set `JENKINS_BRIDGE_ALLOW_PR=true` (and `AUTO_CREATE_PR=true`) to allow PR artifacts from bridge-sourced remediations.

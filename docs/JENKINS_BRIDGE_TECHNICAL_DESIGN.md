@@ -1,10 +1,10 @@
 # BL-034 Technical Design: Jenkins Bridge Ingestion
 
-<!-- LAST_VERIFIED: 3116334 -->
+<!-- LAST_VERIFIED: 310d40e -->
 
-Status: Draft (design only, no implementation in this document)  
+Status: Implemented (design + implementation reference)  
 Backlog: `BL-034`  
-Target: `v0.3.2` (planned)  
+Target: Delivered in `v0.3.2` freeze scope (see issue/PR history)  
 Related issue: [#36](https://github.com/Canepro/pipelinehealer/issues/36)
 
 ## Why This Exists
@@ -48,7 +48,7 @@ Optional headers:
 - `X-PH-Bridge-Key-Id` (for future key rotation)
 
 Success response:
-- `202 Accepted`
+- `200 OK`
 
 ```json
 {
@@ -75,7 +75,7 @@ Error responses:
 - `401` invalid/missing signature
 - `403` repo outside `PH_ALLOWED_REPOS`
 - `422` invalid payload schema
-- `429` replay window violation (timestamp skew / replay nonce)
+- `429` timestamp skew violation
 
 ## Payload Schema (v1)
 
@@ -151,11 +151,12 @@ Replay TTL:
 
 Behavior:
 1. First valid request stores nonce key and processes payload.
-2. Same nonce in window returns `200 ignored duplicate_delivery`.
+2. Same nonce in window returns `200 ignored duplicate_nonce`.
 3. Distinct nonce but same `delivery_id` also idempotent-ignore.
 
 Storage:
-- Use existing durable backend store (Cosmos when configured, in-memory fallback locally).
+- Process-local in-memory replay maps with TTL + bounded entry caps.
+- Atomic reserve/commit/release flow (lock-guarded) prevents concurrent TOCTOU bypass on duplicate nonce/delivery requests.
 
 ## Activity Model and Source Attribution
 
@@ -214,7 +215,7 @@ Unit tests:
 7. Repo allowlist enforcement returns `403`.
 
 Integration/API tests:
-1. `POST /webhook/jenkins` creates activity and returns `202`.
+1. `POST /webhook/jenkins` creates activity and returns `200`.
 2. Duplicate nonce returns ignored duplicate.
 3. Valid payload maps into failure context fields correctly.
 4. Activity shows `source_selection_path=jenkins_bridge`.

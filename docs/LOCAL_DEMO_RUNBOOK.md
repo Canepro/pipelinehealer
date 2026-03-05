@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: a729475 -->
+<!-- LAST_VERIFIED: 310d40e -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -184,6 +184,7 @@ Non-development storage guardrail:
   - `STORAGE_MODE=postgres` + `POSTGRES_DSN`
 - Startup fails fast in non-development if durable storage is required but missing.
 - Use `ALLOW_IN_MEMORY_STORAGE_IN_NON_DEVELOPMENT=true` only for explicit demo/evaluation opt-in.
+- `docker-compose.yml` intentionally leaves `STORAGE_MODE` empty by default so backend environment-based mode resolution stays authoritative.
 
 Local PostgreSQL (Docker Compose) quick path:
 
