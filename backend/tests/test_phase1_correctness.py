@@ -914,6 +914,45 @@ async def test_remediation_jenkins_bridge_allows_pr_when_opted_in(
 
 
 @pytest.mark.asyncio
+async def test_remediation_jenkins_bridge_stays_issue_first_when_auto_create_pr_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AUTO_CREATE_PR", "false")
+    monkeypatch.setenv("JENKINS_BRIDGE_ALLOW_PR", "true")
+    reset_settings()
+
+    gh = FakeGitHubToolsCapturePR(files={"package.json": '{"dependencies":{"left-pad":"1.0.0"}}\n'})
+    agent = RemediationAgent(github_tools=gh)
+
+    result = await agent.remediate(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.DEPENDENCY,
+            confidence=0.95,
+            root_cause="Dependency version drift",
+            is_auto_fixable=True,
+            error_details={
+                "package_name": "left-pad",
+                "required_version": "^1.3.0",
+                "package_manager": "npm",
+            },
+        ),
+        repository_info={
+            "owner": {"login": "octo"},
+            "name": "demo",
+            "default_branch": "main",
+            "source_selection_path": "jenkins_bridge",
+        },
+        workflow_run_id=790,
+        dry_run=False,
+    )
+
+    assert result.success is True
+    assert result.action_taken == RemediationAction.CREATE_ISSUE
+    assert not gh.pr_calls
+    assert result.details.get("not_auto_reason_code") == NotAutoApplyReason.SAFETY_BOUND.value
+
+
+@pytest.mark.asyncio
 async def test_create_issue_when_issues_disabled_returns_skip() -> None:
     gh = FakeGitHubToolsIssuesDisabled()
     agent = RemediationAgent(github_tools=gh)

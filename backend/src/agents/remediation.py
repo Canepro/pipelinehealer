@@ -208,7 +208,9 @@ class RemediationAgent:
     def _is_jenkins_bridge_issue_only(self, repository_info: dict[str, Any]) -> bool:
         """Return True when Jenkins bridge flow should stay issue-first by default."""
         source_selection_path = str(repository_info.get("source_selection_path") or "").strip().lower()
-        return source_selection_path == "jenkins_bridge" and not self._settings.jenkins_bridge_allow_pr
+        if source_selection_path != "jenkins_bridge":
+            return False
+        return not (self._settings.auto_create_pr and self._settings.jenkins_bridge_allow_pr)
 
     async def remediate(
         self,
@@ -276,14 +278,14 @@ class RemediationAgent:
         ):
             logger.info(
                 "Converting Jenkins bridge PR remediation to review issue "
-                "(JENKINS_BRIDGE_ALLOW_PR=false)"
+                "(requires AUTO_CREATE_PR=true and JENKINS_BRIDGE_ALLOW_PR=true)"
             )
             plan = self._fix_generators.generate_review_issue(
                 diagnosis=diagnosis,
                 repository_info=repository_info,
                 not_auto_reason=(
-                    "Jenkins bridge PR publishing is disabled by default. "
-                    "Set JENKINS_BRIDGE_ALLOW_PR=true to allow PR output for bridge events."
+                    "Jenkins bridge PR publishing requires both AUTO_CREATE_PR=true and "
+                    "JENKINS_BRIDGE_ALLOW_PR=true."
                 ),
                 reason_code=NotAutoApplyReason.SAFETY_BOUND,
             )
