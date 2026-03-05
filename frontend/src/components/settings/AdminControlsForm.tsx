@@ -124,9 +124,11 @@ function parseWebhookUrlInput(value: string): { url: string; host: string } | nu
   try {
     const parsed = new URL(trimmed)
     if (!['http:', 'https:'].includes(parsed.protocol)) return null
-    const host = parsed.hostname.trim().toLowerCase()
-    if (!host) return null
-    return { url: trimmed, host }
+    const rawHost = parsed.hostname.trim().toLowerCase()
+    if (!rawHost) return null
+    const normalizedHost = normalizeHostnameInput(rawHost)
+    if (!normalizedHost) return null
+    return { url: trimmed, host: normalizedHost }
   } catch {
     return null
   }
@@ -848,14 +850,22 @@ export default function AdminControlsForm({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-3 items-end">
-                  <FieldGroup label="Candidate Webhook URL" field="agent_handoff_mode">
+                  <div className="space-y-1">
+                    <Label htmlFor="candidate-webhook-url" className="text-[var(--ph-text)]">
+                      Candidate Webhook URL
+                    </Label>
                     <Input
+                      id="candidate-webhook-url"
                       type="text"
                       value={handoffWebhookInput}
                       onChange={(e) => setHandoffWebhookInput(e.target.value)}
                       placeholder="https://agent.example.com/hook"
                     />
-                  </FieldGroup>
+                    <p className="text-xs text-[var(--ph-muted)]">
+                      Full `http(s)` receiver URL used only for setup guidance. The assistant
+                      accepts URLs whose derived host can also be used in the runtime allowlist.
+                    </p>
+                  </div>
                   <Button
                     type="button"
                     variant="secondary"
