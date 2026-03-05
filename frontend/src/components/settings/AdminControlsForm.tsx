@@ -134,6 +134,25 @@ function parseWebhookUrlInput(value: string): { url: string; host: string } | nu
   }
 }
 
+function parseJenkinsBridgeUrlInput(value: string): { url: string; path: string } | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  try {
+    const parsed = new URL(trimmed)
+    if (!['http:', 'https:'].includes(parsed.protocol)) return null
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) return null
+    const path = parsed.pathname.trim()
+    if (!path.startsWith('/')) return null
+    return { url: trimmed, path }
+  } catch {
+    return null
+  }
+}
+
+function shellSingleQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\"'\"'`)}'`
+}
+
 function buildHandoffSamplePayload(candidateUrl: string) {
   return JSON.stringify(
     {
@@ -154,6 +173,71 @@ function buildHandoffSamplePayload(candidateUrl: string) {
     null,
     2
   )
+}
+
+function buildJenkinsBridgeSamplePayload() {
+  return JSON.stringify(
+    {
+      schema_version: '1.0',
+      provider: 'jenkins',
+      delivery_id: 'jenkins:security-validation#23',
+      sent_at: '2026-03-05T22:45:00Z',
+      repository: 'canepro/pipelinehealer-demo',
+      branch: 'main',
+      commit_sha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      job: {
+        name: 'security-validation',
+        url: 'https://jenkins.example/job/security-validation/23/',
+        build_number: 23,
+        result: 'FAILURE',
+        duration_ms: 1000,
+      },
+      failure: {
+        stage: 'Trivy Scan',
+        step: 'run-trivy',
+        command: 'trivy image ...',
+        summary: 'Critical vulnerabilities found',
+        log_excerpt: 'critical vulnerability threshold exceeded',
+      },
+      artifacts: [],
+      metadata: {
+        jenkins_instance: 'jenkins.example',
+      },
+    },
+    null,
+    2
+  )
+}
+
+function buildJenkinsBridgeSmokeScript(
+  target: { url: string; path: string },
+  sharedSecret: string,
+  payload: string
+) {
+  const quotedUrl = shellSingleQuote(target.url)
+  const quotedSecret = shellSingleQuote(sharedSecret.trim())
+  return [
+    'set -euo pipefail',
+    `TARGET_URL=${quotedUrl}`,
+    `SHARED_SECRET=${quotedSecret}`,
+    'TIMESTAMP=$(date +%s)',
+    'NONCE="jenkins-smoke-${TIMESTAMP}"',
+    'BODY_FILE=$(mktemp)',
+    'trap \'rm -f "$BODY_FILE"\' EXIT',
+    `cat > "$BODY_FILE" <<'JSON'`,
+    payload,
+    'JSON',
+    `BODY_SHA=$(openssl dgst -sha256 "$BODY_FILE" | awk '{print $NF}')`,
+    `CANONICAL=$(printf 'POST\\n${target.path}\\n%s\\n%s\\n%s' "$TIMESTAMP" "$NONCE" "$BODY_SHA")`,
+    `SIGNATURE="sha256=$(printf '%s' "$CANONICAL" | openssl dgst -sha256 -hmac "$SHARED_SECRET" | awk '{print $NF}')"`,
+    'curl -fsS -X POST "$TARGET_URL" \\',
+    '  -H "Content-Type: application/json" \\',
+    '  -H "X-PH-Bridge-Provider: jenkins" \\',
+    '  -H "X-PH-Bridge-Timestamp: $TIMESTAMP" \\',
+    '  -H "X-PH-Bridge-Nonce: $NONCE" \\',
+    '  -H "X-PH-Bridge-Signature: $SIGNATURE" \\',
+    '  --data-binary @"$BODY_FILE"',
+  ].join('\n')
 }
 
 export default function AdminControlsForm({
@@ -181,6 +265,8 @@ export default function AdminControlsForm({
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [workflowInput, setWorkflowInput] = useState('')
   const [handoffWebhookInput, setHandoffWebhookInput] = useState('')
+  const [jenkinsBridgeUrlInput, setJenkinsBridgeUrlInput] = useState('')
+  const [jenkinsBridgeSecretInput, setJenkinsBridgeSecretInput] = useState('')
   const [activeSection, setActiveSection] = useState<SettingsSection>('runtime')
   const mcpEffectivePolicies = MCP_TOOL_DEFINITIONS.map((tool) => {
     const raw = form.mcp_tool_policies[tool.key]
@@ -317,6 +403,16 @@ export default function AdminControlsForm({
         'EOF',
       ].join('\n')
     : ''
+  const jenkinsBridgeTarget = parseJenkinsBridgeUrlInput(jenkinsBridgeUrlInput)
+  const jenkinsBridgeSamplePayload = buildJenkinsBridgeSamplePayload()
+  const jenkinsBridgeSmokeScript =
+    jenkinsBridgeTarget && jenkinsBridgeSecretInput.trim()
+      ? buildJenkinsBridgeSmokeScript(
+          jenkinsBridgeTarget,
+          jenkinsBridgeSecretInput,
+          jenkinsBridgeSamplePayload
+        )
+      : ''
 
   const copyText = async (text: string, successMessage: string, emptyMessage: string) => {
     if (!text) {
@@ -492,6 +588,128 @@ export default function AdminControlsForm({
                 and `Jenkins Bridge: Allow PRs`. If either is off, Jenkins bridge events stay
                 issue-first.
               </p>
+
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4 space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-[var(--ph-text)]">
+                    Jenkins Bridge Setup Assistant
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--ph-muted)]">
+                    Generate a signed smoke test for `POST /webhook/jenkins` without storing the
+                    shared secret in app state. This validates the exact HMAC header contract the
+                    bridge expects.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1">
+                    <Label htmlFor="jenkins-bridge-url" className="text-[var(--ph-text)]">
+                      Bridge Target URL
+                    </Label>
+                    <Input
+                      id="jenkins-bridge-url"
+                      type="text"
+                      value={jenkinsBridgeUrlInput}
+                      onChange={(e) => setJenkinsBridgeUrlInput(e.target.value)}
+                      placeholder="https://pipelinehealer.example.com/webhook/jenkins"
+                    />
+                    <p className="text-xs text-[var(--ph-muted)]">
+                      Use the full bridge ingress URL. Query strings and fragments are rejected so
+                      the generated signature path matches runtime verification.
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="jenkins-bridge-secret" className="text-[var(--ph-text)]">
+                      Shared Secret
+                    </Label>
+                    <Input
+                      id="jenkins-bridge-secret"
+                      type="password"
+                      value={jenkinsBridgeSecretInput}
+                      onChange={(e) => setJenkinsBridgeSecretInput(e.target.value)}
+                      placeholder="Enter current JENKINS_BRIDGE_SHARED_SECRET"
+                    />
+                    <p className="text-xs text-[var(--ph-muted)]">
+                      Ephemeral input only. The secret is used to generate the smoke script and is
+                      never saved through Settings.
+                    </p>
+                  </div>
+                </div>
+
+                {jenkinsBridgeUrlInput.trim() && !jenkinsBridgeTarget && (
+                  <p className="text-sm text-rose-400">
+                    Enter a full `http(s)` bridge URL without query string or fragment so the
+                    helper can generate the correct signed path.
+                  </p>
+                )}
+
+                {jenkinsBridgeTarget && (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <Badge variant="success">Signed path: {jenkinsBridgeTarget.path}</Badge>
+                      <Badge variant="outline">
+                        Runtime state: {form.jenkins_bridge_allow_pr ? 'PR-capable' : 'Issue-first'}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <Label className="text-[var(--ph-muted)]">Sample bridge payload</Label>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              copyText(
+                                jenkinsBridgeSamplePayload,
+                                'Jenkins bridge sample payload copied',
+                                'Unable to generate bridge payload'
+                              )
+                            }
+                          >
+                            <Copy className="h-4 w-4" />
+                            Copy Payload
+                          </Button>
+                        </div>
+                        <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
+{jenkinsBridgeSamplePayload}
+                        </pre>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <Label className="text-[var(--ph-muted)]">Signed smoke test</Label>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              copyText(
+                                jenkinsBridgeSmokeScript,
+                                'Jenkins bridge smoke test copied',
+                                'Enter both bridge URL and shared secret first'
+                              )
+                            }
+                            disabled={!jenkinsBridgeSmokeScript}
+                          >
+                            <Copy className="h-4 w-4" />
+                            Copy Script
+                          </Button>
+                        </div>
+                        <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
+{jenkinsBridgeSmokeScript || '# Enter both the bridge URL and shared secret to generate a signed smoke test.'}
+                        </pre>
+                        <p className="text-xs text-[var(--ph-muted)]">
+                          Recommended flow: run this from Jenkins or any shell with `openssl`
+                          installed. A `200 processing` response confirms the bridge is enabled,
+                          signed correctly, and accepting the payload shape.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         )}
