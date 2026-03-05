@@ -8,6 +8,7 @@ This document tracks visual and UX refinement work for PipelineHealer without ch
 - Meaning over decoration: color only when it communicates state/policy.
 - Hierarchy first: layout should tell a clear operational story.
 - Governance visible: safety and audit signals must be explicit in UI.
+- Landing page exception: tasteful entrance animations (fade/slide-in) and count-up counters are allowed on the landing page for first-impression impact. Keep motion subtle and purposeful.
 
 ## Current Baseline
 
