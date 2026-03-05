@@ -76,11 +76,14 @@ class PipelineHealerWorkflow:
     async def close(self) -> None:
         """Clean up resources."""
         # Cancel any running tasks
-        for _task_id, task in self._running_tasks.items():
+        # Iterate over a snapshot because task done-callbacks mutate
+        # ``self._running_tasks`` by popping completed task IDs.
+        for task_id, task in list(self._running_tasks.items()):
             if not task.done():
                 task.cancel()
                 with suppress(asyncio.CancelledError):
                     await task
+            self._running_tasks.pop(task_id, None)
 
         await self._github_tools.close()
         await self._storage.close()

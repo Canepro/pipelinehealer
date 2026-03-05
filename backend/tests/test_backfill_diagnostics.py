@@ -1,5 +1,7 @@
 """Tests for external diagnostics backfill sweep."""
 
+import asyncio
+
 import pytest
 
 from src.agents.orchestrator import OrchestratorAgent
@@ -303,3 +305,25 @@ async def test_workflow_sweep_returns_zero_when_no_candidates():
     )
     count = await workflow.run_backfill_sweep()
     assert count == 0
+
+
+@pytest.mark.asyncio
+async def test_workflow_close_handles_running_task_callback_mutation():
+    """workflow.close should not fail when done-callback mutates running task map."""
+    storage = InMemoryStorage()
+    gt = _DummyGitHubTools()
+    workflow = PipelineHealerWorkflow(
+        github_tools=gt,
+        storage=storage,
+        azure_credential=None,
+    )
+
+    async def _never_finishes() -> None:
+        await asyncio.sleep(300)
+
+    task = asyncio.create_task(_never_finishes())
+    workflow._running_tasks["task-1"] = task
+    task.add_done_callback(lambda _: workflow._running_tasks.pop("task-1", None))
+
+    await workflow.close()
+    assert workflow._running_tasks == {}
