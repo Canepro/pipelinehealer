@@ -358,7 +358,7 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         ),
         agent_handoff_enabled=settings.agent_handoff_enabled,
         agent_handoff_mode=settings.agent_handoff_mode,
-        agent_handoff_webhook_configured=bool(settings.agent_handoff_webhook_url),
+        agent_handoff_webhook_configured=bool(settings.agent_handoff_webhook_url.strip()),
         agent_handoff_webhook_host=handoff_webhook_host,
         agent_handoff_webhook_allowlist=_safe_hostname_allowlist(
             settings.agent_handoff_webhook_allowlist
@@ -1351,7 +1351,13 @@ async def update_app_settings(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    effective_handoff_webhook_url = _validate_handoff_webhook_url(settings.agent_handoff_webhook_url)
+    try:
+        effective_handoff_webhook_url = _validate_handoff_webhook_url(
+            settings.agent_handoff_webhook_url
+        )
+    except ValueError as exc:
+        logger.warning("Invalid AGENT_HANDOFF_WEBHOOK_URL in settings: %s", exc)
+        effective_handoff_webhook_url = ""
     effective_handoff_allowlist = changes.get(
         "agent_handoff_webhook_allowlist",
         _safe_hostname_allowlist(settings.agent_handoff_webhook_allowlist),
@@ -1566,6 +1572,10 @@ async def persist_app_settings(
             status_code=500,
             detail="Failed to persist settings to durable storage",
         ) from exc
+
+    persisted_attr_names = set(runtime_values.keys())
+    _runtime_override_keys.difference_update(persisted_attr_names)
+    _persisted_runtime_override_keys.update(persisted_attr_names)
 
     env_file = _persist_mutable_settings_to_env_file(env_values)
     if payload.skip_redeploy:

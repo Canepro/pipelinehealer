@@ -507,6 +507,25 @@ async def test_admin_patch_rejects_handoff_allowlist_that_excludes_configured_ho
 
 
 @pytest.mark.asyncio
+async def test_admin_patch_tolerates_invalid_startup_handoff_webhook_url(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_URL", "agent.example.com/hook-without-scheme")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    response = await _patch_settings(
+        {"heal_mode": "demo"},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["heal_mode"] == "demo"
+
+
+@pytest.mark.asyncio
 async def test_admin_settings_audit_persists_beyond_in_memory_buffer(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
@@ -1094,6 +1113,15 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
         in persisted_text
     )
     assert "AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-mini-fast" in persisted_text
+
+    settings_after_persist = await _get_settings(headers={"X-Admin-Key": "admin-secret"})
+    assert settings_after_persist.status_code == 200
+    settings_body = settings_after_persist.json()
+    assert (
+        settings_body["settings_metadata"]["agent_handoff_enabled"]["source"]
+        == "persisted_runtime_override"
+    )
+    assert settings_body["settings_metadata"]["agent_handoff_enabled"]["durable"] is True
 
     audit = await _get_settings_audit(headers={"X-Admin-Key": "admin-secret"})
     assert audit.status_code == 200

@@ -432,7 +432,9 @@ export default function ControlCenterPage() {
   }, [learningQueue])
 
   const writeToolRows = mcpToolRows.filter((row) => row.write)
-  const mcpWriteAutoCount = writeToolRows.filter((row) => row.effective.summary === 'Allowed (Auto)').length
+  const mcpWriteAutoCount = writeToolRows.filter(
+    (row) => row.policy === 'auto' && row.effective.status === 'allowed'
+  ).length
   const mcpWriteApprovalCount = writeToolRows.filter(
     (row) => row.effective.status === 'approval'
   ).length

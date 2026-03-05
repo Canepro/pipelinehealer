@@ -716,7 +716,7 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 | `external_diagnostics_poll_interval_seconds` | float | >0–120; must be `<= external_diagnostics_wait_seconds` when wait budget is enabled |
 | `agent_handoff_enabled` | bool | Enable/disable Assign-to-Agent runtime path |
 | `agent_handoff_mode` | string | `copy_only` or `webhook` |
-| `agent_handoff_webhook_allowlist` | list[string] | Bare hostnames only; must include the configured webhook destination host when a startup URL is present |
+| `agent_handoff_webhook_allowlist` | list[string] | Bare hostnames only; when non-empty and a startup webhook URL is present, it must include that destination host |
 | `agent_handoff_timeout_seconds` | float | >0–30 |
 | `agent_handoff_max_retries` | int | 0–5 |
 | `azure_openai_deployment_name` | string | Non-empty; switches AI model deployment at runtime |
@@ -737,7 +737,7 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 **Validation**:
 - `log_prompt_head_chars + log_prompt_tail_chars` must be `<= log_prompt_max_chars`.
 - `external_diagnostics_poll_interval_seconds` must be `<= external_diagnostics_wait_seconds` when wait budget is enabled (`wait > 0`).
-- `agent_handoff_webhook_allowlist` must contain only bare hostnames and must include the configured `AGENT_HANDOFF_WEBHOOK_URL` host when that startup-only URL is set.
+- `agent_handoff_webhook_allowlist` must contain only bare hostnames. When non-empty and `AGENT_HANDOFF_WEBHOOK_URL` is set, it must include that URL's host; an empty list disables host restrictions.
 - `mcp_tool_policies` must use supported policy modes only (`disabled`, `read_only`, `write_with_approval`, `auto`).
 
 **Response** `200 OK`: updated `AppSettingsView` (same shape as GET).

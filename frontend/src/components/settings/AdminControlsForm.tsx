@@ -744,6 +744,8 @@ export default function AdminControlsForm({
                       {host}
                       <button
                         type="button"
+                        aria-label={`Remove ${host} from handoff allowlist`}
+                        title={`Remove ${host} from handoff allowlist`}
                         className="ml-1 rounded-full p-0.5 hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
                         onClick={() =>
                           setForm((prev) => ({
