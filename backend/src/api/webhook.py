@@ -1,5 +1,6 @@
 """GitHub Webhook Handler for PipelineHealer."""
 
+import asyncio
 import hashlib
 import hmac
 import logging
@@ -17,7 +18,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhook", tags=["webhook"])
 _jenkins_nonce_replay: dict[str, float] = {}
 _jenkins_delivery_replay: dict[str, float] = {}
+_jenkins_nonce_pending: dict[str, float] = {}
+_jenkins_delivery_pending: dict[str, float] = {}
 _JENKINS_REPLAY_MAX_ENTRIES = 10_000
+_jenkins_replay_lock = asyncio.Lock()
 
 
 def verify_github_signature(payload: bytes, signature: str, secret: str) -> bool:
@@ -60,8 +64,64 @@ def _cleanup_replay_store(now_epoch: float, ttl_seconds: int) -> None:
     for key, seen_at in list(_jenkins_delivery_replay.items()):
         if seen_at < cutoff:
             _jenkins_delivery_replay.pop(key, None)
+    for key, seen_at in list(_jenkins_nonce_pending.items()):
+        if seen_at < cutoff:
+            _jenkins_nonce_pending.pop(key, None)
+    for key, seen_at in list(_jenkins_delivery_pending.items()):
+        if seen_at < cutoff:
+            _jenkins_delivery_pending.pop(key, None)
     _trim_replay_store(_jenkins_nonce_replay, _JENKINS_REPLAY_MAX_ENTRIES)
     _trim_replay_store(_jenkins_delivery_replay, _JENKINS_REPLAY_MAX_ENTRIES)
+    _trim_replay_store(_jenkins_nonce_pending, _JENKINS_REPLAY_MAX_ENTRIES)
+    _trim_replay_store(_jenkins_delivery_pending, _JENKINS_REPLAY_MAX_ENTRIES)
+
+
+async def _reserve_replay_keys(
+    *,
+    now_epoch: float,
+    ttl_seconds: int,
+    nonce_key: str,
+    delivery_key: str,
+) -> str | None:
+    """Atomically reserve replay keys for in-flight Jenkins bridge processing.
+
+    Returns duplicate reason when a key has already been seen or reserved.
+    """
+    async with _jenkins_replay_lock:
+        _cleanup_replay_store(now_epoch, ttl_seconds)
+        if nonce_key in _jenkins_nonce_replay or nonce_key in _jenkins_nonce_pending:
+            return "duplicate_nonce"
+        if (
+            delivery_key in _jenkins_delivery_replay
+            or delivery_key in _jenkins_delivery_pending
+        ):
+            return "duplicate_delivery"
+        _jenkins_nonce_pending[nonce_key] = now_epoch
+        _jenkins_delivery_pending[delivery_key] = now_epoch
+        return None
+
+
+async def _commit_replay_keys(
+    *,
+    now_epoch: float,
+    ttl_seconds: int,
+    nonce_key: str,
+    delivery_key: str,
+) -> None:
+    """Atomically commit replay keys after successful enqueue."""
+    async with _jenkins_replay_lock:
+        _cleanup_replay_store(now_epoch, ttl_seconds)
+        _jenkins_nonce_pending.pop(nonce_key, None)
+        _jenkins_delivery_pending.pop(delivery_key, None)
+        _jenkins_nonce_replay[nonce_key] = now_epoch
+        _jenkins_delivery_replay[delivery_key] = now_epoch
+
+
+async def _release_replay_keys(nonce_key: str, delivery_key: str) -> None:
+    """Release reserved replay keys when processing fails before enqueue commit."""
+    async with _jenkins_replay_lock:
+        _jenkins_nonce_pending.pop(nonce_key, None)
+        _jenkins_delivery_pending.pop(delivery_key, None)
 
 
 def _trim_replay_store(store: dict[str, float], max_entries: int) -> None:
@@ -302,10 +362,7 @@ async def handle_jenkins_bridge_webhook(
     if not nonce:
         raise HTTPException(status_code=422, detail="Missing bridge nonce header")
 
-    _cleanup_replay_store(now_epoch, settings.jenkins_bridge_replay_ttl_seconds)
     nonce_key = f"jenkins:{nonce}"
-    if nonce_key in _jenkins_nonce_replay:
-        return {"status": "ignored", "reason": "duplicate_nonce"}
 
     if not _verify_jenkins_bridge_signature(
         body=body,
@@ -330,7 +387,15 @@ async def handle_jenkins_bridge_webhook(
         raise HTTPException(status_code=403, detail="Repository is outside PH_ALLOWED_REPOS")
 
     delivery_key = f"jenkins:{payload.delivery_id.strip()}"
-    if delivery_key in _jenkins_delivery_replay:
+    duplicate_reason = await _reserve_replay_keys(
+        now_epoch=now_epoch,
+        ttl_seconds=settings.jenkins_bridge_replay_ttl_seconds,
+        nonce_key=nonce_key,
+        delivery_key=delivery_key,
+    )
+    if duplicate_reason == "duplicate_nonce":
+        return {"status": "ignored", "reason": "duplicate_nonce"}
+    if duplicate_reason == "duplicate_delivery":
         return {
             "status": "ignored",
             "reason": "duplicate_delivery",
@@ -343,13 +408,16 @@ async def handle_jenkins_bridge_webhook(
             request_id=getattr(request.state, "request_id", None),
         )
     except Exception as exc:
+        await _release_replay_keys(nonce_key, delivery_key)
         logger.exception("Failed to enqueue Jenkins bridge payload: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to enqueue Jenkins bridge payload") from exc
 
-    now_epoch = time.time()
-    _cleanup_replay_store(now_epoch, settings.jenkins_bridge_replay_ttl_seconds)
-    _jenkins_nonce_replay[nonce_key] = now_epoch
-    _jenkins_delivery_replay[delivery_key] = now_epoch
+    await _commit_replay_keys(
+        now_epoch=time.time(),
+        ttl_seconds=settings.jenkins_bridge_replay_ttl_seconds,
+        nonce_key=nonce_key,
+        delivery_key=delivery_key,
+    )
 
     return {
         "status": "processing",

@@ -1,5 +1,6 @@
 """Tests for signed Jenkins bridge ingestion webhook."""
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -36,6 +37,20 @@ class _FlakyBridgeWorkflow:
         if self.calls == 1:
             raise RuntimeError("transient enqueue failure")
         return "bridge-activity-retry-ok"
+
+
+class _BlockingBridgeWorkflow:
+    def __init__(self) -> None:
+        self.calls = 0
+        self.entered = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def start_bridge_failure(self, payload, *, request_id=None):  # type: ignore[no-untyped-def]
+        _ = payload, request_id
+        self.calls += 1
+        self.entered.set()
+        await self.release.wait()
+        return "bridge-activity-blocked-ok"
 
 
 def _bridge_payload(delivery_id: str = "jenkins:job/path#1234") -> dict[str, object]:
@@ -93,10 +108,14 @@ def _reset_bridge_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     reset_settings()
     webhook_api._jenkins_nonce_replay.clear()  # noqa: SLF001
     webhook_api._jenkins_delivery_replay.clear()  # noqa: SLF001
+    webhook_api._jenkins_nonce_pending.clear()  # noqa: SLF001
+    webhook_api._jenkins_delivery_pending.clear()  # noqa: SLF001
     app.state.workflow = _DummyBridgeWorkflow()  # type: ignore[assignment]
     yield
     webhook_api._jenkins_nonce_replay.clear()  # noqa: SLF001
     webhook_api._jenkins_delivery_replay.clear()  # noqa: SLF001
+    webhook_api._jenkins_nonce_pending.clear()  # noqa: SLF001
+    webhook_api._jenkins_delivery_pending.clear()  # noqa: SLF001
     reset_settings()
 
 
@@ -275,6 +294,62 @@ async def test_jenkins_bridge_allows_retry_after_enqueue_failure() -> None:
     assert second.status_code == 200
     assert second.json()["status"] == "processing"
     assert second.json()["activity_id"] == "bridge-activity-retry-ok"
+
+
+@pytest.mark.asyncio
+async def test_jenkins_bridge_blocks_concurrent_duplicate_nonce() -> None:
+    payload = _bridge_payload()
+    body = json.dumps(payload).encode("utf-8")
+    timestamp = str(int(time.time()))
+    nonce = "nonce-concurrent-duplicate"
+    signature = _sign_bridge_payload(
+        body=body,
+        timestamp=timestamp,
+        nonce=nonce,
+        secret="bridge-secret",
+    )
+
+    workflow = _BlockingBridgeWorkflow()
+    app.state.workflow = workflow  # type: ignore[assignment]
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        first_task = asyncio.create_task(
+            client.post(
+                "/webhook/jenkins",
+                content=body,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-PH-Bridge-Provider": "jenkins",
+                    "X-PH-Bridge-Timestamp": timestamp,
+                    "X-PH-Bridge-Nonce": nonce,
+                    "X-PH-Bridge-Signature": signature,
+                },
+            )
+        )
+        await asyncio.wait_for(workflow.entered.wait(), timeout=2.0)
+
+        second = await client.post(
+            "/webhook/jenkins",
+            content=body,
+            headers={
+                "Content-Type": "application/json",
+                "X-PH-Bridge-Provider": "jenkins",
+                "X-PH-Bridge-Timestamp": timestamp,
+                "X-PH-Bridge-Nonce": nonce,
+                "X-PH-Bridge-Signature": signature,
+            },
+        )
+
+        workflow.release.set()
+        first = await first_task
+
+    assert first.status_code == 200
+    assert first.json()["status"] == "processing"
+    assert second.status_code == 200
+    assert second.json()["status"] == "ignored"
+    assert second.json()["reason"] == "duplicate_nonce"
+    assert workflow.calls == 1
 
 
 @pytest.mark.asyncio
