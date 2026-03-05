@@ -13,7 +13,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ### Changed
 
-- Release-scope commit references for `v0.3.2` prep and post-`v0.3.1` lineage: `1c1f8fc`, `2064b04`, `f73987f`.
+- Release-scope commit references for `v0.3.2` prep and post-`v0.3.1` lineage: `1c1f8fc`, `2064b04`, `f73987f`, `f361493`.
 
 ## [v0.3.1] - 2026-03-03
 
