@@ -1,6 +1,7 @@
 import { useState, type Dispatch, type SetStateAction } from 'react'
 import {
   ChevronDown,
+  Copy,
   HelpCircle,
   RotateCcw,
   Save,
@@ -117,6 +118,20 @@ function formatMcpPolicyLabel(policy: McpPolicyMode): string {
   }
 }
 
+function parseWebhookUrlInput(value: string): { url: string; host: string } | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  try {
+    const parsed = new URL(trimmed)
+    if (!['http:', 'https:'].includes(parsed.protocol)) return null
+    const host = parsed.hostname.trim().toLowerCase()
+    if (!host) return null
+    return { url: trimmed, host }
+  } catch {
+    return null
+  }
+}
+
 export default function AdminControlsForm({
   data,
   form,
@@ -141,6 +156,7 @@ export default function AdminControlsForm({
 }: Props) {
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [workflowInput, setWorkflowInput] = useState('')
+  const [handoffWebhookInput, setHandoffWebhookInput] = useState('')
   const [activeSection, setActiveSection] = useState<SettingsSection>('runtime')
   const mcpEffectivePolicies = MCP_TOOL_DEFINITIONS.map((tool) => {
     const raw = form.mcp_tool_policies[tool.key]
@@ -251,6 +267,33 @@ export default function AdminControlsForm({
 
   const handoffNeedsStartupUrl = form.agent_handoff_enabled && form.agent_handoff_mode === 'webhook'
   const handoffMetadata = data.settings_metadata ?? {}
+  const handoffWebhookDraft = parseWebhookUrlInput(handoffWebhookInput)
+  const handoffSuggestedAllowlist = handoffWebhookDraft
+    ? Array.from(new Set([handoffWebhookDraft.host, ...form.agent_handoff_webhook_allowlist]))
+    : form.agent_handoff_webhook_allowlist
+  const handoffSetupEnvBlock = handoffWebhookDraft
+    ? [
+        `AGENT_HANDOFF_ENABLED=true`,
+        `AGENT_HANDOFF_MODE=webhook`,
+        `AGENT_HANDOFF_WEBHOOK_URL=${handoffWebhookDraft.url}`,
+        `AGENT_HANDOFF_WEBHOOK_ALLOWLIST=${handoffSuggestedAllowlist.join(',')}`,
+        `AGENT_HANDOFF_TIMEOUT_SECONDS=${form.agent_handoff_timeout_seconds}`,
+        `AGENT_HANDOFF_MAX_RETRIES=${form.agent_handoff_max_retries}`,
+      ].join('\n')
+    : ''
+
+  const copyHandoffSetupEnvBlock = async () => {
+    if (!handoffSetupEnvBlock) {
+      toast.error('Enter a valid webhook URL first')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(handoffSetupEnvBlock)
+      toast.success('Handoff env block copied')
+    } catch {
+      toast.error('Unable to copy handoff env block')
+    }
+  }
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -791,6 +834,87 @@ export default function AdminControlsForm({
                   <p className="mt-2 text-sm text-rose-400">
                     Webhook mode is selected, but no startup webhook URL is configured.
                   </p>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4 space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-[var(--ph-text)]">Webhook Setup Assistant</p>
+                  <p className="mt-1 text-sm text-[var(--ph-muted)]">
+                    Enter a candidate webhook URL to generate a portable env block. This keeps
+                    startup secret configuration in your deployment system while still making setup
+                    easier from the UI.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-3 items-end">
+                  <FieldGroup label="Candidate Webhook URL" field="agent_handoff_mode">
+                    <Input
+                      type="text"
+                      value={handoffWebhookInput}
+                      onChange={(e) => setHandoffWebhookInput(e.target.value)}
+                      placeholder="https://agent.example.com/hook"
+                    />
+                  </FieldGroup>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={copyHandoffSetupEnvBlock}
+                    disabled={!handoffWebhookDraft}
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copy Env Block
+                  </Button>
+                </div>
+
+                {handoffWebhookInput.trim() && !handoffWebhookDraft && (
+                  <p className="text-sm text-rose-400">
+                    Enter a full `http(s)` webhook URL so the assistant can derive the destination
+                    host and startup env block.
+                  </p>
+                )}
+
+                {handoffWebhookDraft && (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <Badge variant="success">Derived host: {handoffWebhookDraft.host}</Badge>
+                      {form.agent_handoff_webhook_allowlist.includes(handoffWebhookDraft.host) ? (
+                        <Badge variant="outline">Host already in runtime allowlist</Badge>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              agent_handoff_webhook_allowlist: [
+                                ...prev.agent_handoff_webhook_allowlist,
+                                handoffWebhookDraft.host,
+                              ],
+                            }))
+                          }
+                        >
+                          Add Host to Runtime Allowlist
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Label className="text-[var(--ph-muted)]">Portable startup env block</Label>
+                        <Badge variant="outline">Local, Docker, Helm, ACA adapter</Badge>
+                      </div>
+                      <pre className="overflow-x-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
+{handoffSetupEnvBlock}
+                      </pre>
+                      <p className="text-xs text-[var(--ph-muted)]">
+                        Recommended flow: store this in your deployment env or secret adapter, then
+                        redeploy/restart. For ACA specifically, keep the URL secret-backed and use
+                        your existing `deploy:env --secure-secrets` path.
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
             </CardContent>
@@ -1540,6 +1664,7 @@ export default function AdminControlsForm({
                     setLastSavedForm(reset)
                     setNewRepoInput('')
                     setNewHandoffHostInput('')
+                    setHandoffWebhookInput('')
                     setGhAwWorkflowsInput(reset.gh_aw_known_workflows.join(','))
                   }}
                 >
