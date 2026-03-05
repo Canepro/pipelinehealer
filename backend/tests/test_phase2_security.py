@@ -21,9 +21,11 @@ def clear_settings_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     # Individual tests still override AUTH_MODE when exercising entra/hybrid paths.
     monkeypatch.setenv("AUTH_MODE", "api_key")
     dashboard.clear_admin_settings_audit()
+    dashboard.clear_settings_runtime_provenance()
     reset_settings()
     yield
     dashboard.clear_admin_settings_audit()
+    dashboard.clear_settings_runtime_provenance()
     reset_settings()
 
 
@@ -359,6 +361,10 @@ async def test_settings_endpoint_returns_non_secret_fields(monkeypatch) -> None:
     monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-mini")
     monkeypatch.setenv("AZURE_OPENAI_API_VERSION", "2025-03-01-preview")
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "super-secret-key")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "webhook")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_URL", "https://agent.example.com/hook")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_ALLOWLIST", "agent.example.com")
     reset_settings()
 
     response = await _get_settings(headers={"X-Admin-Key": "admin-secret"})
@@ -370,6 +376,13 @@ async def test_settings_endpoint_returns_non_secret_fields(monkeypatch) -> None:
     assert data["llm_model_analysis"] == ""
     assert data["llm_model_diagnosis"] == ""
     assert data["llm_model_remediation"] == ""
+    assert data["agent_handoff_webhook_host"] == "agent.example.com"
+    assert data["agent_handoff_webhook_allowlist"] == ["agent.example.com"]
+    assert data["settings_metadata"]["azure_openai_deployment_name"]["source"] == "env"
+    assert data["settings_metadata"]["heal_mode"]["source"] == "default"
+    assert data["settings_metadata"]["storage_mode"]["source"] == "computed"
+    assert data["settings_metadata"]["agent_handoff_enabled"]["mutable"] is True
+    assert data["settings_metadata"]["agent_handoff_webhook_configured"]["source"] == "computed"
     assert "azure_openai_api_key" not in data
 
 
@@ -436,6 +449,61 @@ async def test_admin_can_patch_runtime_settings(monkeypatch) -> None:
     assert latest["changes"]["heal_mode"]["new"] == "demo"
     assert latest["request_id"] == "req-abc-123"
     assert str(latest["actor"]).startswith("admin_key:sha256:")
+
+
+@pytest.mark.asyncio
+async def test_admin_can_patch_agent_handoff_runtime_settings(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "false")
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "copy_only")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_URL", "https://agent.example.com/hook")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_ALLOWLIST", "agent.example.com")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    response = await _patch_settings(
+        {
+            "agent_handoff_enabled": True,
+            "agent_handoff_mode": "webhook",
+            "agent_handoff_webhook_allowlist": ["AGENT.example.com", "agent.example.com"],
+            "agent_handoff_timeout_seconds": 12,
+            "agent_handoff_max_retries": 3,
+        },
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["agent_handoff_enabled"] is True
+    assert body["agent_handoff_mode"] == "webhook"
+    assert body["agent_handoff_webhook_allowlist"] == ["agent.example.com"]
+    assert body["agent_handoff_timeout_seconds"] == 12
+    assert body["agent_handoff_max_retries"] == 3
+    assert body["settings_metadata"]["agent_handoff_enabled"]["source"] == "runtime_override"
+    assert body["settings_metadata"]["agent_handoff_enabled"]["durable"] is False
+    assert body["settings_metadata"]["agent_handoff_mode"]["source"] == "runtime_override"
+
+
+@pytest.mark.asyncio
+async def test_admin_patch_rejects_handoff_allowlist_that_excludes_configured_host(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_URL", "https://agent.example.com/hook")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_ALLOWLIST", "agent.example.com")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    response = await _patch_settings(
+        {"agent_handoff_webhook_allowlist": ["other.example.com"]},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+
+    assert response.status_code == 422
+    assert "AGENT_HANDOFF_WEBHOOK_URL host" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -906,6 +974,11 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
         "JENKINS_BRIDGE_ALLOW_PR=false\n"
         "AUTO_CREATE_ISSUE=true\n"
         "AUTO_RETRY_WORKFLOW=true\n"
+        "AGENT_HANDOFF_ENABLED=false\n"
+        "AGENT_HANDOFF_MODE=copy_only\n"
+        "AGENT_HANDOFF_WEBHOOK_ALLOWLIST=agent.example.com\n"
+        "AGENT_HANDOFF_TIMEOUT_SECONDS=8.0\n"
+        "AGENT_HANDOFF_MAX_RETRIES=1\n"
         "GH_AW_TOOLS_ENABLED=false\n"
         "PH_ALLOWED_REPOS=\n",
         encoding="utf-8",
@@ -938,6 +1011,11 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
             "gh_aw_known_workflows": ["ci-doctor", "schema-consistency-checker"],
             "external_diagnostics_wait_seconds": 60,
             "external_diagnostics_poll_interval_seconds": 10,
+            "agent_handoff_enabled": True,
+            "agent_handoff_mode": "webhook",
+            "agent_handoff_webhook_allowlist": ["Agent.EXAMPLE.com"],
+            "agent_handoff_timeout_seconds": 12,
+            "agent_handoff_max_retries": 3,
             "ph_allowed_repos": ["Canepro/PipelineHealer", "canepro/pipelinehealer-demo"],
             "mcp_enabled": True,
             "mcp_provider": "github",
@@ -971,6 +1049,8 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
     assert "PH_ALLOWED_REPOS" in body["persisted_keys"]
     assert "MCP_TOOL_POLICIES" in body["persisted_keys"]
     assert "MCP_REPO_ALLOWLIST" in body["persisted_keys"]
+    assert "AGENT_HANDOFF_ENABLED" in body["persisted_keys"]
+    assert "AGENT_HANDOFF_WEBHOOK_ALLOWLIST" in body["persisted_keys"]
 
     persisted_text = env_file.read_text(encoding="utf-8")
     assert "HEAL_MODE=freestyle" in persisted_text
@@ -994,6 +1074,11 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
     assert "GH_AW_KNOWN_WORKFLOWS=ci-doctor,schema-consistency-checker" in persisted_text
     assert "EXTERNAL_DIAGNOSTICS_WAIT_SECONDS=60.0" in persisted_text
     assert "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS=10.0" in persisted_text
+    assert "AGENT_HANDOFF_ENABLED=true" in persisted_text
+    assert "AGENT_HANDOFF_MODE=webhook" in persisted_text
+    assert "AGENT_HANDOFF_WEBHOOK_ALLOWLIST=agent.example.com" in persisted_text
+    assert "AGENT_HANDOFF_TIMEOUT_SECONDS=12.0" in persisted_text
+    assert "AGENT_HANDOFF_MAX_RETRIES=3" in persisted_text
     assert "PH_ALLOWED_REPOS=canepro/pipelinehealer,canepro/pipelinehealer-demo" in persisted_text
     assert "MCP_ENABLED=true" in persisted_text
     assert "MCP_PROVIDER=github" in persisted_text
@@ -1073,6 +1158,11 @@ async def test_apply_persisted_runtime_settings_restores_values(monkeypatch) -> 
             "heal_mode": "demo",
             "gh_aw_tools_enabled": True,
             "gh_aw_ingestion_mode": "passive",
+            "agent_handoff_enabled": True,
+            "agent_handoff_mode": "webhook",
+            "agent_handoff_webhook_allowlist": ["agent.example.com"],
+            "agent_handoff_timeout_seconds": 15,
+            "agent_handoff_max_retries": 2,
             "ph_allowed_repos": ["Canepro/PipelineHealer"],
             "mcp_enabled": True,
             "mcp_provider": "github",
@@ -1093,6 +1183,11 @@ async def test_apply_persisted_runtime_settings_restores_values(monkeypatch) -> 
     runtime_settings.heal_mode = "safe"
     runtime_settings.gh_aw_tools_enabled = False
     runtime_settings.gh_aw_ingestion_mode = "disabled"
+    runtime_settings.agent_handoff_enabled = False
+    runtime_settings.agent_handoff_mode = "copy_only"
+    runtime_settings.agent_handoff_webhook_allowlist = []
+    runtime_settings.agent_handoff_timeout_seconds = 8.0
+    runtime_settings.agent_handoff_max_retries = 1
     runtime_settings.ph_allowed_repos = []
     runtime_settings.mcp_enabled = False
     runtime_settings.mcp_provider = "disabled"
@@ -1104,8 +1199,22 @@ async def test_apply_persisted_runtime_settings_restores_values(monkeypatch) -> 
     assert runtime_settings.heal_mode == "demo"
     assert runtime_settings.gh_aw_tools_enabled is True
     assert runtime_settings.gh_aw_ingestion_mode == "passive"
+    assert runtime_settings.agent_handoff_enabled is True
+    assert runtime_settings.agent_handoff_mode == "webhook"
+    assert runtime_settings.agent_handoff_webhook_allowlist == ["agent.example.com"]
+    assert runtime_settings.agent_handoff_timeout_seconds == 15.0
+    assert runtime_settings.agent_handoff_max_retries == 2
     assert runtime_settings.ph_allowed_repos == ["canepro/pipelinehealer"]
     assert runtime_settings.mcp_enabled is True
     assert runtime_settings.mcp_provider == "github"
     assert runtime_settings.mcp_tool_policies == {"fetch_failure_context": "read_only"}
     assert runtime_settings.mcp_repo_allowlist == ["canepro/pipelinehealer"]
+
+    settings_response = await _get_settings(headers={"X-Admin-Key": "admin-secret"})
+    assert settings_response.status_code == 200
+    settings_body = settings_response.json()
+    assert (
+        settings_body["settings_metadata"]["agent_handoff_enabled"]["source"]
+        == "persisted_runtime_override"
+    )
+    assert settings_body["settings_metadata"]["agent_handoff_enabled"]["durable"] is True

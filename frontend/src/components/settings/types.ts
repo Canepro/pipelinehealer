@@ -33,11 +33,17 @@ export type SettingsFormState = {
   gh_aw_tools_enabled: boolean
   gh_aw_ingestion_mode: 'disabled' | 'passive' | 'hybrid'
   gh_aw_known_workflows: string[]
+  agent_handoff_enabled: boolean
+  agent_handoff_mode: 'copy_only' | 'webhook'
+  agent_handoff_webhook_allowlist: string[]
+  agent_handoff_timeout_seconds: number
+  agent_handoff_max_retries: number
   ph_allowed_repos: string[]
   azure_openai_deployment_name: string
 }
 
 export const REPO_FULL_NAME_REGEX = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
+export const HOSTNAME_REGEX = /^[a-z0-9.-]+$/
 
 export const normalizeRepoInput = (value: string): string | null => {
   const text = value.trim()
@@ -63,6 +69,14 @@ export const normalizeRepoInput = (value: string): string | null => {
 
   candidate = candidate.replace(/^\/+|\/+$/g, '').replace(/\.git$/i, '').toLowerCase()
   if (!REPO_FULL_NAME_REGEX.test(candidate)) return null
+  return candidate
+}
+
+export const normalizeHostnameInput = (value: string): string | null => {
+  const candidate = value.trim().toLowerCase()
+  if (!candidate) return null
+  if (candidate.includes('://') || candidate.includes('/') || candidate.includes(':')) return null
+  if (!HOSTNAME_REGEX.test(candidate)) return null
   return candidate
 }
 
@@ -156,6 +170,11 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
         ? 'passive'
         : 'disabled',
   gh_aw_known_workflows: data.gh_aw_known_workflows ?? [],
+  agent_handoff_enabled: data.agent_handoff_enabled ?? false,
+  agent_handoff_mode: data.agent_handoff_mode === 'webhook' ? 'webhook' : 'copy_only',
+  agent_handoff_webhook_allowlist: data.agent_handoff_webhook_allowlist ?? [],
+  agent_handoff_timeout_seconds: data.agent_handoff_timeout_seconds ?? 8,
+  agent_handoff_max_retries: data.agent_handoff_max_retries ?? 1,
   ph_allowed_repos: data.ph_allowed_repos ?? [],
   azure_openai_deployment_name: data.azure_openai_deployment_name ?? '',
 })
@@ -260,6 +279,16 @@ export const SETTING_DESCRIPTIONS: Record<string, string> = {
     'How external diagnostics are collected. "passive" reads GH-AW findings from GitHub issues, "hybrid" combines GH-AW + MCP context, and "disabled" turns collection off.',
   gh_aw_known_workflows:
     'Workflows to skip when polling ci-doctor (prevents circular self-diagnosis). ci-doctor is always included.',
+  agent_handoff_enabled:
+    'Enable the Assign-to-Agent integration path for operators. When off, no handoff requests are accepted.',
+  agent_handoff_mode:
+    'Choose between copy_only audit mode and outbound webhook delivery mode.',
+  agent_handoff_webhook_allowlist:
+    'Allowed destination hostnames for outbound Assign-to-Agent webhook delivery. Empty means any host is allowed, unless deployment policy adds stricter checks.',
+  agent_handoff_timeout_seconds:
+    'Timeout budget for outbound Assign-to-Agent webhook requests.',
+  agent_handoff_max_retries:
+    'Retry budget for transient outbound Assign-to-Agent webhook failures.',
   verify_webhook_signature_in_development:
     'Require GitHub webhook signature verification even in development mode. Usually off for local testing.',
   ph_allowed_repos:

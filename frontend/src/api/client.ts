@@ -171,6 +171,8 @@ export interface AppSettings {
   agent_handoff_enabled: boolean
   agent_handoff_mode: 'copy_only' | 'webhook'
   agent_handoff_webhook_configured: boolean
+  agent_handoff_webhook_host: string
+  agent_handoff_webhook_allowlist: string[]
   agent_handoff_timeout_seconds: number
   agent_handoff_max_retries: number
   ph_allowed_repos: string[]
@@ -194,6 +196,21 @@ export interface AppSettings {
   azure_openai_deployment_name: string
   azure_openai_api_version: string
   azure_openai_chat_api_version: string
+  settings_metadata: Record<string, AppSettingMetadata>
+}
+
+export type AppSettingSource =
+  | 'default'
+  | 'env'
+  | 'runtime_override'
+  | 'persisted_runtime_override'
+  | 'computed'
+
+export interface AppSettingMetadata {
+  source: AppSettingSource
+  mutable: boolean
+  requires_restart: boolean
+  durable: boolean
 }
 
 export interface LLMProviderHealth {
@@ -265,6 +282,11 @@ export interface AdminSettingsUpdate {
   gh_aw_tools_enabled?: boolean
   gh_aw_ingestion_mode?: 'disabled' | 'passive' | 'hybrid'
   gh_aw_known_workflows?: string[]
+  agent_handoff_enabled?: boolean
+  agent_handoff_mode?: 'copy_only' | 'webhook'
+  agent_handoff_webhook_allowlist?: string[]
+  agent_handoff_timeout_seconds?: number
+  agent_handoff_max_retries?: number
   ph_allowed_repos?: string[]
   llm_provider?: 'azure_openai' | 'openai_compatible' | 'custom'
   openai_compatible_base_url?: string

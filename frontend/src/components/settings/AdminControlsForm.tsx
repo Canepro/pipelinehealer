@@ -12,9 +12,26 @@ import {
   Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { AppSettings, LLMProviderHealth, MCPProviderHealth } from '../../api/client'
+import type {
+  AppSettingMetadata,
+  AppSettings,
+  LLMProviderHealth,
+  MCPProviderHealth,
+} from '../../api/client'
 import type { SettingsFormState } from './types'
-import { normalizeRepoInput, SETTING_DESCRIPTIONS, toSettingsForm } from './types'
+import {
+  normalizeHostnameInput,
+  normalizeRepoInput,
+  SETTING_DESCRIPTIONS,
+  toSettingsForm,
+} from './types'
+import {
+  formatSettingSource,
+  getDurabilityLabel,
+  getMcpEffectiveState,
+  settingSourceTone,
+  type McpPolicyMode,
+} from './runtimeSemantics'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -40,6 +57,8 @@ interface Props {
   setNewRepoInput: Dispatch<SetStateAction<string>>
   newMcpRepoInput: string
   setNewMcpRepoInput: Dispatch<SetStateAction<string>>
+  newHandoffHostInput: string
+  setNewHandoffHostInput: Dispatch<SetStateAction<string>>
   setGhAwWorkflowsInput: Dispatch<SetStateAction<string>>
   setLastSavedForm: Dispatch<SetStateAction<SettingsFormState | null>>
   savePending: boolean
@@ -49,12 +68,6 @@ interface Props {
 }
 
 type SettingsSection = 'runtime' | 'intelligence' | 'security'
-type McpPolicyMode = 'disabled' | 'read_only' | 'write_with_approval' | 'auto'
-type McpEffectiveState = {
-  status: 'allowed' | 'approval' | 'blocked' | 'inactive'
-  summary: string
-  detail: string
-}
 type McpToolDefinition = {
   key: 'fetch_failure_context' | 'fetch_runbook_context' | 'publish_artifact' | 'rerun_pipeline'
   label: string
@@ -104,68 +117,6 @@ function formatMcpPolicyLabel(policy: McpPolicyMode): string {
   }
 }
 
-function getMcpEffectiveState({
-  mcpEnabled,
-  mcpProvider,
-  readOnly,
-  tool,
-  policy,
-}: {
-  mcpEnabled: boolean
-  mcpProvider: SettingsFormState['mcp_provider']
-  readOnly: boolean
-  tool: McpToolDefinition
-  policy: McpPolicyMode
-}): McpEffectiveState {
-  if (!mcpEnabled || mcpProvider === 'disabled') {
-    return {
-      status: 'inactive',
-      summary: 'Inactive',
-      detail: 'MCP is disabled globally.',
-    }
-  }
-  if (policy === 'disabled') {
-    return {
-      status: 'blocked',
-      summary: 'Blocked',
-      detail: 'Tool policy is disabled.',
-    }
-  }
-  if (!tool.write) {
-    return {
-      status: 'allowed',
-      summary: 'Allowed (Read)',
-      detail: 'Read context fetch is allowed.',
-    }
-  }
-  if (readOnly) {
-    return {
-      status: 'blocked',
-      summary: 'Blocked',
-      detail: 'Global read-only mode blocks write actions.',
-    }
-  }
-  if (policy === 'read_only') {
-    return {
-      status: 'blocked',
-      summary: 'Blocked',
-      detail: 'Tool policy is read_only.',
-    }
-  }
-  if (policy === 'write_with_approval') {
-    return {
-      status: 'approval',
-      summary: 'Approval Required',
-      detail: 'Write action needs explicit approval.',
-    }
-  }
-  return {
-    status: 'allowed',
-    summary: 'Allowed (Auto)',
-    detail: 'Write action may run automatically.',
-  }
-}
-
 export default function AdminControlsForm({
   data,
   form,
@@ -179,6 +130,8 @@ export default function AdminControlsForm({
   setNewRepoInput,
   newMcpRepoInput,
   setNewMcpRepoInput,
+  newHandoffHostInput,
+  setNewHandoffHostInput,
   setGhAwWorkflowsInput,
   setLastSavedForm,
   savePending,
@@ -202,7 +155,7 @@ export default function AdminControlsForm({
         mcpEnabled: form.mcp_enabled,
         mcpProvider: form.mcp_provider,
         readOnly: form.mcp_read_only,
-        tool,
+        write: tool.write,
         policy,
       }),
     }
@@ -258,6 +211,25 @@ export default function AdminControlsForm({
     setNewMcpRepoInput('')
   }
 
+  const addHandoffAllowlistHost = () => {
+    const normalized = normalizeHostnameInput(newHandoffHostInput)
+    if (!normalized) {
+      toast.error('Invalid hostname format', {
+        description: "Use a bare hostname like 'agent.example.com'.",
+      })
+      return
+    }
+    if (form.agent_handoff_webhook_allowlist.includes(normalized)) {
+      toast.error('Hostname already in allowlist')
+      return
+    }
+    setForm((prev) => ({
+      ...prev,
+      agent_handoff_webhook_allowlist: [...prev.agent_handoff_webhook_allowlist, normalized],
+    }))
+    setNewHandoffHostInput('')
+  }
+
   const addWorkflow = () => {
     const name = workflowInput.trim().toLowerCase()
     if (!name) return
@@ -276,6 +248,9 @@ export default function AdminControlsForm({
     setForm((prev) => ({ ...prev, gh_aw_known_workflows: next }))
     setGhAwWorkflowsInput(next.join(','))
   }
+
+  const handoffNeedsStartupUrl = form.agent_handoff_enabled && form.agent_handoff_mode === 'webhook'
+  const handoffMetadata = data.settings_metadata ?? {}
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -315,7 +290,7 @@ export default function AdminControlsForm({
               {activeSection === 'runtime' &&
                 'Runtime Controls: set remediation behavior, repo scope, and operation mode first.'}
               {activeSection === 'intelligence' &&
-                'AI & Integrations: configure model providers, external diagnostics, and MCP policies.'}
+                'AI & Integrations: configure model providers, handoff, external diagnostics, and MCP policies.'}
               {activeSection === 'security' &&
                 'Security & Advanced: adjust auth posture, retries, limits, and low-level safeguards.'}
             </p>
@@ -336,7 +311,11 @@ export default function AdminControlsForm({
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <FieldGroup label="Heal Mode" field="heal_mode">
+                <FieldGroup
+                  label="Heal Mode"
+                  field="heal_mode"
+                  metadata={data.settings_metadata?.heal_mode}
+                >
                   <Select
                     value={form.heal_mode}
                     onValueChange={(v) =>
@@ -360,7 +339,11 @@ export default function AdminControlsForm({
                   </Select>
                 </FieldGroup>
 
-                <FieldGroup label="Max Remediation Attempts" field="max_remediation_attempts">
+                <FieldGroup
+                  label="Max Remediation Attempts"
+                  field="max_remediation_attempts"
+                  metadata={data.settings_metadata?.max_remediation_attempts}
+                >
                   <Input
                     type="number"
                     min={1}
@@ -381,30 +364,35 @@ export default function AdminControlsForm({
                   field="auto_apply_remediation"
                   checked={form.auto_apply_remediation}
                   onChange={(v) => setForm((p) => ({ ...p, auto_apply_remediation: v }))}
+                  metadata={data.settings_metadata?.auto_apply_remediation}
                 />
                 <SwitchField
                   label="Auto-Create Pull Requests"
                   field="auto_create_pr"
                   checked={form.auto_create_pr}
                   onChange={(v) => setForm((p) => ({ ...p, auto_create_pr: v }))}
+                  metadata={data.settings_metadata?.auto_create_pr}
                 />
                 <SwitchField
                   label="Jenkins Bridge: Allow PRs"
                   field="jenkins_bridge_allow_pr"
                   checked={form.jenkins_bridge_allow_pr}
                   onChange={(v) => setForm((p) => ({ ...p, jenkins_bridge_allow_pr: v }))}
+                  metadata={data.settings_metadata?.jenkins_bridge_allow_pr}
                 />
                 <SwitchField
                   label="Auto-Create Issues"
                   field="auto_create_issue"
                   checked={form.auto_create_issue}
                   onChange={(v) => setForm((p) => ({ ...p, auto_create_issue: v }))}
+                  metadata={data.settings_metadata?.auto_create_issue}
                 />
                 <SwitchField
                   label="Auto-Retry Workflows"
                   field="auto_retry_workflow"
                   checked={form.auto_retry_workflow}
                   onChange={(v) => setForm((p) => ({ ...p, auto_retry_workflow: v }))}
+                  metadata={data.settings_metadata?.auto_retry_workflow}
                 />
                 <SwitchField
                   label="Auto-Create Tracking Issues"
@@ -413,6 +401,7 @@ export default function AdminControlsForm({
                   onChange={(v) =>
                     setForm((p) => ({ ...p, auto_create_tracking_issue_for_prs: v }))
                   }
+                  metadata={data.settings_metadata?.auto_create_tracking_issue_for_prs}
                 />
               </div>
               <p className="text-xs text-[var(--ph-muted)]">
@@ -615,6 +604,197 @@ export default function AdminControlsForm({
           </Card>
         )}
 
+        {activeSection === 'intelligence' && (
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-azure-500" />
+                <CardTitle>Assign-to-Agent</CardTitle>
+              </div>
+              <p className="text-sm text-[var(--ph-muted)]">
+                Configure the operator handoff path. Non-secret runtime controls are editable here;
+                the destination webhook URL remains startup-only in this release.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <SwitchField
+                  label="Enable Assign-to-Agent"
+                  field="agent_handoff_enabled"
+                  checked={form.agent_handoff_enabled}
+                  onChange={(v) => setForm((p) => ({ ...p, agent_handoff_enabled: v }))}
+                  metadata={handoffMetadata.agent_handoff_enabled}
+                />
+                <FieldGroup
+                  label="Handoff Mode"
+                  field="agent_handoff_mode"
+                  metadata={handoffMetadata.agent_handoff_mode}
+                >
+                  <Select
+                    value={form.agent_handoff_mode}
+                    onValueChange={(v) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        agent_handoff_mode: v as SettingsFormState['agent_handoff_mode'],
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="copy_only">copy_only</SelectItem>
+                      <SelectItem value="webhook">webhook</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FieldGroup>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <FieldGroup
+                  label="Timeout (seconds)"
+                  field="agent_handoff_timeout_seconds"
+                  metadata={handoffMetadata.agent_handoff_timeout_seconds}
+                >
+                  <Input
+                    type="number"
+                    min={0.5}
+                    max={30}
+                    step={0.5}
+                    value={form.agent_handoff_timeout_seconds}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        agent_handoff_timeout_seconds: Number(e.target.value),
+                      }))
+                    }
+                  />
+                </FieldGroup>
+                <FieldGroup
+                  label="Max Retries"
+                  field="agent_handoff_max_retries"
+                  metadata={handoffMetadata.agent_handoff_max_retries}
+                >
+                  <Input
+                    type="number"
+                    min={0}
+                    max={5}
+                    value={form.agent_handoff_max_retries}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        agent_handoff_max_retries: Number(e.target.value),
+                      }))
+                    }
+                  />
+                </FieldGroup>
+              </div>
+
+              <Separator />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <StatusChip
+                  label="Runtime"
+                  value={data.agent_handoff_enabled ? 'Enabled' : 'Disabled'}
+                  ok={data.agent_handoff_enabled}
+                />
+                <StatusChip
+                  label="Webhook URL"
+                  value={
+                    data.agent_handoff_webhook_configured
+                      ? data.agent_handoff_webhook_host || 'Configured'
+                      : 'Not configured'
+                  }
+                  ok={data.agent_handoff_webhook_configured}
+                />
+                <StatusChip
+                  label="Current Mode"
+                  value={
+                    data.agent_handoff_mode === 'webhook'
+                      ? data.agent_handoff_webhook_configured
+                        ? 'Webhook'
+                        : 'Webhook needs startup URL'
+                      : 'Copy only'
+                  }
+                  ok={data.agent_handoff_mode !== 'webhook' || data.agent_handoff_webhook_configured}
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="text-[var(--ph-muted)]">Webhook host allowlist:</span>
+                  {form.agent_handoff_webhook_allowlist.length > 0 ? (
+                    <span className="font-medium text-[var(--ph-text)]">
+                      {form.agent_handoff_webhook_allowlist.length} host
+                      {form.agent_handoff_webhook_allowlist.length !== 1 ? 's' : ''}
+                    </span>
+                  ) : (
+                    <Badge variant="outline">No host restrictions</Badge>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2 min-h-[2rem]">
+                  {form.agent_handoff_webhook_allowlist.length === 0 && (
+                    <span className="text-sm text-[var(--ph-muted)] italic py-1">
+                      Empty allowlist permits any destination host. Prefer an explicit list for
+                      production.
+                    </span>
+                  )}
+                  {form.agent_handoff_webhook_allowlist.map((host) => (
+                    <Badge key={host} variant="secondary" className="gap-1 pr-1">
+                      {host}
+                      <button
+                        type="button"
+                        className="ml-1 rounded-full p-0.5 hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            agent_handoff_webhook_allowlist: prev.agent_handoff_webhook_allowlist.filter(
+                              (item) => item !== host
+                            ),
+                          }))
+                        }
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="agent.example.com"
+                    value={newHandoffHostInput}
+                    onChange={(e) => setNewHandoffHostInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addHandoffAllowlistHost()
+                      }
+                    }}
+                    className="max-w-md"
+                  />
+                  <Button type="button" variant="secondary" size="sm" onClick={addHandoffAllowlistHost}>
+                    Add
+                  </Button>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4">
+                <p className="text-sm font-medium text-[var(--ph-text)]">Startup-only dependency</p>
+                <p className="mt-1 text-sm text-[var(--ph-muted)]">
+                  The actual webhook receiver URL is not editable from Settings yet. Configure it in
+                  deployment env, then use this page for runtime enablement, mode, allowlist, and
+                  retry policy.
+                </p>
+                {handoffNeedsStartupUrl && !data.agent_handoff_webhook_configured && (
+                  <p className="mt-2 text-sm text-rose-400">
+                    Webhook mode is selected, but no startup webhook URL is configured.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* ── Section 3: MCP Integration (preview) ── */}
         {activeSection === 'intelligence' && (
           <Card>
@@ -634,17 +814,23 @@ export default function AdminControlsForm({
                 field="mcp_enabled"
                 checked={form.mcp_enabled}
                 onChange={(v) => setForm((p) => ({ ...p, mcp_enabled: v }))}
+                metadata={data.settings_metadata?.mcp_enabled}
               />
               <SwitchField
                 label="Read-Only Mode"
                 field="mcp_read_only"
                 checked={form.mcp_read_only}
                 onChange={(v) => setForm((p) => ({ ...p, mcp_read_only: v }))}
+                metadata={data.settings_metadata?.mcp_read_only}
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <FieldGroup label="MCP Provider" field="mcp_provider">
+              <FieldGroup
+                label="MCP Provider"
+                field="mcp_provider"
+                metadata={data.settings_metadata?.mcp_provider}
+              >
                 <Select
                   value={form.mcp_provider}
                   onValueChange={(v) =>
@@ -665,7 +851,11 @@ export default function AdminControlsForm({
                   </SelectContent>
                 </Select>
               </FieldGroup>
-              <FieldGroup label="Timeout (seconds)" field="mcp_timeout_seconds">
+              <FieldGroup
+                label="Timeout (seconds)"
+                field="mcp_timeout_seconds"
+                metadata={data.settings_metadata?.mcp_timeout_seconds}
+              >
                 <Input
                   type="number"
                   min={1}
@@ -680,7 +870,11 @@ export default function AdminControlsForm({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <FieldGroup label="Max Retries" field="mcp_max_retries">
+              <FieldGroup
+                label="Max Retries"
+                field="mcp_max_retries"
+                metadata={data.settings_metadata?.mcp_max_retries}
+              >
                 <Input
                   type="number"
                   min={0}
@@ -703,9 +897,9 @@ export default function AdminControlsForm({
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-              <StatusChip label="Allowed Actions" value={String(mcpAllowedCount)} ok={mcpAllowedCount > 0} />
-              <StatusChip label="Approval Needed" value={String(mcpApprovalCount)} ok={mcpApprovalCount > 0} />
-              <StatusChip label="Blocked Actions" value={String(mcpBlockedCount)} ok={mcpBlockedCount === 0 ? true : false} />
+              <StatusChip label="Effective Allowed" value={String(mcpAllowedCount)} ok={mcpAllowedCount > 0} />
+              <StatusChip label="Need Approval" value={String(mcpApprovalCount)} />
+              <StatusChip label="Effectively Blocked" value={String(mcpBlockedCount)} ok={mcpBlockedCount === 0} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
               <FieldGroup label="Policy: fetch_failure_context" field="mcp_tool_policies">
@@ -824,7 +1018,8 @@ export default function AdminControlsForm({
             <div className="space-y-3">
               <Label className="text-[var(--ph-text)]">Effective Tool Actions</Label>
               <p className="text-xs text-[var(--ph-muted)]">
-                This view combines global MCP toggles and per-tool policy to show what will happen at runtime.
+                Configured policy is shown separately from effective runtime behavior. Global
+                read-only or provider disablement can still block a write-capable tool.
               </p>
               <div className="space-y-2">
                 {mcpEffectivePolicies.map(({ tool, policy, effective }) => (
@@ -838,18 +1033,8 @@ export default function AdminControlsForm({
                         <p className="text-xs text-[var(--ph-muted)]">{tool.description}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline">{formatMcpPolicyLabel(policy)}</Badge>
-                        <Badge
-                          variant={
-                            effective.status === 'allowed'
-                              ? 'success'
-                              : effective.status === 'approval'
-                                ? 'secondary'
-                                : effective.status === 'inactive'
-                                  ? 'outline'
-                                  : 'destructive'
-                          }
-                        >
+                        <Badge variant="outline">Configured: {formatMcpPolicyLabel(policy)}</Badge>
+                        <Badge variant={effective.tone}>
                           {effective.summary}
                         </Badge>
                       </div>
@@ -1134,6 +1319,7 @@ export default function AdminControlsForm({
               onChange={(v) =>
                 setForm((p) => ({ ...p, verify_webhook_signature_in_development: v }))
               }
+              metadata={data.settings_metadata?.verify_webhook_signature_in_development}
             />
 
             {/* CORS read-only */}
@@ -1351,6 +1537,7 @@ export default function AdminControlsForm({
                     setForm(reset)
                     setLastSavedForm(reset)
                     setNewRepoInput('')
+                    setNewHandoffHostInput('')
                     setGhAwWorkflowsInput(reset.gh_aw_known_workflows.join(','))
                   }}
                 >
@@ -1396,18 +1583,29 @@ function InfoTip({ text }: { text: string }) {
 function FieldGroup({
   label,
   field,
+  metadata,
   children,
 }: {
   label: string
   field: string
+  metadata?: AppSettingMetadata
   children: React.ReactNode
 }) {
   const desc = SETTING_DESCRIPTIONS[field]
+  const durability = getDurabilityLabel(metadata)
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         <Label className="text-[var(--ph-text)]">{label}</Label>
         {desc && <InfoTip text={desc} />}
+        {metadata && (
+          <>
+            <Badge variant={settingSourceTone(metadata.source)}>
+              {formatSettingSource(metadata.source)}
+            </Badge>
+            {durability ? <Badge variant="outline">{durability}</Badge> : null}
+          </>
+        )}
       </div>
       {children}
     </div>
@@ -1419,20 +1617,33 @@ function SwitchField({
   field,
   checked,
   onChange,
+  metadata,
 }: {
   label: string
   field: string
   checked: boolean
   onChange: (v: boolean) => void
+  metadata?: AppSettingMetadata
 }) {
   const desc = SETTING_DESCRIPTIONS[field]
+  const durability = getDurabilityLabel(metadata)
   return (
     <div className="flex items-start gap-3 py-1">
       <Switch checked={checked} onCheckedChange={onChange} className="mt-0.5" />
       <div>
-        <Label className="text-[var(--ph-text)] cursor-pointer" onClick={() => onChange(!checked)}>
-          {label}
-        </Label>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Label className="text-[var(--ph-text)] cursor-pointer" onClick={() => onChange(!checked)}>
+            {label}
+          </Label>
+          {metadata && (
+            <>
+              <Badge variant={settingSourceTone(metadata.source)}>
+                {formatSettingSource(metadata.source)}
+              </Badge>
+              {durability ? <Badge variant="outline">{durability}</Badge> : null}
+            </>
+          )}
+        </div>
         {desc && <p className="text-xs text-[var(--ph-muted)] mt-0.5">{desc}</p>}
       </div>
     </div>

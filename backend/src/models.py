@@ -382,6 +382,8 @@ class AppSettingsView(BaseModel):
     agent_handoff_enabled: bool
     agent_handoff_mode: str
     agent_handoff_webhook_configured: bool
+    agent_handoff_webhook_host: str
+    agent_handoff_webhook_allowlist: list[str]
     agent_handoff_timeout_seconds: float
     agent_handoff_max_retries: int
     ph_allowed_repos: list[str]
@@ -405,6 +407,26 @@ class AppSettingsView(BaseModel):
     azure_openai_deployment_name: str
     azure_openai_api_version: str
     azure_openai_chat_api_version: str
+    settings_metadata: dict[str, "AppSettingMetadataView"] = Field(default_factory=dict)
+
+
+class AppSettingSource(StrEnum):
+    """Observable provenance categories for settings shown in the admin UI."""
+
+    DEFAULT = "default"
+    ENV = "env"
+    RUNTIME_OVERRIDE = "runtime_override"
+    PERSISTED_RUNTIME_OVERRIDE = "persisted_runtime_override"
+    COMPUTED = "computed"
+
+
+class AppSettingMetadataView(BaseModel):
+    """Operator-facing metadata about one exposed settings field."""
+
+    source: AppSettingSource
+    mutable: bool = False
+    requires_restart: bool = False
+    durable: bool = True
 
 
 class AdminSettingsUpdateRequest(BaseModel):
@@ -433,6 +455,11 @@ class AdminSettingsUpdateRequest(BaseModel):
     external_diagnostics_poll_interval_seconds: float | None = Field(
         default=None, gt=0.0, le=120.0
     )
+    agent_handoff_enabled: bool | None = None
+    agent_handoff_mode: str | None = None
+    agent_handoff_webhook_allowlist: list[str] | None = None
+    agent_handoff_timeout_seconds: float | None = Field(default=None, gt=0.0, le=30.0)
+    agent_handoff_max_retries: int | None = Field(default=None, ge=0, le=5)
     ph_allowed_repos: list[str] | None = None
     llm_provider: str | None = None
     openai_compatible_base_url: str | None = None

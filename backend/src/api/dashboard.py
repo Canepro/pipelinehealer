@@ -19,6 +19,8 @@ from ..config import get_settings
 from ..llm.adapters import get_llm_provider_adapter
 from ..models import (
     ActivityRecord,
+    AppSettingMetadataView,
+    AppSettingSource,
     AdminSettingsAuditEntry,
     AdminSettingsPersistRequest,
     AdminSettingsPersistResponse,
@@ -54,7 +56,10 @@ from .security import get_request_principal, require_admin_key, require_api_key
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["dashboard"], dependencies=[Depends(require_api_key)])
 _REPO_FULL_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+_HOSTNAME_RE = re.compile(r"^[a-z0-9.-]+$")
 _AGENT_HANDOFF_MAX_AUDIT_ENTRIES = 30
+_runtime_override_keys: set[str] = set()
+_persisted_runtime_override_keys: set[str] = set()
 
 
 def _normalize_repo_full_name(raw_value: Any) -> str:
@@ -113,6 +118,37 @@ def _normalize_allowed_repo_list(raw_repos: list[Any]) -> list[str]:
     return normalized
 
 
+def _normalize_hostname_allowlist(raw_hosts: list[Any]) -> list[str]:
+    """Normalize hostname allowlist entries while preserving insertion order."""
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw_host in raw_hosts:
+        host = str(raw_host).strip().lower()
+        if not host:
+            continue
+        if "://" in host or "/" in host or ":" in host or not _HOSTNAME_RE.fullmatch(host):
+            raise ValueError(
+                f"Invalid host '{raw_host}'; expected bare hostname like 'agent.example.com'"
+            )
+        if host in seen:
+            continue
+        seen.add(host)
+        normalized.append(host)
+    return normalized
+
+
+def _validate_handoff_webhook_url(value: Any) -> str:
+    """Normalize and validate Assign-to-Agent webhook URL when present."""
+    webhook_url = str(value).strip()
+    if not webhook_url:
+        return ""
+    parsed = urlparse(webhook_url)
+    host = (parsed.hostname or "").strip().lower()
+    if parsed.scheme not in {"http", "https"} or not host:
+        raise ValueError("agent_handoff_webhook_url must be a full http(s) URL")
+    return webhook_url
+
+
 def _get_storage_backend_name(storage: ActivityStorage | None) -> str:
     """Return a user-friendly name for the currently configured storage backend."""
     if storage is None:
@@ -147,6 +183,17 @@ def _safe_settings_allowlist(raw_repos: list[str]) -> list[str]:
     except ValueError:
         logger.warning("Invalid PH_ALLOWED_REPOS entry detected; exposing raw values in settings view")
         return [str(repo).strip() for repo in raw_repos if str(repo).strip()]
+
+
+def _safe_hostname_allowlist(raw_hosts: list[str]) -> list[str]:
+    """Best-effort normalization for hostname allowlists without crashing settings view."""
+    try:
+        return _normalize_hostname_allowlist(raw_hosts)
+    except ValueError:
+        logger.warning(
+            "Invalid AGENT_HANDOFF_WEBHOOK_ALLOWLIST entry detected; exposing raw values in settings view"
+        )
+        return [str(host).strip().lower() for host in raw_hosts if str(host).strip()]
 
 
 def _normalize_workflow_names(raw_workflows: list[Any]) -> list[str]:
@@ -198,10 +245,80 @@ def _resolve_github_auth_mode() -> tuple[bool, bool, str]:
     return has_pat, has_app, mode
 
 
+_COMPUTED_SETTINGS_FIELDS: frozenset[str] = frozenset(
+    {
+        "storage_mode",
+        "storage_backend",
+        "api_auth_enabled",
+        "admin_api_auth_enabled",
+        "entra_auth_enabled",
+        "github_pat_configured",
+        "github_app_configured",
+        "github_auth_mode",
+        "agent_handoff_webhook_configured",
+        "agent_handoff_webhook_host",
+        "openai_compatible_api_key_configured",
+    }
+)
+
+
+def _setting_source_for_attr(attr_name: str, startup_fields_set: set[str]) -> AppSettingSource:
+    """Resolve operator-visible provenance for one runtime settings attribute."""
+    if attr_name in _runtime_override_keys:
+        return AppSettingSource.RUNTIME_OVERRIDE
+    if attr_name in _persisted_runtime_override_keys:
+        return AppSettingSource.PERSISTED_RUNTIME_OVERRIDE
+    if attr_name in startup_fields_set:
+        return AppSettingSource.ENV
+    return AppSettingSource.DEFAULT
+
+
+def _build_settings_metadata() -> dict[str, AppSettingMetadataView]:
+    """Build per-field provenance metadata for the admin settings view."""
+    settings = get_settings()
+    startup_settings = type(settings)()
+    startup_fields_set = set(startup_settings.model_fields_set)
+    mutable_attr_names = {attr_name for attr_name, _ in _MUTABLE_SETTINGS_ENV_KEYS}
+    metadata: dict[str, AppSettingMetadataView] = {}
+
+    for field_name in AppSettingsView.model_fields:
+        if field_name == "settings_metadata":
+            continue
+        if field_name in _COMPUTED_SETTINGS_FIELDS:
+            metadata[field_name] = AppSettingMetadataView(
+                source=AppSettingSource.COMPUTED,
+                mutable=False,
+                requires_restart=False,
+                durable=True,
+            )
+            continue
+
+        if not hasattr(settings, field_name):
+            metadata[field_name] = AppSettingMetadataView(
+                source=AppSettingSource.COMPUTED,
+                mutable=False,
+                requires_restart=False,
+                durable=True,
+            )
+            continue
+
+        mutable = field_name in mutable_attr_names
+        source = _setting_source_for_attr(field_name, startup_fields_set)
+        metadata[field_name] = AppSettingMetadataView(
+            source=source,
+            mutable=mutable,
+            requires_restart=not mutable,
+            durable=source != AppSettingSource.RUNTIME_OVERRIDE,
+        )
+
+    return metadata
+
+
 def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsView:
     """Build the API response for settings from current runtime configuration."""
     settings = get_settings()
     has_pat, has_app, github_auth_mode = _resolve_github_auth_mode()
+    handoff_webhook_host = (urlparse(settings.agent_handoff_webhook_url).hostname or "").strip().lower()
 
     return AppSettingsView(
         environment=settings.environment,
@@ -242,6 +359,10 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         agent_handoff_enabled=settings.agent_handoff_enabled,
         agent_handoff_mode=settings.agent_handoff_mode,
         agent_handoff_webhook_configured=bool(settings.agent_handoff_webhook_url),
+        agent_handoff_webhook_host=handoff_webhook_host,
+        agent_handoff_webhook_allowlist=_safe_hostname_allowlist(
+            settings.agent_handoff_webhook_allowlist
+        ),
         agent_handoff_timeout_seconds=settings.agent_handoff_timeout_seconds,
         agent_handoff_max_retries=settings.agent_handoff_max_retries,
         ph_allowed_repos=_safe_settings_allowlist(settings.ph_allowed_repos),
@@ -265,6 +386,7 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         azure_openai_deployment_name=settings.azure_openai_deployment_name,
         azure_openai_api_version=settings.azure_openai_api_version,
         azure_openai_chat_api_version=settings.azure_openai_chat_api_version,
+        settings_metadata=_build_settings_metadata(),
     )
 
 
@@ -299,6 +421,11 @@ _MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = (
         "external_diagnostics_poll_interval_seconds",
         "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS",
     ),
+    ("agent_handoff_enabled", "AGENT_HANDOFF_ENABLED"),
+    ("agent_handoff_mode", "AGENT_HANDOFF_MODE"),
+    ("agent_handoff_webhook_allowlist", "AGENT_HANDOFF_WEBHOOK_ALLOWLIST"),
+    ("agent_handoff_timeout_seconds", "AGENT_HANDOFF_TIMEOUT_SECONDS"),
+    ("agent_handoff_max_retries", "AGENT_HANDOFF_MAX_RETRIES"),
     ("ph_allowed_repos", "PH_ALLOWED_REPOS"),
     ("llm_provider", "LLM_PROVIDER"),
     ("openai_compatible_base_url", "OPENAI_COMPATIBLE_BASE_URL"),
@@ -320,6 +447,12 @@ _MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = (
 def clear_admin_settings_audit() -> None:
     """Clear in-memory admin settings audit log (useful for tests)."""
     _admin_settings_audit.clear()
+
+
+def clear_settings_runtime_provenance() -> None:
+    """Clear in-process runtime provenance markers (useful for tests)."""
+    _runtime_override_keys.clear()
+    _persisted_runtime_override_keys.clear()
 
 
 def _build_admin_settings_actor_fingerprint(
@@ -739,8 +872,15 @@ def _mutable_runtime_settings_snapshot() -> dict[str, Any]:
     values: dict[str, Any] = {}
     for attr_name, _ in _MUTABLE_SETTINGS_ENV_KEYS:
         raw = getattr(settings, attr_name)
-        if attr_name in {"ph_allowed_repos", "mcp_repo_allowlist"}:
-            values[attr_name] = _safe_settings_allowlist(raw)
+        if attr_name in {
+            "ph_allowed_repos",
+            "mcp_repo_allowlist",
+            "agent_handoff_webhook_allowlist",
+        }:
+            if attr_name == "agent_handoff_webhook_allowlist":
+                values[attr_name] = _safe_hostname_allowlist(raw)
+            else:
+                values[attr_name] = _safe_settings_allowlist(raw)
         elif attr_name == "mcp_tool_policies":
             values[attr_name] = _normalize_mcp_tool_policies(raw)
         elif attr_name == "gh_aw_known_workflows":
@@ -755,7 +895,12 @@ def _runtime_settings_to_env_values(runtime_values: dict[str, Any]) -> dict[str,
     values: dict[str, str] = {}
     for attr_name, env_key in _MUTABLE_SETTINGS_ENV_KEYS:
         raw = runtime_values[attr_name]
-        if attr_name in {"ph_allowed_repos", "gh_aw_known_workflows", "mcp_repo_allowlist"}:
+        if attr_name in {
+            "ph_allowed_repos",
+            "gh_aw_known_workflows",
+            "mcp_repo_allowlist",
+            "agent_handoff_webhook_allowlist",
+        }:
             values[env_key] = ",".join(raw)
         elif attr_name == "mcp_tool_policies":
             if not raw:
@@ -833,6 +978,7 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         "auto_create_tracking_issue_for_prs",
         "verify_webhook_signature_in_development",
         "gh_aw_tools_enabled",
+        "agent_handoff_enabled",
         "mcp_enabled",
         "mcp_read_only",
     }:
@@ -843,6 +989,7 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         "log_prompt_max_chars",
         "log_prompt_head_chars",
         "log_prompt_tail_chars",
+        "agent_handoff_max_retries",
         "mcp_max_retries",
     }:
         return int(value)
@@ -850,6 +997,7 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         "pipeline_step_timeout_seconds",
         "github_api_retry_base_seconds",
         "github_api_retry_max_seconds",
+        "agent_handoff_timeout_seconds",
         "mcp_timeout_seconds",
     }:
         return float(value)
@@ -872,6 +1020,15 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         if not isinstance(value, list):
             raise ValueError("invalid gh_aw_known_workflows")
         return _normalize_workflow_names(value)
+    if attr_name == "agent_handoff_mode":
+        normalized = str(value).strip().lower()
+        if normalized not in {"copy_only", "webhook"}:
+            raise ValueError("invalid agent_handoff_mode")
+        return normalized
+    if attr_name == "agent_handoff_webhook_allowlist":
+        if not isinstance(value, list):
+            raise ValueError("invalid agent_handoff_webhook_allowlist")
+        return _normalize_hostname_allowlist(value)
     if attr_name == "ph_allowed_repos":
         if not isinstance(value, list):
             raise ValueError("invalid ph_allowed_repos")
@@ -922,6 +1079,7 @@ async def apply_persisted_runtime_settings(
 
     settings = get_settings()
     changed_keys: list[str] = []
+    applied_keys: set[str] = set()
     for attr_name, _ in _MUTABLE_SETTINGS_ENV_KEYS:
         if attr_name not in persisted:
             continue
@@ -935,6 +1093,7 @@ async def apply_persisted_runtime_settings(
             continue
         setattr(settings, attr_name, normalized)
         changed_keys.append(attr_name)
+        applied_keys.add(attr_name)
 
     if (
         settings.external_diagnostics_wait_seconds > 0
@@ -957,6 +1116,9 @@ async def apply_persisted_runtime_settings(
             "Applied persisted runtime settings from storage",
             extra={"changed_keys": sorted(changed_keys)},
         )
+    if applied_keys:
+        _runtime_override_keys.difference_update(applied_keys)
+        _persisted_runtime_override_keys.update(applied_keys)
 
 
 def _truncate_output(raw: str, limit: int = 280) -> str:
@@ -1168,6 +1330,43 @@ async def update_app_settings(
             raise HTTPException(status_code=422, detail="gh_aw_known_workflows must be a list")
         changes["gh_aw_known_workflows"] = _normalize_workflow_names(workflows)
 
+    if "agent_handoff_mode" in changes:
+        handoff_mode = str(changes["agent_handoff_mode"]).strip().lower()
+        if handoff_mode not in {"copy_only", "webhook"}:
+            raise HTTPException(
+                status_code=422,
+                detail="agent_handoff_mode must be one of: copy_only, webhook",
+            )
+        changes["agent_handoff_mode"] = handoff_mode
+
+    if "agent_handoff_webhook_allowlist" in changes:
+        allowlist = changes["agent_handoff_webhook_allowlist"]
+        if not isinstance(allowlist, list):
+            raise HTTPException(
+                status_code=422,
+                detail="agent_handoff_webhook_allowlist must be a list",
+            )
+        try:
+            changes["agent_handoff_webhook_allowlist"] = _normalize_hostname_allowlist(allowlist)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    effective_handoff_webhook_url = _validate_handoff_webhook_url(settings.agent_handoff_webhook_url)
+    effective_handoff_allowlist = changes.get(
+        "agent_handoff_webhook_allowlist",
+        _safe_hostname_allowlist(settings.agent_handoff_webhook_allowlist),
+    )
+    if effective_handoff_webhook_url and effective_handoff_allowlist:
+        effective_host = (urlparse(effective_handoff_webhook_url).hostname or "").strip().lower()
+        if not _is_allowed_handoff_host(effective_host, effective_handoff_allowlist):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "agent_handoff_webhook_allowlist must include the configured "
+                    "AGENT_HANDOFF_WEBHOOK_URL host"
+                ),
+            )
+
     # External diagnostics fast-path settings:
     # keep waits bounded and ensure poll interval does not exceed wait budget
     # unless wait is explicitly 0 (fully async mode).
@@ -1262,6 +1461,8 @@ async def update_app_settings(
     previous_values = {key: getattr(settings, key, None) for key in changes}
     for key, value in changes.items():
         setattr(settings, key, value)
+        _persisted_runtime_override_keys.discard(key)
+        _runtime_override_keys.add(key)
 
     workflow.refresh_runtime_settings()
 

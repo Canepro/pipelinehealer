@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 310d40e -->
+<!-- LAST_VERIFIED: db215f0 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -555,6 +555,10 @@ Returns failure count breakdown by type for a given time window.
 
 Returns the current runtime configuration (non-secret values only).
 
+The payload now includes a `settings_metadata` map so the operator surface can distinguish
+configured value from effective provenance. Source values are app-observable categories only:
+`default`, `env`, `runtime_override`, `persisted_runtime_override`, and `computed`.
+
 **Auth**: `X-API-Key` + `X-Admin-Key`
 
 **Response** `200 OK` (`AppSettingsView`):
@@ -611,6 +615,8 @@ Returns the current runtime configuration (non-secret values only).
   "agent_handoff_enabled": false,
   "agent_handoff_mode": "copy_only",
   "agent_handoff_webhook_configured": false,
+  "agent_handoff_webhook_host": "",
+  "agent_handoff_webhook_allowlist": [],
   "agent_handoff_timeout_seconds": 8.0,
   "agent_handoff_max_retries": 1,
   "cors_allowed_origins": ["http://localhost:3000", "http://localhost:5173"],
@@ -621,9 +627,34 @@ Returns the current runtime configuration (non-secret values only).
   "azure_openai_chat_api_version": "2024-12-01-preview",
   "openai_compatible_base_url": "",
   "openai_compatible_model": "",
-  "openai_compatible_api_key_configured": false
+  "openai_compatible_api_key_configured": false,
+  "settings_metadata": {
+    "heal_mode": {
+      "source": "env",
+      "mutable": true,
+      "requires_restart": false,
+      "durable": true
+    },
+    "storage_mode": {
+      "source": "computed",
+      "mutable": false,
+      "requires_restart": false,
+      "durable": true
+    },
+    "agent_handoff_enabled": {
+      "source": "runtime_override",
+      "mutable": true,
+      "requires_restart": false,
+      "durable": false
+    }
+  }
 }
 ```
+
+Notes:
+- `agent_handoff_webhook_host` exposes only the configured destination hostname; the full webhook URL remains startup-only configuration in this release.
+- `settings_metadata.<field>.durable=false` means the current value only exists in this running process until `POST /api/settings/persist` is called.
+- `computed` fields are derived status/projection values, not directly mutable settings.
 
 #### `PATCH /api/settings`
 
@@ -683,6 +714,11 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 | `gh_aw_known_workflows` | list[string] | Workflow names to detect (e.g. `ci-doctor`, `schema-consistency-checker`) |
 | `external_diagnostics_wait_seconds` | float | 0–900 (set `0` for fully async diagnostics/backfill) |
 | `external_diagnostics_poll_interval_seconds` | float | >0–120; must be `<= external_diagnostics_wait_seconds` when wait budget is enabled |
+| `agent_handoff_enabled` | bool | Enable/disable Assign-to-Agent runtime path |
+| `agent_handoff_mode` | string | `copy_only` or `webhook` |
+| `agent_handoff_webhook_allowlist` | list[string] | Bare hostnames only; must include the configured webhook destination host when a startup URL is present |
+| `agent_handoff_timeout_seconds` | float | >0–30 |
+| `agent_handoff_max_retries` | int | 0–5 |
 | `azure_openai_deployment_name` | string | Non-empty; switches AI model deployment at runtime |
 | `llm_provider` | string | `azure_openai`, `openai_compatible`, or `custom` |
 | `openai_compatible_base_url` | string | Required when `llm_provider=openai_compatible`; must be `http(s)://...` |
@@ -701,6 +737,7 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 **Validation**:
 - `log_prompt_head_chars + log_prompt_tail_chars` must be `<= log_prompt_max_chars`.
 - `external_diagnostics_poll_interval_seconds` must be `<= external_diagnostics_wait_seconds` when wait budget is enabled (`wait > 0`).
+- `agent_handoff_webhook_allowlist` must contain only bare hostnames and must include the configured `AGENT_HANDOFF_WEBHOOK_URL` host when that startup-only URL is set.
 - `mcp_tool_policies` must use supported policy modes only (`disabled`, `read_only`, `write_with_approval`, `auto`).
 
 **Response** `200 OK`: updated `AppSettingsView` (same shape as GET).
