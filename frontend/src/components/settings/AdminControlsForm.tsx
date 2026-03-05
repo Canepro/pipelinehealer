@@ -134,22 +134,23 @@ function parseWebhookUrlInput(value: string): { url: string; host: string } | nu
   }
 }
 
-function buildHandoffSamplePayload(candidateUrl: string) {
+function buildHandoffSamplePayload() {
   return JSON.stringify(
     {
       delivery_id: 'handoff:test-delivery',
       request_id: 'ph-settings-smoke-test',
       activity: {
         id: 'activity-demo-123',
-        repository_name: 'canepro/pipelinehealer-demo',
+        repository: 'canepro/pipelinehealer-demo',
         workflow_name: 'CI',
+        workflow_run_id: 1234567890,
         status: 'failed',
+        failure_type: null,
       },
       context_format: 'markdown',
       context:
         '## PipelineHealer handoff smoke test\n\nThis is a generated sample payload for validating the receiver contract.',
       sent_at: '2026-03-05T22:30:00Z',
-      target_url: candidateUrl,
     },
     null,
     2
@@ -305,9 +306,7 @@ export default function AdminControlsForm({
         `AGENT_HANDOFF_MAX_RETRIES=${form.agent_handoff_max_retries}`,
       ].join('\n')
     : ''
-  const handoffSamplePayload = handoffWebhookDraft
-    ? buildHandoffSamplePayload(handoffWebhookDraft.url)
-    : ''
+  const handoffSamplePayload = handoffWebhookDraft ? buildHandoffSamplePayload() : ''
   const handoffSmokeCurl = handoffWebhookDraft
     ? [
         'curl -X POST \\',
