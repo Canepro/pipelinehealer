@@ -141,6 +141,7 @@ export interface AppSettings {
   heal_mode: string
   auto_apply_remediation: boolean
   auto_create_pr: boolean
+  jenkins_bridge_allow_pr: boolean
   auto_create_issue: boolean
   auto_retry_workflow: boolean
   auto_create_tracking_issue_for_prs: boolean
@@ -248,6 +249,7 @@ export interface AdminSettingsUpdate {
   heal_mode?: 'safe' | 'demo' | 'freestyle' | 'debug'
   auto_apply_remediation?: boolean
   auto_create_pr?: boolean
+  jenkins_bridge_allow_pr?: boolean
   auto_create_issue?: boolean
   auto_retry_workflow?: boolean
   auto_create_tracking_issue_for_prs?: boolean

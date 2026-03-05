@@ -25,6 +25,14 @@ export default function RuntimePolicyBanner({
               <Badge variant={data.auto_create_pr ? 'destructive' : 'success'}>
                 PR: {data.auto_create_pr ? 'ON' : 'OFF'}
               </Badge>
+              <Badge
+                variant={
+                  data.auto_create_pr && data.jenkins_bridge_allow_pr ? 'destructive' : 'success'
+                }
+              >
+                Jenkins Bridge PR:{' '}
+                {data.auto_create_pr && data.jenkins_bridge_allow_pr ? 'ON' : 'Issue-first'}
+              </Badge>
               <Badge variant={data.auto_create_issue ? 'destructive' : 'success'}>
                 Issue: {data.auto_create_issue ? 'ON' : 'OFF'}
               </Badge>

@@ -17,6 +17,7 @@ export type SettingsFormState = {
   heal_mode: 'safe' | 'demo' | 'freestyle' | 'debug'
   auto_apply_remediation: boolean
   auto_create_pr: boolean
+  jenkins_bridge_allow_pr: boolean
   auto_create_issue: boolean
   auto_retry_workflow: boolean
   auto_create_tracking_issue_for_prs: boolean
@@ -134,6 +135,7 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
           : 'safe',
   auto_apply_remediation: data.auto_apply_remediation,
   auto_create_pr: data.auto_create_pr,
+  jenkins_bridge_allow_pr: data.jenkins_bridge_allow_pr ?? false,
   auto_create_issue: data.auto_create_issue,
   auto_retry_workflow: data.auto_retry_workflow,
   auto_create_tracking_issue_for_prs: data.auto_create_tracking_issue_for_prs,
@@ -200,6 +202,8 @@ export const SETTING_DESCRIPTIONS: Record<string, string> = {
     'Global execution gate. When off, PipelineHealer runs in dry-run plan mode and does not publish PRs/issues or retry workflows.',
   auto_create_pr:
     'Allows PipelineHealer to publish pull request artifacts when remediation selects create_pr.',
+  jenkins_bridge_allow_pr:
+    'Jenkins bridge-specific PR gate. Requires Auto-Create PR to be enabled; when off, Jenkins bridge events stay issue-first.',
   auto_create_issue:
     'Allows PipelineHealer to publish issue artifacts when remediation selects create_issue or notify.',
   auto_retry_workflow:

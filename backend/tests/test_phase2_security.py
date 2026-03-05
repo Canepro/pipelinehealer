@@ -876,6 +876,7 @@ async def test_admin_patch_accepts_freestyle_and_runtime_action_toggles(monkeypa
             "heal_mode": "freestyle",
             "auto_apply_remediation": False,
             "auto_create_pr": False,
+            "jenkins_bridge_allow_pr": True,
             "auto_create_issue": True,
             "auto_retry_workflow": False,
         },
@@ -886,6 +887,7 @@ async def test_admin_patch_accepts_freestyle_and_runtime_action_toggles(monkeypa
     assert body["heal_mode"] == "freestyle"
     assert body["auto_apply_remediation"] is False
     assert body["auto_create_pr"] is False
+    assert body["jenkins_bridge_allow_pr"] is True
     assert body["auto_create_issue"] is True
     assert body["auto_retry_workflow"] is False
 
@@ -901,6 +903,7 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
         "HEAL_MODE=safe\n"
         "AUTO_APPLY_REMEDIATION=true\n"
         "AUTO_CREATE_PR=true\n"
+        "JENKINS_BRIDGE_ALLOW_PR=false\n"
         "AUTO_CREATE_ISSUE=true\n"
         "AUTO_RETRY_WORKFLOW=true\n"
         "GH_AW_TOOLS_ENABLED=false\n"
@@ -917,6 +920,7 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
             "heal_mode": "freestyle",
             "auto_apply_remediation": True,
             "auto_create_pr": False,
+            "jenkins_bridge_allow_pr": True,
             "auto_create_issue": False,
             "auto_retry_workflow": False,
             "auto_create_tracking_issue_for_prs": False,
@@ -972,6 +976,7 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
     assert "HEAL_MODE=freestyle" in persisted_text
     assert "AUTO_APPLY_REMEDIATION=true" in persisted_text
     assert "AUTO_CREATE_PR=false" in persisted_text
+    assert "JENKINS_BRIDGE_ALLOW_PR=true" in persisted_text
     assert "AUTO_CREATE_ISSUE=false" in persisted_text
     assert "AUTO_RETRY_WORKFLOW=false" in persisted_text
     assert "AUTO_CREATE_TRACKING_ISSUE_FOR_PRS=false" in persisted_text

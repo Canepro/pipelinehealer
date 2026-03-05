@@ -207,6 +207,7 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         heal_mode=settings.heal_mode,
         auto_apply_remediation=settings.auto_apply_remediation,
         auto_create_pr=settings.auto_create_pr,
+        jenkins_bridge_allow_pr=settings.jenkins_bridge_allow_pr,
         auto_create_issue=settings.auto_create_issue,
         auto_retry_workflow=settings.auto_retry_workflow,
         auto_create_tracking_issue_for_prs=settings.auto_create_tracking_issue_for_prs,
@@ -271,6 +272,7 @@ _MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = (
     ("heal_mode", "HEAL_MODE"),
     ("auto_apply_remediation", "AUTO_APPLY_REMEDIATION"),
     ("auto_create_pr", "AUTO_CREATE_PR"),
+    ("jenkins_bridge_allow_pr", "JENKINS_BRIDGE_ALLOW_PR"),
     ("auto_create_issue", "AUTO_CREATE_ISSUE"),
     ("auto_retry_workflow", "AUTO_RETRY_WORKFLOW"),
     ("auto_create_tracking_issue_for_prs", "AUTO_CREATE_TRACKING_ISSUE_FOR_PRS"),
@@ -822,6 +824,7 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
     if attr_name in {
         "auto_apply_remediation",
         "auto_create_pr",
+        "jenkins_bridge_allow_pr",
         "auto_create_issue",
         "auto_retry_workflow",
         "auto_create_tracking_issue_for_prs",

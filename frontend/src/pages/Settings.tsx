@@ -44,6 +44,7 @@ export default function SettingsPage() {
     heal_mode: 'safe',
     auto_apply_remediation: true,
     auto_create_pr: true,
+    jenkins_bridge_allow_pr: false,
     auto_create_issue: true,
     auto_retry_workflow: true,
     auto_create_tracking_issue_for_prs: true,
@@ -139,6 +140,7 @@ export default function SettingsPage() {
         heal_mode: form.heal_mode,
         auto_apply_remediation: form.auto_apply_remediation,
         auto_create_pr: form.auto_create_pr,
+        jenkins_bridge_allow_pr: form.jenkins_bridge_allow_pr,
         auto_create_issue: form.auto_create_issue,
         auto_retry_workflow: form.auto_retry_workflow,
         auto_create_tracking_issue_for_prs: form.auto_create_tracking_issue_for_prs,
@@ -376,6 +378,10 @@ export default function SettingsPage() {
                   value: data.auto_apply_remediation ? 'Yes' : 'No',
                 },
                 { label: 'Auto-create PR', value: data.auto_create_pr ? 'Yes' : 'No' },
+                {
+                  label: 'Jenkins bridge PRs',
+                  value: data.jenkins_bridge_allow_pr ? 'Allowed' : 'Issue-first',
+                },
                 { label: 'Auto-create Issue', value: data.auto_create_issue ? 'Yes' : 'No' },
                 {
                   label: 'Auto-retry workflow',
