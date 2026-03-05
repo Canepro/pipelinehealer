@@ -29,7 +29,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Canary scope expanded (issue-only safe mode) to `canepro/portfolio_website-main`, `canepro/rocketchat-k8s`, and `canepro/central-observability-hub-stack`; Jenkins-primary repo coverage gap identified and now tracked as bridge-first plan (`DP-003`, `BL-034`, target `v0.3.2`)
 - Release planning split is active:
   - `v0.3.0` scope tracking issue: [#43](https://github.com/Canepro/pipelinehealer/issues/43) (`BL-036` + `BL-038`)
-- `v0.3.2` scope tracking issue: [#44](https://github.com/Canepro/pipelinehealer/issues/44) (required: `BL-034` + `BL-039` + `BL-045`; `BL-046` shipped in `v0.3.2` via PR [#61](https://github.com/Canepro/pipelinehealer/pull/61))
+  - `v0.3.2` scope tracking issue: [#44](https://github.com/Canepro/pipelinehealer/issues/44) (required: `BL-034` + `BL-039` + `BL-045`; `BL-046` shipped in `v0.3.2` via PR [#61](https://github.com/Canepro/pipelinehealer/pull/61))
 - `v0.3.2` freeze guardrails are now explicit:
   - required scope locked to `#36/#42/#57` for submission reliability
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
