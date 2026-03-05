@@ -104,6 +104,25 @@ def _count_error_diagnostics(diagnostics: list[ExternalDiagnostic]) -> int:
     return sum(1 for diagnostic in diagnostics if diagnostic.status == ExternalDiagnosticStatus.ERROR)
 
 
+def _job_display_name(job: dict[str, Any]) -> str:
+    """Return a stable display name for a GitHub Actions job."""
+    return str(job.get("name", "unknown")).strip() or "unknown"
+
+
+def _check_run_id_for_job(job: dict[str, Any]) -> int | None:
+    """Extract the associated check-run ID from a workflow job payload."""
+    job_id = job.get("id")
+    if isinstance(job_id, int) and job_id > 0:
+        return job_id
+    check_run_url = job.get("check_run_url")
+    if not isinstance(check_run_url, str) or not check_run_url.strip():
+        return None
+    try:
+        return int(check_run_url.rstrip("/").rsplit("/", 1)[-1])
+    except (TypeError, ValueError):
+        return None
+
+
 def _decode_github_file_content(payload: dict[str, Any]) -> str:
     """Decode GitHub contents API payload into UTF-8 text."""
     content = payload.get("content")
@@ -794,18 +813,63 @@ class OrchestratorAgent:
             ]
 
         failed_jobs = []
+        cancelled_jobs: list[dict[str, Any]] = []
         timed_out_jobs = 0
         failed_job_lines: list[str] = []
         for job in jobs:
             conclusion = str(job.get("conclusion", "")).strip().lower()
-            if conclusion not in {"failure", "timed_out"}:
+            if conclusion not in {"failure", "timed_out", "cancelled"}:
                 continue
             failed_jobs.append(job)
             if conclusion == "timed_out":
                 timed_out_jobs += 1
-            job_name = str(job.get("name", "unknown")).strip() or "unknown"
-            failed_job_lines.append(f"- {job_name} ({conclusion})")
-            if len(failed_job_lines) >= 12:
+            if conclusion == "cancelled":
+                cancelled_jobs.append(job)
+            job_name = _job_display_name(job)
+            if len(failed_job_lines) < 12:
+                failed_job_lines.append(f"- {job_name} ({conclusion})")
+
+        runner_acquisition_jobs: list[str] = []
+        runner_acquisition_messages: list[str] = []
+        for job in cancelled_jobs[:6]:
+            check_run_id = _check_run_id_for_job(job)
+            if check_run_id is None:
+                continue
+            try:
+                annotations = await self._run_mcp_tool_call(
+                    activity,
+                    tool_name="fetch_failure_context",
+                    payload={
+                        **payload_base,
+                        "operation": "get_check_run_annotations",
+                        "check_run_id": check_run_id,
+                    },
+                    operation_factory=partial(
+                        self._github_tools.get_check_run_annotations,
+                        owner,
+                        repo,
+                        check_run_id,
+                    ),
+                )
+            except Exception:
+                logger.debug(
+                    "GitHub MCP context: unable to read annotations for %s/%s check run %s",
+                    owner,
+                    repo,
+                    check_run_id,
+                    exc_info=True,
+                )
+                continue
+
+            for annotation in annotations:
+                message = str(annotation.get("message", "")).strip()
+                if not message:
+                    continue
+                if "not acquired by Runner of type hosted" not in message:
+                    continue
+                runner_acquisition_jobs.append(_job_display_name(job))
+                if message not in runner_acquisition_messages:
+                    runner_acquisition_messages.append(message)
                 break
 
         pull_request_numbers: list[int] = []
@@ -860,6 +924,8 @@ class OrchestratorAgent:
             confidence_components.append(("failed_jobs_detected", 0.04))
         if timed_out_jobs:
             confidence_components.append(("timed_out_jobs_detected", 0.02))
+        if runner_acquisition_jobs:
+            confidence_components.append(("runner_acquisition_failure_detected", 0.05))
         if pull_request_numbers:
             confidence_components.append(("related_pull_requests", 0.02))
         if unique_changed_files:
@@ -875,7 +941,7 @@ class OrchestratorAgent:
         details: dict[str, str] = {
             "summary": (
                 f"Collected GitHub MCP run context for run #{run_id}: "
-                f"{len(jobs)} job(s), {len(failed_jobs)} failing/timed-out, "
+                f"{len(jobs)} job(s), {len(failed_jobs)} failing/timed-out/cancelled, "
                 f"{len(pull_request_numbers)} related PR(s)."
             ),
             "root_cause": (
@@ -885,7 +951,8 @@ class OrchestratorAgent:
             "investigation_findings": (
                 f"Head branch: {event.workflow_run.head_branch or 'unknown'}\n"
                 f"Run attempt: {run_details.get('run_attempt', event.workflow_run.run_attempt)}\n"
-                f"Timed-out jobs: {timed_out_jobs}"
+                f"Timed-out jobs: {timed_out_jobs}\n"
+                f"Cancelled jobs: {len(cancelled_jobs)}"
             ),
             "recommended_actions": (
                 "- Inspect failing jobs first.\n"
@@ -895,6 +962,11 @@ class OrchestratorAgent:
         }
         if failed_job_lines:
             details["failed_jobs"] = "\n".join(failed_job_lines)
+        if runner_acquisition_messages:
+            details["infrastructure_findings"] = (
+                "GitHub Actions infrastructure annotations:\n"
+                + "\n".join(f"- {message}" for message in runner_acquisition_messages)
+            )
         if unique_changed_files:
             details["historical_context"] = (
                 "Changed files linked to this run:\n"
@@ -907,7 +979,7 @@ class OrchestratorAgent:
                 status=ExternalDiagnosticStatus.AVAILABLE,
                 summary=(
                     "GitHub MCP context captured: "
-                    f"{len(jobs)} job(s), {len(failed_jobs)} failing/timed-out, "
+                    f"{len(jobs)} job(s), {len(failed_jobs)} failing/timed-out/cancelled, "
                     f"{len(pull_request_numbers)} related PR(s)."
                 ),
                 url=(
@@ -926,14 +998,48 @@ class OrchestratorAgent:
                     "jobs_total": len(jobs),
                     "failed_jobs_count": len(failed_jobs),
                     "timed_out_jobs_count": timed_out_jobs,
+                    "cancelled_jobs_count": len(cancelled_jobs),
                     "failed_jobs": failed_job_lines,
                     "pull_request_numbers": pull_request_numbers,
                     "changed_files": unique_changed_files,
+                    "runner_acquisition_failed_jobs": runner_acquisition_jobs,
+                    "runner_acquisition_messages": runner_acquisition_messages,
                     "run_attempt": run_details.get("run_attempt", event.workflow_run.run_attempt),
                     "details": details,
                 },
             )
         ]
+        if runner_acquisition_jobs:
+            diagnostics.append(
+                ExternalDiagnostic(
+                    source="github-mcp",
+                    status=ExternalDiagnosticStatus.AVAILABLE,
+                    summary=(
+                        "GitHub Actions hosted runner acquisition failed for: "
+                        + ", ".join(runner_acquisition_jobs[:6])
+                    ),
+                    url=(
+                        str(run_details.get("html_url"))
+                        if run_details.get("html_url")
+                        else event.workflow_run.html_url
+                    ),
+                    matched_run_id=run_id,
+                    confidence_delta=0.0,
+                    metadata={
+                        "reason_code": "github_runner_acquisition_failed",
+                        "confidence_reason": (
+                            "GitHub check-run annotations show hosted runners were not acquired."
+                        ),
+                        "failed_jobs": runner_acquisition_jobs,
+                        "messages": runner_acquisition_messages,
+                        "details": {
+                            "failing_job": ", ".join(runner_acquisition_jobs[:3]),
+                            "reason_code": "github_runner_acquisition_failed",
+                            "signal": "github_runner_acquisition_failed",
+                        },
+                    },
+                )
+            )
         diagnostics.extend(
             await self._collect_runbook_context_from_github_mcp(
                 activity,

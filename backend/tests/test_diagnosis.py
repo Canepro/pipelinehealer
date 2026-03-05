@@ -389,3 +389,31 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.diagnosis_source == DiagnosisSource.PATTERN
         assert diagnosis.confidence >= 0.8
         assert diagnosis.error_details.get("external_signal_confidence_delta") == pytest.approx(0.04)
+
+    @pytest.mark.asyncio
+    async def test_external_runner_acquisition_signal_produces_diagnosis_without_logs(self) -> None:
+        """Use external diagnostics to classify infra-side runner acquisition failures when logs are absent."""
+        diagnosis = await self.agent.diagnose(
+            [],
+            external_diagnostics=[
+                ExternalDiagnostic(
+                    source="github-mcp",
+                    status=ExternalDiagnosticStatus.AVAILABLE,
+                    summary="GitHub Actions hosted runner acquisition failed for: Frontend Lint and Build",
+                    metadata={
+                        "reason_code": "github_runner_acquisition_failed",
+                        "failed_jobs": ["Frontend Lint and Build", "Version Sync"],
+                        "messages": [
+                            "The job was not acquired by Runner of type hosted even after multiple attempts"
+                        ],
+                    },
+                )
+            ],
+        )
+
+        assert diagnosis.failure_type == FailureType.BUILD_CONFIG
+        assert diagnosis.diagnosis_source == DiagnosisSource.PATTERN
+        assert diagnosis.confidence == pytest.approx(0.88)
+        assert "hosted runner" in diagnosis.root_cause
+        assert diagnosis.error_details.get("reason_code") == "github_runner_acquisition_failed"
+        assert diagnosis.error_details.get("infrastructure_failure") is True

@@ -270,6 +270,28 @@ class GitHubTools:
         )
         return response.text
 
+    async def get_check_run_annotations(
+        self,
+        owner: str,
+        repo: str,
+        check_run_id: int,
+    ) -> list[dict[str, Any]]:
+        """Get annotations for a specific check run.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            check_run_id: GitHub check run ID
+
+        Returns:
+            List of check-run annotation objects
+        """
+        response = await self._request(
+            "GET",
+            f"/repos/{owner}/{repo}/check-runs/{check_run_id}/annotations",
+        )
+        return cast(list[dict[str, Any]], response.json())
+
     async def get_failed_jobs_logs(
         self,
         owner: str,
