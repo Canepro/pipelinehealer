@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 310d40e -->
+<!-- LAST_VERIFIED: 41575cf -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -38,6 +38,8 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.2.11` | Released | Runtime control-surface separation + canary policy hardening + Kubernetes pullability docs clarity |
 | `v0.3.0` | Released | Activity Detail AI handoff UX baseline (`Copy Context` + disabled `Assign to Agent`) + anonymous GHCR pullability gate hardening |
 | `v0.3.1` | Released | Frontend runtime-config decoupling for containerized `VITE_*` settings + deploy/workflow/docs alignment |
+| `v0.3.2` | Released | Jenkins bridge + Assign-to-Agent activation + storage posture hardening + PostgreSQL adapter |
+| `v0.3.3` | Released | Landing-page polish + release/deploy alignment to ACA and Helm `0.3.3` |
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
@@ -219,77 +221,39 @@ Theme: operator handoff UX baseline + Kubernetes portability release hardening.
 4. No regressions in existing Activity Detail actions (`Retry`, `Backfill Diagnostics`).
 5. Release docs and changelog match shipped behavior.
 
-## Active Target: `v0.3.2` (Minor)
+## Released Target: `v0.3.2` (Minor)
 
 Theme: integration activation for non-GitHub CI ingestion and agent handoff.
 
-### Must-Have Scope
+### Delivered Scope
 
 1. Jenkins bridge ingestion (`BL-034`)
-   - Add signed ingestion path for external CI failures (Jenkins) into PipelineHealer activity pipeline.
-   - Normalize payload shape (`repo`, `sha`, `branch`, `job_url`, `failed_stage`, compact logs, timestamp).
+   - Added signed ingestion path for external CI failures (Jenkins) into PipelineHealer activity pipeline.
+   - Normalized payload shape (`repo`, `sha`, `branch`, `job_url`, `failed_stage`, compact logs, timestamp).
 2. `Assign to Agent` functional handoff (`BL-039`)
-   - Activate the `Coming Soon` control with configured handoff modes (`copy_only`/`webhook`).
-   - Keep disabled-by-default runtime behavior and auditable request correlation.
+   - Activated configurable handoff modes (`copy_only`/`webhook`) with audited controls.
 3. Storage posture hardening (`BL-045`)
-   - Enforce explicit storage mode contract and non-development durability guardrails.
-   - Fail fast in non-development when durable storage is required but not configured.
-   - Preserve explicit local/demo in-memory opt-in with operator-visible active backend surface.
-4. Governance and operator verification
-   - Require allowlist, signing, and replay guardrails for bridge/handoff paths.
-   - Add CLI/runbook checks for integration health and failure diagnostics.
-
-### Extended Scope (Implemented After Must-Have Scope)
-
-1. OSS-friendly PostgreSQL durable adapter (`BL-046`)
+   - Enforced explicit storage mode contract and non-development durability guardrails.
+   - Added fail-fast behavior in non-development when durable storage is required but missing.
+4. OSS-friendly PostgreSQL durable adapter (`BL-046`)
    - Added `PostgresStorage` as an adapter-only implementation path.
    - Kept orchestration/core workflow logic backend-agnostic.
-   - Added parity and selection tests plus bootstrap SQL + docs updates.
-   - Implementation tracked in PR `#61`; issue `#58` closes on merge.
 
-### Exit Criteria
+## Released Target: `v0.3.3` (Patch)
 
-1. Jenkins payloads can create auditable activities without GitHub `workflow_run`.
-2. Assign-to-Agent handoff is functional when configured and safe when not configured.
-3. Non-development deploys cannot run accidentally on ephemeral in-memory storage.
-4. Integration failures are non-blocking for core activity workflows.
-5. API/docs/runbooks are aligned with shipped integration behavior.
+Theme: release-quality polish and presentation alignment.
 
-## Planned Target: `v0.3.3` (Minor)
+### Delivered Scope
 
-Theme: complete learning-system operator workflow from candidate signal to safe activation, including lower-friction verification capture.
+1. Landing-page UX polish
+   - Added subtle entrance animations, capability counters, and architecture diagram.
+2. Release/deploy alignment
+   - Published `v0.3.3` backend/frontend images and Helm chart (`0.3.3`) with pullability verification.
+   - Deployed `v0.3.3` to Azure Container Apps.
+3. Docs cleanup
+   - Updated user-facing docs to remove stale `v0.3.1`/`v0.3.2` "current target" language.
 
-### Planned Scope
-
-1. Learning retrieval context in runtime path
-   - Retrieve active learning candidates before diagnosis/remediation.
-   - Add bounded retrieval timeout and safe fallback to normal path.
-2. Candidate editing workflow
-   - Add API + UI to edit candidate fields safely.
-   - Preserve audit trail (`actor`, `request_id`, changed fields, timestamp).
-3. Learning simulation/preview
-   - Add "simulate before activate" operator flow in Control Center.
-   - Show predicted policy impact and safety gates before activation.
-4. Verification capture bridge (GitHub issue comment -> feedback payload)
-   - Define a safe parser for structured "PipelineHealer Accuracy Assessment" comment blocks.
-   - Add explicit API/CLI path to ingest parsed outcomes as `learning/feedback` with traceability metadata.
-   - Keep manual feedback path as fallback when comments are missing or malformed.
-5. Documentation and runbook sync
-   - Update feature docs and operator runbooks for new learning workflow.
-
-### Exit Criteria
-
-1. Contract tests for retrieval + fallback path pass.
-2. Audit coverage for learning edits/actions is visible in UI and API.
-3. Control Center can run simulation without changing live policy.
-4. Structured issue-comment verification can be ingested with clear success/fallback behavior.
-5. Docs updated:
-   - `README.md` (concise user-facing summary)
-   - `docs/API.md`
-   - `docs/LOCAL_DEMO_RUNBOOK.md`
-   - `docs/features/04-learning-system.md`
-
-## Planned Target: `v0.4.0` (Minor)
+## Active Target: `v0.4.0` (Minor)
 
 Theme: MCP operational maturity + observability depth.
 
@@ -368,11 +332,11 @@ These items are researched and tracked; some have scoped phased rollout while ot
 
 ### DP-003: Jenkins Bridge Strategy for GitHub-Adjacent Repos
 
-- Status: `Planned` (recommended to start in `v0.3.2`)
+- Status: `Delivered bridge path` (`v0.3.2`); native provider follow-on remains queued
 - Problem statement:
   - Some onboarded repos are Jenkins-primary and may not emit GitHub `workflow_run` failures, so PipelineHealer receives no trigger despite webhook allowlisting.
-- Recommended option:
-  - Build a signed Jenkins bridge ingestion path into PipelineHealer first (`v0.3.2`) before full native Jenkins adapter work.
+- Delivered option:
+  - Built a signed Jenkins bridge ingestion path into PipelineHealer first (`v0.3.2`) before full native Jenkins adapter work.
 - Why this option:
   - Reuses existing diagnosis/remediation pipeline quickly.
   - Preserves current policy/audit model.
@@ -388,9 +352,9 @@ These items are researched and tracked; some have scoped phased rollout while ot
 
 | ID | Item | Recommended Target | Type | Priority | Status |
 |---|---|---|---|---|---|
-| `BL-001` | Learning retrieval-before-diagnosis/remediation | `v0.3.3` | minor | High | Planned |
-| `BL-002` | Learning candidate edit API/UI + audit metadata | `v0.3.3` | minor | High | Planned |
-| `BL-003` | Learning simulation/preview controls in Control Center | `v0.3.3` | minor | High | Planned |
+| `BL-001` | Learning retrieval-before-diagnosis/remediation | `v0.4.0` | minor | High | Planned |
+| `BL-002` | Learning candidate edit API/UI + audit metadata | `v0.4.0` | minor | High | Planned |
+| `BL-003` | Learning simulation/preview controls in Control Center | `v0.4.0` | minor | High | Planned |
 | `BL-004` | MCP policy visualization + approval UX completion | `v0.4.0` | minor | Medium | Planned |
 | `BL-005` | Token/cost telemetry and degradation alerts | `v0.4.0` | minor | Medium | Planned |
 | `BL-006` | In-app investigation/log viewer (bounded) | `v0.4.x` | patch/minor | Medium | Queued |
@@ -412,14 +376,14 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-022` | Demo verification output clarity (`mcp_tool_calls_total` vs passive-only counters) | `v0.2.7` | patch | High | Completed (in `main`) |
 | `BL-023` | Docs/runbook MCP interpretation hardening for non-expert operators | `v0.2.7` | patch | High | Completed (in `main`) |
 | `BL-024` | Release baseline alignment (`v0.2.7`) across README/CLI/runbooks | `v0.2.7` | patch | Medium | Completed (in `main`) |
-| `BL-025` | Accuracy-assessment bridge: ingest structured GitHub issue verification comments into `learning/feedback` with audit traceability | `v0.3.3` | minor | High | Planned |
+| `BL-025` | Accuracy-assessment bridge: ingest structured GitHub issue verification comments into `learning/feedback` with audit traceability | `v0.4.0` | minor | High | Planned |
 | `BL-026` | Cross-platform operator support: PowerShell wrapper + non-Azure deploy wrapper strategy for `ph` commands | `v0.5.0` | minor | Medium | Planned |
 | `BL-027` | AKS/Helm onboarding hardening: explicit required-vs-optional auth paths, Entra build-time vs runtime guardrails, and post-deploy auth verification checklist ([#32](https://github.com/Canepro/pipelinehealer/issues/32)) | `v0.3.0` | patch | Medium | Completed (in `main`) |
 | `BL-028` | Submission-baseline drift control (`v0.2.8`): release auth build-var gating + docs version alignment pass | `v0.2.8` | patch | High | Completed (in `main`) |
 | `BL-029` | Azure deploy hardening option: `--secure-secrets` path in deploy tooling (`ph.sh` + redeploy script) with operator docs for secretref-backed runtime env | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
 | `BL-030` | GH-AW + GitHub MCP hybrid diagnostics ingestion mode (`GH_AW_INGESTION_MODE=hybrid`) across backend/UI/CLI/docs | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
 | `BL-031` | Passive backfill label-mismatch reliability fix (unlabeled fallback matching for ci-doctor findings) ([#35](https://github.com/Canepro/pipelinehealer/issues/35)) | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
-| `BL-032` | Copilot integration research track: evaluate coding-agent + MCP coexistence model without bypassing PipelineHealer governance | `v0.3.2` | minor | Medium | Planned (phased via `BL-038`/`BL-039`) |
+| `BL-032` | Copilot integration research track: evaluate coding-agent + MCP coexistence model without bypassing PipelineHealer governance | `v0.4.x` | minor | Medium | Planned (phased via `BL-038`/`BL-039`) |
 | `BL-033` | Multi-platform notifications research track: Slack/Teams/Rocket.Chat delivery model for non-admin stakeholders with auditable outbound events | `TBD (post-submission)` | minor | Medium | Research / Undecided |
 | `BL-034` | Jenkins bridge ingestion path: signed external CI failure payload -> synthetic PipelineHealer activity (`source_selection_path=jenkins_bridge`) with issue-first defaults ([#36](https://github.com/Canepro/pipelinehealer/issues/36)) | `v0.3.2` | minor | High | Completed (merged to `main`) |
 | `BL-035` | Native Jenkins provider adapter: deeper job metadata/log/artifact retrieval + rerun/governance parity with existing provider model | `v0.5.x` | minor | Medium | Queued |
@@ -433,7 +397,7 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-043` | Frontend runtime-config decoupling: make containerized `VITE_*` settings runtime-first across frontend/Helm/Azure deploy tooling and remove build-arg coupling in release path ([#54](https://github.com/Canepro/pipelinehealer/issues/54)) | `v0.3.1` | patch | High | Completed (released in `v0.3.1`) |
 | `BL-044` | Azure env-sync regression fix: keep existing frontend runtime config when `VITE_*` keys are omitted from env input during `deploy:env` ([#55](https://github.com/Canepro/pipelinehealer/issues/55)) | `v0.3.2` | patch | High | Completed (merged to `main`) |
 | `BL-045` | Storage posture hardening: explicit storage mode + non-development durability guardrail with fail-fast misconfiguration behavior ([#57](https://github.com/Canepro/pipelinehealer/issues/57)) | `v0.3.2` | patch | High | Completed (merged to `main`) |
-| `BL-046` | PostgreSQL durable storage adapter (OSS-friendly persistence path) with adapter-contract parity requirements ([#58](https://github.com/Canepro/pipelinehealer/issues/58)) | `v0.3.2` | minor | Medium | Implemented in PR `#61` (pending merge / issue closure) |
+| `BL-046` | PostgreSQL durable storage adapter (OSS-friendly persistence path) with adapter-contract parity requirements ([#58](https://github.com/Canepro/pipelinehealer/issues/58)) | `v0.3.2` | minor | Medium | Completed (released in `v0.3.2`) |
 
 ## Definition of Done (Per Version)
 

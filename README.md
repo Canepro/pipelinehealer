@@ -1,12 +1,12 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 310d40e -->
+<!-- LAST_VERIFIED: 41575cf -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Try_It-brightgreen)](https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io)
 [![Azure](https://img.shields.io/badge/Azure-Deployed-blue)](https://azure.microsoft.com)
-[![Release](https://img.shields.io/badge/Release-v0.3.1-blue)](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1)
+[![Release](https://img.shields.io/badge/Release-v0.3.3-blue)](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.3)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies controlled remediation:
@@ -21,10 +21,10 @@ PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies 
 
 - Public repository: `https://github.com/Canepro/pipelinehealer`
 - Live deployment: Azure Container Apps (backend + frontend)
-- Current release baseline: [`v0.3.1`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1)
-- Next scoped target: `v0.3.2` ([#44](https://github.com/Canepro/pipelinehealer/issues/44))
-- `v0.3.2` freeze-required scope: `#36` (Jenkins bridge), `#42` (Assign-to-Agent), `#57` (storage posture hardening)
-- OSS-friendly durable storage path: PostgreSQL adapter (`#58`) is now available as an alternative durable backend
+- Current release baseline: [`v0.3.3`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.3)
+- `v0.3.2` required freeze scope shipped: `#36` (Jenkins bridge), `#42` (Assign-to-Agent), `#57` (storage posture hardening)
+- OSS-friendly durable storage is available: PostgreSQL adapter (`#58`) alongside Cosmos DB and in-memory development mode
+- Current release tracking umbrella: [#44](https://github.com/Canepro/pipelinehealer/issues/44)
 - Demo runbook: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
 
 ## Example Remediation Stories
@@ -145,45 +145,33 @@ CI failures create repetitive triage work and slow delivery. PipelineHealer redu
 - Operational traceability: every action links to run evidence, reason codes, and policy state.
 - Deployment flexibility: same control model across Azure, Kubernetes, and local container paths.
 
-## v0.3.2 Freeze Guardrails (Applied)
+## Recent Releases
 
-- Required scope is locked to `#36/#42/#57` to protect submission reliability.
-- `#58` (PostgreSQL adapter) was implemented adapter-first after required scope completion.
-- Storage extensibility work must remain adapter-scoped and additive (no core workflow rewrites).
+### v0.3.3
 
-## v0.3.2 Integration Scope (Current)
+- Landing page polish: scroll entrance animations, capability counters, and architecture diagram.
+- Release/deploy alignment: frontend package + chart + backend versions synchronized and deployed to ACA.
 
-- Signed Jenkins bridge ingestion endpoint for Jenkins-primary CI paths: `POST /webhook/jenkins`
-- Jenkins bridge replay protection hardened for concurrent ingress (atomic nonce/delivery reservation path).
-- Assign-to-Agent handoff integration with runtime-safe modes:
-  - `copy_only` (audited, no network delivery)
-  - `webhook` (bounded timeout/retry + destination allowlist)
-- Explicit storage posture guardrails:
+### v0.3.2
+
+- Signed Jenkins bridge ingestion path for Jenkins-primary CI coverage: `POST /webhook/jenkins`.
+- Assign-to-Agent handoff integration (`copy_only` and optional `webhook`) with audited controls.
+- Storage posture hardening:
   - non-development fail-fast when durable storage is required but missing
   - explicit non-development in-memory mode requires opt-in
-- OSS-friendly durable storage path:
-  - `STORAGE_MODE=postgres` with `POSTGRES_DSN`
+- PostgreSQL durable adapter shipped as OSS-friendly persistence path (`STORAGE_MODE=postgres`, `POSTGRES_DSN`).
 
-## What Shipped In v0.3.1
+### v0.3.1
 
-- frontend runtime-first config for containerized deployments (`VITE_*` via `/runtime-config.js`)
-- no-rebuild config updates through runtime env sync paths (ACA/Helm/compose)
-- release workflow/frontend image decoupled from auth build-arg coupling
+- Frontend runtime-first config for containerized deployments (`VITE_*` via `/runtime-config.js`).
+- No-rebuild config updates through runtime env sync paths (ACA/Helm/compose).
+- Release workflow/frontend image decoupled from auth build-arg coupling.
 
-## Previously Shipped In v0.3.0
-
-- Activity Detail `Copy Context` for one-click AI-ready handoff payloads (bounded + redacted)
-- visible disabled `Assign to Agent` affordance (`Coming Soon`) for discoverability
-- release hardening with anonymous GHCR pullability gating for:
-  - backend/frontend tags (`vX.Y.Z` and `X.Y.Z`)
-  - backend/frontend digests
-  - Helm chart OCI tag (`X.Y.Z`)
-
-Release notes: [CHANGELOG.md](CHANGELOG.md), [v0.3.1 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1), and [v0.3.0 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.0)
+Release notes: [CHANGELOG.md](CHANGELOG.md), [v0.3.3 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.3), [v0.3.2 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.2), and [v0.3.1 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1)
 
 ## Kubernetes Portability Status
 
-As of March 3, 2026 (`v0.3.1`), random-user image pullability regressions are gated in release automation.
+As of March 5, 2026 (`v0.3.3`), random-user image pullability regressions are gated in release automation.
 
 - previous portability gap issue [#37](https://github.com/Canepro/pipelinehealer/issues/37) is closed
 - Helm success output alone is still not sufficient proof; verify rollout and image pulls on clean clusters

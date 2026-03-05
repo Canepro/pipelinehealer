@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: d0bd771 -->
+<!-- LAST_VERIFIED: 41575cf -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -16,10 +16,25 @@ Related docs:
 - `docs/API.md` for full API endpoint reference and best practices
 - `docs/CLI.md` for the full CLI command reference
 
+## Hackathon Requirement Alignment (March 5, 2026)
+
+This runbook aligns to the submission checklist in `docs/HACKATHON_LOG.md`:
+
+- Public repository: `https://github.com/Canepro/pipelinehealer`
+- Live Azure deployment: `bash scripts/ph.sh urls`
+- Project description: `README.md`
+- Architecture diagram: `README.md` -> `Architecture` section
+- Microsoft Learn profiles:
+  - Vincent Mogah: `https://learn.microsoft.com/en-us/users/canepro0084/`
+  - Logeshwaran R: `https://learn.microsoft.com/en-in/users/logeshwaranr-5820/`
+  - Goziechukwu Chima-Duru: `https://learn.microsoft.com/en-us/users/GozieChimaDuru-2688`
+
+Remaining submission item this doc drives: demo video length must be 2:00 max.
+
 Default values used in this runbook:
 
 ```bash
-export RELEASE_TAG="${RELEASE_TAG:-v0.3.1}"
+export RELEASE_TAG="${RELEASE_TAG:-v0.3.3}"
 export DEMO_REPO="${DEMO_REPO:-Canepro/pipelinehealer-demo}"
 ```
 
@@ -86,6 +101,13 @@ Pass check:
 
 ```bash
 bash scripts/ph.sh demo:e2e --repo "$DEMO_REPO" --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180
+```
+
+This is the recommended on-camera subset for time control.
+If you need full fixture coverage, include `prettier,docker`:
+
+```bash
+bash scripts/ph.sh demo:e2e --repo "$DEMO_REPO" --triggers dependency,lint,test,build_config,timeout,prettier,docker --wait-seconds 180 --ci-signal-wait-seconds 180
 ```
 
 What this command does:
@@ -164,7 +186,7 @@ Enriched activities show an "External Findings Details" collapsible panel in Act
 
 ## 5) 2-Minute Recording Script (Final)
 
-Timing sanity check (March 3, 2026):
+Timing sanity check (March 5, 2026):
 - core `TELL` script (excluding optional insert) is ~127 words
 - at ~110-130 WPM, spoken narration is ~59-69 seconds
 - keep transitions/clicks concise; treat the optional differentiator as a swap-in, not an add-on, to stay under 2:00

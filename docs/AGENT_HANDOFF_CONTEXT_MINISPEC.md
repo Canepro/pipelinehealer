@@ -1,12 +1,12 @@
 # Agent Handoff + Copy Context Mini-Spec
 
-<!-- LAST_VERIFIED: 3116334 -->
+<!-- LAST_VERIFIED: 41575cf -->
 
-Status: Phase 0/1 released in `v0.3.0` (`Copy Context` + disabled `Assign to Agent`), Phase 2 pending (`v0.3.2`)
+Status: Phase 0/1 released in `v0.3.0` (`Copy Context` + disabled `Assign to Agent`), Phase 2 delivered in `v0.3.2` (`copy_only`/`webhook`)
 Owner: PipelineHealer maintainers
 Scope target:
 - `v0.3.0`: `Copy Context` + disabled `Assign to Agent` `Coming Soon` affordance
-- `v0.3.2`: functional agent handoff integration (`copy_only`/`webhook`)
+- `v0.3.2`: functional agent handoff integration (`copy_only`/`webhook`) delivered
 
 ## Problem
 
