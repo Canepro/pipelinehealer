@@ -1,6 +1,6 @@
 # Pre-Deploy Placeholder Audit
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: 310d40e -->
 
 Use this checklist before `azd up`, before major public demos, and before final submission recording.
 
@@ -49,7 +49,9 @@ Minimum deployed values to verify:
 - `GITHUB_WEBHOOK_SECRET=<non-empty>`
 - `AZURE_OPENAI_ENDPOINT=<real endpoint>`
 - `AZURE_OPENAI_DEPLOYMENT_NAME=<real deployment>`
-- `COSMOS_DB_ENDPOINT=<real endpoint>`
+- one durable storage path configured:
+  - `COSMOS_DB_ENDPOINT=<real endpoint>` when `STORAGE_MODE=cosmos`, or
+  - `POSTGRES_DSN=<real dsn>` when `STORAGE_MODE=postgres`
 
 ## 4) Runtime Safety Mode Audit
 
@@ -83,7 +85,7 @@ Confirm these are intentional for demo only and not accidentally copied to produ
 
 1. `infra/main.bicep`: placeholder image references must be removed.
 2. `azure.yaml`: container app vs function mapping must be intentional and valid.
-3. `backend/src/workflows/pipeline_healer.py`: ensure Cosmos-backed storage is used in deployed envs.
+3. `backend/src/workflows/pipeline_healer.py`: ensure deployed env uses a durable backend (`cosmos` or `postgres`), not accidental in-memory.
 4. `backend/src/agents/log_analyzer.py`: `job_id=0` is currently a synthetic value; fix if real job-level traceability is required.
 5. GitHub webhook mode: ensure only one active `workflow_run` hook for the target env (disable stale `smee.io` when using Azure direct webhook).
 6. Demo reruns: dependency/lint fix branch names can collide on repeated runs, causing `422` on `POST /git/refs` until old fix branches are merged/cleaned.

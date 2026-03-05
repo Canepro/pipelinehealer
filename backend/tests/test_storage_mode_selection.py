@@ -3,7 +3,7 @@
 import pytest
 
 from src.config import get_settings, reset_settings
-from src.storage import ActivityStorage, InMemoryStorage
+from src.storage import ActivityStorage, InMemoryStorage, PostgresStorage
 from src.workflows.pipeline_healer import create_storage, resolve_storage_mode
 
 
@@ -12,6 +12,7 @@ def _reset_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.delenv("STORAGE_MODE", raising=False)
     monkeypatch.delenv("COSMOS_DB_ENDPOINT", raising=False)
+    monkeypatch.delenv("POSTGRES_DSN", raising=False)
     monkeypatch.delenv("ALLOW_IN_MEMORY_STORAGE_IN_NON_DEVELOPMENT", raising=False)
     reset_settings()
     yield
@@ -80,3 +81,28 @@ def test_explicit_cosmos_mode_requires_endpoint_even_in_development(
 
     with pytest.raises(RuntimeError, match="COSMOS_DB_ENDPOINT"):
         resolve_storage_mode(settings)
+
+
+def test_explicit_postgres_mode_requires_dsn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("STORAGE_MODE", "postgres")
+    reset_settings()
+    settings = get_settings()
+
+    with pytest.raises(RuntimeError, match="POSTGRES_DSN"):
+        resolve_storage_mode(settings)
+
+
+def test_explicit_postgres_mode_builds_postgres_storage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("STORAGE_MODE", "postgres")
+    monkeypatch.setenv("POSTGRES_DSN", "postgresql://user:pass@localhost:5432/pipelinehealer")
+    reset_settings()
+    settings = get_settings()
+
+    assert resolve_storage_mode(settings) == "postgres"
+    assert isinstance(create_storage(settings), PostgresStorage)

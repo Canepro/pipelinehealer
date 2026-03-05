@@ -16,13 +16,14 @@ from ..models import (
     RemediationStatus,
     WorkflowRunEvent,
 )
-from ..storage import ActivityStorage, InMemoryStorage
+from ..storage import ActivityStorage, InMemoryStorage, PostgresStorage
 from ..tools.github_tools import GitHubTools
 
 logger = logging.getLogger(__name__)
 
 _STORAGE_MODE_MEMORY = "memory"
 _STORAGE_MODE_COSMOS = "cosmos"
+_STORAGE_MODE_POSTGRES = "postgres"
 
 
 class PipelineHealerWorkflow:
@@ -400,6 +401,7 @@ def resolve_storage_mode(settings: Any, *, use_in_memory: bool = False) -> str:
     - default is ``memory`` for development and ``cosmos`` otherwise.
     - non-development ``memory`` requires explicit opt-in.
     - ``cosmos`` requires ``COSMOS_DB_ENDPOINT``.
+    - ``postgres`` requires ``POSTGRES_DSN``.
     """
     environment = str(getattr(settings, "environment", "development")).strip().lower()
     configured_mode = str(getattr(settings, "storage_mode", "")).strip().lower()
@@ -432,6 +434,15 @@ def resolve_storage_mode(settings: Any, *, use_in_memory: bool = False) -> str:
             )
         return mode
 
+    if mode == _STORAGE_MODE_POSTGRES:
+        postgres_dsn = str(getattr(settings, "postgres_dsn", "")).strip()
+        if not postgres_dsn:
+            raise RuntimeError(
+                "STORAGE_MODE=postgres requires POSTGRES_DSN. "
+                "Configure PostgreSQL for durable storage before starting."
+            )
+        return mode
+
     # Defensive fallback; validator should prevent unknown values.
     raise RuntimeError(f"Unsupported STORAGE_MODE '{mode}'")
 
@@ -441,4 +452,6 @@ def create_storage(settings: Any, *, use_in_memory: bool = False) -> ActivitySto
     mode = resolve_storage_mode(settings, use_in_memory=use_in_memory)
     if mode == _STORAGE_MODE_MEMORY:
         return InMemoryStorage()
+    if mode == _STORAGE_MODE_POSTGRES:
+        return PostgresStorage(postgres_dsn=str(getattr(settings, "postgres_dsn", "")))
     return ActivityStorage()

@@ -106,14 +106,14 @@ Implementation note:
 
 Status: **Resolved**
 
-Decision: Cosmos DB durable persistence with in-memory fallback. Settings are auto-restored on startup. UI uses one-step "Save & Persist" behavior for durable updates.
+Decision: Durable persistence via configured storage backend (`cosmos` or `postgres`) with in-memory fallback. Settings are auto-restored on startup. UI uses one-step "Save & Persist" behavior for durable updates.
 
 #### D3: Preflight gating risks
 
 Status: **Resolved**
 
 - ~~Risk A: allowlist additions may appear successful in UI but not be effective.~~ Fixed: settings update path and webhook enforcement tested.
-- ~~Risk B: allowlist/runtime settings are not durable across restart/redeploy.~~ Fixed: Cosmos DB durable persistence (see D2).
+- ~~Risk B: allowlist/runtime settings are not durable across restart/redeploy.~~ Fixed: durable backend persistence (see D2).
 
 ### Delivery Phases and PR Plan
 

@@ -1,8 +1,10 @@
-"""Storage layer for PipelineHealer using Azure Cosmos DB."""
+"""Storage layer for PipelineHealer."""
 
+import json
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -24,6 +26,49 @@ _RUNTIME_SETTINGS_ID = "pipelinehealer_runtime_settings_v1"
 _RUNTIME_SETTINGS_PARTITION = "__pipelinehealer_settings__"
 _AUDIT_PARTITION = "__pipelinehealer_audit__"
 _LEARNING_QUEUE_PARTITION = "__pipelinehealer_learning_queue__"
+_POSTGRES_BOOTSTRAP_SQL_PATH = (
+    Path(__file__).resolve().parents[1] / "scripts" / "postgres" / "bootstrap.sql"
+)
+_POSTGRES_BOOTSTRAP_SQL = """
+CREATE TABLE IF NOT EXISTS ph_activities (
+    id TEXT PRIMARY KEY,
+    repository_name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    failure_type TEXT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    payload JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ph_activities_created_at ON ph_activities (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ph_activities_repository ON ph_activities (repository_name);
+CREATE INDEX IF NOT EXISTS idx_ph_activities_status ON ph_activities (status);
+CREATE INDEX IF NOT EXISTS idx_ph_activities_failure_type ON ph_activities (failure_type);
+
+CREATE TABLE IF NOT EXISTS ph_runtime_settings (
+    id TEXT PRIMARY KEY,
+    updated_at TIMESTAMPTZ NOT NULL,
+    settings JSONB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ph_admin_settings_audit (
+    id BIGSERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ NOT NULL,
+    payload JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ph_admin_settings_audit_timestamp
+    ON ph_admin_settings_audit (timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS ph_learning_queue (
+    id TEXT PRIMARY KEY,
+    status TEXT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    payload JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ph_learning_queue_updated_at
+    ON ph_learning_queue (updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ph_learning_queue_status
+    ON ph_learning_queue (status);
+"""
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -31,6 +76,48 @@ def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+def _parse_datetime(value: Any) -> datetime | None:
+    """Parse datetime-like values to UTC-aware datetime."""
+    if isinstance(value, datetime):
+        return _as_utc(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        normalized = text[:-1] + "+00:00" if text.endswith("Z") else text
+        try:
+            return _as_utc(datetime.fromisoformat(normalized))
+        except ValueError:
+            return None
+    return None
+
+
+def _parse_json_dict(value: Any) -> dict[str, Any] | None:
+    """Parse JSON-like payloads to dict."""
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return None
+        if isinstance(parsed, dict):
+            return parsed
+    return None
+
+
+def get_postgres_bootstrap_sql() -> str:
+    """Return PostgreSQL bootstrap SQL used by PostgresStorage initialization.
+
+    Prefer the checked-in SQL file so operator-facing migration docs and runtime
+    initialization remain aligned. Fall back to embedded SQL for packaged
+    environments where the repository scripts directory is unavailable.
+    """
+    if _POSTGRES_BOOTSTRAP_SQL_PATH.exists():
+        return _POSTGRES_BOOTSTRAP_SQL_PATH.read_text(encoding="utf-8")
+    return _POSTGRES_BOOTSTRAP_SQL
 
 
 class ActivityStorage:
@@ -630,6 +717,464 @@ class ActivityStorage:
             max_item_count=page_size,
         ):
             yield ActivityRecord(**item)
+
+
+class PostgresStorage(ActivityStorage):
+    """PostgreSQL-backed storage adapter."""
+
+    def __init__(
+        self,
+        postgres_dsn: str | None = None,
+        pool_factory: Callable[..., Awaitable[Any]] | None = None,
+    ) -> None:
+        """Initialize PostgreSQL storage.
+
+        Args:
+            postgres_dsn: Optional PostgreSQL DSN override.
+            pool_factory: Optional async pool factory for testing.
+        """
+        super().__init__()
+        self._postgres_dsn = postgres_dsn or get_settings().postgres_dsn
+        self._pool_factory = pool_factory
+        self._pool: Any | None = None
+
+    def _pool_required(self) -> Any:
+        if self._pool is None:
+            raise RuntimeError("Storage not initialized (postgres pool missing)")
+        return self._pool
+
+    async def initialize(self) -> None:
+        """Initialize PostgreSQL pool and bootstrap schema."""
+        if self._initialized:
+            return
+
+        dsn = str(self._postgres_dsn).strip()
+        if not dsn:
+            raise RuntimeError("STORAGE_MODE=postgres requires POSTGRES_DSN")
+
+        if self._pool_factory is None:
+            try:
+                import asyncpg  # type: ignore[import-untyped]
+            except ImportError as exc:
+                raise RuntimeError(
+                    "PostgreSQL storage requires asyncpg. Install backend dependencies first."
+                ) from exc
+            self._pool_factory = asyncpg.create_pool
+
+        self._pool = await self._pool_factory(dsn=dsn, min_size=1, max_size=5)
+        async with self._pool_required().acquire() as conn:
+            await conn.execute(get_postgres_bootstrap_sql())
+        self._initialized = True
+        logger.info("PostgreSQL storage initialized successfully")
+
+    async def close(self) -> None:
+        """Close PostgreSQL pool."""
+        if self._pool is not None:
+            await self._pool.close()
+        self._pool = None
+        self._initialized = False
+
+    async def create_activity(self, activity: ActivityRecord) -> str:
+        """Create a new activity record."""
+        await self.initialize()
+
+        if not activity.id:
+            activity.id = str(uuid4())
+
+        activity.created_at = utcnow()
+        activity.updated_at = utcnow()
+
+        payload = activity.model_dump(by_alias=True, mode="json")
+        payload["id"] = activity.id
+        status = activity.status.value if activity.status else "unknown"
+        failure_type = activity.failure_type.value if activity.failure_type else None
+
+        async with self._pool_required().acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO ph_activities (
+                    id, repository_name, status, failure_type, created_at, updated_at, payload
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+                """,
+                activity.id,
+                activity.repository_name,
+                status,
+                failure_type,
+                _as_utc(activity.created_at),
+                _as_utc(activity.updated_at),
+                json.dumps(payload),
+            )
+        logger.info("Created postgres activity: %s", activity.id)
+        return activity.id
+
+    async def update_activity(self, activity: ActivityRecord) -> None:
+        """Update an existing activity record."""
+        await self.initialize()
+
+        activity.updated_at = utcnow()
+        if (
+            activity.status in (RemediationStatus.COMPLETED, RemediationStatus.FAILED)
+            and activity.created_at
+        ):
+            delta = _as_utc(activity.updated_at) - _as_utc(activity.created_at)
+            activity.duration_seconds = delta.total_seconds()
+
+        payload = activity.model_dump(by_alias=True, mode="json")
+        payload["id"] = activity.id
+        status = activity.status.value if activity.status else "unknown"
+        failure_type = activity.failure_type.value if activity.failure_type else None
+        created_at = _as_utc(activity.created_at) if activity.created_at else _as_utc(utcnow())
+
+        async with self._pool_required().acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO ph_activities (
+                    id, repository_name, status, failure_type, created_at, updated_at, payload
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+                ON CONFLICT (id) DO UPDATE SET
+                    repository_name = EXCLUDED.repository_name,
+                    status = EXCLUDED.status,
+                    failure_type = EXCLUDED.failure_type,
+                    created_at = EXCLUDED.created_at,
+                    updated_at = EXCLUDED.updated_at,
+                    payload = EXCLUDED.payload
+                """,
+                activity.id,
+                activity.repository_name,
+                status,
+                failure_type,
+                created_at,
+                _as_utc(activity.updated_at),
+                json.dumps(payload),
+            )
+        logger.debug("Updated postgres activity: %s", activity.id)
+
+    async def get_activity(self, activity_id: str) -> ActivityRecord | None:
+        """Get one activity by ID."""
+        await self.initialize()
+        async with self._pool_required().acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT payload::text AS payload FROM ph_activities WHERE id = $1",
+                activity_id,
+            )
+        if row is None:
+            return None
+        payload = _parse_json_dict(row["payload"])
+        if payload is None:
+            return None
+        return ActivityRecord(**payload)
+
+    async def get_activities(
+        self,
+        repository: str | None = None,
+        status: RemediationStatus | None = None,
+        failure_type: FailureType | None = None,
+        limit: int = 50,
+        offset: int = 0,
+        since: datetime | None = None,
+    ) -> list[ActivityRecord]:
+        """Get activities with optional filters."""
+        await self.initialize()
+
+        safe_limit = max(1, min(limit, 500))
+        safe_offset = max(0, offset)
+        args: list[Any] = []
+        conditions: list[str] = []
+
+        if repository:
+            args.append(repository)
+            conditions.append(f"repository_name = ${len(args)}")
+        if status:
+            args.append(status.value)
+            conditions.append(f"status = ${len(args)}")
+        if failure_type:
+            args.append(failure_type.value)
+            conditions.append(f"failure_type = ${len(args)}")
+        if since:
+            args.append(_as_utc(since))
+            conditions.append(f"created_at >= ${len(args)}")
+
+        where_clause = " AND ".join(conditions) if conditions else "TRUE"
+        args.append(safe_offset)
+        args.append(safe_limit)
+        query = f"""
+            SELECT payload::text AS payload
+            FROM ph_activities
+            WHERE {where_clause}
+            ORDER BY created_at DESC
+            OFFSET ${len(args) - 1}
+            LIMIT ${len(args)}
+        """
+
+        async with self._pool_required().acquire() as conn:
+            rows = await conn.fetch(query, *args)
+
+        items: list[ActivityRecord] = []
+        for row in rows:
+            payload = _parse_json_dict(row["payload"])
+            if payload is None:
+                continue
+            items.append(ActivityRecord(**payload))
+        return items
+
+    async def get_backfill_candidates(
+        self,
+        *,
+        limit: int = 20,
+        max_age_hours: float = 24.0,
+    ) -> list[ActivityRecord]:
+        """Return completed activities whose diagnostics need backfill."""
+        await self.initialize()
+
+        safe_limit = max(1, min(limit, 100))
+        fetch_limit = max(safe_limit, min(safe_limit * 5, 500))
+        since = _as_utc(utcnow() - timedelta(hours=max_age_hours))
+
+        async with self._pool_required().acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT payload::text AS payload
+                FROM ph_activities
+                WHERE status = ANY($1::text[])
+                  AND created_at >= $2
+                ORDER BY created_at DESC
+                LIMIT $3
+                """,
+                [
+                    RemediationStatus.COMPLETED.value,
+                    RemediationStatus.FAILED.value,
+                ],
+                since,
+                fetch_limit,
+            )
+
+        candidates: list[ActivityRecord] = []
+        for row in rows:
+            payload = _parse_json_dict(row["payload"])
+            if payload is None:
+                continue
+            activity = ActivityRecord(**payload)
+            if any(
+                diagnostic.metadata.get("reason_code") == "poll_window_exhausted"
+                for diagnostic in activity.external_diagnostics
+            ):
+                candidates.append(activity)
+                if len(candidates) >= safe_limit:
+                    break
+        return candidates
+
+    async def upsert_runtime_settings(self, settings_payload: dict[str, Any]) -> None:
+        """Persist mutable runtime settings."""
+        await self.initialize()
+
+        async with self._pool_required().acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO ph_runtime_settings (id, updated_at, settings)
+                VALUES ($1, $2, $3::jsonb)
+                ON CONFLICT (id) DO UPDATE SET
+                    updated_at = EXCLUDED.updated_at,
+                    settings = EXCLUDED.settings
+                """,
+                _RUNTIME_SETTINGS_ID,
+                utcnow(),
+                json.dumps(settings_payload),
+            )
+
+    async def get_runtime_settings(self) -> dict[str, Any] | None:
+        """Load mutable runtime settings from storage."""
+        await self.initialize()
+
+        async with self._pool_required().acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT settings::text AS settings FROM ph_runtime_settings WHERE id = $1",
+                _RUNTIME_SETTINGS_ID,
+            )
+        if row is None:
+            return None
+        payload = _parse_json_dict(row["settings"])
+        if payload is None:
+            return None
+        return payload
+
+    async def append_admin_settings_audit_entry(self, entry: dict[str, Any]) -> None:
+        """Persist one admin settings audit entry."""
+        await self.initialize()
+
+        payload = dict(entry)
+        timestamp = _parse_datetime(payload.get("timestamp")) or utcnow()
+        async with self._pool_required().acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO ph_admin_settings_audit (timestamp, payload)
+                VALUES ($1, $2::jsonb)
+                """,
+                timestamp,
+                json.dumps(payload),
+            )
+
+    async def list_admin_settings_audit_entries(self, limit: int = 50) -> list[dict[str, Any]]:
+        """List admin settings audit entries, newest first."""
+        await self.initialize()
+
+        safe_limit = max(1, min(limit, 200))
+        async with self._pool_required().acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT payload::text AS payload
+                FROM ph_admin_settings_audit
+                ORDER BY timestamp DESC
+                LIMIT $1
+                """,
+                safe_limit,
+            )
+        entries: list[dict[str, Any]] = []
+        for row in rows:
+            payload = _parse_json_dict(row["payload"])
+            if payload is None:
+                continue
+            entries.append(payload)
+        return entries
+
+    async def upsert_learning_queue_item(self, item: dict[str, Any]) -> None:
+        """Persist one learning queue item."""
+        await self.initialize()
+
+        item_id = str(item.get("id", "")).strip()
+        if not item_id:
+            raise ValueError("Learning queue item must include a non-empty id")
+
+        payload = dict(item)
+        status = str(payload.get("status", "")).strip().lower() or None
+        updated_at = _parse_datetime(payload.get("updated_at")) or utcnow()
+        async with self._pool_required().acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO ph_learning_queue (id, status, updated_at, payload)
+                VALUES ($1, $2, $3, $4::jsonb)
+                ON CONFLICT (id) DO UPDATE SET
+                    status = EXCLUDED.status,
+                    updated_at = EXCLUDED.updated_at,
+                    payload = EXCLUDED.payload
+                """,
+                item_id,
+                status,
+                updated_at,
+                json.dumps(payload),
+            )
+
+    async def get_learning_queue_item(self, item_id: str) -> dict[str, Any] | None:
+        """Load one learning queue item by ID."""
+        await self.initialize()
+
+        async with self._pool_required().acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT payload::text AS payload FROM ph_learning_queue WHERE id = $1",
+                item_id,
+            )
+        if row is None:
+            return None
+        payload = _parse_json_dict(row["payload"])
+        if payload is None:
+            return None
+        return payload
+
+    async def list_learning_queue_items(
+        self,
+        *,
+        status: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """List learning queue items, newest first."""
+        await self.initialize()
+
+        safe_limit = max(1, min(limit, 200))
+        normalized_status = status.strip().lower() if status else None
+        async with self._pool_required().acquire() as conn:
+            if normalized_status:
+                rows = await conn.fetch(
+                    """
+                    SELECT payload::text AS payload
+                    FROM ph_learning_queue
+                    WHERE status = $1
+                    ORDER BY updated_at DESC
+                    LIMIT $2
+                    """,
+                    normalized_status,
+                    safe_limit,
+                )
+            else:
+                rows = await conn.fetch(
+                    """
+                    SELECT payload::text AS payload
+                    FROM ph_learning_queue
+                    ORDER BY updated_at DESC
+                    LIMIT $1
+                    """,
+                    safe_limit,
+                )
+        items: list[dict[str, Any]] = []
+        for row in rows:
+            payload = _parse_json_dict(row["payload"])
+            if payload is None:
+                continue
+            items.append(payload)
+        return items
+
+    async def _iter_activities(
+        self,
+        *,
+        since: datetime | None = None,
+        page_size: int = 200,
+    ) -> AsyncIterator[ActivityRecord]:
+        """Yield activities via keyset pagination to avoid large OFFSET scans."""
+        await self.initialize()
+
+        safe_page_size = max(1, min(page_size, 500))
+        cursor_created_at: datetime | None = None
+        cursor_id: str | None = None
+        while True:
+            args: list[Any] = []
+            conditions: list[str] = []
+            if since:
+                args.append(_as_utc(since))
+                conditions.append(f"created_at >= ${len(args)}")
+            if cursor_created_at is not None and cursor_id is not None:
+                args.append(cursor_created_at)
+                created_idx = len(args)
+                args.append(cursor_id)
+                id_idx = len(args)
+                conditions.append(
+                    f"(created_at < ${created_idx} OR (created_at = ${created_idx} AND id < ${id_idx}))"
+                )
+
+            where_clause = " AND ".join(conditions) if conditions else "TRUE"
+            args.append(safe_page_size)
+            query = f"""
+                SELECT id, created_at, payload::text AS payload
+                FROM ph_activities
+                WHERE {where_clause}
+                ORDER BY created_at DESC, id DESC
+                LIMIT ${len(args)}
+            """
+            async with self._pool_required().acquire() as conn:
+                rows = await conn.fetch(query, *args)
+            if not rows:
+                break
+            count = 0
+            for row in rows:
+                payload = _parse_json_dict(row["payload"])
+                if payload is None:
+                    continue
+                count += 1
+                yield ActivityRecord(**payload)
+            if count == 0 or count < safe_page_size:
+                break
+            last_row = rows[-1]
+            cursor_created_at = _as_utc(last_row["created_at"])
+            cursor_id = str(last_row["id"])
 
 
 class InMemoryStorage(ActivityStorage):

@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 3bdc91b -->
+<!-- LAST_VERIFIED: 310d40e -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -171,6 +171,7 @@ Behavior:
 
 - Verifies HMAC signature using `JENKINS_BRIDGE_SHARED_SECRET`.
 - Enforces timestamp skew (`JENKINS_BRIDGE_MAX_SKEW_SECONDS`) and replay protections.
+- Replay protection is atomic for concurrent requests (in-flight nonce/delivery reservations prevent TOCTOU duplicate bypass).
 - Enforces `PH_ALLOWED_REPOS` allowlist before processing.
 - Starts a synthetic activity path with `source_selection_path=jenkins_bridge`.
 - Uses issue-first output by default for bridge events; set `JENKINS_BRIDGE_ALLOW_PR=true` (and `AUTO_CREATE_PR=true`) to allow PR artifacts from bridge-sourced remediations.
@@ -706,7 +707,7 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 
 **Response** `422 Unprocessable Entity`: validation failure.
 
-**Side Effects**: Creates an audit entry (persisted to Cosmos DB when available, in-memory fallback otherwise). Triggers agent cache invalidation when model-routing fields change (`azure_openai_deployment_name`, `llm_provider`, `openai_compatible_model`, `llm_model_analysis`, `llm_model_diagnosis`, `llm_model_remediation`) so new routing takes effect immediately.
+**Side Effects**: Creates an audit entry (persisted to configured durable storage when available, in-memory fallback otherwise). Triggers agent cache invalidation when model-routing fields change (`azure_openai_deployment_name`, `llm_provider`, `openai_compatible_model`, `llm_model_analysis`, `llm_model_diagnosis`, `llm_model_remediation`) so new routing takes effect immediately.
 
 #### `GET /api/settings/llm/provider-health`
 
@@ -790,7 +791,7 @@ Durably persists current mutable runtime settings so they survive backend restar
 
 **Behavior**:
 
-- Writes all mutable settings to durable storage (Cosmos DB).
+- Writes all mutable settings to configured durable storage backend (`cosmos` or `postgres`).
 - Optionally writes to `backend/.env` when the file is accessible (local development).
 - On next startup, persisted settings are loaded and re-applied automatically.
 - Appends an admin audit record with `changed_keys=["persist_settings"]` (including `X-Request-Id` when provided).
@@ -1057,7 +1058,7 @@ Returns recent admin settings change records (latest first).
 
 **Notes**:
 
-- Audit entries are persisted to Cosmos DB when available, with in-memory fallback.
+- Audit entries are persisted to configured durable storage when available, with in-memory fallback.
 - Capped at 200 entries (oldest dropped when exceeded).
 - Actor fingerprints are salted SHA-256 hashes (12 chars), not raw keys.
 
@@ -1324,8 +1325,9 @@ For provider switching and rollback operations, use `docs/MODEL_PROVIDER_SWITCH_
 - Supported storage modes:
   - `memory`: ephemeral storage, recommended for local development/demo only.
   - `cosmos`: durable storage using Azure Cosmos DB.
+  - `postgres`: durable storage using PostgreSQL (`POSTGRES_DSN`).
 - Non-development guardrail:
-  - Startup fails fast when durable mode is expected but Cosmos endpoint is not configured.
+  - Startup fails fast when the selected durable backend is missing required config (`COSMOS_DB_ENDPOINT` or `POSTGRES_DSN`).
   - Explicit non-development memory mode requires `ALLOW_IN_MEMORY_STORAGE_IN_NON_DEVELOPMENT=true`.
 - Admin settings audit trail is persisted to durable storage when available, with in-memory fallback buffer for local/dev paths.
 

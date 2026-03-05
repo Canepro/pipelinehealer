@@ -54,13 +54,21 @@ def test_accepts_hybrid_gh_aw_ingestion_mode() -> None:
     assert settings.gh_aw_ingestion_mode == "hybrid"
 
 
+def test_accepts_postgres_storage_mode() -> None:
+    settings = Settings(
+        _env_file=None,
+        storage_mode="postgres",
+    )
+    assert settings.storage_mode == "postgres"
+
+
 def test_rejects_invalid_storage_mode() -> None:
     try:
         Settings(
             _env_file=None,
-            storage_mode="postgres",
+            storage_mode="sqlite",
         )
     except ValidationError as exc:
-        assert "STORAGE_MODE must be one of: memory, cosmos" in str(exc)
+        assert "STORAGE_MODE must be one of: memory, cosmos, postgres" in str(exc)
     else:
         raise AssertionError("Expected ValidationError for invalid storage_mode")

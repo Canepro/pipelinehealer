@@ -122,6 +122,8 @@ def _get_storage_backend_name(storage: ActivityStorage | None) -> str:
         return "in_memory"
     if storage_class == "ActivityStorage":
         return "cosmos_db"
+    if storage_class == "PostgresStorage":
+        return "postgresql"
     return storage_class.lower()
 
 
@@ -132,6 +134,8 @@ def _get_storage_mode_name(storage: ActivityStorage | None, environment: str) ->
         return "memory"
     if backend == "cosmos_db":
         return "cosmos"
+    if backend == "postgresql":
+        return "postgres"
     # Fallback for cases where storage has not been initialized yet.
     return "memory" if environment == "development" else "cosmos"
 
