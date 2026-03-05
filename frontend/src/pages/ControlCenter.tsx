@@ -16,13 +16,13 @@ import { api } from '../api/client'
 import type { LearningQueueItem, LearningQueueStatus } from '../api/client'
 import { AUTH_ENABLED } from '../auth/config'
 import { AuditTrailPanel } from '../components/settings'
+import { getMcpEffectiveState, type McpPolicyMode } from '../components/settings/runtimeSemantics'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-type ToolPolicy = 'disabled' | 'read_only' | 'write_with_approval' | 'auto'
 type ControlCenterSection = 'overview' | 'learning_ops' | 'audit'
 type PostureItem = { label: string; value: string | number }
 type SummaryRow = {
@@ -100,7 +100,7 @@ const TOOL_METADATA: Array<{ key: string; write: boolean; label: string }> = [
   { key: 'rerun_pipeline', write: true, label: 'Rerun Pipeline' },
 ]
 
-function formatToolPolicy(policy: ToolPolicy): string {
+function formatToolPolicy(policy: McpPolicyMode): string {
   switch (policy) {
     case 'disabled':
       return 'Disabled'
@@ -115,43 +115,17 @@ function formatToolPolicy(policy: ToolPolicy): string {
   }
 }
 
-function getEffectiveToolState({
-  mcpEnabled,
-  provider,
-  readOnly,
-  write,
-  policy,
-}: {
-  mcpEnabled: boolean
-  provider: string
-  readOnly: boolean
-  write: boolean
-  policy: ToolPolicy
-}): { label: string; tone: 'ok' | 'warn' | 'bad' | 'muted' } {
-  if (!mcpEnabled || provider === 'disabled') {
-    return { label: 'Inactive', tone: 'muted' }
-  }
-  if (policy === 'disabled') {
-    return { label: 'Blocked', tone: 'bad' }
-  }
-  if (!write) {
-    return { label: 'Allowed (Read)', tone: 'ok' }
-  }
-  if (readOnly || policy === 'read_only') {
-    return { label: 'Blocked', tone: 'bad' }
-  }
-  if (policy === 'write_with_approval') {
-    return { label: 'Approval Required', tone: 'warn' }
-  }
-  return { label: 'Allowed (Auto)', tone: 'ok' }
-}
-
-function toneClass(tone: 'ok' | 'warn' | 'bad' | 'muted'): string {
+function toneClass(
+  tone: 'success' | 'secondary' | 'destructive' | 'outline' | 'ok' | 'warn' | 'bad' | 'muted'
+): string {
   switch (tone) {
+    case 'success':
     case 'ok':
       return 'text-emerald-300'
+    case 'secondary':
     case 'warn':
       return 'text-amber-300'
+    case 'destructive':
     case 'bad':
       return 'text-rose-300'
     default:
@@ -423,11 +397,11 @@ export default function ControlCenterPage() {
     if (!settings) return []
     return TOOL_METADATA.map((tool) => {
       const raw = settings.mcp_tool_policies?.[tool.key]
-      const policy: ToolPolicy =
+      const policy: McpPolicyMode =
         raw === 'disabled' || raw === 'auto' || raw === 'write_with_approval' ? raw : 'read_only'
-      const effective = getEffectiveToolState({
+      const effective = getMcpEffectiveState({
         mcpEnabled: settings.mcp_enabled,
-        provider: settings.mcp_provider,
+        mcpProvider: settings.mcp_provider,
         readOnly: settings.mcp_read_only,
         write: tool.write,
         policy,
@@ -458,11 +432,13 @@ export default function ControlCenterPage() {
   }, [learningQueue])
 
   const writeToolRows = mcpToolRows.filter((row) => row.write)
-  const mcpWriteAutoCount = writeToolRows.filter((row) => row.effective.label === 'Allowed (Auto)').length
-  const mcpWriteApprovalCount = writeToolRows.filter(
-    (row) => row.effective.label === 'Approval Required'
+  const mcpWriteAutoCount = writeToolRows.filter(
+    (row) => row.policy === 'auto' && row.effective.status === 'allowed'
   ).length
-  const mcpWriteBlockedCount = writeToolRows.filter((row) => row.effective.label === 'Blocked').length
+  const mcpWriteApprovalCount = writeToolRows.filter(
+    (row) => row.effective.status === 'approval'
+  ).length
+  const mcpWriteBlockedCount = writeToolRows.filter((row) => row.effective.status === 'blocked').length
 
   const remediationPolicySummary = (() => {
     if (!settings) return 'N/A'
@@ -836,7 +812,7 @@ export default function ControlCenterPage() {
                       <div className="font-medium text-[var(--ph-text)]">{row.label}</div>
                       <div className="text-[var(--ph-muted)]">Configured: {formatToolPolicy(row.policy)}</div>
                       <div className={`${toneClass(row.effective.tone)} font-medium`}>
-                        Effective: {row.effective.label}
+                        Effective: {row.effective.summary}
                       </div>
                     </div>
                   ))}

@@ -880,6 +880,13 @@ export default function ActivityDetail() {
   const assignEnabled =
     Boolean(handoffConfig?.enabled) &&
     (handoffConfig?.mode === 'copy_only' || Boolean(handoffConfig?.webhook_configured))
+  const assignDisabledReason = !handoffConfig
+    ? 'Assign-to-Agent configuration is unavailable.'
+    : !handoffConfig.enabled
+      ? 'Assign-to-Agent is disabled by runtime configuration.'
+      : handoffConfig.mode === 'webhook' && !handoffConfig.webhook_configured
+        ? 'Assign-to-Agent webhook mode is enabled, but no webhook URL is configured yet.'
+        : 'Assign-to-Agent is unavailable.'
   const handleAssignToAgent = async () => {
     if (!handoffConfig) {
       toast.error('Assign-to-Agent configuration is unavailable')
@@ -955,7 +962,7 @@ export default function ActivityDetail() {
             title={
               assignEnabled
                 ? `Assign-to-Agent (${handoffConfig?.mode ?? 'copy_only'})`
-                : 'Assign-to-Agent is disabled by runtime configuration.'
+                : assignDisabledReason
             }
             className={`inline-flex h-9 items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)] px-3 text-sm font-semibold text-[var(--ph-text)] ${
               !assignEnabled || handoffMutation.isPending ? 'cursor-not-allowed opacity-75' : 'transition-colors hover:bg-[color:var(--ph-surface)]'
@@ -965,7 +972,7 @@ export default function ActivityDetail() {
             Assign to Agent
             {!assignEnabled && (
               <span className="ml-2 inline-flex items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-surface)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ph-text)]">
-                Coming Soon
+                {handoffConfig?.enabled ? 'Needs setup' : 'Disabled'}
               </span>
             )}
           </button>

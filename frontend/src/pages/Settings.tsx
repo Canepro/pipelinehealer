@@ -22,6 +22,7 @@ export default function SettingsPage() {
   const [adminKey, setAdminKey] = useState('')
   const [useSessionAuth, setUseSessionAuth] = useState(false)
   const [newMcpRepoInput, setNewMcpRepoInput] = useState('')
+  const [newHandoffHostInput, setNewHandoffHostInput] = useState('')
   const [form, setForm] = useState<SettingsFormState>({
     llm_provider: 'azure_openai',
     openai_compatible_base_url: '',
@@ -60,6 +61,11 @@ export default function SettingsPage() {
     gh_aw_tools_enabled: false,
     gh_aw_ingestion_mode: 'disabled',
     gh_aw_known_workflows: ['ci-doctor'],
+    agent_handoff_enabled: false,
+    agent_handoff_mode: 'copy_only',
+    agent_handoff_webhook_allowlist: [],
+    agent_handoff_timeout_seconds: 8,
+    agent_handoff_max_retries: 1,
     ph_allowed_repos: [],
     azure_openai_deployment_name: '',
   })
@@ -156,6 +162,11 @@ export default function SettingsPage() {
         gh_aw_tools_enabled: form.gh_aw_tools_enabled,
         gh_aw_ingestion_mode: form.gh_aw_ingestion_mode,
         gh_aw_known_workflows: form.gh_aw_known_workflows,
+        agent_handoff_enabled: form.agent_handoff_enabled,
+        agent_handoff_mode: form.agent_handoff_mode,
+        agent_handoff_webhook_allowlist: form.agent_handoff_webhook_allowlist,
+        agent_handoff_timeout_seconds: form.agent_handoff_timeout_seconds,
+        agent_handoff_max_retries: form.agent_handoff_max_retries,
         ph_allowed_repos: form.ph_allowed_repos,
       }
       const deploymentName = form.azure_openai_deployment_name.trim()
@@ -410,6 +421,28 @@ export default function SettingsPage() {
               ]}
             />
             <SettingsSummaryCard
+              title="Assign-to-Agent"
+              items={[
+                {
+                  label: 'Runtime',
+                  value: data.agent_handoff_enabled ? 'Enabled' : 'Disabled',
+                },
+                {
+                  label: 'Mode',
+                  value:
+                    data.agent_handoff_mode === 'webhook'
+                      ? data.agent_handoff_webhook_configured
+                        ? 'Webhook'
+                        : 'Webhook (missing startup URL)'
+                      : 'Copy only',
+                },
+                {
+                  label: 'Destination',
+                  value: data.agent_handoff_webhook_host || 'Startup URL not configured',
+                },
+              ]}
+            />
+            <SettingsSummaryCard
               title="AI Provider"
               items={[
                 { label: 'Provider', value: data.llm_provider },
@@ -438,10 +471,10 @@ export default function SettingsPage() {
             />
           </div>
 
-          <AdminControlsForm
-            data={data}
-            form={form}
-            setForm={setForm}
+            <AdminControlsForm
+              data={data}
+              form={form}
+              setForm={setForm}
             llmProviderHealth={llmProviderHealth}
             isLlmHealthLoading={isLlmHealthLoading}
             mcpProviderHealth={mcpProviderHealth}
@@ -449,9 +482,11 @@ export default function SettingsPage() {
             hasUnsavedChanges={hasUnsavedChanges}
             newRepoInput={newRepoInput}
             setNewRepoInput={setNewRepoInput}
-            newMcpRepoInput={newMcpRepoInput}
-            setNewMcpRepoInput={setNewMcpRepoInput}
-            setGhAwWorkflowsInput={setGhAwWorkflowsInput}
+              newMcpRepoInput={newMcpRepoInput}
+              setNewMcpRepoInput={setNewMcpRepoInput}
+              newHandoffHostInput={newHandoffHostInput}
+              setNewHandoffHostInput={setNewHandoffHostInput}
+              setGhAwWorkflowsInput={setGhAwWorkflowsInput}
             setLastSavedForm={setLastSavedForm}
             savePending={saveMutation.isPending}
             saveError={saveMutation.isError ? (saveMutation.error as Error) : null}
