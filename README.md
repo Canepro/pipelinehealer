@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 78eaef7 -->
+<!-- LAST_VERIFIED: 3bdc91b -->
 
 > Policy-aware CI/CD remediation platform for GitHub Actions failures.
 
@@ -327,6 +327,9 @@ bash scripts/ph.sh demo:proof --repo <owner>/<repo> --limit 5
 - independent execution/action toggles:
   - `AUTO_APPLY_REMEDIATION` (global execution gate)
   - `AUTO_CREATE_PR`, `AUTO_CREATE_ISSUE`, `AUTO_RETRY_WORKFLOW` (per-action outputs)
+- Jenkins bridge output policy:
+  - `JENKINS_BRIDGE_ALLOW_PR=false` keeps signed Jenkins bridge events issue-first by default
+  - set `JENKINS_BRIDGE_ALLOW_PR=true` only when you explicitly want bridge-triggered PR output (and `AUTO_CREATE_PR=true`)
 - protected settings APIs (`X-API-Key`; admin routes require `X-Admin-Key` in non-development)
 - auditable settings changes and remediation traces
 - MCP defaults: `MCP_ENABLED=false`, `MCP_READ_ONLY=true`

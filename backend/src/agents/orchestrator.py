@@ -1778,6 +1778,7 @@ class OrchestratorAgent:
                 "full_name": repository_full_name,
                 "owner": {"login": owner},
                 "default_branch": payload.branch or "main",
+                "source_selection_path": "jenkins_bridge",
             }
             dry_run = not self._settings.auto_apply_remediation
             result = await self._run_with_timeout(

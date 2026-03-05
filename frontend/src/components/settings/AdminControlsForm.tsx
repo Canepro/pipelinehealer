@@ -389,6 +389,12 @@ export default function AdminControlsForm({
                   onChange={(v) => setForm((p) => ({ ...p, auto_create_pr: v }))}
                 />
                 <SwitchField
+                  label="Jenkins Bridge: Allow PRs"
+                  field="jenkins_bridge_allow_pr"
+                  checked={form.jenkins_bridge_allow_pr}
+                  onChange={(v) => setForm((p) => ({ ...p, jenkins_bridge_allow_pr: v }))}
+                />
+                <SwitchField
                   label="Auto-Create Issues"
                   field="auto_create_issue"
                   checked={form.auto_create_issue}
@@ -409,6 +415,11 @@ export default function AdminControlsForm({
                   }
                 />
               </div>
+              <p className="text-xs text-[var(--ph-muted)]">
+                Dependency hints: Jenkins bridge PR output requires both `Auto-Create Pull Requests`
+                and `Jenkins Bridge: Allow PRs`. If either is off, Jenkins bridge events stay
+                issue-first.
+              </p>
             </CardContent>
           </Card>
         )}

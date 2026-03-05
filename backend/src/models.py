@@ -352,6 +352,7 @@ class AppSettingsView(BaseModel):
     heal_mode: str
     auto_apply_remediation: bool
     auto_create_pr: bool
+    jenkins_bridge_allow_pr: bool
     auto_create_issue: bool
     auto_retry_workflow: bool
     auto_create_tracking_issue_for_prs: bool
@@ -412,6 +413,7 @@ class AdminSettingsUpdateRequest(BaseModel):
     heal_mode: str | None = None
     auto_apply_remediation: bool | None = None
     auto_create_pr: bool | None = None
+    jenkins_bridge_allow_pr: bool | None = None
     auto_create_issue: bool | None = None
     auto_retry_workflow: bool | None = None
     auto_create_tracking_issue_for_prs: bool | None = None

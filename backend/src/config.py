@@ -168,6 +168,13 @@ class Settings(BaseSettings):
         default=524288,
         description="Maximum accepted Jenkins bridge request body size in bytes",
     )
+    jenkins_bridge_allow_pr: bool = Field(
+        default=False,
+        description=(
+            "Allow Jenkins bridge sourced remediations to publish PR artifacts when "
+            "AUTO_CREATE_PR is also enabled"
+        ),
+    )
     github_personal_access_token: str = Field(
         default="",
         description="GitHub personal access token (recommended for local dev)",

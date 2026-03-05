@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 78eaef7 -->
+<!-- LAST_VERIFIED: 3bdc91b -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -173,6 +173,7 @@ Behavior:
 - Enforces timestamp skew (`JENKINS_BRIDGE_MAX_SKEW_SECONDS`) and replay protections.
 - Enforces `PH_ALLOWED_REPOS` allowlist before processing.
 - Starts a synthetic activity path with `source_selection_path=jenkins_bridge`.
+- Uses issue-first output by default for bridge events; set `JENKINS_BRIDGE_ALLOW_PR=true` (and `AUTO_CREATE_PR=true`) to allow PR artifacts from bridge-sourced remediations.
 
 **Response** `200 OK` (processing):
 
@@ -186,7 +187,16 @@ Behavior:
 }
 ```
 
-**Response** `200 OK` (ignored duplicate):
+**Response** `200 OK` (ignored duplicate nonce):
+
+```json
+{
+  "status": "ignored",
+  "reason": "duplicate_nonce"
+}
+```
+
+**Response** `200 OK` (ignored duplicate delivery):
 
 ```json
 {
@@ -556,6 +566,7 @@ Returns the current runtime configuration (non-secret values only).
   "heal_mode": "safe",
   "auto_apply_remediation": true,
   "auto_create_pr": true,
+  "jenkins_bridge_allow_pr": false,
   "auto_create_issue": true,
   "auto_retry_workflow": true,
   "auto_create_tracking_issue_for_prs": true,
@@ -632,6 +643,7 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
   "heal_mode": "debug",
   "auto_apply_remediation": true,
   "auto_create_pr": false,
+  "jenkins_bridge_allow_pr": false,
   "auto_create_issue": true,
   "auto_retry_workflow": false,
   "max_remediation_attempts": 5,
@@ -792,6 +804,7 @@ Durably persists current mutable runtime settings so they survive backend restar
     "HEAL_MODE",
     "AUTO_APPLY_REMEDIATION",
     "AUTO_CREATE_PR",
+    "JENKINS_BRIDGE_ALLOW_PR",
     "AUTO_CREATE_ISSUE",
     "AUTO_RETRY_WORKFLOW",
     "MAX_REMEDIATION_ATTEMPTS",
