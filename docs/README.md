@@ -1,12 +1,13 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: 41575cf -->
+<!-- LAST_VERIFIED: 7280f80 -->
 
 Use this index to find the right doc quickly.
 
 ### Tier 1 — User-Facing (update every feature PR)
 
 - `../README.md` — public-facing project overview, features, env vars, setup
+- `OPERATOR_CONTROL_PLANE.md` — product-level contract for configuration, provenance, and operator-surface design
 - `features/README.md` — dedicated feature-by-feature operator/user guides
 - `API.md` — full API reference: endpoints, authentication, data models, best practices
 - `../CONTRIBUTING.md` — contributor workflow, quality gates, and docs update policy

@@ -1,14 +1,34 @@
 # Contributing
 
+<!-- LAST_VERIFIED: 7280f80 -->
+
 Thanks for your interest in improving PipelineHealer.
 
 ## Scope
 
-PipelineHealer is a hackathon-focused project with Azure-first deployment goals. Contributions should prioritize:
+PipelineHealer is an OSS-first pipeline remediation platform with Azure as a supported reference deployment path. Contributions should prioritize:
 
+- product portability over platform lock-in
 - deterministic remediation behavior
 - safety and auditability
+- operator clarity
 - docs accuracy
+
+Contributions should avoid encoding Azure-only assumptions into the core product model. Deployment-specific behavior belongs in adapters, manifests, or runbooks, not in the product identity.
+
+## Product Framing Rules
+
+When changing operator surfaces, configuration, or provider boundaries:
+
+- Treat PipelineHealer as a pipeline platform, not only a GitHub Actions or CI-only tool.
+- Keep a clear distinction between:
+  - configured intent
+  - effective runtime behavior
+  - external dependency status
+  - configuration source/provenance
+- Prefer one declared source-of-truth model over split-brain configuration flows.
+- If a capability is meant to be operator-managed, avoid requiring hidden deployment-only toggles for normal use.
+- Track serious behavior/surface changes against a version in `docs/FUTURE_PLAN.md` before implementation.
 
 ## Local Setup
 
@@ -52,6 +72,11 @@ Always execute scripts with `bash scripts/...`. Do not use `source` or `. script
 - Add concise comments for non-obvious logic (focus on intent/why, not line-by-line narration).
 - Update or remove stale comments in files you touch.
 - Add/update `CHANGELOG.md` `## [Unreleased]` entries for user-visible changes and include short commit hash references.
+- For control-plane/configuration changes, update the governing docs before or alongside code:
+  1. `README.md`
+  2. `docs/OPERATOR_CONTROL_PLANE.md`
+  3. `docs/API.md`
+  4. `docs/CLI.md`
 - Update docs when behavior changes:
   1. `README.md`
   2. `docs/API.md`

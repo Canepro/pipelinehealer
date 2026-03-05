@@ -255,18 +255,38 @@ Theme: release-quality polish and presentation alignment.
 
 ## Active Target: `v0.4.0` (Minor)
 
-Theme: MCP operational maturity + observability depth.
+Theme: operator control-plane coherence + MCP operational maturity.
 
 ### Planned Scope
 
-1. MCP write-path governance completion
+1. Operator control-plane coherence
+   - Remove split-brain operator experience between ACA env, persisted runtime overrides, and UI-only assumptions.
+   - Make supported steady-state settings visibly traceable by effective value + source (`default`, `env`, `secretref`, persisted runtime override).
+   - Treat Settings as the primary operator surface for supported runtime capabilities instead of requiring ad-hoc backend/env-only knowledge for common paths.
+2. MCP governance UX completion
+   - Separate configured policy from effective runtime outcome so global read-only mode and per-tool policy never appear contradictory.
+   - Replace misleading severity color semantics in policy banners and status chips; red means blocked/risky/failing, not merely enabled.
    - Enforce per-tool policy outcomes (`disabled|read_only|write_with_approval|auto`) with explicit operator UX.
-2. Observability expansion
+3. Assign-to-Agent operability
+   - Bring Assign-to-Agent setup into the Settings UI for supported modes.
+   - Support webhook-mode configuration, validation, allowlist management, and test/health feedback without requiring operators to remember hidden backend-only knobs.
+   - Keep copy-only mode available as the low-friction fallback, but make the distinction explicit.
+4. Observability and investigation depth
    - Token/cost telemetry by activity/model path.
    - Provider degradation thresholds (fallback spikes, timeout/error spikes).
-3. Investigation UX polish
    - Better large-dataset ergonomics in Control Center and Activity Detail.
    - Optional in-app logs viewer (safe, bounded, RBAC-aware).
+5. Interface coherence pass
+   - Rework Settings, Control Center, Activity Detail, and supporting status vocabulary into one consistent operator language.
+   - Refresh landing/shell styling only where needed to keep the visual system coherent with the upgraded operator surfaces.
+
+### Exit Criteria
+
+1. Operators can determine, from the UI alone, whether a capability is configured, effective, blocked, or missing an external dependency.
+2. No supported capability requires hidden ACA-only toggles once its configuration model is declared user-operable.
+3. Assign-to-Agent can be enabled and validated from the UI for supported modes, with clear fallback/blocked states.
+4. MCP governance screens no longer show "allowed" policy selections alongside red "blocked" runtime states without explaining the precedence rule.
+5. Release docs, changelog scope, and implementation PRs explicitly track this as `v0.4.0`, not ad-hoc polish.
 
 ## Planned Target: `v0.5.0` (Minor)
 
@@ -398,6 +418,10 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-044` | Azure env-sync regression fix: keep existing frontend runtime config when `VITE_*` keys are omitted from env input during `deploy:env` ([#55](https://github.com/Canepro/pipelinehealer/issues/55)) | `v0.3.2` | patch | High | Completed (merged to `main`) |
 | `BL-045` | Storage posture hardening: explicit storage mode + non-development durability guardrail with fail-fast misconfiguration behavior ([#57](https://github.com/Canepro/pipelinehealer/issues/57)) | `v0.3.2` | patch | High | Completed (merged to `main`) |
 | `BL-046` | PostgreSQL durable storage adapter (OSS-friendly persistence path) with adapter-contract parity requirements ([#58](https://github.com/Canepro/pipelinehealer/issues/58)) | `v0.3.2` | minor | Medium | Completed (released in `v0.3.2`) |
+| `BL-047` | Operator config provenance + source-of-truth visibility across Settings/Control Center/API (`default` vs env vs secretref vs persisted runtime override) | `v0.4.0` | minor | High | Planned |
+| `BL-048` | Assign-to-Agent UI activation path: Settings-managed handoff enablement, webhook configuration/validation, and operator test flow | `v0.4.0` | minor | High | Planned |
+| `BL-049` | MCP governance IA rework: separate configured policy from effective runtime outcome and fix misleading status/severity color semantics | `v0.4.0` | minor | High | Planned |
+| `BL-050` | Operator-surface visual/system coherence pass across Settings, Control Center, Activity Detail, and shell/landing alignment where needed | `v0.4.0` | minor | Medium | Planned |
 
 ## Definition of Done (Per Version)
 
