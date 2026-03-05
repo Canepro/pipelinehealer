@@ -261,7 +261,7 @@ Theme: operator control-plane coherence + MCP operational maturity.
 
 1. Operator control-plane coherence
    - Remove split-brain operator experience between ACA env, persisted runtime overrides, and UI-only assumptions.
-   - Make supported steady-state settings visibly traceable by effective value + source (`default`, `env`, `secretref`, persisted runtime override).
+   - Make supported steady-state settings visibly traceable by effective value + source (`default`, `env`, `secretref`, `persisted_runtime_override`).
    - Treat Settings as the primary operator surface for supported runtime capabilities instead of requiring ad-hoc backend/env-only knowledge for common paths.
 2. MCP governance UX completion
    - Separate configured policy from effective runtime outcome so global read-only mode and per-tool policy never appear contradictory.

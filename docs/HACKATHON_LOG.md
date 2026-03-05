@@ -8,7 +8,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 - Repo visibility: **Public** (`https://github.com/Canepro/pipelinehealer`)
 - Azure deployment: **Live** on Container Apps (backend + frontend)
-- Project positioning: **Azure-first** for hackathon compliance, local mode as evaluation fallback
+- Project positioning: OSS-first pipeline remediation platform with Azure-first hackathon deployment constraints and local mode as evaluation fallback
 - Runtime security: `X-API-Key` for `/api/*`; admin settings routes (`/api/settings*`) use `X-API-Key` + `X-Admin-Key` in non-development
 - Auth rollout: Microsoft Entra login and bearer token auth shipped with migration-safe `AUTH_MODE=hybrid` and strict `AUTH_MODE=entra` path ready
 - Remediation idempotency: find-or-create artifact flow shipped (reuses existing PR/issue when matched; avoids duplicate branch/PR churn on repeated runs)
@@ -207,7 +207,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 ### Feb 13, 2026
 
-- Updated docs framing to explicitly Azure-first (hackathon compliance) with local fallback for evaluator convenience.
+- Updated docs framing to position PipelineHealer as OSS-first, with Azure retained as the primary hackathon deployment path and local mode preserved for evaluator convenience.
 - Expanded README with deterministic fix matrix and explicit safety model.
 - Added `CONTRIBUTING.md` and `SECURITY.md` and linked them from `docs/README.md`.
 - Added repo allowlist gate (`PH_ALLOWED_REPOS`) so webhook processing can be scoped to selected repos.

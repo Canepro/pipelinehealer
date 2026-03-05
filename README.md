@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 7280f80 -->
+<!-- LAST_VERIFIED: 2a680b5 -->
 
 > OSS-first, policy-aware pipeline remediation platform with GitHub Actions and Jenkins bridge support today.
 
@@ -206,7 +206,7 @@ flowchart TB
   end
 
   subgraph CTRL["PipelineHealer Control Plane"]
-    WH["Webhook Ingress<br/>/webhook/github"]
+    WH["Webhook Ingress<br/>/webhook/github + /webhook/jenkins"]
     ORCH["Orchestrator"]
     ANA["Log Analyzer"]
     DIA["Diagnosis Engine<br/>rules first, LLM fallback"]
