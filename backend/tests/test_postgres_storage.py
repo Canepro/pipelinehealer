@@ -15,11 +15,21 @@ from src.models import (
     RemediationStatus,
     utcnow,
 )
-from src.storage import InMemoryStorage, PostgresStorage
+from src.storage import (
+    _POSTGRES_BOOTSTRAP_SQL,
+    _POSTGRES_BOOTSTRAP_SQL_PATH,
+    InMemoryStorage,
+    PostgresStorage,
+)
 
 
 def _q(sql: str) -> str:
-    return " ".join(sql.strip().lower().split())
+    normalized_lines = [
+        line.strip()
+        for line in sql.strip().splitlines()
+        if line.strip() and not line.strip().startswith("--")
+    ]
+    return " ".join(" ".join(normalized_lines).lower().split())
 
 
 @dataclass
@@ -263,6 +273,13 @@ async def test_storage_contract_learning_queue_roundtrip(kind: str) -> None:
     listed = await storage.list_learning_queue_items(status="candidate", limit=10)
     assert listed[0]["id"] == f"{kind}-candidate"
     await storage.close()
+
+
+def test_postgres_bootstrap_sql_file_matches_runtime_fallback() -> None:
+    """Guard against drift between operator SQL file and embedded fallback SQL."""
+    assert _POSTGRES_BOOTSTRAP_SQL_PATH.exists()
+    file_sql = _POSTGRES_BOOTSTRAP_SQL_PATH.read_text(encoding="utf-8")
+    assert _q(file_sql) == _q(_POSTGRES_BOOTSTRAP_SQL)
 
 
 @pytest.mark.asyncio

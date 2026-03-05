@@ -41,6 +41,16 @@ backend:
     LOG_LEVEL: INFO
     API_HOST: 0.0.0.0
     API_PORT: "8000"
+    # Storage mode: empty lets backend decide by ENVIRONMENT (memory in development,
+    # durable backend in non-development). Recommended explicit values:
+    # - postgres (OSS-friendly durable path)
+    # - cosmos (Azure-managed durable path)
+    # - memory (dev/demo only; combine with ALLOW_IN_MEMORY... guard)
+    STORAGE_MODE: ""
+    ALLOW_IN_MEMORY_STORAGE_IN_NON_DEVELOPMENT: "false"
+    # Durable storage non-secret settings.
+    COSMOS_DB_ENDPOINT: ""
+    COSMOS_DB_DATABASE: pipelinehealer
 
     HEAL_MODE: safe
     AUTO_APPLY_REMEDIATION: "true"
@@ -93,6 +103,10 @@ backend:
     OPENAI_COMPATIBLE_API_KEY: ""
     GITHUB_PERSONAL_ACCESS_TOKEN: ""
     GITHUB_WEBHOOK_SECRET: ""
+    # Durable storage secret settings.
+    # For postgres mode, set this to a full DSN:
+    # postgresql://user:pass@host:5432/pipelinehealer
+    POSTGRES_DSN: ""
 
 frontend:
   # Replica count is ignored when autoscaling.enabled=true.

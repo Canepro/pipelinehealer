@@ -4,6 +4,7 @@ import json
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -25,6 +26,9 @@ _RUNTIME_SETTINGS_ID = "pipelinehealer_runtime_settings_v1"
 _RUNTIME_SETTINGS_PARTITION = "__pipelinehealer_settings__"
 _AUDIT_PARTITION = "__pipelinehealer_audit__"
 _LEARNING_QUEUE_PARTITION = "__pipelinehealer_learning_queue__"
+_POSTGRES_BOOTSTRAP_SQL_PATH = (
+    Path(__file__).resolve().parents[1] / "scripts" / "postgres" / "bootstrap.sql"
+)
 _POSTGRES_BOOTSTRAP_SQL = """
 CREATE TABLE IF NOT EXISTS ph_activities (
     id TEXT PRIMARY KEY,
@@ -102,6 +106,18 @@ def _parse_json_dict(value: Any) -> dict[str, Any] | None:
         if isinstance(parsed, dict):
             return parsed
     return None
+
+
+def get_postgres_bootstrap_sql() -> str:
+    """Return PostgreSQL bootstrap SQL used by PostgresStorage initialization.
+
+    Prefer the checked-in SQL file so operator-facing migration docs and runtime
+    initialization remain aligned. Fall back to embedded SQL for packaged
+    environments where the repository scripts directory is unavailable.
+    """
+    if _POSTGRES_BOOTSTRAP_SQL_PATH.exists():
+        return _POSTGRES_BOOTSTRAP_SQL_PATH.read_text(encoding="utf-8")
+    return _POSTGRES_BOOTSTRAP_SQL
 
 
 class ActivityStorage:
@@ -747,7 +763,7 @@ class PostgresStorage(ActivityStorage):
 
         self._pool = await self._pool_factory(dsn=dsn, min_size=1, max_size=5)
         async with self._pool_required().acquire() as conn:
-            await conn.execute(_POSTGRES_BOOTSTRAP_SQL)
+            await conn.execute(get_postgres_bootstrap_sql())
         self._initialized = True
         logger.info("PostgreSQL storage initialized successfully")
 
@@ -1113,27 +1129,34 @@ class PostgresStorage(ActivityStorage):
         since: datetime | None = None,
         page_size: int = 200,
     ) -> AsyncIterator[ActivityRecord]:
-        """Yield activities from PostgreSQL using offset paging."""
+        """Yield activities via keyset pagination to avoid large OFFSET scans."""
         await self.initialize()
 
         safe_page_size = max(1, min(page_size, 500))
-        offset = 0
+        cursor_created_at: datetime | None = None
+        cursor_id: str | None = None
         while True:
             args: list[Any] = []
             conditions: list[str] = []
             if since:
                 args.append(_as_utc(since))
                 conditions.append(f"created_at >= ${len(args)}")
+            if cursor_created_at is not None and cursor_id is not None:
+                args.append(cursor_created_at)
+                created_idx = len(args)
+                args.append(cursor_id)
+                id_idx = len(args)
+                conditions.append(
+                    f"(created_at < ${created_idx} OR (created_at = ${created_idx} AND id < ${id_idx}))"
+                )
 
             where_clause = " AND ".join(conditions) if conditions else "TRUE"
-            args.append(offset)
             args.append(safe_page_size)
             query = f"""
-                SELECT payload::text AS payload
+                SELECT id, created_at, payload::text AS payload
                 FROM ph_activities
                 WHERE {where_clause}
-                ORDER BY created_at DESC
-                OFFSET ${len(args) - 1}
+                ORDER BY created_at DESC, id DESC
                 LIMIT ${len(args)}
             """
             async with self._pool_required().acquire() as conn:
@@ -1149,7 +1172,9 @@ class PostgresStorage(ActivityStorage):
                 yield ActivityRecord(**payload)
             if count == 0 or count < safe_page_size:
                 break
-            offset += count
+            last_row = rows[-1]
+            cursor_created_at = _as_utc(last_row["created_at"])
+            cursor_id = str(last_row["id"])
 
 
 class InMemoryStorage(ActivityStorage):

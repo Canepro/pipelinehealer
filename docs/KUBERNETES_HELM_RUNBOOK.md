@@ -1,6 +1,6 @@
 # Kubernetes Helm Runbook
 
-<!-- LAST_VERIFIED: 1f53853 -->
+<!-- LAST_VERIFIED: f022bcf -->
 
 This runbook adds Kubernetes as a secondary deployment target while keeping Azure Container Apps as the default path.
 
@@ -118,6 +118,12 @@ backend:
     digest: ""
   env:
     ENVIRONMENT: production
+    # Keep empty to let backend default by environment, or set explicitly:
+    # STORAGE_MODE: postgres | cosmos | memory
+    STORAGE_MODE: postgres
+    ALLOW_IN_MEMORY_STORAGE_IN_NON_DEVELOPMENT: "false"
+    COSMOS_DB_ENDPOINT: ""
+    COSMOS_DB_DATABASE: pipelinehealer
     HEAL_MODE: safe
     AUTO_APPLY_REMEDIATION: "true"
     AUTO_CREATE_PR: "false"
@@ -139,6 +145,7 @@ backend:
     AZURE_OPENAI_API_KEY: <set-me>
     GITHUB_PERSONAL_ACCESS_TOKEN: <set-me>
     GITHUB_WEBHOOK_SECRET: <set-me>
+    POSTGRES_DSN: postgresql://pipelinehealer:<password>@postgres.<ns>.svc:5432/pipelinehealer
 
 frontend:
   image:
@@ -164,6 +171,19 @@ ingress:
 ```
 
 If `digest` is set, the chart uses `repository@digest` and ignores `tag`.
+
+## Controller and Persistence Best Practice
+
+- Keep backend/frontend as Kubernetes `Deployment` workloads.
+- Do not switch PipelineHealer backend to `StatefulSet` unless the app itself owns node-attached state.
+- PipelineHealer persistence should stay external (`Cosmos DB` or `PostgreSQL`), so pods remain stateless and horizontally replaceable.
+
+Recommended durable storage choices:
+
+1. `STORAGE_MODE=postgres` + `POSTGRES_DSN` (OSS-friendly, self-hostable)
+2. `STORAGE_MODE=cosmos` + `COSMOS_DB_ENDPOINT` (Azure-managed path)
+
+Avoid `STORAGE_MODE=memory` in non-development except explicit demo/evaluation cases.
 
 ## Entra on Kubernetes (Important)
 
