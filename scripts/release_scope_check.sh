@@ -27,10 +27,26 @@ if [[ ! -f CHANGELOG.md ]]; then
   exit 1
 fi
 
-latest_tag="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+latest_tag="${RELEASE_SCOPE_BASE_TAG:-}"
+if [[ -z "$latest_tag" ]]; then
+  # Prefer highest SemVer tag instead of nearest-ancestor tag so the check
+  # remains stable when repository history was rewritten/grafted.
+  latest_tag="$(
+    git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1
+  )"
+fi
+
+if [[ -z "$latest_tag" ]]; then
+  latest_tag="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+fi
 if [[ -z "$latest_tag" ]]; then
   echo "No release tags found. Skipping release scope check."
   exit 0
+fi
+
+if ! git rev-parse -q --verify "refs/tags/${latest_tag}" >/dev/null 2>&1; then
+  echo "Release scope check failed: tag '${latest_tag}' does not exist." >&2
+  exit 1
 fi
 
 mapfile -t commit_rows < <(git log --pretty=format:'%h%x09%s' "${latest_tag}..HEAD")

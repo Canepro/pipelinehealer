@@ -124,13 +124,20 @@ print(f"PASS GitHub release: {data.get('url')}")
 PY
 
 if [[ "$skip_workflow_check" -eq 0 ]]; then
-  runs_json="$(gh api --paginate "/repos/${owner_repo}/actions/workflows/release.yml/runs?per_page=100")"
-  RUNS_JSON="$runs_json" TAG_SHA="$tag_sha" python3 - <<'PY'
+  runs_json_file="$(mktemp)"
+  cleanup_runs_json() {
+    rm -f "$runs_json_file"
+  }
+  trap cleanup_runs_json EXIT
+
+  gh api --paginate "/repos/${owner_repo}/actions/workflows/release.yml/runs?per_page=100" >"$runs_json_file"
+  RUNS_JSON_FILE="$runs_json_file" TAG_SHA="$tag_sha" python3 - <<'PY'
 import json
 import os
+from pathlib import Path
 
 tag_sha = os.environ.get("TAG_SHA", "").strip()
-raw = os.environ.get("RUNS_JSON", "")
+raw = Path(os.environ["RUNS_JSON_FILE"]).read_text(encoding="utf-8")
 
 decoder = json.JSONDecoder()
 pages = []
@@ -166,6 +173,9 @@ if status != "completed" or conclusion != "success":
     )
 print(f"PASS release workflow: {candidate.get('html_url')}")
 PY
+
+  trap - EXIT
+  cleanup_runs_json
 else
   echo "SKIP release workflow check (--skip-workflow-check)"
 fi
