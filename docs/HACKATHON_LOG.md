@@ -8,7 +8,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 - Repo visibility: **Public** (`https://github.com/Canepro/pipelinehealer`)
 - Azure deployment: **Live** on Container Apps (backend + frontend)
-- Project positioning: **Azure-first** for hackathon compliance, local mode as evaluation fallback
+- Project positioning: OSS-first pipeline remediation platform with Azure-first hackathon deployment constraints and local mode as evaluation fallback
 - Runtime security: `X-API-Key` for `/api/*`; admin settings routes (`/api/settings*`) use `X-API-Key` + `X-Admin-Key` in non-development
 - Auth rollout: Microsoft Entra login and bearer token auth shipped with migration-safe `AUTH_MODE=hybrid` and strict `AUTH_MODE=entra` path ready
 - Remediation idempotency: find-or-create artifact flow shipped (reuses existing PR/issue when matched; avoids duplicate branch/PR churn on repeated runs)
@@ -35,6 +35,12 @@ This is the long-form project tracker for hackathon execution status, submission
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
   - storage extensibility remained adapter-scoped (no core workflow rewrites during freeze)
 - Release `v0.3.3` is the current public baseline; forward planning target is `v0.4.0`
+- `v0.4.0` scope is now explicitly expanded to cover operator control-plane coherence after live-capability activation exposed product gaps that conservative defaults were hiding:
+  - MCP governance screens currently mix configured policy and effective runtime outcome in a way that can appear contradictory
+  - policy/status color semantics use destructive tones for normal enabled states, which blurs "enabled" vs "blocked/risky"
+  - Assign-to-Agent is functionally present but not yet operable from the main Settings surface
+  - effective runtime state is still split between ACA env, secret refs, and persisted runtime overrides, which creates operator ambiguity about source of truth
+  - implementation expectation: treat this as tracked release work (`v0.4.0` / `BL-047..BL-050`), not ad-hoc frontend polish
 - `v0.3.1` runtime-config decoupling shipped:
   - release published: `https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.1`
   - runtime-first frontend config tracked in [#54](https://github.com/Canepro/pipelinehealer/issues/54)
@@ -201,7 +207,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 ### Feb 13, 2026
 
-- Updated docs framing to explicitly Azure-first (hackathon compliance) with local fallback for evaluator convenience.
+- Updated docs framing to position PipelineHealer as OSS-first, with Azure retained as the primary hackathon deployment path and local mode preserved for evaluator convenience.
 - Expanded README with deterministic fix matrix and explicit safety model.
 - Added `CONTRIBUTING.md` and `SECURITY.md` and linked them from `docs/README.md`.
 - Added repo allowlist gate (`PH_ALLOWED_REPOS`) so webhook processing can be scoped to selected repos.

@@ -1,6 +1,6 @@
 # Agent Instructions (Repo-Specific)
 
-This repository contains **PipelineHealer** — a multi-agent CI/CD self-healing system for the AI Dev Days Hackathon.
+This repository contains **PipelineHealer** — an OSS-first, policy-aware pipeline remediation platform. Current shipped provider paths focus on GitHub Actions plus a Jenkins bridge, and the reference managed deployment is Azure Container Apps.
 
 This file is intentionally concise. Detailed phase/checklist/history tracking lives in:
 
@@ -59,7 +59,10 @@ bun run build
 ## Engineering Guardrails
 
 - Do not commit secrets; use `.env` locally and Key Vault/GitHub Secrets in cloud paths.
-- Keep configuration env-driven via `backend/src/config.py`.
+- Keep configuration modeled centrally via `backend/src/config.py`, with deployment-specific injection layers around that model.
+- Preserve OSS-first product framing: Azure is a supported reference deployment, not the product boundary.
+- Prefer deterministic settings surfaces over hidden deployment-specific toggles. When a capability is intended to be operator-managed, the UI/API/docs should expose it coherently.
+- Separate configured policy from effective runtime behavior in operator-facing surfaces.
 - Keep agents single-responsibility (log analysis, diagnosis, remediation, orchestration).
 - Preserve in-memory fallback (`InMemoryStorage`) for local development.
 - Keep backend lint/type/test healthy (`ruff`, `mypy`, `pytest`).
@@ -88,6 +91,15 @@ Before major pushes:
 - avoid placeholder commit messages
 
 ## Update Policy
+
+Before major implementation work, ensure the governing docs describe the intended product model clearly enough that code is forced into the right shape. For control-plane/configuration work, update:
+
+1. `README.md` — product framing and deployment posture
+2. `CONTRIBUTING.md` — contributor rules and quality bar
+3. `docs/README.md` — docs index / where the design contract lives
+4. `docs/OPERATOR_CONTROL_PLANE.md` — settings/configuration/provenance contract
+
+Serious product changes should be version-tracked first in `docs/FUTURE_PLAN.md` before implementation proceeds.
 
 When behavior changes, update docs using this checklist:
 

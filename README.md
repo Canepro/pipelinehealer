@@ -1,18 +1,20 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 41575cf -->
+<!-- LAST_VERIFIED: 2a680b5 -->
 
-> Policy-aware CI/CD remediation platform for GitHub Actions failures.
+> OSS-first, policy-aware pipeline remediation platform with GitHub Actions and Jenkins bridge support today.
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Try_It-brightgreen)](https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io)
 [![Azure](https://img.shields.io/badge/Azure-Deployed-blue)](https://azure.microsoft.com)
 [![Release](https://img.shields.io/badge/Release-v0.3.3-blue)](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.3)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies controlled remediation:
+PipelineHealer ingests failed pipeline executions, diagnoses root causes, and applies controlled remediation:
 - deterministic fixes open or reuse pull requests
 - ambiguous or risky cases open structured issues instead of unsafe edits
 - all actions are auditable, explainable, and tied to concrete run evidence
+
+Current provider coverage is GitHub Actions plus a signed Jenkins bridge path. The product boundary is intentionally broader than CI-only tooling: PipelineHealer is designed as a remediation control plane for software-delivery pipelines, with provider-specific ingress and tool adapters around a shared policy, diagnosis, and audit core.
 
 ![Dashboard — processed count, safety gating ratios, failure type breakdown, and explainability snapshot](docs/screens/dashboard.png)
 ![Landing page — policy-aware remediation overview and operational snapshot](docs/screens/Pipelinehealer-Landing_Page.png)
@@ -20,7 +22,7 @@ PipelineHealer ingests failed workflow runs, diagnoses root causes, and applies 
 ## Hackathon Snapshot
 
 - Public repository: `https://github.com/Canepro/pipelinehealer`
-- Live deployment: Azure Container Apps (backend + frontend)
+- Live reference deployment: Azure Container Apps (backend + frontend)
 - Current release baseline: [`v0.3.3`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.3)
 - `v0.3.2` required freeze scope shipped: `#36` (Jenkins bridge), `#42` (Assign-to-Agent), `#57` (storage posture hardening)
 - OSS-friendly durable storage is available: PostgreSQL adapter (`#58`) alongside Cosmos DB and in-memory development mode
@@ -80,6 +82,15 @@ Defaults are already beginner-safe in `.env.example`:
 
 For managed deployment and full demo ops, use [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md).
 
+## Product Position
+
+PipelineHealer is open source first.
+
+- Azure Container Apps is the current reference managed deployment, not the definition of the product.
+- The core platform should remain understandable and operable across local, Docker, Helm/Kubernetes, ACA, and future deployment targets.
+- Provider-specific integrations (GitHub, Jenkins, future pipeline sources) should plug into a shared control plane instead of redefining product behavior per platform.
+- Configuration should be deterministic and visible: operators should be able to see what is configured, what is effective, and where that value came from.
+
 ## Deployment Command Cheat Sheet
 
 Pick the path that matches your environment:
@@ -131,7 +142,7 @@ Persistence guardrail for non-development deployments:
 
 ## Why PipelineHealer
 
-CI failures create repetitive triage work and slow delivery. PipelineHealer reduces mean time to understanding and remediation with a safety-first flow:
+Pipeline failures create repetitive triage work and slow delivery. PipelineHealer reduces mean time to understanding and remediation with a safety-first flow:
 - Analyze -> Diagnose -> Remediate
 - policy gates (`HEAL_MODE`, per-action toggles, repo allowlists)
 - explainability fields (`diagnosis_source`, reason codes, source attribution)
@@ -144,6 +155,7 @@ CI failures create repetitive triage work and slow delivery. PipelineHealer redu
 - Safer automation: deterministic fixes can be auto-proposed while risky paths stay review-first.
 - Operational traceability: every action links to run evidence, reason codes, and policy state.
 - Deployment flexibility: same control model across Azure, Kubernetes, and local container paths.
+- Platform extensibility: provider-specific adapters can expand beyond GitHub-centric CI into broader delivery and operations pipelines.
 
 ## Recent Releases
 
@@ -187,12 +199,14 @@ The diagrams below show system boundaries and runtime decision flow.
 flowchart TB
   subgraph EXT["External Systems"]
     GH["GitHub Actions"]
+    JN["Jenkins Bridge"]
     GHAW["GH-AW findings<br/>ci-doctor / breaking-change"]
-    MCP["GitHub MCP provider<br/>optional, read-only default"]
+    MCP["Provider MCP / Context APIs<br/>optional, read-only default"]
+    OTH["Future Pipeline Sources"]
   end
 
   subgraph CTRL["PipelineHealer Control Plane"]
-    WH["Webhook Ingress<br/>/webhook/github"]
+    WH["Webhook Ingress<br/>/webhook/github + /webhook/jenkins"]
     ORCH["Orchestrator"]
     ANA["Log Analyzer"]
     DIA["Diagnosis Engine<br/>rules first, LLM fallback"]
@@ -219,6 +233,8 @@ flowchart TB
   end
 
   GH --> WH --> ORCH
+  JN --> WH
+  OTH -. adapter path .-> WH
   ORCH --> ANA --> DIA --> REM
   REM --> PR
   REM --> IS
