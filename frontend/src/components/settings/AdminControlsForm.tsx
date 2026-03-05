@@ -134,6 +134,28 @@ function parseWebhookUrlInput(value: string): { url: string; host: string } | nu
   }
 }
 
+function buildHandoffSamplePayload(candidateUrl: string) {
+  return JSON.stringify(
+    {
+      delivery_id: 'handoff:test-delivery',
+      request_id: 'ph-settings-smoke-test',
+      activity: {
+        id: 'activity-demo-123',
+        repository_name: 'canepro/pipelinehealer-demo',
+        workflow_name: 'CI',
+        status: 'failed',
+      },
+      context_format: 'markdown',
+      context:
+        '## PipelineHealer handoff smoke test\n\nThis is a generated sample payload for validating the receiver contract.',
+      sent_at: '2026-03-05T22:30:00Z',
+      target_url: candidateUrl,
+    },
+    null,
+    2
+  )
+}
+
 export default function AdminControlsForm({
   data,
   form,
@@ -283,18 +305,34 @@ export default function AdminControlsForm({
         `AGENT_HANDOFF_MAX_RETRIES=${form.agent_handoff_max_retries}`,
       ].join('\n')
     : ''
+  const handoffSamplePayload = handoffWebhookDraft
+    ? buildHandoffSamplePayload(handoffWebhookDraft.url)
+    : ''
+  const handoffSmokeCurl = handoffWebhookDraft
+    ? [
+        'curl -X POST \\',
+        `  -H "Content-Type: application/json" \\`,
+        `  -d @- "${handoffWebhookDraft.url}" <<'EOF'`,
+        handoffSamplePayload,
+        'EOF',
+      ].join('\n')
+    : ''
 
-  const copyHandoffSetupEnvBlock = async () => {
-    if (!handoffSetupEnvBlock) {
-      toast.error('Enter a valid webhook URL first')
+  const copyText = async (text: string, successMessage: string, emptyMessage: string) => {
+    if (!text) {
+      toast.error(emptyMessage)
       return
     }
     try {
-      await navigator.clipboard.writeText(handoffSetupEnvBlock)
-      toast.success('Handoff env block copied')
+      await navigator.clipboard.writeText(text)
+      toast.success(successMessage)
     } catch {
-      toast.error('Unable to copy handoff env block')
+      toast.error('Unable to copy generated output')
     }
+  }
+
+  const copyHandoffSetupEnvBlock = async () => {
+    await copyText(handoffSetupEnvBlock, 'Handoff env block copied', 'Enter a valid webhook URL first')
   }
 
   return (
@@ -913,7 +951,18 @@ export default function AdminControlsForm({
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <Label className="text-[var(--ph-muted)]">Portable startup env block</Label>
-                        <Badge variant="outline">Local, Docker, Helm, ACA adapter</Badge>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline">Local, Docker, Helm, ACA adapter</Badge>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={copyHandoffSetupEnvBlock}
+                          >
+                            <Copy className="h-4 w-4" />
+                            Copy Env Block
+                          </Button>
+                        </div>
                       </div>
                       <pre className="overflow-x-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
 {handoffSetupEnvBlock}
@@ -923,6 +972,60 @@ export default function AdminControlsForm({
                         redeploy/restart. For ACA specifically, keep the URL secret-backed and use
                         your existing `deploy:env --secure-secrets` path.
                       </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <Label className="text-[var(--ph-muted)]">Sample receiver payload</Label>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              copyText(
+                                handoffSamplePayload,
+                                'Handoff sample payload copied',
+                                'Enter a valid webhook URL first'
+                              )
+                            }
+                          >
+                            <Copy className="h-4 w-4" />
+                            Copy Payload
+                          </Button>
+                        </div>
+                        <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
+{handoffSamplePayload}
+                        </pre>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <Label className="text-[var(--ph-muted)]">Receiver smoke test</Label>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              copyText(
+                                handoffSmokeCurl,
+                                'Handoff smoke test command copied',
+                                'Enter a valid webhook URL first'
+                              )
+                            }
+                          >
+                            <Copy className="h-4 w-4" />
+                            Copy curl
+                          </Button>
+                        </div>
+                        <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
+{handoffSmokeCurl}
+                        </pre>
+                        <p className="text-xs text-[var(--ph-muted)]">
+                          Use this to verify the receiver accepts the expected JSON shape before you
+                          wire the real startup env into a deployment.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
