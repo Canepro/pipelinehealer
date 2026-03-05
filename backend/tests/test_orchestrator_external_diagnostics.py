@@ -134,6 +134,36 @@ class _RunnerAcquisitionGitHubTools(_DummyGitHubTools):
         ]
 
 
+class _LateRunnerAcquisitionGitHubTools(_DummyGitHubTools):
+    async def get_workflow_run(self, owner: str, repo: str, run_id: int):
+        _ = owner, repo
+        return {
+            "id": run_id,
+            "html_url": f"https://github.com/Canepro/repo/actions/runs/{run_id}",
+            "run_attempt": 1,
+            "pull_requests": [],
+        }
+
+    async def get_workflow_jobs(self, owner: str, repo: str, run_id: int):
+        _ = owner, repo, run_id
+        jobs = [
+            {"id": index, "name": f"matrix-{index}", "conclusion": "failure"}
+            for index in range(1, 13)
+        ]
+        jobs.append({"id": 999, "name": "late-cancelled", "conclusion": "cancelled"})
+        return jobs
+
+    async def get_check_run_annotations(self, owner: str, repo: str, check_run_id: int):
+        _ = owner, repo
+        if check_run_id != 999:
+            return []
+        return [
+            {
+                "message": "The job was not acquired by Runner of type hosted even after multiple attempts"
+            }
+        ]
+
+
 class _UnavailableAdapter:
     async def discover_capability(self, owner: str, repo: str) -> GHAWCapability:
         _ = owner, repo
@@ -559,6 +589,29 @@ async def test_collect_external_diagnostics_surfaces_runner_acquisition_failures
     assert runner_diag.metadata.get("messages") == [
         "The job was not acquired by Runner of type hosted even after multiple attempts"
     ]
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_checks_cancelled_jobs_beyond_summary_cap(monkeypatch) -> None:
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    monkeypatch.setenv("MCP_PROVIDER", "github")
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "token")
+    monkeypatch.setenv("MCP_REPO_ALLOWLIST", "canepro/repo")
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "false")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "disabled")
+    reset_settings()
+
+    orchestrator = OrchestratorAgent(
+        github_tools=_LateRunnerAcquisitionGitHubTools(),
+        storage=InMemoryStorage(),
+    )  # type: ignore[arg-type]
+    orchestrator._gh_aw_adapter = _ShouldNotCallAdapter()  # type: ignore[assignment]
+
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event(), _activity())
+    runner_diag = next(
+        diag for diag in diagnostics if diag.metadata.get("reason_code") == "github_runner_acquisition_failed"
+    )
+    assert runner_diag.metadata.get("failed_jobs") == ["late-cancelled"]
 
 
 @pytest.mark.asyncio

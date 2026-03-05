@@ -826,9 +826,8 @@ class OrchestratorAgent:
             if conclusion == "cancelled":
                 cancelled_jobs.append(job)
             job_name = _job_display_name(job)
-            failed_job_lines.append(f"- {job_name} ({conclusion})")
-            if len(failed_job_lines) >= 12:
-                break
+            if len(failed_job_lines) < 12:
+                failed_job_lines.append(f"- {job_name} ({conclusion})")
 
         runner_acquisition_jobs: list[str] = []
         runner_acquisition_messages: list[str] = []
@@ -980,7 +979,7 @@ class OrchestratorAgent:
                 status=ExternalDiagnosticStatus.AVAILABLE,
                 summary=(
                     "GitHub MCP context captured: "
-                    f"{len(jobs)} job(s), {len(failed_jobs)} failing/timed-out, "
+                    f"{len(jobs)} job(s), {len(failed_jobs)} failing/timed-out/cancelled, "
                     f"{len(pull_request_numbers)} related PR(s)."
                 ),
                 url=(

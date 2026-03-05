@@ -316,7 +316,7 @@ Be specific about:
                 failure_type=FailureType.BUILD_CONFIG,
                 confidence=0.88,
                 root_cause=root_cause,
-                affected_files=[".github/workflows/ci.yml"],
+                affected_files=[".github/workflows/"],
                 is_auto_fixable=False,
                 suggested_fix=(
                     "Re-run the workflow first. If it repeats, inspect GitHub Actions runner "
