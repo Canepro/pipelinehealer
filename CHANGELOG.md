@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - _No unreleased entries yet._
 
+## [v0.3.3] - 2026-03-05
+
+- `1a0e13a` Landing page polish: scroll entrance animations (framer-motion), animated capability counters strip, multi-agent pipeline architecture diagram, and mobile-responsive layout improvements.
+- Release-lineage reference for `v0.3.3` scope continuity: `0bbfec5`.
+
 ## [v0.3.2] - 2026-03-05
 
 ### Fixed
