@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 310d40e -->
+<!-- LAST_VERIFIED: f25afaa -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -175,6 +175,11 @@ AGENT_HANDOFF_MODE=copy_only               # copy_only | webhook
 AGENT_HANDOFF_WEBHOOK_URL=                 # required only for webhook mode
 AGENT_HANDOFF_WEBHOOK_ALLOWLIST=
 ```
+
+Settings UI note:
+- The Settings page now includes a webhook setup assistant for Assign-to-Agent.
+- It validates a candidate webhook URL, derives the destination host, and generates a portable env block you can copy into local `.env`, Docker/Helm values, or cloud deployment adapters.
+- The actual webhook URL remains startup configuration; it is not returned by the API.
 
 > **That's it for getting started.** Everything else in `.env` has sensible defaults. You can tune optional settings later — see the full list in `backend/.env.example`.
 
