@@ -82,6 +82,9 @@ class DiagnosisAgent:
         logger.info(f"Diagnosing failure from {len(log_analyses)} log analyses")
 
         if not log_analyses:
+            external_only = self._diagnosis_from_external_diagnostics(external_diagnostics)
+            if external_only is not None:
+                return self._with_source(external_only, DiagnosisSource.PATTERN)
             return Diagnosis(
                 failure_type=FailureType.UNKNOWN,
                 confidence=0.0,
@@ -276,6 +279,60 @@ Be specific about:
         details["external_signal_sources"] = applied
         diagnosis.error_details = details
         return diagnosis
+
+    def _diagnosis_from_external_diagnostics(
+        self,
+        diagnostics: list[ExternalDiagnostic] | None,
+    ) -> Diagnosis | None:
+        """Build a deterministic diagnosis from strong external diagnostics when logs are absent."""
+        if not diagnostics:
+            return None
+
+        for diagnostic in diagnostics:
+            if diagnostic.status != ExternalDiagnosticStatus.AVAILABLE:
+                continue
+            metadata = diagnostic.metadata if isinstance(diagnostic.metadata, dict) else {}
+            reason_code = str(metadata.get("reason_code", "")).strip().lower()
+            if reason_code != "github_runner_acquisition_failed":
+                continue
+
+            failed_jobs_raw = metadata.get("failed_jobs")
+            failed_jobs = [
+                str(job).strip()
+                for job in (failed_jobs_raw if isinstance(failed_jobs_raw, list) else [])
+                if str(job).strip()
+            ]
+            messages_raw = metadata.get("messages")
+            messages = [
+                str(message).strip()
+                for message in (messages_raw if isinstance(messages_raw, list) else [])
+                if str(message).strip()
+            ]
+            root_cause = "GitHub Actions could not acquire a hosted runner for required jobs"
+            if failed_jobs:
+                root_cause += f": {', '.join(failed_jobs[:3])}"
+
+            return Diagnosis(
+                failure_type=FailureType.BUILD_CONFIG,
+                confidence=0.88,
+                root_cause=root_cause,
+                affected_files=[".github/workflows/ci.yml"],
+                is_auto_fixable=False,
+                suggested_fix=(
+                    "Re-run the workflow first. If it repeats, inspect GitHub Actions runner "
+                    "availability and workflow queue posture before changing repository code."
+                ),
+                error_details={
+                    "reason_code": "github_runner_acquisition_failed",
+                    "classification_signal": "github_runner_acquisition_failed",
+                    "signal": "github_runner_acquisition_failed",
+                    "failing_job": ", ".join(failed_jobs[:3]) if failed_jobs else "",
+                    "infrastructure_messages": messages,
+                    "infrastructure_failure": True,
+                },
+            )
+
+        return None
 
     def _pattern_based_diagnosis(
         self,

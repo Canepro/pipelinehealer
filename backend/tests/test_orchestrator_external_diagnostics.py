@@ -103,6 +103,36 @@ class _MCPGitHubTools(_DummyGitHubTools):
             {"id": 2, "name": "lint", "conclusion": "success"},
         ]
 
+    async def get_check_run_annotations(self, owner: str, repo: str, check_run_id: int):
+        _ = owner, repo, check_run_id
+        return []
+
+
+class _RunnerAcquisitionGitHubTools(_DummyGitHubTools):
+    async def get_workflow_run(self, owner: str, repo: str, run_id: int):
+        _ = owner, repo
+        return {
+            "id": run_id,
+            "html_url": f"https://github.com/Canepro/repo/actions/runs/{run_id}",
+            "run_attempt": 1,
+            "pull_requests": [],
+        }
+
+    async def get_workflow_jobs(self, owner: str, repo: str, run_id: int):
+        _ = owner, repo, run_id
+        return [
+            {"id": 101, "name": "Frontend Lint and Build", "conclusion": "cancelled"},
+            {"id": 102, "name": "Version Sync", "conclusion": "cancelled"},
+        ]
+
+    async def get_check_run_annotations(self, owner: str, repo: str, check_run_id: int):
+        _ = owner, repo, check_run_id
+        return [
+            {
+                "message": "The job was not acquired by Runner of type hosted even after multiple attempts"
+            }
+        ]
+
 
 class _UnavailableAdapter:
     async def discover_capability(self, owner: str, repo: str) -> GHAWCapability:
@@ -501,6 +531,34 @@ async def test_collect_external_diagnostics_uses_github_mcp_without_gh_aw(monkey
     assert diagnostic.metadata.get("failed_jobs_count") == 1
     assert diagnostic.metadata.get("changed_files") == []
     assert isinstance(diagnostic.metadata.get("details"), dict)
+
+
+@pytest.mark.asyncio
+async def test_collect_external_diagnostics_surfaces_runner_acquisition_failures(monkeypatch) -> None:
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    monkeypatch.setenv("MCP_PROVIDER", "github")
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "token")
+    monkeypatch.setenv("MCP_REPO_ALLOWLIST", "canepro/repo")
+    monkeypatch.setenv("GH_AW_TOOLS_ENABLED", "false")
+    monkeypatch.setenv("GH_AW_INGESTION_MODE", "disabled")
+    reset_settings()
+
+    orchestrator = OrchestratorAgent(
+        github_tools=_RunnerAcquisitionGitHubTools(),
+        storage=InMemoryStorage(),
+    )  # type: ignore[arg-type]
+    orchestrator._gh_aw_adapter = _ShouldNotCallAdapter()  # type: ignore[assignment]
+
+    diagnostics = await orchestrator._collect_external_diagnostics("Canepro", "repo", _event(), _activity())
+    runner_diag = next(
+        diag for diag in diagnostics if diag.metadata.get("reason_code") == "github_runner_acquisition_failed"
+    )
+    assert runner_diag.status == ExternalDiagnosticStatus.AVAILABLE
+    assert "Frontend Lint and Build" in runner_diag.summary
+    assert runner_diag.metadata.get("failed_jobs") == ["Frontend Lint and Build", "Version Sync"]
+    assert runner_diag.metadata.get("messages") == [
+        "The job was not acquired by Runner of type hosted even after multiple attempts"
+    ]
 
 
 @pytest.mark.asyncio
