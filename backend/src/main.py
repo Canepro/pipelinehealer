@@ -50,6 +50,8 @@ def _resolve_storage_backend_name(storage: object | None) -> str:
         return "in_memory"
     if storage_class == "ActivityStorage":
         return "cosmos_db"
+    if storage_class == "PostgresStorage":
+        return "postgresql"
     return storage_class.lower()
 
 

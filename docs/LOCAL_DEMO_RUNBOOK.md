@@ -179,9 +179,30 @@ AGENT_HANDOFF_WEBHOOK_ALLOWLIST=
 > **That's it for getting started.** Everything else in `.env` has sensible defaults. You can tune optional settings later — see the full list in `backend/.env.example`.
 
 Non-development storage guardrail:
-- For durable deploys, set `STORAGE_MODE=cosmos` and configure `COSMOS_DB_ENDPOINT`.
+- For durable deploys, set one of:
+  - `STORAGE_MODE=cosmos` + `COSMOS_DB_ENDPOINT`
+  - `STORAGE_MODE=postgres` + `POSTGRES_DSN`
 - Startup fails fast in non-development if durable storage is required but missing.
 - Use `ALLOW_IN_MEMORY_STORAGE_IN_NON_DEVELOPMENT=true` only for explicit demo/evaluation opt-in.
+
+Local PostgreSQL (Docker Compose) quick path:
+
+```bash
+docker compose --profile postgres up -d postgres
+```
+
+Then set in `backend/.env`:
+
+```dotenv
+STORAGE_MODE=postgres
+POSTGRES_DSN=postgresql://pipelinehealer:pipelinehealer@localhost:5432/pipelinehealer
+```
+
+Optional manual bootstrap (tables are auto-created at startup, but SQL is provided for pre-provisioning):
+
+```bash
+psql "$POSTGRES_DSN" -f backend/scripts/postgres/bootstrap.sql
+```
 
 Optional Jenkins bridge ingestion config:
 

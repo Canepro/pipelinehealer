@@ -132,6 +132,13 @@ class Settings(BaseSettings):
         default="pipelinehealer",
         description="Cosmos DB database name",
     )
+    postgres_dsn: str = Field(
+        default="",
+        description=(
+            "PostgreSQL DSN for durable storage when STORAGE_MODE=postgres. "
+            "Example: postgresql://user:pass@host:5432/pipelinehealer"
+        ),
+    )
 
     # Azure Key Vault Configuration
     key_vault_url: str = Field(
@@ -231,7 +238,7 @@ class Settings(BaseSettings):
     storage_mode: str = Field(
         default="",
         description=(
-            "Storage backend mode: memory or cosmos. "
+            "Storage backend mode: memory, cosmos, or postgres. "
             "When empty, defaults to memory in development and cosmos otherwise."
         ),
     )
@@ -614,8 +621,8 @@ class Settings(BaseSettings):
         normalized = value.strip().lower()
         if not normalized:
             return ""
-        if normalized not in {"memory", "cosmos"}:
-            raise ValueError("STORAGE_MODE must be one of: memory, cosmos")
+        if normalized not in {"memory", "cosmos", "postgres"}:
+            raise ValueError("STORAGE_MODE must be one of: memory, cosmos, postgres")
         return normalized
 
     @field_validator("llm_provider")
