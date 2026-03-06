@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: f25afaa -->
+<!-- LAST_VERIFIED: 9502342 -->
 
 > OSS-first, policy-aware pipeline remediation platform with GitHub Actions and Jenkins bridge support today.
 
@@ -168,6 +168,7 @@ Pipeline failures create repetitive triage work and slow delivery. PipelineHeale
 
 - Signed Jenkins bridge ingestion path for Jenkins-primary CI coverage: `POST /webhook/jenkins`.
 - Assign-to-Agent handoff integration (`copy_only` and optional `webhook`) with audited controls and Settings-guided startup env setup.
+- Settings assistants for Assign-to-Agent and Jenkins Bridge, including portable setup guidance and signed smoke-test generation without persisting secrets into runtime settings.
 - Storage posture hardening:
   - non-development fail-fast when durable storage is required but missing
   - explicit non-development in-memory mode requires opt-in
