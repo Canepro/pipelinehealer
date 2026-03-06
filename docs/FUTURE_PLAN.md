@@ -254,56 +254,64 @@ Theme: release-quality polish and presentation alignment.
 3. Docs cleanup
    - Updated user-facing docs to remove stale `v0.3.1`/`v0.3.2` "current target" language.
 
-## Active Target: `v0.4.0` (Minor)
+## Released Target: `v0.4.0` (Minor)
 
 Theme: operator control-plane coherence + MCP operational maturity.
 
-### Planned Scope
+### Delivered Scope
 
 1. Operator control-plane coherence
-   - Remove split-brain operator experience between ACA env, persisted runtime overrides, and UI-only assumptions.
-   - Make supported steady-state settings visibly traceable by effective value + source (`default`, `env`, `secretref`, `persisted_runtime_override`).
-   - Treat Settings as the primary operator surface for supported runtime capabilities instead of requiring ad-hoc backend/env-only knowledge for common paths.
+   - Removed split-brain operator experience between startup config, persisted runtime overrides, and UI-only assumptions.
+   - Made supported settings visibly traceable by effective value + source (`default`, `env`, `persisted_runtime_override`, `computed`) with startup-managed notes for derived fields.
+   - Treated Settings as the primary operator surface for supported runtime capabilities instead of requiring hidden backend/env-only knowledge for common paths.
 2. MCP governance UX completion
-   - Separate configured policy from effective runtime outcome so global read-only mode and per-tool policy never appear contradictory.
-   - Replace misleading severity color semantics in policy banners and status chips; red means blocked/risky/failing, not merely enabled.
-   - Enforce per-tool policy outcomes (`disabled|read_only|write_with_approval|auto`) with explicit operator UX.
+   - Separated configured policy from effective runtime outcome so global read-only mode and per-tool policy do not appear contradictory.
+   - Replaced misleading severity color semantics in policy banners and status chips; red now maps to blocked/risky/failing rather than merely enabled.
+   - Exposed per-tool policy outcomes (`disabled|read_only|write_with_approval|auto`) with explicit operator UX.
 3. Assign-to-Agent operability
-   - Bring Assign-to-Agent setup into the Settings UI for supported modes.
-   - Support webhook-mode configuration, validation, allowlist management, and test/health feedback without requiring operators to remember hidden backend-only knobs.
-   - Keep copy-only mode available as the low-friction fallback, but make the distinction explicit.
-4. Observability and investigation depth
-   - Token/cost telemetry by activity/model path.
-   - Provider degradation thresholds (fallback spikes, timeout/error spikes).
-   - Better large-dataset ergonomics in Control Center and Activity Detail.
-   - Optional in-app logs viewer (safe, bounded, RBAC-aware).
-5. Interface coherence pass
-   - Rework Settings, Control Center, Activity Detail, and supporting status vocabulary into one consistent operator language.
-   - Refresh landing/shell styling only where needed to keep the visual system coherent with the upgraded operator surfaces.
+   - Brought Assign-to-Agent setup into the Settings UI for supported modes.
+   - Added setup assistants, validation guidance, and smoke-test generation without persisting secrets into generic runtime settings.
+   - Kept copy-only mode available as the low-friction fallback, while making the distinction explicit in UI and API.
+4. Interface coherence pass
+   - Reworked Settings, Control Center, Activity Detail, and supporting status vocabulary into one consistent operator language.
+   - Refreshed landing/shell styling and architecture docs where needed to keep the visual system coherent with the upgraded operator surfaces.
 
 ### Exit Criteria
 
 1. Operators can determine, from the UI alone, whether a capability is configured, effective, blocked, or missing an external dependency.
-2. No supported capability requires hidden ACA-only toggles once its configuration model is declared user-operable.
+2. No supported capability requires hidden deployment-only toggles once its configuration model is declared operator-manageable.
 3. Assign-to-Agent can be enabled and validated from the UI for supported modes, with clear fallback/blocked states.
-4. MCP governance screens no longer show "allowed" policy selections alongside red "blocked" runtime states without explaining the precedence rule.
-5. Release docs, changelog scope, and implementation PRs explicitly track this as `v0.4.0`, not ad-hoc polish.
+4. MCP governance screens no longer show contradictory configured/effective states without explaining the precedence rule.
+5. Release docs, changelog scope, and implementation PRs tracked this work explicitly as `v0.4.0`.
 
-## Planned Target: `v0.5.0` (Minor)
+## Active Target: `v0.5.0` (Minor)
 
-Theme: provider and platform extensibility.
+Theme: outbound integration gateway + notification routing.
 
 ### Planned Scope
 
-1. Provider portability hardening
-   - Stronger parity contract coverage across providers.
-   - Rollback/runbook automation for provider switching.
-2. CI platform extensibility
-   - Adapter contracts for non-GitHub providers.
-   - Preserve policy and remediation guardrails across providers.
-3. Operator packaging
-   - Kubernetes deployment polish and environment profiles.
-   - Cross-platform operator wrapper support (PowerShell-first path on Windows).
+1. Assign-to-Agent receiver boundary
+   - Add a small HTTP receiver service as the deployment-facing boundary for outbound Assign-to-Agent delivery.
+   - Keep PipelineHealer core platform-agnostic: it emits normalized handoff/events; the receiver handles environment-specific routing.
+   - Reference deployment target: Azure Function on low-cost serverless hosting, without making Azure the product boundary.
+2. Generic outbound event + notification model
+   - Define a provider-agnostic event schema for handoff and notification fan-out.
+   - Add pluggable notification sinks rather than channel-specific product assumptions.
+   - First planned adapters: `webhook`, `slack_webhook`, `teams_webhook`, `rocketchat_webhook`; `email` remains planned but deferred unless delivery/provider requirements are justified.
+3. ACA/OSS deployment guidance
+   - Document the receiver as a reference deployment adapter for ACA while keeping the event contract portable for OSS/self-hosted users.
+   - Reuse low-cost/default Azure resources where possible (consumption/Flex-style hosting, existing monitoring) and avoid unnecessary always-on components.
+4. Operator visibility
+   - Surface receiver/notification configuration state clearly in operator docs and, where justified, in the product surface.
+   - Keep secret-bearing outbound configuration outside sloppy generic runtime persistence paths.
+
+### Exit Criteria
+
+1. ACA can run Assign-to-Agent in real `webhook` mode against a live receiver, not only `copy_only`.
+2. The receiver accepts a normalized event contract and can fan out to at least one generic webhook target plus one chat-style target.
+3. Notification routing is configurable without baking Slack/Teams assumptions into PipelineHealer core.
+4. The reference deployment stays cost-conscious and avoids unnecessary always-on infrastructure.
+5. Docs and roadmap make the separation between core product and deployment-specific integration layer explicit.
 
 ## Decision Parking Lot (Researched Items)
 
@@ -329,7 +337,7 @@ These items are researched and tracked; some have scoped phased rollout while ot
 
 ### DP-002: Multi-Platform Notification Delivery (Slack / Teams / Rocket.Chat)
 
-- Status: `Undecided` (`nice-to-have`, not in active release scope)
+- Status: `Adopted for v0.5.0` through a generic event-routing layer
 - Problem statement:
   - Non-admin developers and stakeholders need actionable PipelineHealer updates in chat tools without depending on dashboard access.
 - Research summary:
@@ -340,9 +348,9 @@ These items are researched and tracked; some have scoped phased rollout while ot
   - Add a provider-agnostic `NotificationSink` interface (`send`, `update`, `health`) with adapters for Slack, Teams, Rocket.Chat.
   - Emit notification events from activity lifecycle transitions (`created`, `diagnosed`, `remediation_opened`, `resolved`, `failed`).
   - Keep dashboard as source of truth; notifications carry summary + deep links to activity details.
-- Recommended rollout (if approved):
-  - Phase 1: Slack webhook adapter + audit trail + rate-limit/retry policy.
-  - Phase 2: Teams Workflows webhook adapter with card templates aligned to Teams connector retirement path.
+- Recommended rollout:
+  - Phase 1: generic webhook sink + audit trail + rate-limit/retry policy.
+  - Phase 2: Slack and Teams webhook adapters on top of the same sink contract.
   - Phase 3: Rocket.Chat incoming webhook/API adapter for self-hosted teams.
   - Phase 4: Optional message update/ack actions (`chat.postMessage`/provider equivalent) with approval gates for write actions.
 - Guardrails if adopted later:
@@ -397,7 +405,7 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-022` | Demo verification output clarity (`mcp_tool_calls_total` vs passive-only counters) | `v0.2.7` | patch | High | Completed (in `main`) |
 | `BL-023` | Docs/runbook MCP interpretation hardening for non-expert operators | `v0.2.7` | patch | High | Completed (in `main`) |
 | `BL-024` | Release baseline alignment (`v0.2.7`) across README/CLI/runbooks | `v0.2.7` | patch | Medium | Completed (in `main`) |
-| `BL-025` | Accuracy-assessment bridge: ingest structured GitHub issue verification comments into `learning/feedback` with audit traceability | `v0.4.0` | minor | High | Planned |
+| `BL-025` | Accuracy-assessment bridge: ingest structured GitHub issue verification comments into `learning/feedback` with audit traceability | `v0.4.x` | minor | High | Deferred |
 | `BL-026` | Cross-platform operator support: PowerShell wrapper + non-Azure deploy wrapper strategy for `ph` commands | `v0.5.0` | minor | Medium | Planned |
 | `BL-027` | AKS/Helm onboarding hardening: explicit required-vs-optional auth paths, Entra build-time vs runtime guardrails, and post-deploy auth verification checklist ([#32](https://github.com/Canepro/pipelinehealer/issues/32)) | `v0.3.0` | patch | Medium | Completed (in `main`) |
 | `BL-028` | Submission-baseline drift control (`v0.2.8`): release auth build-var gating + docs version alignment pass | `v0.2.8` | patch | High | Completed (in `main`) |
@@ -405,7 +413,7 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-030` | GH-AW + GitHub MCP hybrid diagnostics ingestion mode (`GH_AW_INGESTION_MODE=hybrid`) across backend/UI/CLI/docs | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
 | `BL-031` | Passive backfill label-mismatch reliability fix (unlabeled fallback matching for ci-doctor findings) ([#35](https://github.com/Canepro/pipelinehealer/issues/35)) | `v0.2.9` | patch | High | Completed (released in `v0.2.9`) |
 | `BL-032` | Copilot integration research track: evaluate coding-agent + MCP coexistence model without bypassing PipelineHealer governance | `v0.4.x` | minor | Medium | Planned (phased via `BL-038`/`BL-039`) |
-| `BL-033` | Multi-platform notifications research track: Slack/Teams/Rocket.Chat delivery model for non-admin stakeholders with auditable outbound events | `TBD (post-submission)` | minor | Medium | Research / Undecided |
+| `BL-033` | Multi-platform notifications model: generic event routing plus Slack/Teams/Rocket.Chat delivery for non-admin stakeholders with auditable outbound events | `v0.5.0` | minor | High | Planned |
 | `BL-034` | Jenkins bridge ingestion path: signed external CI failure payload -> synthetic PipelineHealer activity (`source_selection_path=jenkins_bridge`) with issue-first defaults ([#36](https://github.com/Canepro/pipelinehealer/issues/36)) | `v0.3.2` | minor | High | Completed (merged to `main`) |
 | `BL-035` | Native Jenkins provider adapter: deeper job metadata/log/artifact retrieval + rerun/governance parity with existing provider model | `v0.5.x` | minor | Medium | Queued |
 | `BL-036` | Public distribution hardening for Kubernetes portability: publish anonymous-pull image path and add clean-cluster pullability gate in release verification to block `ErrImagePull` (`401`/`403`) regressions ([#37](https://github.com/Canepro/pipelinehealer/issues/37)) | `v0.3.0` | patch | High | Completed (released in `v0.3.0`) |
@@ -413,16 +421,20 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-038` | Activity Detail one-click `Copy Context` for AI-ready handoff payloads with bounded size + redaction, plus disabled `Assign to Agent` `Coming Soon` affordance ([#41](https://github.com/Canepro/pipelinehealer/issues/41)) | `v0.3.0` | patch | High | Completed (released in `v0.3.0`) |
 | `BL-039` | Activity Detail `Assign to Agent` integration (`copy_only` + optional `webhook`) with audit-safe handoff controls ([#42](https://github.com/Canepro/pipelinehealer/issues/42)) | `v0.3.2` | minor | Medium | Completed (merged to `main`) |
 | `BL-040` | Release umbrella tracking for bundled `v0.3.0` scope (`BL-036`, `BL-038`) ([#43](https://github.com/Canepro/pipelinehealer/issues/43)) | `v0.3.0` | patch | High | Completed (released in `v0.3.0`) |
-| `BL-041` | Release umbrella tracking for `v0.3.2` freeze scope (`BL-034`, `BL-039`, `BL-045`) and guarded stretch tracking (`BL-046`) ([#44](https://github.com/Canepro/pipelinehealer/issues/44)) | `v0.3.2` | patch | High | Tracking (active) |
+| `BL-041` | Release umbrella tracking for `v0.3.2` freeze scope (`BL-034`, `BL-039`, `BL-045`) and guarded stretch tracking (`BL-046`) ([#44](https://github.com/Canepro/pipelinehealer/issues/44)) | `v0.3.2` | patch | High | Completed (released in `v0.3.2`) |
 | `BL-042` | Platform-neutral Kubernetes deployment profiles + docs guidance (`values.quickstart.yaml`, `values.production.yaml`) with optional installer automation follow-up ([#51](https://github.com/Canepro/pipelinehealer/issues/51)) | `TBD (post-submission, no release cut required)` | patch | High | Completed (in `main`) |
 | `BL-043` | Frontend runtime-config decoupling: make containerized `VITE_*` settings runtime-first across frontend/Helm/Azure deploy tooling and remove build-arg coupling in release path ([#54](https://github.com/Canepro/pipelinehealer/issues/54)) | `v0.3.1` | patch | High | Completed (released in `v0.3.1`) |
 | `BL-044` | Azure env-sync regression fix: keep existing frontend runtime config when `VITE_*` keys are omitted from env input during `deploy:env` ([#55](https://github.com/Canepro/pipelinehealer/issues/55)) | `v0.3.2` | patch | High | Completed (merged to `main`) |
 | `BL-045` | Storage posture hardening: explicit storage mode + non-development durability guardrail with fail-fast misconfiguration behavior ([#57](https://github.com/Canepro/pipelinehealer/issues/57)) | `v0.3.2` | patch | High | Completed (merged to `main`) |
 | `BL-046` | PostgreSQL durable storage adapter (OSS-friendly persistence path) with adapter-contract parity requirements ([#58](https://github.com/Canepro/pipelinehealer/issues/58)) | `v0.3.2` | minor | Medium | Completed (released in `v0.3.2`) |
-| `BL-047` | Operator config provenance + source-of-truth visibility across Settings/Control Center/API (`default` vs env vs secretref vs persisted runtime override) | `v0.4.0` | minor | High | Planned |
-| `BL-048` | Assign-to-Agent UI activation path: Settings-managed handoff enablement, webhook configuration/validation, and operator test flow | `v0.4.0` | minor | High | Planned |
-| `BL-049` | MCP governance IA rework: separate configured policy from effective runtime outcome and fix misleading status/severity color semantics | `v0.4.0` | minor | High | Planned |
-| `BL-050` | Operator-surface visual/system coherence pass across Settings, Control Center, Activity Detail, and shell/landing alignment where needed | `v0.4.0` | minor | Medium | Planned |
+| `BL-047` | Operator config provenance + source-of-truth visibility across Settings/Control Center/API (`default` vs env vs secretref vs persisted runtime override) | `v0.4.0` | minor | High | Completed (released in `v0.4.0`) |
+| `BL-048` | Assign-to-Agent UI activation path: Settings-managed handoff enablement, webhook configuration/validation, and operator test flow | `v0.4.0` | minor | High | Completed (released in `v0.4.0`) |
+| `BL-049` | MCP governance IA rework: separate configured policy from effective runtime outcome and fix misleading status/severity color semantics | `v0.4.0` | minor | High | Completed (released in `v0.4.0`) |
+| `BL-050` | Operator-surface visual/system coherence pass across Settings, Control Center, Activity Detail, and shell/landing alignment where needed | `v0.4.0` | minor | Medium | Completed (released in `v0.4.0`) |
+| `BL-051` | Deployment-facing Assign-to-Agent receiver boundary: HTTP receiver for normalized handoff events with auth, structured logging, and low-cost Azure Function reference deployment | `v0.5.0` | minor | High | Planned |
+| `BL-052` | Generic notification sink contract + first adapters (`webhook`, `slack_webhook`, `teams_webhook`, `rocketchat_webhook`) for auditable outbound delivery | `v0.5.0` | minor | High | Planned |
+| `BL-053` | ACA reference integration path: wire live ACA handoff from `copy_only` to real `webhook` mode via the receiver without baking Azure assumptions into core product | `v0.5.0` | minor | High | Planned |
+| `BL-054` | Operator-facing integration status surfacing for external receiver/notification dependencies (docs first, product surface where justified) | `v0.5.0` | minor | Medium | Planned |
 
 ## Definition of Done (Per Version)
 
