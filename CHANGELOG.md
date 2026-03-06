@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 8f4038b -->
+<!-- LAST_VERIFIED: 6793d7f -->
 
 All notable changes to this project will be documented in this file.
 
@@ -8,7 +8,18 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Added
+
+- `b5d6a5b` Added the reference Azure Function receiver for Assign-to-Agent webhook delivery, with authenticated handoff ingress, structured logging, and a low-cost deployment-managed gateway boundary.
+- `4048c03`, `c73337d`, `a01bc4f` Added first-wave outbound notification adapters (`webhook`, `rocketchat_webhook`, `slack_webhook`, `teams_webhook`) plus operator-facing receiver/integration health visibility in Settings and Control Center.
+- `bb2c6e6` Added session-first admin loading for Settings and Control Center so signed-in operators do not have to re-trigger login intent on each admin surface.
+- `6793d7f` Added notification target setup guidance in Settings, generating valid `NOTIFY_TARGETS_JSON` examples without persisting downstream sink secrets into generic runtime settings.
+
+### Changed
+
+- `4048c03`, `a01bc4f` Extended the operator-control UI and docs around startup-managed outbound integration boundaries, keeping secret-bearing receiver and notification endpoints deployment-managed while surfacing their readiness in product surfaces.
+- `d295b29` Carried forward the `v0.4.0` release sync commit onto `main` after the protected-branch release cut so tag/release lineage stayed reproducible.
+- Current working tree refresh: updated the README media set, demo screenshots, architecture diagram, roadmap status, and deployment examples to match the current outbound integration gateway model and live operator UI.
 
 ## [v0.4.0] - 2026-03-06
 

@@ -94,6 +94,18 @@ backend:
     CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
     CORS_ALLOW_ORIGIN_REGEX: https://.*\\.azurecontainerapps\\.io
 
+    JENKINS_BRIDGE_ENABLED: "false"
+    JENKINS_BRIDGE_MAX_SKEW_SECONDS: "300"
+    JENKINS_BRIDGE_REPLAY_TTL_SECONDS: "86400"
+    JENKINS_BRIDGE_MAX_BODY_BYTES: "524288"
+    JENKINS_BRIDGE_ALLOW_PR: "false"
+
+    AGENT_HANDOFF_ENABLED: "false"
+    AGENT_HANDOFF_MODE: copy_only
+    AGENT_HANDOFF_WEBHOOK_ALLOWLIST: ""
+    AGENT_HANDOFF_TIMEOUT_SECONDS: "8"
+    AGENT_HANDOFF_MAX_RETRIES: "1"
+
   # Secret runtime config -> rendered into Kubernetes Secret.
   # For production, prefer external secret sync over plain values files.
   secretEnv:
@@ -103,10 +115,14 @@ backend:
     OPENAI_COMPATIBLE_API_KEY: ""
     GITHUB_PERSONAL_ACCESS_TOKEN: ""
     GITHUB_WEBHOOK_SECRET: ""
+    JENKINS_BRIDGE_SHARED_SECRET: ""
     # Durable storage secret settings.
     # For postgres mode, set this to a full DSN:
     # postgresql://user:pass@host:5432/pipelinehealer
     POSTGRES_DSN: ""
+    # Startup-managed outbound receiver URL. Keep it secret-backed if query params
+    # or embedded tokens are used by the deployment adapter.
+    AGENT_HANDOFF_WEBHOOK_URL: ""
 
 frontend:
   # Replica count is ignored when autoscaling.enabled=true.

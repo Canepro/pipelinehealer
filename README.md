@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: a01bc4f -->
+<!-- LAST_VERIFIED: 6793d7f -->
 
 > OSS-first, policy-aware pipeline remediation platform with GitHub Actions and Jenkins bridge support today.
 
@@ -14,7 +14,7 @@ PipelineHealer ingests failed pipeline executions, diagnoses root causes, and ap
 - ambiguous or risky cases open structured issues instead of unsafe edits
 - all actions are auditable, explainable, and tied to concrete run evidence
 
-Current provider coverage is GitHub Actions plus a signed Jenkins bridge path. The product boundary is intentionally broader than CI-only tooling: PipelineHealer is designed as a remediation control plane for software-delivery pipelines, with provider-specific ingress and tool adapters around a shared policy, diagnosis, and audit core.
+Current provider coverage is GitHub Actions plus a signed Jenkins bridge path. The product boundary is intentionally broader than CI-only tooling: PipelineHealer is designed as a remediation control plane for software-delivery pipelines, with provider-specific ingress and tool adapters around a shared policy, diagnosis, and audit core. The current forward path adds a deployment-managed outbound integration gateway for Assign-to-Agent delivery and notification routing without baking Slack, Teams, or Azure assumptions into the core product.
 
 ![Dashboard — processed count, safety gating ratios, failure type breakdown, and explainability snapshot](docs/screens/dashboard.png)
 ![Landing page — policy-aware remediation overview and operational snapshot](docs/screens/Pipelinehealer-Landing_Page.png)
@@ -24,9 +24,9 @@ Current provider coverage is GitHub Actions plus a signed Jenkins bridge path. T
 - Public repository: `https://github.com/Canepro/pipelinehealer`
 - Live reference deployment: Azure Container Apps (backend + frontend)
 - Current release baseline: [`v0.4.0`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.4.0)
+- Current development umbrella: [#83](https://github.com/Canepro/pipelinehealer/issues/83) (`v0.5.0` outbound integration gateway)
 - `v0.3.2` required freeze scope shipped: `#36` (Jenkins bridge), `#42` (Assign-to-Agent), `#57` (storage posture hardening)
 - OSS-friendly durable storage is available: PostgreSQL adapter (`#58`) alongside Cosmos DB and in-memory development mode
-- Current release tracking umbrella: [#68](https://github.com/Canepro/pipelinehealer/issues/68)
 - Demo runbook: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
 
 ## Example Remediation Stories
@@ -129,6 +129,10 @@ docker compose --env-file backend/.env build backend frontend
 docker compose --env-file backend/.env up -d backend frontend
 # Podman: replace `docker compose` with `podman compose`
 ```
+
+Optional local durable-storage profiles:
+- PostgreSQL: `docker compose --profile postgres up -d postgres`
+- Cosmos emulator: `docker compose --profile cosmos up -d cosmos-emulator`
 
 Detailed docs:
 - Azure + local operations: [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md)
@@ -242,6 +246,11 @@ flowchart TB
     HO["Assign-to-Agent Handoff"]
   end
 
+  subgraph GATE["Outbound Integration Gateway"]
+    RECV["Receiver / Event Router"]
+    SINK["Webhook / Slack / Teams / Rocket.Chat"]
+  end
+
   GH --> WH --> ORCH
   JN --> WH
   OTH -. adapter path .-> WH
@@ -250,6 +259,7 @@ flowchart TB
   REM --> IS
   REM --> RR
   REM --> HO
+  HO --> RECV --> SINK
 
   ORCH -. enrich .-> GHAW
   GHAW -. findings .-> DIA
@@ -275,7 +285,8 @@ sequenceDiagram
   participant DI as Diagnosis
   participant RM as Remediation
   participant DB as Storage
-  participant OUT as Provider / Handoff Outcomes
+  participant OUT as Provider Outcomes
+  participant GW as Outbound Gateway
 
   SRC->>WH: normalized failure event
   WH->>OR: normalized event
@@ -286,6 +297,10 @@ sequenceDiagram
     RM->>OUT: create or reuse PR
   else ambiguous, low confidence, or restricted
     RM->>OUT: create or reuse issue (review-first)
+  end
+  opt handoff or notification event
+    RM->>GW: normalized outbound event
+    GW-->>RM: accepted / routed
   end
   OR->>DB: persist activity, diagnostics, decisions
   OR-->>WH: accepted and tracked

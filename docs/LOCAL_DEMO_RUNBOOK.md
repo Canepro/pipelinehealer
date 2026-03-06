@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: bb2c6e6 -->
+<!-- LAST_VERIFIED: 6793d7f -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -206,6 +206,10 @@ Non-development storage guardrail:
 - Startup fails fast in non-development if durable storage is required but missing.
 - Use `ALLOW_IN_MEMORY_STORAGE_IN_NON_DEVELOPMENT=true` only for explicit demo/evaluation opt-in.
 - `docker-compose.yml` intentionally leaves `STORAGE_MODE` empty by default so backend environment-based mode resolution stays authoritative.
+- Local Compose no longer auto-starts Cosmos for everyone:
+  - use memory mode with just `backend` + `frontend`
+  - start PostgreSQL only when you choose `--profile postgres`
+  - start the Cosmos emulator only when you choose `--profile cosmos`
 
 Local PostgreSQL (Docker Compose) quick path:
 

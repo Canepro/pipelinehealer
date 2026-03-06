@@ -25,7 +25,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Agent handoff roadmap moved to phased delivery:
   - `v0.3.0`: Activity Detail `Copy Context` + visible disabled `Assign to Agent` (`Coming Soon`)
   - `v0.3.2`: functional `Assign to Agent` integration path (tracked under `BL-039`)
-- Multi-platform notifications research logged as `undecided` in roadmap (`docs/FUTURE_PLAN.md`, `DP-002` / `BL-033`) with phased rollout recommendation (Slack -> Teams -> Rocket.Chat) pending post-submission approval
+- Multi-platform notification routing is now adopted for `v0.5.0` through the outbound integration gateway, with first-wave sinks shipped for `webhook`, Slack, Teams, and Rocket.Chat; email remains intentionally deferred pending delivery-provider scope.
 - Canary scope expanded (issue-only safe mode) to `canepro/portfolio_website-main`, `canepro/rocketchat-k8s`, and `canepro/central-observability-hub-stack`; Jenkins-primary repo coverage gap identified and now tracked as bridge-first plan (`DP-003`, `BL-034`, target `v0.3.2`)
 - Release planning split is active:
   - `v0.3.0` scope tracking issue: [#43](https://github.com/Canepro/pipelinehealer/issues/43) (`BL-036` + `BL-038`)
@@ -34,13 +34,14 @@ This is the long-form project tracker for hackathon execution status, submission
   - required scope locked to `#36/#42/#57` for submission reliability
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
   - storage extensibility remained adapter-scoped (no core workflow rewrites during freeze)
-- Release `v0.4.0` is the current public baseline; next forward-planning target is decided after post-release triage
+- Release `v0.4.0` is the current public baseline.
 - Post-`v0.4.0` planning target is now `v0.5.0`:
   - deployment-facing Assign-to-Agent receiver boundary
   - generic outbound event and notification routing
   - reference Azure Function deployment for ACA without making Azure the product boundary
   - configurable notification sinks (`webhook`, Slack, Teams, Rocket.Chat first; email deferred until delivery/provider requirements are justified)
-- `v0.4.0` scope is now explicitly expanded to cover operator control-plane coherence after live-capability activation exposed product gaps that conservative defaults were hiding:
+  - current status: receiver boundary, live ACA webhook mode, first-wave sink adapters, setup guidance, and operator integration visibility are landed on `main`
+- `v0.4.0` scope was explicitly expanded to cover operator control-plane coherence after live-capability activation exposed product gaps that conservative defaults were hiding:
 - `v0.4.0` operator control-plane coherence release is now shipped:
   - settings provenance and startup-managed dependency visibility
   - Assign-to-Agent and Jenkins setup/smoke-test assistants in Settings
@@ -49,7 +50,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Historical `v0.4.0` planning rationale remains below for release archaeology:
   - MCP governance screens currently mix configured policy and effective runtime outcome in a way that can appear contradictory
   - policy/status color semantics use destructive tones for normal enabled states, which blurs "enabled" vs "blocked/risky"
-  - Assign-to-Agent is functionally present but not yet operable from the main Settings surface
+  - Assign-to-Agent operability gap was closed in `v0.4.0` through Settings-managed activation and startup-guidance assistants
   - effective runtime state is still split between ACA env, secret refs, and persisted runtime overrides, which creates operator ambiguity about source of truth
   - implementation expectation: treat this as tracked release work (`v0.4.0` / `BL-047..BL-050`), not ad-hoc frontend polish
 - `v0.3.1` runtime-config decoupling shipped:

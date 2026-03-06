@@ -38,8 +38,11 @@ services:
 
       # Healing and retry policy
       - HEAL_MODE=${HEAL_MODE:-safe}
+      - AUTO_APPLY_REMEDIATION=${AUTO_APPLY_REMEDIATION:-true}
       - MAX_REMEDIATION_ATTEMPTS=${MAX_REMEDIATION_ATTEMPTS:-3}
       - AUTO_CREATE_PR=${AUTO_CREATE_PR:-true}
+      - AUTO_CREATE_ISSUE=${AUTO_CREATE_ISSUE:-true}
+      - AUTO_RETRY_WORKFLOW=${AUTO_RETRY_WORKFLOW:-true}
       - AUTO_CREATE_TRACKING_ISSUE_FOR_PRS=${AUTO_CREATE_TRACKING_ISSUE_FOR_PRS:-true}
       - PIPELINE_STEP_TIMEOUT_SECONDS=${PIPELINE_STEP_TIMEOUT_SECONDS:-120}
       - GITHUB_API_MAX_RETRIES=${GITHUB_API_MAX_RETRIES:-3}
@@ -55,11 +58,25 @@ services:
       - GH_AW_KNOWN_WORKFLOWS=${GH_AW_KNOWN_WORKFLOWS:-ci-doctor}
       - EXTERNAL_DIAGNOSTICS_WAIT_SECONDS=${EXTERNAL_DIAGNOSTICS_WAIT_SECONDS:-60}
       - EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS=${EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS:-15}
+
+      # Jenkins bridge path
+      - JENKINS_BRIDGE_ENABLED=${JENKINS_BRIDGE_ENABLED:-false}
+      - JENKINS_BRIDGE_SHARED_SECRET=${JENKINS_BRIDGE_SHARED_SECRET:-}
+      - JENKINS_BRIDGE_MAX_SKEW_SECONDS=${JENKINS_BRIDGE_MAX_SKEW_SECONDS:-300}
+      - JENKINS_BRIDGE_REPLAY_TTL_SECONDS=${JENKINS_BRIDGE_REPLAY_TTL_SECONDS:-86400}
+      - JENKINS_BRIDGE_MAX_BODY_BYTES=${JENKINS_BRIDGE_MAX_BODY_BYTES:-524288}
+      - JENKINS_BRIDGE_ALLOW_PR=${JENKINS_BRIDGE_ALLOW_PR:-false}
+
+      # Assign-to-Agent runtime path. Keep the webhook URL deployment-managed.
+      - AGENT_HANDOFF_ENABLED=${AGENT_HANDOFF_ENABLED:-false}
+      - AGENT_HANDOFF_MODE=${AGENT_HANDOFF_MODE:-copy_only}
+      - AGENT_HANDOFF_WEBHOOK_URL=${AGENT_HANDOFF_WEBHOOK_URL:-}
+      - AGENT_HANDOFF_WEBHOOK_ALLOWLIST=${AGENT_HANDOFF_WEBHOOK_ALLOWLIST:-}
+      - AGENT_HANDOFF_TIMEOUT_SECONDS=${AGENT_HANDOFF_TIMEOUT_SECONDS:-8}
+      - AGENT_HANDOFF_MAX_RETRIES=${AGENT_HANDOFF_MAX_RETRIES:-1}
     volumes:
       # Mount source read-only so local code changes are visible in containerized dev runs.
       - ./backend/src:/app/src:ro
-    depends_on:
-      - cosmos-emulator
     networks:
       - pipelinehealer
 
@@ -92,6 +109,7 @@ services:
   # Azure Cosmos DB Emulator (for local development)
   cosmos-emulator:
     image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+    profiles: ["cosmos"]
     ports:
       - "8081:8081"
       - "10251:10251"
