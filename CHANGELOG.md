@@ -1,12 +1,16 @@
 # Changelog
 
-<!-- LAST_VERIFIED: e0e9903 -->
+<!-- LAST_VERIFIED: 8f4038b -->
 
 All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
+
+- _No unreleased entries yet._
+
+## [v0.4.0] - 2026-03-06
 
 ### Added
 
