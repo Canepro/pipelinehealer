@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 03c4711 -->
+<!-- LAST_VERIFIED: c961266 -->
 
 > OSS-first, policy-aware pipeline remediation platform with GitHub Actions and Jenkins bridge support today.
 
@@ -16,8 +16,8 @@ PipelineHealer ingests failed pipeline executions, diagnoses root causes, and ap
 
 Current provider coverage is GitHub Actions plus a signed Jenkins bridge path. The product boundary is intentionally broader than CI-only tooling: PipelineHealer is designed as a remediation control plane for software-delivery pipelines, with provider-specific ingress and tool adapters around a shared policy, diagnosis, and audit core. The current forward path adds a deployment-managed outbound integration gateway for Assign-to-Agent delivery and notification routing without baking Slack, Teams, or Azure assumptions into the core product.
 
-![Dashboard — processed count, safety gating ratios, failure type breakdown, and explainability snapshot](docs/screens/dashboard.png)
-![Landing page — policy-aware remediation overview and operational snapshot](docs/screens/Pipelinehealer-Landing_Page.png)
+![Landing page — policy-aware remediation overview and operational snapshot](docs/screens/landing-current.png)
+![Dashboard — processed count, safety gating ratios, failure type breakdown, and explainability snapshot](docs/screens/dashboard-current.png)
 
 ## Project Snapshot
 

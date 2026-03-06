@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: c961266 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -183,6 +183,10 @@ Settings UI note:
 - The same area now includes a notification target setup assistant for the reference receiver. It generates a valid single-target `NOTIFY_TARGETS_JSON` example for `webhook`, `slack_webhook`, `teams_webhook`, `rocketchat_webhook`, or `email` without storing those sink URLs or SMTP credentials in runtime settings.
 - The sample payload intentionally omits deployment-only values and should be treated as the canonical expected JSON shape for receiver validation.
 - The actual webhook URL remains startup configuration; it is not returned by the API.
+
+Reference visual:
+
+![Settings — AI and integrations section with Assign-to-Agent runtime status](screens/settings-current.png)
 
 If you are using the reference Azure Function receiver for webhook mode, its own app settings can fan out the same handoff event to notification targets:
 
@@ -506,6 +510,12 @@ If the workflow filename is not `ci.yml` in your repo, use the name returned by 
 ### Check the results
 
 **Dashboard** — open your frontend URL and you should see activities appearing with status badges.
+
+Reference visuals:
+
+![Dashboard — KPIs, safety framing, and explainability snapshot](screens/dashboard-current.png)
+![Activity Detail — diagnosis, remediation result, and external diagnostics](screens/activity-detail-current.png)
+![Control Center — governance posture and integration health](screens/control-center-current.png)
 
 Top-level KPI chips now also include:
 
