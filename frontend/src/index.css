@@ -1,18 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --ph-bg: #f3f6fb;
-  --ph-bg-elevated: #edf2f9;
+  --ph-bg: #f4f6f3;
+  --ph-bg-elevated: #ecefe8;
   --ph-surface: #ffffff;
-  --ph-border: #d8e1ef;
-  --ph-text: #0f172a;
-  --ph-muted: #64748b;
-  --ph-accent: #356fae;
-  font-family: 'Public Sans', 'Segoe UI', sans-serif;
+  --ph-border: #d6ddd2;
+  --ph-text: #142118;
+  --ph-muted: #5e6e61;
+  --ph-accent: #9a5d18;
+  font-family: "IBM Plex Sans", "Public Sans", sans-serif;
   line-height: 1.5;
   font-weight: 400;
   font-synthesis: none;
@@ -23,20 +23,25 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ph-bg: #091321;
-    --ph-bg-elevated: #0f1b2f;
-    --ph-surface: #13233a;
-    --ph-border: #213651;
-    --ph-text: #dbe6f4;
-    --ph-muted: #95a6bc;
-    --ph-accent: #4a86c7;
+    --ph-bg: #0d1117;
+    --ph-bg-elevated: #121a24;
+    --ph-surface: #151d28;
+    --ph-border: #283546;
+    --ph-text: #e6ecf4;
+    --ph-muted: #96a5b6;
+    --ph-accent: #c67a28;
   }
 }
 
 body {
   min-height: 100vh;
   color: var(--ph-text);
-  background: linear-gradient(180deg, var(--ph-bg) 0%, var(--ph-bg-elevated) 100%);
+  background: linear-gradient(
+    180deg,
+    var(--ph-bg) 0%,
+    var(--ph-bg-elevated) 100%
+  );
+  overflow-x: hidden;
 }
 
 #root {
@@ -45,10 +50,10 @@ body {
 
 @layer components {
   .card {
-    @apply rounded-xl border;
+    @apply rounded-lg border;
     background: var(--ph-surface);
     border-color: var(--ph-border);
-    box-shadow: 0 10px 30px -24px rgba(8, 18, 36, 0.55);
+    box-shadow: 0 6px 18px -18px rgba(8, 18, 36, 0.4);
   }
 
   .btn-primary {
@@ -72,7 +77,7 @@ body {
   }
 
   .status-badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+    @apply inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold;
     letter-spacing: 0.02em;
   }
 

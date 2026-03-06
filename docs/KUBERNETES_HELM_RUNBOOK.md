@@ -1,6 +1,6 @@
 # Kubernetes Helm Runbook
 
-<!-- LAST_VERIFIED: 310d40e -->
+<!-- LAST_VERIFIED: a01bc4f -->
 
 This runbook adds Kubernetes as a secondary deployment target while keeping Azure Container Apps as the default path.
 
@@ -188,7 +188,7 @@ Chart default note: `backend.env.STORAGE_MODE` is intentionally empty by default
 
 ## Entra on Kubernetes (Important)
 
-To make `Use Login Session` work on AKS:
+To make session-backed admin pages work on AKS:
 
 1. Backend runtime must allow bearer auth:
    - `AUTH_MODE=hybrid` (recommended rollout/testing) or `AUTH_MODE=entra`

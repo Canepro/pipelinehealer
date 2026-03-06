@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 8f4038b -->
+<!-- LAST_VERIFIED: a01bc4f -->
 
 > OSS-first, policy-aware pipeline remediation platform with GitHub Actions and Jenkins bridge support today.
 
@@ -322,6 +322,7 @@ Runtime config notes:
 - containerized frontend config (`VITE_*`, including Entra settings) is runtime-driven
 - use `bash scripts/ph.sh deploy:env` to apply backend/frontend env changes without rebuilding images
 - full `deploy` is only needed when code/image contents changed
+- when `VITE_AUTH_MODE=entra` is enabled, Settings and Control Center auto-use the current signed-in session; `X-Admin-Key` remains a fallback path
 
 ## Two-Minute Demo Path
 

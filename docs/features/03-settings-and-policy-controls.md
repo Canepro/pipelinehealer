@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: 310d40e -->
+<!-- LAST_VERIFIED: a01bc4f -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -20,7 +20,8 @@ This guide explains runtime controls, persistence behavior, and governance guard
 1. Open `/settings`.
 2. Authenticate as admin:
    - key mode: enter `X-Admin-Key`
-   - Entra mode: use `Use Login Session`
+   - Entra mode: signed-in sessions auto-load Settings and Control Center
+     - keep `X-Admin-Key` for fallback or troubleshooting overrides
 3. Change only one policy group at a time.
 4. Use **Save & Persist** to apply and persist in one action.
 5. Re-open Control Center for read-only governance verification after each save.

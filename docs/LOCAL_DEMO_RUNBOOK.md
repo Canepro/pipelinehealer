@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 4048c03 -->
+<!-- LAST_VERIFIED: a01bc4f -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -274,6 +274,8 @@ For Entra config changes:
 
 - backend or frontend runtime env changes: `bash scripts/ph.sh deploy:env`
 - image/code changes: `bash scripts/ph.sh deploy` (or `deploy:release` for release images)
+- once `VITE_AUTH_MODE=entra` is live, Settings and Control Center auto-use the
+  current signed-in session; `X-Admin-Key` remains the fallback path
 
 #### Beginner-friendly Entra portal checklist
 
