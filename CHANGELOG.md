@@ -8,6 +8,10 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
+- _No unreleased entries yet._
+
+## [v0.5.0] - 2026-03-06
+
 ### Added
 
 - `b5d6a5b` Added the reference Azure Function receiver for Assign-to-Agent webhook delivery, with authenticated handoff ingress, structured logging, and a low-cost deployment-managed gateway boundary.
