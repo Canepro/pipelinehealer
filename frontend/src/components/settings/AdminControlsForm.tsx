@@ -134,7 +134,6 @@ function parseWebhookUrlInput(value: string): { url: string; host: string } | nu
   }
 }
 
-function buildHandoffSamplePayload() {
 function parseJenkinsBridgeUrlInput(value: string): { url: string; path: string } | null {
   const trimmed = value.trim()
   if (!trimmed) return null
