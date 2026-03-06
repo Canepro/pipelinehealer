@@ -1,4 +1,8 @@
-import type { AppSettingMetadata, AppSettingSource } from '../../api/client'
+import type {
+  AgentHandoffIntegrationStatus,
+  AppSettingMetadata,
+  AppSettingSource,
+} from '../../api/client'
 
 export type BadgeTone = 'success' | 'secondary' | 'destructive' | 'outline'
 export type McpPolicyMode = 'disabled' | 'read_only' | 'write_with_approval' | 'auto'
@@ -8,6 +12,8 @@ export type McpEffectiveState = {
   detail: string
   tone: BadgeTone
 }
+
+export type IntegrationTone = 'ok' | 'warn' | 'bad' | 'muted'
 
 export function formatSettingSource(source: AppSettingSource): string {
   switch (source) {
@@ -114,5 +120,69 @@ export function getMcpEffectiveState({
     summary: 'Allowed (Auto)',
     detail: 'Write action may run automatically.',
     tone: 'success',
+  }
+}
+
+export function describeAgentHandoffIntegrationStatus(
+  status?: AgentHandoffIntegrationStatus
+): { summary: string; detail: string; tone: IntegrationTone } {
+  if (!status) {
+    return {
+      summary: 'Status unavailable',
+      detail: 'Receiver health has not been loaded yet.',
+      tone: 'muted',
+    }
+  }
+
+  switch (status.receiver_status) {
+    case 'not_required':
+      return {
+        summary: status.mode === 'copy_only' ? 'Copy-only mode' : 'Disabled',
+        detail:
+          status.reason === 'copy_only_mode'
+            ? 'No external receiver is required while Assign-to-Agent stays in copy-only mode.'
+            : 'Assign-to-Agent is disabled by runtime configuration.',
+        tone: 'muted',
+      }
+    case 'missing_configuration':
+      return {
+        summary: 'Missing receiver URL',
+        detail: 'Webhook mode is enabled, but no startup receiver URL is configured.',
+        tone: 'warn',
+      }
+    case 'invalid_configuration':
+      return {
+        summary: 'Invalid receiver URL',
+        detail: 'The configured startup receiver URL is not a valid http(s) endpoint.',
+        tone: 'bad',
+      }
+    case 'unreachable':
+      return {
+        summary: 'Receiver unreachable',
+        detail: 'The configured receiver health endpoint could not be reached from the backend.',
+        tone: 'bad',
+      }
+    case 'invalid_response':
+      return {
+        summary: 'Receiver health invalid',
+        detail: 'The receiver responded, but not with the expected notification health summary.',
+        tone: 'warn',
+      }
+    case 'degraded':
+      return {
+        summary: 'Receiver degraded',
+        detail: 'The receiver is reachable, but one or more notification targets are invalid.',
+        tone: 'warn',
+      }
+    default:
+      return {
+        summary: status.notifications?.configured_targets
+          ? 'Receiver available'
+          : 'Receiver available (no targets)',
+        detail: status.notifications?.configured_targets
+          ? 'Receiver health is available and notification targets are configured.'
+          : 'Receiver health is available, but no notification targets are configured yet.',
+        tone: 'ok',
+      }
   }
 }

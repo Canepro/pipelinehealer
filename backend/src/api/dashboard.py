@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 from uuid import uuid4
 
 import httpx
@@ -27,6 +27,7 @@ from ..models import (
     AdminSettingsUpdateRequest,
     AgentHandoffAuditEntry,
     AgentHandoffConfigView,
+    AgentHandoffIntegrationStatusView,
     AgentHandoffMode,
     AgentHandoffRequest,
     AgentHandoffResponse,
@@ -44,6 +45,7 @@ from ..models import (
     LearningVerificationOutcome,
     LLMProviderHealthView,
     MCPProviderHealthView,
+    NotificationTargetHealthView,
     RemediationStatus,
     utcnow,
 )
@@ -1252,6 +1254,140 @@ def _agent_handoff_config_view() -> AgentHandoffConfigView:
     )
 
 
+def _agent_handoff_receiver_health_url(webhook_url: str) -> str | None:
+    parsed = urlparse(webhook_url.strip())
+    host = (parsed.hostname or "").strip().lower()
+    if parsed.scheme not in {"http", "https"} or not host:
+        return None
+    return urlunparse((parsed.scheme, parsed.netloc, "/api/healthz", "", "", ""))
+
+
+async def _probe_agent_handoff_receiver_health(
+    health_url: str,
+) -> NotificationTargetHealthView | None:
+    timeout = httpx.Timeout(2.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.get(health_url)
+        response.raise_for_status()
+        payload = response.json()
+
+    notifications_raw = payload.get("notifications")
+    if not isinstance(notifications_raw, dict):
+        return None
+
+    return NotificationTargetHealthView(
+        configured_targets=int(notifications_raw.get("configured_targets", 0) or 0),
+        enabled_targets=int(notifications_raw.get("enabled_targets", 0) or 0),
+        invalid_targets=int(notifications_raw.get("invalid_targets", 0) or 0),
+        supported_target_types=[
+            str(item).strip()
+            for item in notifications_raw.get("supported_target_types", [])
+            if str(item).strip()
+        ],
+        errors=[str(item).strip() for item in notifications_raw.get("errors", []) if str(item).strip()],
+    )
+
+
+async def _agent_handoff_integration_status_view() -> AgentHandoffIntegrationStatusView:
+    settings = get_settings()
+    mode = AgentHandoffMode(settings.agent_handoff_mode)
+    webhook_url = settings.agent_handoff_webhook_url.strip()
+    webhook_configured = bool(webhook_url)
+    webhook_host = (urlparse(webhook_url).hostname or "").strip().lower() if webhook_url else ""
+    checked_at = utcnow().isoformat()
+
+    if not settings.agent_handoff_enabled:
+        return AgentHandoffIntegrationStatusView(
+            enabled=False,
+            mode=mode,
+            webhook_configured=webhook_configured,
+            webhook_host=webhook_host,
+            receiver_status="not_required",
+            reason="disabled_by_runtime",
+            checked_at=checked_at,
+        )
+
+    if mode == AgentHandoffMode.COPY_ONLY:
+        return AgentHandoffIntegrationStatusView(
+            enabled=True,
+            mode=mode,
+            webhook_configured=webhook_configured,
+            webhook_host=webhook_host,
+            receiver_status="not_required",
+            reason="copy_only_mode",
+            checked_at=checked_at,
+        )
+
+    if not webhook_configured:
+        return AgentHandoffIntegrationStatusView(
+            enabled=True,
+            mode=mode,
+            webhook_configured=False,
+            receiver_status="missing_configuration",
+            reason="missing_webhook_url",
+            checked_at=checked_at,
+        )
+
+    health_url = _agent_handoff_receiver_health_url(webhook_url)
+    if not health_url:
+        return AgentHandoffIntegrationStatusView(
+            enabled=True,
+            mode=mode,
+            webhook_configured=True,
+            webhook_host=webhook_host,
+            receiver_status="invalid_configuration",
+            reason="invalid_webhook_url",
+            checked_at=checked_at,
+        )
+
+    try:
+        notifications = await _probe_agent_handoff_receiver_health(health_url)
+    except (httpx.RequestError, httpx.HTTPStatusError, ValueError) as exc:
+        logger.warning("agent_handoff_receiver_probe_failed url=%s error=%s", health_url, exc)
+        return AgentHandoffIntegrationStatusView(
+            enabled=True,
+            mode=mode,
+            webhook_configured=True,
+            webhook_host=webhook_host,
+            receiver_health_url=health_url,
+            receiver_status="unreachable",
+            reason="receiver_probe_failed",
+            checked_at=checked_at,
+        )
+
+    if notifications is None:
+        return AgentHandoffIntegrationStatusView(
+            enabled=True,
+            mode=mode,
+            webhook_configured=True,
+            webhook_host=webhook_host,
+            receiver_health_url=health_url,
+            receiver_status="invalid_response",
+            reason="missing_notifications_summary",
+            checked_at=checked_at,
+        )
+
+    receiver_status = "available"
+    reason = "ok"
+    if notifications.invalid_targets > 0:
+        receiver_status = "degraded"
+        reason = "invalid_notification_targets"
+    elif notifications.configured_targets == 0:
+        reason = "no_notification_targets"
+
+    return AgentHandoffIntegrationStatusView(
+        enabled=True,
+        mode=mode,
+        webhook_configured=True,
+        webhook_host=webhook_host,
+        receiver_health_url=health_url,
+        receiver_status=receiver_status,
+        reason=reason,
+        checked_at=checked_at,
+        notifications=notifications,
+    )
+
+
 def _is_allowed_handoff_host(hostname: str, allowlist: list[str]) -> bool:
     if not allowlist:
         return True
@@ -2128,6 +2264,12 @@ async def get_activity(activity_id: str, storage: ActivityStorage = Depends(get_
 async def get_agent_handoff_config() -> AgentHandoffConfigView:
     """Return runtime-safe Assign-to-Agent integration configuration."""
     return _agent_handoff_config_view()
+
+
+@router.get("/agent-handoff/integration-status", response_model=AgentHandoffIntegrationStatusView)
+async def get_agent_handoff_integration_status() -> AgentHandoffIntegrationStatusView:
+    """Return live receiver and notification dependency status for operator surfaces."""
+    return await _agent_handoff_integration_status_view()
 
 
 @router.post(

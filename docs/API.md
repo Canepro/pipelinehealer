@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 9477f08 -->
+<!-- LAST_VERIFIED: c73337d -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -412,6 +412,47 @@ Returns runtime-safe Assign-to-Agent integration config used by Activity Detail 
   "reason": "ok"
 }
 ```
+
+#### `GET /api/agent-handoff/integration-status`
+
+Returns live operator-facing receiver and notification dependency status for Assign-to-Agent webhook mode.
+
+**Auth**: `X-API-Key`
+
+**Response** `200 OK`:
+
+```json
+{
+  "enabled": true,
+  "mode": "webhook",
+  "webhook_configured": true,
+  "webhook_host": "ph-agent-handoff-dev-zarrajk1.azurewebsites.net",
+  "receiver_health_url": "https://ph-agent-handoff-dev-zarrajk1.azurewebsites.net/api/healthz",
+  "receiver_status": "available",
+  "reason": "no_notification_targets",
+  "checked_at": "2026-03-06T13:35:35.239697+00:00",
+  "notifications": {
+    "configured_targets": 0,
+    "enabled_targets": 0,
+    "invalid_targets": 0,
+    "supported_target_types": [
+      "rocketchat_webhook",
+      "slack_webhook",
+      "teams_webhook",
+      "webhook"
+    ],
+    "errors": []
+  }
+}
+```
+
+Notes:
+
+- `receiver_status=not_required` means webhook delivery is currently not needed (`copy_only` mode or feature disabled).
+- `receiver_status=available` means the backend reached the receiver health endpoint successfully.
+- `receiver_status=degraded` means the receiver is reachable but one or more configured notification targets are invalid.
+- `receiver_status=unreachable` means the receiver health endpoint probe failed.
+- The probe only exposes operator-safe health metadata; it does not return the secret webhook URL.
 
 #### `POST /api/activities/{activity_id}/agent-handoff`
 

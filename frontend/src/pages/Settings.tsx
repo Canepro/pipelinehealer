@@ -11,6 +11,7 @@ import {
   toSettingsForm,
 } from '../components/settings'
 import type { SettingsFormState } from '../components/settings'
+import { describeAgentHandoffIntegrationStatus } from '../components/settings/runtimeSemantics'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -102,6 +103,13 @@ export default function SettingsPage() {
     retry: false,
   })
 
+  const { data: handoffIntegrationStatus } = useQuery({
+    queryKey: ['agent-handoff-integration-status', hasAuthAttempt],
+    queryFn: () => api.getAgentHandoffIntegrationStatus(),
+    enabled: hasAuthAttempt,
+    retry: false,
+  })
+
   useEffect(() => {
     if (!data) return
     const next = toSettingsForm(data)
@@ -126,6 +134,7 @@ export default function SettingsPage() {
         normalized.includes('missing credentials')
       )
     })()
+  const handoffIntegrationSummary = describeAgentHandoffIntegrationStatus(handoffIntegrationStatus)
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -379,7 +388,10 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+          <div
+            className="grid gap-4"
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
+          >
             <SettingsSummaryCard
               title="Runtime Posture"
               items={[
@@ -439,6 +451,35 @@ export default function SettingsPage() {
                 {
                   label: 'Destination',
                   value: data.agent_handoff_webhook_host || 'Startup URL not configured',
+                },
+                {
+                  label: 'Receiver',
+                  value: handoffIntegrationSummary.summary,
+                },
+                {
+                  label: 'Notifications',
+                  value: handoffIntegrationStatus?.notifications
+                    ? `${handoffIntegrationStatus.notifications.enabled_targets} enabled / ${handoffIntegrationStatus.notifications.invalid_targets} invalid`
+                    : 'No receiver probe data',
+                },
+              ]}
+            />
+            <SettingsSummaryCard
+              title="Integration Status"
+              items={[
+                {
+                  label: 'Receiver detail',
+                  value: handoffIntegrationSummary.detail,
+                },
+                {
+                  label: 'Health endpoint',
+                  value: handoffIntegrationStatus?.receiver_health_url || 'Not probed',
+                },
+                {
+                  label: 'Supported sinks',
+                  value: handoffIntegrationStatus?.notifications?.supported_target_types.length
+                    ? handoffIntegrationStatus.notifications.supported_target_types.join(', ')
+                    : 'No receiver probe data',
                 },
               ]}
             />

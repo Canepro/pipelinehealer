@@ -245,6 +245,33 @@ export interface AgentHandoffConfig {
   reason: string
 }
 
+export interface NotificationTargetHealth {
+  configured_targets: number
+  enabled_targets: number
+  invalid_targets: number
+  supported_target_types: string[]
+  errors: string[]
+}
+
+export interface AgentHandoffIntegrationStatus {
+  enabled: boolean
+  mode: 'copy_only' | 'webhook'
+  webhook_configured: boolean
+  webhook_host: string
+  receiver_health_url?: string | null
+  receiver_status:
+    | 'not_required'
+    | 'missing_configuration'
+    | 'invalid_configuration'
+    | 'unreachable'
+    | 'invalid_response'
+    | 'available'
+    | 'degraded'
+  reason: string
+  checked_at: string
+  notifications?: NotificationTargetHealth | null
+}
+
 export interface AgentHandoffResponse {
   status: 'copied' | 'queued' | 'failed' | 'disabled'
   mode: 'copy_only' | 'webhook'
@@ -575,6 +602,8 @@ export const api = {
   
   getActivity: (id: string) => fetchJson<Activity>(`/api/activities/${id}`),
   getAgentHandoffConfig: () => fetchJson<AgentHandoffConfig>('/api/agent-handoff/config'),
+  getAgentHandoffIntegrationStatus: () =>
+    fetchJson<AgentHandoffIntegrationStatus>('/api/agent-handoff/integration-status'),
   assignActivityToAgent: (
     id: string,
     payload: { mode?: 'copy_only' | 'webhook'; context: string; context_format?: string }
