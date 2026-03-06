@@ -271,6 +271,8 @@ def _rocketchat_payload(payload: dict[str, Any], target: NotificationTarget) -> 
 def _slack_payload(payload: dict[str, Any], _target: NotificationTarget) -> dict[str, Any]:
     lines = _chat_lines(payload)
     summary = activity_summary(payload)
+    request_id = str(payload.get("request_id", "")).strip()
+    normalized_event_type = event_type(payload)
 
     # Slack incoming webhooks accept normal message text plus Block Kit.
     fields = [
@@ -281,6 +283,12 @@ def _slack_payload(payload: dict[str, Any], _target: NotificationTarget) -> dict
     ]
     if summary["failure_type"]:
         fields.append({"type": "mrkdwn", "text": f"*Failure Type*\n{summary['failure_type']}"})
+
+    # Keep the context block for supplemental metadata only so the main activity
+    # facts are not duplicated below the fields grid.
+    context_lines = [f"Event: {normalized_event_type}"]
+    if request_id:
+        context_lines.append(f"Request ID: {request_id}")
 
     return {
         "text": " | ".join(lines),
@@ -298,7 +306,7 @@ def _slack_payload(payload: dict[str, Any], _target: NotificationTarget) -> dict
             },
             {
                 "type": "context",
-                "elements": [{"type": "mrkdwn", "text": line} for line in lines[1:]],
+                "elements": [{"type": "mrkdwn", "text": line} for line in context_lines],
             },
         ],
     }
