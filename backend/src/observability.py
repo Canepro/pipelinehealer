@@ -3,6 +3,7 @@
 import logging
 from typing import Any
 
+from . import __version__
 from .config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,7 @@ def _configure_basic_tracing() -> None:
     resource = Resource.create(
         {
             "service.name": "pipelinehealer",
-            "service.version": "0.1.0",
+            "service.version": __version__,
         }
     )
 

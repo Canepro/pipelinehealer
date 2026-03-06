@@ -74,6 +74,20 @@ def activity_summary(payload: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def handoff_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    summary = coerce_dict(payload.get("summary"))
+    return {
+        "activity_url": str(summary.get("activity_url", "") or "").strip(),
+        "root_cause": str(summary.get("root_cause", "") or "").strip(),
+        "suggested_fix": str(summary.get("suggested_fix", "") or "").strip(),
+        "remediation_action": str(summary.get("remediation_action", "") or "").strip(),
+        "issue_url": str(summary.get("issue_url", "") or "").strip(),
+        "pr_url": str(summary.get("pr_url", "") or "").strip(),
+        "error_message": str(summary.get("error_message", "") or "").strip(),
+        "remediation_success": summary.get("remediation_success"),
+    }
+
+
 def json_response(body: dict[str, Any], status_code: int = 200) -> func.HttpResponse:
     return func.HttpResponse(
         json.dumps(body),
@@ -350,13 +364,38 @@ def _webhook_payload(payload: dict[str, Any], _target: NotificationTarget) -> di
     return payload
 
 
-def _chat_lines(payload: dict[str, Any]) -> list[str]:
+def _truncate_text(value: str, max_chars: int = 220) -> str:
+    text = " ".join(str(value or "").split()).strip()
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 3].rstrip() + "..."
+
+
+def _remediation_summary_text(payload: dict[str, Any]) -> str:
+    summary = handoff_summary(payload)
+    action = summary["remediation_action"].replace("_", " ").strip()
+    if not action:
+        return ""
+
+    message = f"Remediation: {action}"
+    if summary["remediation_success"] is True:
+        message += " succeeded"
+    elif summary["remediation_success"] is False:
+        message += " failed"
+
+    if summary["error_message"]:
+        message += f" ({_truncate_text(summary['error_message'], 140)})"
+    return message
+
+
+def _operator_lines(payload: dict[str, Any]) -> list[str]:
     summary = activity_summary(payload)
+    handoff = handoff_summary(payload)
     request_id = str(payload.get("request_id", "")).strip()
     normalized_event_type = event_type(payload)
 
     lines = [
-        "PipelineHealer handoff received",
+        "PipelineHealer handoff requested",
         f"Event: {normalized_event_type}",
         f"Repository: {summary['repository'] or 'n/a'}",
         f"Workflow: {summary['workflow_name'] or 'n/a'}",
@@ -365,45 +404,57 @@ def _chat_lines(payload: dict[str, Any]) -> list[str]:
     ]
     if summary["failure_type"]:
         lines.append(f"Failure Type: {summary['failure_type']}")
+    if handoff["root_cause"]:
+        lines.extend(["", f"Diagnosis: {_truncate_text(handoff['root_cause'], 280)}"])
+    if handoff["suggested_fix"]:
+        lines.append(f"Suggested fix: {_truncate_text(handoff['suggested_fix'], 280)}")
+    remediation = _remediation_summary_text(payload)
+    if remediation:
+        lines.extend(["", remediation])
+    link_lines = [
+        ("Open activity", handoff["activity_url"]),
+        ("Open issue", handoff["issue_url"]),
+        ("Open PR", handoff["pr_url"]),
+    ]
+    rendered_links = [f"{label}: {url}" for label, url in link_lines if url]
+    if rendered_links:
+        lines.extend(["", *rendered_links])
     if request_id:
-        lines.append(f"Request ID: {request_id}")
+        lines.extend(["", f"Request ID: {request_id}"])
     return lines
 
 
 def _rocketchat_payload(payload: dict[str, Any], target: NotificationTarget) -> dict[str, Any]:
     summary = activity_summary(payload)
     delivery_id = str(payload.get("delivery_id", "")).strip()
-    normalized_event_type = event_type(payload)
-
-    # Keep the chat payload short and human-readable, while preserving the original
-    # event contract in a structured attachment for downstream tooling.
-    lines = _chat_lines(payload)
+    lines = _operator_lines(payload)
     lines[0] = ":robot_face: " + lines[0]
 
-    return {
+    attachment_lines = []
+    if target.name:
+        attachment_lines.append(f"Target: {target.name}")
+    if delivery_id:
+        attachment_lines.append(f"Delivery ID: {delivery_id}")
+
+    body = {
         "alias": "PipelineHealer",
         "text": "\n".join(lines),
-        "attachments": [
-            {
-                "title": target.name,
-                "text": json.dumps(
-                    {
-                        "event_type": normalized_event_type,
-                        "delivery_id": delivery_id,
-                        "activity_id": summary["activity_id"],
-                        "repository": summary["repository"],
-                        "workflow_name": summary["workflow_name"],
-                    }
-                ),
-            }
-        ],
     }
+    if attachment_lines:
+        body["attachments"] = [
+            {
+                "title": summary["activity_id"] or target.name,
+                "text": "\n".join(attachment_lines),
+            }
+        ]
+    return body
 
 
 def _slack_payload(payload: dict[str, Any], _target: NotificationTarget) -> dict[str, Any]:
-    lines = _chat_lines(payload)
     summary = activity_summary(payload)
+    handoff = handoff_summary(payload)
     request_id = str(payload.get("request_id", "")).strip()
+    delivery_id = str(payload.get("delivery_id", "")).strip()
     normalized_event_type = event_type(payload)
 
     # Slack incoming webhooks accept normal message text plus Block Kit.
@@ -416,26 +467,55 @@ def _slack_payload(payload: dict[str, Any], _target: NotificationTarget) -> dict
     if summary["failure_type"]:
         fields.append({"type": "mrkdwn", "text": f"*Failure Type*\n{summary['failure_type']}"})
 
-    # Keep the context block for supplemental metadata only so the main activity
-    # facts are not duplicated below the fields grid.
-    context_lines = [f"Event: {normalized_event_type}"]
-    if request_id:
-        context_lines.append(f"Request ID: {request_id}")
-
-    return {
-        "text": " | ".join(lines),
-        "blocks": [
+    blocks: list[dict[str, Any]] = [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*PipelineHealer handoff requested*",
+            },
+        },
+        {
+            "type": "section",
+            "fields": fields,
+        },
+    ]
+    if handoff["root_cause"]:
+        blocks.append(
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": "*PipelineHealer handoff received*",
+                    "text": f"*Diagnosis*\n{_truncate_text(handoff['root_cause'], 280)}",
                 },
-            },
+            }
+        )
+    remediation = _remediation_summary_text(payload)
+    if remediation:
+        blocks.append(
             {
                 "type": "section",
-                "fields": fields,
-            },
+                "text": {"type": "mrkdwn", "text": f"*Remediation*\n{remediation}"},
+            }
+        )
+
+    context_lines = [f"Event: {normalized_event_type}"]
+    for label, url in (
+        ("Activity", handoff["activity_url"]),
+        ("Issue", handoff["issue_url"]),
+        ("PR", handoff["pr_url"]),
+    ):
+        if url:
+            context_lines.append(f"{label}: {url}")
+    if request_id:
+        context_lines.append(f"Request ID: {request_id}")
+    if delivery_id:
+        context_lines.append(f"Delivery ID: {delivery_id}")
+
+    return {
+        "text": "\n".join(_operator_lines(payload)),
+        "blocks": [
+            *blocks,
             {
                 "type": "context",
                 "elements": [{"type": "mrkdwn", "text": line} for line in context_lines],
@@ -446,7 +526,9 @@ def _slack_payload(payload: dict[str, Any], _target: NotificationTarget) -> dict
 
 def _teams_payload(payload: dict[str, Any], _target: NotificationTarget) -> dict[str, Any]:
     summary = activity_summary(payload)
+    handoff = handoff_summary(payload)
     request_id = str(payload.get("request_id", "")).strip()
+    delivery_id = str(payload.get("delivery_id", "")).strip()
     normalized_event_type = event_type(payload)
 
     facts = [
@@ -460,6 +542,53 @@ def _teams_payload(payload: dict[str, Any], _target: NotificationTarget) -> dict
         facts.append({"title": "Failure Type", "value": summary["failure_type"]})
     if request_id:
         facts.append({"title": "Request ID", "value": request_id})
+    if delivery_id:
+        facts.append({"title": "Delivery ID", "value": delivery_id})
+
+    body: list[dict[str, Any]] = [
+        {
+            "type": "TextBlock",
+            "text": "PipelineHealer handoff requested",
+            "weight": "Bolder",
+            "size": "Medium",
+            "wrap": True,
+        },
+        {
+            "type": "FactSet",
+            "facts": facts,
+        },
+    ]
+    if handoff["root_cause"]:
+        body.append(
+            {
+                "type": "TextBlock",
+                "text": f"Diagnosis: {_truncate_text(handoff['root_cause'], 280)}",
+                "wrap": True,
+            }
+        )
+    remediation = _remediation_summary_text(payload)
+    if remediation:
+        body.append(
+            {
+                "type": "TextBlock",
+                "text": remediation,
+                "wrap": True,
+            }
+        )
+    link_lines = [
+        f"[Open activity]({handoff['activity_url']})" if handoff["activity_url"] else "",
+        f"[Open issue]({handoff['issue_url']})" if handoff["issue_url"] else "",
+        f"[Open PR]({handoff['pr_url']})" if handoff["pr_url"] else "",
+    ]
+    rendered_links = [line for line in link_lines if line]
+    if rendered_links:
+        body.append(
+            {
+                "type": "TextBlock",
+                "text": " | ".join(rendered_links),
+                "wrap": True,
+            }
+        )
 
     # Teams Incoming Webhooks accept a message wrapper containing an Adaptive Card attachment.
     return {
@@ -472,19 +601,7 @@ def _teams_payload(payload: dict[str, Any], _target: NotificationTarget) -> dict
                     "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                     "type": "AdaptiveCard",
                     "version": "1.2",
-                    "body": [
-                        {
-                            "type": "TextBlock",
-                            "text": "PipelineHealer handoff received",
-                            "weight": "Bolder",
-                            "size": "Medium",
-                            "wrap": True,
-                        },
-                        {
-                            "type": "FactSet",
-                            "facts": facts,
-                        },
-                    ],
+                    "body": body,
                 },
             }
         ],
@@ -509,20 +626,22 @@ def _email_subject(payload: dict[str, Any], target: NotificationTarget) -> str:
 
 def _email_body(payload: dict[str, Any]) -> str:
     summary = activity_summary(payload)
+    handoff = handoff_summary(payload)
     request_id = str(payload.get("request_id", "")).strip()
     delivery_id = str(payload.get("delivery_id", "")).strip()
     context = str(payload.get("context", "")).strip()
     excerpt = context[:1200].strip()
 
-    lines = _chat_lines(payload)
+    lines = _operator_lines(payload)
     if delivery_id:
         lines.append(f"Delivery ID: {delivery_id}")
     if request_id:
         lines.append(f"Request ID: {request_id}")
-    lines.append("")
-    lines.append("This email was sent by the PipelineHealer outbound integration gateway.")
+    if handoff["activity_url"]:
+        lines.extend(["", f"Open activity: {handoff['activity_url']}"])
+    lines.extend(["", "This email was sent by the PipelineHealer outbound integration gateway."])
     if summary["failure_type"]:
-        lines.append("Review the linked activity in PipelineHealer for full evidence and remediation context.")
+        lines.append("Review the linked activity for full evidence and remediation context.")
     if excerpt:
         lines.extend(["", "Context excerpt:", excerpt])
         if len(context) > len(excerpt):

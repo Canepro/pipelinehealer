@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 85a9cbd -->
+<!-- LAST_VERIFIED: fa18d60 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -8,7 +8,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- Release-lineage reference for `v0.5.1` scope continuity: `01c1018`.
+- Release-lineage reference for `v0.5.2` scope continuity: `fa18d60`.
 
 ## [v0.5.1] - 2026-03-06
 

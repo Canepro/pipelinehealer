@@ -28,6 +28,14 @@ export interface DashboardStats {
   last_updated: string
 }
 
+export interface ServiceHealth {
+  service: string
+  version: string
+  status: string
+  environment: string
+  storage_backend: string
+}
+
 export interface Diagnosis {
   failure_type: string
   diagnosis_source?: 'pattern' | 'llm'
@@ -504,6 +512,7 @@ async function fetchJson<T>(path: string, options?: ApiRequestOptions): Promise<
 }
 
 export const api = {
+  getServiceHealth: () => fetchJson<ServiceHealth>('/health'),
   getStats: () => fetchJson<DashboardStats>('/api/stats'),
   getSettings: (adminKey?: string) =>
     fetchJson<AppSettings>('/api/settings', { adminKey }),

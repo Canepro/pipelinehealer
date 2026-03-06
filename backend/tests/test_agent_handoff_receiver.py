@@ -134,3 +134,41 @@ def test_deliver_notification_targets_sends_email(
     assert message["From"] == "pipelinehealer@example.com"
     assert "[PH]" in message["Subject"]
     assert "Canepro/pipelinehealer" in message.get_content()
+
+
+def test_rocketchat_payload_prioritizes_operator_context(receiver_shared: Any) -> None:
+    payload = receiver_shared._rocketchat_payload(  # noqa: SLF001 - focused formatter coverage
+        {
+            "event_type": "agent_handoff_requested",
+            "request_id": "req-123",
+            "delivery_id": "delivery-123",
+            "activity": {
+                "id": "activity-123",
+                "repository": "Canepro/pipelinehealer",
+                "workflow_name": "CI",
+                "status": "completed",
+                "failure_type": "dependency",
+            },
+            "summary": {
+                "activity_url": "https://frontend.example/app/activities/activity-123",
+                "root_cause": "The workflow failed because left-pad is missing.",
+                "suggested_fix": "Add left-pad to dependencies.",
+                "remediation_action": "create_issue",
+                "remediation_success": True,
+                "issue_url": "https://github.com/Canepro/pipelinehealer/issues/321",
+            },
+        },
+        receiver_shared.NotificationTarget(
+            index=1,
+            target_type="rocketchat_webhook",
+            name="rocket-chat",
+        ),
+    )
+
+    assert "PipelineHealer handoff requested" in payload["text"]
+    assert "Diagnosis: The workflow failed because left-pad is missing." in payload["text"]
+    assert "Suggested fix: Add left-pad to dependencies." in payload["text"]
+    assert "Remediation: create issue succeeded" in payload["text"]
+    assert "Open activity: https://frontend.example/app/activities/activity-123" in payload["text"]
+    assert "Open issue: https://github.com/Canepro/pipelinehealer/issues/321" in payload["text"]
+    assert "Delivery ID: delivery-123" in payload["attachments"][0]["text"]

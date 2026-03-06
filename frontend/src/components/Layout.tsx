@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   LayoutDashboard,
@@ -10,6 +11,8 @@ import {
 import clsx from "clsx";
 import { useEffect, useState } from "react";
 
+import { api } from "@/api/client";
+import { FRONTEND_RELEASE_TAG, FRONTEND_VERSION } from "@/buildInfo";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -27,6 +30,47 @@ const navigation = [
   { name: "Control Center", href: "/app/control-center", icon: ShieldCheck },
   { name: "Settings", href: "/app/settings", icon: Settings },
 ];
+
+function ReleaseStatus() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["service-health"],
+    queryFn: api.getServiceHealth,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+
+  const apiVersion = String(data?.version || "").trim();
+  const versionsAligned = Boolean(apiVersion) && apiVersion === FRONTEND_VERSION;
+
+  let title = `UI ${FRONTEND_RELEASE_TAG}`;
+  let detail = "API version unavailable";
+  let toneClass = "text-[var(--ph-muted)]";
+
+  if (isLoading) {
+    detail = "Checking deployed backend version";
+  } else if (apiVersion && versionsAligned) {
+    title = `Release ${FRONTEND_RELEASE_TAG}`;
+    detail = `API ${FRONTEND_RELEASE_TAG} aligned`;
+    toneClass = "text-[var(--ph-success)]";
+  } else if (apiVersion) {
+    detail = `API v${apiVersion} differs from UI ${FRONTEND_RELEASE_TAG}`;
+    toneClass = "text-[var(--ph-warning)]";
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--ph-muted)]">
+          Release
+        </span>
+        <span className="text-xs font-semibold text-[var(--ph-text)]">{title}</span>
+      </div>
+      <p className={clsx("text-xs", toneClass)}>{detail}</p>
+    </div>
+  );
+}
 
 export default function Layout() {
   const location = useLocation();
@@ -105,6 +149,9 @@ export default function Layout() {
             <p className="mt-1 text-xs text-[var(--ph-muted)]">
               GitHub Actions and Jenkins bridge today.
             </p>
+            <div className="mt-3 border-t border-[var(--ph-border)] pt-3">
+              <ReleaseStatus />
+            </div>
           </div>
         </div>
       </div>
@@ -182,6 +229,9 @@ export default function Layout() {
                 );
               })}
             </nav>
+            <div className="mt-6 border-t border-[var(--ph-border)] pt-4">
+              <ReleaseStatus />
+            </div>
           </SheetContent>
         </Sheet>
       </div>
