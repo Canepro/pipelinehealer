@@ -14,7 +14,7 @@ export function formatSettingSource(source: AppSettingSource): string {
     case 'default':
       return 'Default'
     case 'env':
-      return 'Startup env'
+      return 'Startup config'
     case 'runtime_override':
       return 'Runtime override'
     case 'persisted_runtime_override':
@@ -42,7 +42,9 @@ export function settingSourceTone(source: AppSettingSource): BadgeTone {
 }
 
 export function getDurabilityLabel(metadata?: AppSettingMetadata): string | null {
-  if (!metadata || !metadata.mutable) return null
+  if (!metadata) return null
+  if (metadata.requires_restart) return 'Restart required'
+  if (!metadata.mutable) return null
   return metadata.durable ? 'Durable' : 'Runtime only'
 }
 

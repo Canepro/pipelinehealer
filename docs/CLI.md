@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: e21812d -->
+<!-- LAST_VERIFIED: 9477f08 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -259,6 +259,8 @@ bash scripts/ph.sh settings:persist:verify --from-settings
 bash scripts/ph.sh audit:proof --limit 5
 bash scripts/ph.sh aoai:check
 ```
+
+`settings:check` now exposes per-field provenance metadata from the backend API, including startup-managed vs runtime override state, restart requirements, and presence-only sensitive signals for hidden startup configuration.
 
 #### `settings:persist`
 

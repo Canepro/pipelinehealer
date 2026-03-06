@@ -796,6 +796,7 @@ export default function AdminControlsForm({
                 <ReadOnlyField
                   label="OpenAI-Compatible Key"
                   value={data.openai_compatible_api_key_configured ? 'Configured' : 'Not configured'}
+                  metadata={data.settings_metadata?.openai_compatible_api_key_configured}
                 />
                 <ReadOnlyField
                   label="Provider Endpoint"
@@ -990,6 +991,7 @@ export default function AdminControlsForm({
                       : 'Not configured'
                   }
                   ok={data.agent_handoff_webhook_configured}
+                  metadata={data.settings_metadata?.agent_handoff_webhook_host}
                 />
                 <StatusChip
                   label="Current Mode"
@@ -1721,9 +1723,23 @@ export default function AdminControlsForm({
             {/* Read-only status summary */}
             <Separator />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <StatusChip label="Auth Mode" value={data.github_auth_mode} />
-              <StatusChip label="PAT" value={data.github_pat_configured ? 'Configured' : 'Not set'} ok={data.github_pat_configured} />
-              <StatusChip label="GitHub App" value={data.github_app_configured ? 'Configured' : 'Not set'} ok={data.github_app_configured} />
+              <StatusChip
+                label="Auth Mode"
+                value={data.github_auth_mode}
+                metadata={data.settings_metadata?.github_auth_mode}
+              />
+              <StatusChip
+                label="PAT"
+                value={data.github_pat_configured ? 'Configured' : 'Not set'}
+                ok={data.github_pat_configured}
+                metadata={data.settings_metadata?.github_pat_configured}
+              />
+              <StatusChip
+                label="GitHub App"
+                value={data.github_app_configured ? 'Configured' : 'Not set'}
+                ok={data.github_app_configured}
+                metadata={data.settings_metadata?.github_app_configured}
+              />
               <StatusChip label="gh-aw" value={data.gh_aw_tools_enabled ? 'Active' : 'Off'} ok={data.gh_aw_tools_enabled} />
             </div>
           </CardContent>
@@ -2091,24 +2107,66 @@ function SwitchField({
   )
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: string | number }) {
+function ReadOnlyField({
+  label,
+  value,
+  metadata,
+}: {
+  label: string
+  value: string | number
+  metadata?: AppSettingMetadata
+}) {
+  const durability = getDurabilityLabel(metadata)
   return (
     <div className="space-y-1.5">
-      <Label className="text-[var(--ph-muted)]">{label}</Label>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Label className="text-[var(--ph-muted)]">{label}</Label>
+        {metadata && (
+          <>
+            <Badge variant={settingSourceTone(metadata.source)}>
+              {formatSettingSource(metadata.source)}
+            </Badge>
+            {metadata.sensitive ? <Badge variant="secondary">Sensitive</Badge> : null}
+            {durability ? <Badge variant="outline">{durability}</Badge> : null}
+          </>
+        )}
+      </div>
       <p className="text-sm font-medium text-[var(--ph-text)] py-2">
         {value || <span className="text-[var(--ph-muted)] italic">Not set</span>}
       </p>
+      {metadata?.note ? <p className="text-xs text-[var(--ph-muted)]">{metadata.note}</p> : null}
     </div>
   )
 }
 
-function StatusChip({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
+function StatusChip({
+  label,
+  value,
+  ok,
+  metadata,
+}: {
+  label: string
+  value: string
+  ok?: boolean
+  metadata?: AppSettingMetadata
+}) {
+  const durability = getDurabilityLabel(metadata)
   return (
     <div className="space-y-1">
       <p className="text-xs text-[var(--ph-muted)]">{label}</p>
       <Badge variant={ok === undefined ? 'outline' : ok ? 'success' : 'destructive'}>
         {value}
       </Badge>
+      {metadata && (
+        <div className="flex flex-wrap gap-1">
+          <Badge variant={settingSourceTone(metadata.source)}>
+            {formatSettingSource(metadata.source)}
+          </Badge>
+          {metadata.sensitive ? <Badge variant="secondary">Sensitive</Badge> : null}
+          {durability ? <Badge variant="outline">{durability}</Badge> : null}
+        </div>
+      )}
+      {metadata?.note ? <p className="text-xs text-[var(--ph-muted)]">{metadata.note}</p> : null}
     </div>
   )
 }

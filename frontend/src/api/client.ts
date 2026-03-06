@@ -211,6 +211,8 @@ export interface AppSettingMetadata {
   mutable: boolean
   requires_restart: boolean
   durable: boolean
+  sensitive: boolean
+  note: string
 }
 
 export interface LLMProviderHealth {

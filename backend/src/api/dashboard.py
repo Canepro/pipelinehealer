@@ -5,7 +5,7 @@ import hashlib
 import logging
 import os
 import re
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -60,6 +60,15 @@ _HOSTNAME_RE = re.compile(r"^[a-z0-9.-]+$")
 _AGENT_HANDOFF_MAX_AUDIT_ENTRIES = 30
 _runtime_override_keys: set[str] = set()
 _persisted_runtime_override_keys: set[str] = set()
+
+
+@dataclass(frozen=True)
+class _DerivedSettingMetadataSpec:
+    """Metadata for operator-visible fields derived from hidden startup configuration."""
+
+    source_fields: tuple[str, ...]
+    sensitive: bool = False
+    note: str = ""
 
 
 def _normalize_repo_full_name(raw_value: Any) -> str:
@@ -245,6 +254,36 @@ def _resolve_github_auth_mode() -> tuple[bool, bool, str]:
     return has_pat, has_app, mode
 
 
+_DERIVED_SETTINGS_METADATA: dict[str, _DerivedSettingMetadataSpec] = {
+    "github_pat_configured": _DerivedSettingMetadataSpec(
+        source_fields=("github_personal_access_token",),
+        sensitive=True,
+        note="Presence-only signal for startup-managed GitHub PAT wiring.",
+    ),
+    "github_app_configured": _DerivedSettingMetadataSpec(
+        source_fields=("github_app_id", "key_vault_url"),
+        note="Derived from startup-managed GitHub App wiring.",
+    ),
+    "github_auth_mode": _DerivedSettingMetadataSpec(
+        source_fields=("github_personal_access_token", "github_app_id", "key_vault_url"),
+        note="Derived from available startup GitHub auth wiring.",
+    ),
+    "openai_compatible_api_key_configured": _DerivedSettingMetadataSpec(
+        source_fields=("openai_compatible_api_key",),
+        sensitive=True,
+        note="Presence-only signal for a startup-managed provider API key.",
+    ),
+    "agent_handoff_webhook_configured": _DerivedSettingMetadataSpec(
+        source_fields=("agent_handoff_webhook_url",),
+        sensitive=True,
+        note="Derived from the startup-only Assign-to-Agent webhook URL; the full URL is intentionally hidden.",
+    ),
+    "agent_handoff_webhook_host": _DerivedSettingMetadataSpec(
+        source_fields=("agent_handoff_webhook_url",),
+        note="Derived from the startup-only Assign-to-Agent webhook URL; only the destination host is exposed.",
+    ),
+}
+
 _COMPUTED_SETTINGS_FIELDS: frozenset[str] = frozenset(
     {
         "storage_mode",
@@ -252,12 +291,6 @@ _COMPUTED_SETTINGS_FIELDS: frozenset[str] = frozenset(
         "api_auth_enabled",
         "admin_api_auth_enabled",
         "entra_auth_enabled",
-        "github_pat_configured",
-        "github_app_configured",
-        "github_auth_mode",
-        "agent_handoff_webhook_configured",
-        "agent_handoff_webhook_host",
-        "openai_compatible_api_key_configured",
     }
 )
 
@@ -270,6 +303,17 @@ def _setting_source_for_attr(attr_name: str, startup_fields_set: set[str]) -> Ap
         return AppSettingSource.PERSISTED_RUNTIME_OVERRIDE
     if attr_name in startup_fields_set:
         return AppSettingSource.ENV
+    return AppSettingSource.DEFAULT
+
+
+def _setting_source_for_derived_attr(
+    source_fields: tuple[str, ...],
+    startup_fields_set: set[str],
+) -> AppSettingSource:
+    """Resolve provenance for fields derived from hidden startup-only settings."""
+    for source_field in source_fields:
+        if source_field in startup_fields_set:
+            return AppSettingSource.ENV
     return AppSettingSource.DEFAULT
 
 
@@ -290,6 +334,21 @@ def _build_settings_metadata() -> dict[str, AppSettingMetadataView]:
                 mutable=False,
                 requires_restart=False,
                 durable=True,
+            )
+            continue
+
+        derived_metadata = _DERIVED_SETTINGS_METADATA.get(field_name)
+        if derived_metadata is not None:
+            metadata[field_name] = AppSettingMetadataView(
+                source=_setting_source_for_derived_attr(
+                    derived_metadata.source_fields,
+                    startup_fields_set,
+                ),
+                mutable=False,
+                requires_restart=True,
+                durable=True,
+                sensitive=derived_metadata.sensitive,
+                note=derived_metadata.note,
             )
             continue
 

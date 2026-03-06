@@ -1,4 +1,4 @@
-<!-- LAST_VERIFIED: 7280f80 -->
+<!-- LAST_VERIFIED: 9477f08 -->
 
 # Operator Control Plane
 
@@ -130,13 +130,19 @@ These should expose both configuration state and dependency state.
 
 For supported operator settings, the API/UI should eventually expose provenance in a normalized form.
 
-Recommended source categories:
+Portable core source categories:
 
 - `default`
 - `env`
-- `secretref`
+- `runtime_override`
 - `persisted_runtime_override`
 - `computed`
+
+Important portability rule:
+
+- the core app should not claim platform-specific secret adapter knowledge it cannot verify generically at runtime
+- ACA `secretref`, Helm secrets, Docker/Kubernetes env injection, and similar adapters are deployment concerns around the same startup config model
+- when the app exposes a presence-only or derived signal from hidden startup-sensitive config, it should report that as startup-managed provenance (`env`) plus metadata such as `sensitive=true` and an explanatory note
 
 Recommended operator-visible fields:
 
@@ -144,6 +150,7 @@ Recommended operator-visible fields:
 - source
 - requires restart (`true|false`)
 - mutable in UI (`true|false`)
+- sensitive / presence-only flag when applicable
 - blocked reason or missing dependency reason when applicable
 
 ## Operator Surface Expectations
@@ -206,4 +213,3 @@ This document does not require:
 - abstracting away real provider differences
 
 It does require that the product-level contract remain coherent and portable.
-
