@@ -482,7 +482,7 @@ export default function AdminControlsForm({
                 <CardTitle>Healing Behavior</CardTitle>
               </div>
               <p className="text-sm text-[var(--ph-muted)]">
-                Controls how PipelineHealer responds to CI failures.
+                Controls how PipelineHealer responds to pipeline failures.
               </p>
             </CardHeader>
             <CardContent className="space-y-6">

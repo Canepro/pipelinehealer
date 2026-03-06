@@ -222,7 +222,7 @@ export default function SettingsPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--ph-text)]">Settings</h1>
           <p className="text-sm text-[var(--ph-muted)]">
-            Admin-only runtime configuration for PipelineHealer.
+            Operator control surface for runtime policy, startup-managed dependencies, and durable settings.
           </p>
         </div>
       </div>

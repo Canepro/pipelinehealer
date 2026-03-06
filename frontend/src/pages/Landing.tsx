@@ -26,18 +26,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 const capabilityCards = [
   {
     icon: Workflow,
-    title: 'Automated Failure Triage',
-    text: 'Correlates workflow logs, classifies failure type, and surfaces root-cause evidence quickly.',
+    title: 'Normalized Pipeline Intake',
+    text: 'Accepts provider-specific failure events and turns them into one auditable activity model.',
   },
   {
     icon: Bot,
-    title: 'AI-Assisted Diagnosis',
-    text: 'Uses configurable AI models with deterministic safeguards to avoid risky false positives.',
+    title: 'Policy-Aware Diagnosis',
+    text: 'Combines deterministic signals, model routing, and external diagnostics without hiding confidence tradeoffs.',
   },
   {
     icon: ShieldCheck,
-    title: 'Governed Remediation',
-    text: 'Supports issue-only mode, PR mode, allowlists, and policy-aware safety gates.',
+    title: 'Operator Control Plane',
+    text: 'Separates startup-managed config, runtime policy, and effective behavior across Settings, Control Center, and Activity Detail.',
   },
 ]
 
@@ -45,40 +45,40 @@ const processSteps = [
   {
     step: '01',
     title: 'Detect',
-    text: 'Ingest CI failures from GitHub Actions and normalize activity context.',
+    text: 'Ingest software-delivery pipeline failures through provider adapters such as GitHub Actions and the Jenkins bridge.',
   },
   {
     step: '02',
     title: 'Diagnose',
-    text: 'Combine pattern matching, AI analysis, and external diagnostics for confidence scoring.',
+    text: 'Correlate pattern logic, external diagnostics, and model-assisted analysis into one explainable diagnosis path.',
   },
   {
     step: '03',
     title: 'Remediate',
-    text: 'Generate safe actions: issue, PR, or no-op with clear reasoning and auditability.',
+    text: 'Apply issue, PR, retry, or handoff actions under explicit policy and dependency gates.',
   },
 ]
 
 const operationalSignals = [
   {
-    title: 'Deployment Modes',
-    text: 'Local Docker workflow plus Azure Container Apps for production demo runs.',
+    title: 'Portable Deployment Model',
+    text: 'OSS-first by design: local, Docker, Helm/Kubernetes, and Azure Container Apps fit the same core control-plane model.',
   },
   {
-    title: 'Model Portability',
-    text: 'Azure OpenAI today, OpenAI-compatible provider path built in, task-level model routing included.',
+    title: 'Provider Adapters',
+    text: 'GitHub Actions is native today, Jenkins is supported through a signed bridge path, and the platform boundary stays broader than CI-only tooling.',
   },
   {
-    title: 'Governance Controls',
-    text: 'Policy gates, repository allowlists, MCP tool policies, and durable settings audit trail.',
+    title: 'Governance You Can Inspect',
+    text: 'Configured policy, effective behavior, startup-managed dependencies, and audit traceability are visible from the product surface.',
   },
 ]
 
 const platformStats = [
-  { value: 7, label: 'Failure Types', suffix: '' },
-  { value: 3, label: 'Remediation Modes', suffix: '' },
-  { value: 4, label: 'Agent Pipeline', suffix: '-stage' },
-  { value: 100, label: 'Audit Trail', suffix: '%' },
+  { value: 2, label: 'Ingress Paths', suffix: '' },
+  { value: 3, label: 'Operator Surfaces', suffix: '' },
+  { value: 4, label: 'Agent Stages', suffix: '' },
+  { value: 100, label: 'Auditable Actions', suffix: '%' },
 ]
 
 const agentNodes = [
@@ -165,7 +165,7 @@ export default function Landing() {
           </Link>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="hidden md:inline-flex">
-              Hackathon Preview
+              OSS-first
             </Badge>
             <Button asChild size="sm" variant="secondary">
               <Link to="/app">Open App</Link>
@@ -186,20 +186,21 @@ export default function Landing() {
             <Card className="h-full border-azure-500/20 bg-[color:var(--ph-surface)]/95">
               <CardContent className="p-6 sm:p-8">
                 <Badge variant="outline" className="mb-4">
-                  CI/CD Reliability Platform
+                  Pipeline Remediation Control Plane
                 </Badge>
                 <h1 className="text-3xl font-bold tracking-tight text-[var(--ph-text)] sm:text-5xl">
-                  Resolve CI failures faster with policy-aware AI remediation
+                  Diagnose, govern, and remediate pipeline failures without losing operator control
                 </h1>
                 <p className="mt-4 max-w-2xl text-base leading-relaxed text-[var(--ph-muted)] sm:text-lg">
-                  PipelineHealer helps engineering teams detect failures, diagnose root causes,
-                  and propose safe corrective actions with full traceability, provider-aware model
-                  telemetry, and policy-first guardrails.
+                  PipelineHealer turns provider-specific failure events into one explainable,
+                  policy-aware remediation workflow. Operators can see what is configured, what is
+                  effective, what is startup-managed, and what is blocked by policy or missing
+                  external wiring.
                 </p>
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <Button asChild size="lg" className="px-6">
                     <Link to="/app">
-                      Enter Dashboard
+                      Open Control Plane
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
@@ -220,10 +221,11 @@ export default function Landing() {
                 </div>
                 <div className="mt-6 flex flex-wrap gap-2 text-xs">
                   <Badge variant="secondary">GitHub Actions</Badge>
-                  <Badge variant="secondary">Azure OpenAI</Badge>
+                  <Badge variant="secondary">Jenkins Bridge</Badge>
+                  <Badge variant="secondary">Assign-to-Agent</Badge>
                   <Badge variant="secondary">Model Routing</Badge>
                   <Badge variant="secondary">MCP Governance</Badge>
-                  <Badge variant="secondary">External Diagnostics</Badge>
+                  <Badge variant="secondary">Startup Provenance</Badge>
                   <Badge variant="secondary">Audit Trail</Badge>
                 </div>
               </CardContent>
@@ -248,8 +250,8 @@ export default function Landing() {
                 <div className="rounded-lg border border-azure-500/25 bg-azure-500/5 p-3">
                   <p className="font-semibold text-[var(--ph-text)]">Operator Experience</p>
                   <p className="mt-1 text-[var(--ph-muted)]">
-                    Dashboard for triage, Activity Detail for root-cause evidence, and Control Center
-                    for policy, audit, and investigation workflows.
+                    Dashboard for throughput, Activity Detail for execution evidence, Settings for
+                    runtime control, and Control Center for governance and investigation posture.
                   </p>
                 </div>
               </CardContent>
@@ -309,9 +311,9 @@ export default function Landing() {
           <section className="space-y-4">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-xl font-semibold text-[var(--ph-text)] sm:text-2xl">
-                Enterprise-Ready Capabilities
+                Why It Holds Up Operationally
               </h2>
-              <Badge variant="outline">Production-minded defaults</Badge>
+              <Badge variant="outline">Portable by design</Badge>
             </div>
             <motion.div
               initial="hidden"
@@ -338,7 +340,10 @@ export default function Landing() {
         {/* How It Works */}
         <FadeSection>
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-[var(--ph-text)] sm:text-2xl">How It Works</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold text-[var(--ph-text)] sm:text-2xl">How It Works</h2>
+              <Badge variant="outline">Provider adapters + shared policy core</Badge>
+            </div>
             <motion.div
               initial="hidden"
               whileInView="visible"
@@ -371,8 +376,8 @@ export default function Landing() {
 
       <footer className="border-t border-[var(--ph-border)] py-6">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-4 text-sm text-[var(--ph-muted)] sm:flex-row sm:px-6">
-          <p>PipelineHealer · AI Dev Days Hackathon 2026</p>
-          <p>Microsoft Agent Framework · GitHub Actions · Azure OpenAI</p>
+          <p>PipelineHealer · OSS-first pipeline remediation platform</p>
+          <p>GitHub Actions · Jenkins Bridge · Operator Control Plane</p>
         </div>
       </footer>
     </div>
