@@ -5,6 +5,7 @@ import { KeyRound, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../api/client";
 import { detectCachedAdminSession } from "../auth/adminSession";
+import { useApiAuthReady } from "../auth/apiAuthReady";
 import { AUTH_ENABLED } from "../auth/config";
 import {
   AdminControlsForm,
@@ -20,11 +21,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
+  const isApiAuthReady = useApiAuthReady();
   const [adminKeyInput, setAdminKeyInput] = useState("");
   const [adminKey, setAdminKey] = useState("");
-  const [useSessionAuth, setUseSessionAuth] = useState(() =>
-    detectCachedAdminSession(),
-  );
+  const [useSessionAuth, setUseSessionAuth] = useState(false);
   const [newMcpRepoInput, setNewMcpRepoInput] = useState("");
   const [newHandoffHostInput, setNewHandoffHostInput] = useState("");
   const [form, setForm] = useState<SettingsFormState>({
@@ -78,7 +78,8 @@ export default function SettingsPage() {
   );
   const [newRepoInput, setNewRepoInput] = useState("");
   const [, setGhAwWorkflowsInput] = useState("");
-  const hasAuthAttempt = useSessionAuth || adminKey.length > 0;
+  const hasAuthAttempt =
+    adminKey.length > 0 || (isApiAuthReady && useSessionAuth);
   const effectiveAdminKey = useSessionAuth ? undefined : adminKey;
 
   const { data, isLoading, isError, error } = useQuery({
@@ -123,12 +124,23 @@ export default function SettingsPage() {
     setGhAwWorkflowsInput(next.gh_aw_known_workflows.join(","));
   }, [data]);
 
+  useEffect(() => {
+    if (!AUTH_ENABLED || !isApiAuthReady || adminKey.length > 0) {
+      return;
+    }
+    if (detectCachedAdminSession()) {
+      setUseSessionAuth(true);
+    }
+  }, [adminKey.length, isApiAuthReady]);
+
   const hasUnsavedChanges =
     lastSavedForm !== null &&
     JSON.stringify(form) !== JSON.stringify(lastSavedForm);
   const settingsErrorMessage =
     error instanceof Error ? error.message : "Unknown error";
   const sessionAuthActive = AUTH_ENABLED && useSessionAuth;
+  const sessionBootstrapPending =
+    AUTH_ENABLED && !isApiAuthReady && adminKey.length === 0;
   const sessionAuthDisabledByConfig = useSessionAuth && !AUTH_ENABLED;
   const showSessionRefreshHint =
     useSessionAuth &&
@@ -299,7 +311,12 @@ export default function SettingsPage() {
                 setUseSessionAuth(true);
                 setAdminKey("");
               }}
-              disabled={isLoading || !AUTH_ENABLED || sessionAuthActive}
+              disabled={
+                isLoading ||
+                !AUTH_ENABLED ||
+                !isApiAuthReady ||
+                sessionAuthActive
+              }
             >
               {isLoading
                 ? "Loading..."
@@ -338,6 +355,14 @@ export default function SettingsPage() {
           </p>
         </CardContent>
       </Card>
+
+      {sessionBootstrapPending && (
+        <Card>
+          <CardContent className="py-6 text-sm text-[var(--ph-muted)]">
+            Preparing your signed-in admin session...
+          </CardContent>
+        </Card>
+      )}
 
       {/* Loading skeleton */}
       {hasAuthAttempt && isLoading && (

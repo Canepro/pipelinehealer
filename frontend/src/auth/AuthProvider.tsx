@@ -1,7 +1,8 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { InteractionRequiredAuthError } from '@azure/msal-browser'
 import { MsalProvider, useMsal } from '@azure/msal-react'
 import { configureApiAuthTokenProvider } from '../api/client'
+import { ApiAuthReadyContext } from './apiAuthReady'
 import {
   AUTH_ENABLED,
   loginScopes,
@@ -10,6 +11,7 @@ import { appMsalInstance } from './msalInstance'
 
 function MsalTokenBridge({ children }: { children: ReactNode }) {
   const { instance, accounts } = useMsal()
+  const [isApiAuthReady, setIsApiAuthReady] = useState(false)
 
   useEffect(() => {
     if (!instance.getActiveAccount() && accounts.length > 0) {
@@ -36,13 +38,19 @@ function MsalTokenBridge({ children }: { children: ReactNode }) {
         return null
       }
     })
+    setIsApiAuthReady(true)
 
     return () => {
+      setIsApiAuthReady(false)
       configureApiAuthTokenProvider(null)
     }
   }, [instance, accounts])
 
-  return <>{children}</>
+  return (
+    <ApiAuthReadyContext.Provider value={isApiAuthReady}>
+      {children}
+    </ApiAuthReadyContext.Provider>
+  )
 }
 
 export function AppAuthProvider({ children }: { children: ReactNode }) {
@@ -53,7 +61,11 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   if (!AUTH_ENABLED || appMsalInstance === null) {
-    return <>{children}</>
+    return (
+      <ApiAuthReadyContext.Provider value={true}>
+        {children}
+      </ApiAuthReadyContext.Provider>
+    )
   }
 
   return (

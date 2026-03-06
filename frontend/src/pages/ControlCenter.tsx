@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import type {
   LearningQueueStatus,
 } from "../api/client";
 import { detectCachedAdminSession } from "../auth/adminSession";
+import { useApiAuthReady } from "../auth/apiAuthReady";
 import { AUTH_ENABLED } from "../auth/config";
 import { AuditTrailPanel } from "../components/settings";
 import {
@@ -297,14 +298,14 @@ function SummaryRows({ rows }: { rows: SummaryRow[] }) {
 
 export default function ControlCenterPage() {
   const queryClient = useQueryClient();
+  const isApiAuthReady = useApiAuthReady();
   const [adminKeyInput, setAdminKeyInput] = useState("");
   const [adminKey, setAdminKey] = useState("");
-  const [useSessionAuth, setUseSessionAuth] = useState(() =>
-    detectCachedAdminSession(),
-  );
+  const [useSessionAuth, setUseSessionAuth] = useState(false);
   const [activeSection, setActiveSection] =
     useState<ControlCenterSection>("overview");
-  const hasAuthAttempt = useSessionAuth || adminKey.length > 0;
+  const hasAuthAttempt =
+    adminKey.length > 0 || (isApiAuthReady && useSessionAuth);
   const effectiveAdminKey = useSessionAuth ? undefined : adminKey;
 
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -382,6 +383,15 @@ export default function ControlCenterPage() {
     refetchOnWindowFocus: false,
   });
 
+  useEffect(() => {
+    if (!AUTH_ENABLED || !isApiAuthReady || adminKey.length > 0) {
+      return;
+    }
+    if (detectCachedAdminSession()) {
+      setUseSessionAuth(true);
+    }
+  }, [adminKey.length, isApiAuthReady]);
+
   const refreshLearningMutation = useMutation({
     mutationFn: () =>
       api.refreshLearningQueue(effectiveAdminKey, {
@@ -442,6 +452,8 @@ export default function ControlCenterPage() {
   const settingsErrorMessage =
     settingsError instanceof Error ? settingsError.message : "Unknown error";
   const sessionAuthActive = AUTH_ENABLED && useSessionAuth;
+  const sessionBootstrapPending =
+    AUTH_ENABLED && !isApiAuthReady && adminKey.length === 0;
   const sessionAuthDisabledByConfig = useSessionAuth && !AUTH_ENABLED;
   const showSessionRefreshHint =
     useSessionAuth &&
@@ -692,7 +704,10 @@ export default function ControlCenterPage() {
                 setAdminKey("");
               }}
               disabled={
-                settingsLoading || !AUTH_ENABLED || sessionAuthActive
+                settingsLoading ||
+                !AUTH_ENABLED ||
+                !isApiAuthReady ||
+                sessionAuthActive
               }
             >
               {settingsLoading
@@ -727,6 +742,14 @@ export default function ControlCenterPage() {
           </p>
         </CardContent>
       </Card>
+
+      {sessionBootstrapPending && (
+        <Card>
+          <CardContent className="py-6 text-sm text-[var(--ph-muted)]">
+            Preparing your signed-in admin session...
+          </CardContent>
+        </Card>
+      )}
 
       {!hasAuthAttempt && (
         <Card>

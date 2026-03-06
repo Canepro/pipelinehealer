@@ -6,16 +6,7 @@ export function detectCachedAdminSession(): boolean {
     return false;
   }
 
-  if (appMsalInstance.getActiveAccount()) {
-    return true;
-  }
-
-  const accounts = appMsalInstance.getAllAccounts();
-  if (accounts.length === 0) {
-    return false;
-  }
-
-  // Keep admin pages aligned with the already-signed-in browser session.
-  appMsalInstance.setActiveAccount(accounts[0]);
-  return true;
+  return Boolean(
+    appMsalInstance.getActiveAccount() || appMsalInstance.getAllAccounts()[0],
+  );
 }
