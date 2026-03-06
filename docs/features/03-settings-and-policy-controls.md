@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: a01bc4f -->
+<!-- LAST_VERIFIED: bb2c6e6 -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -8,6 +8,7 @@ This guide explains runtime controls, persistence behavior, and governance guard
 
 - Settings page workflow (`/settings`)
 - Settings posture overview cards (runtime/scope/provider/security) for quick read before edits
+- Setup assistants for startup-managed integration boundaries (Assign-to-Agent receiver and notification targets)
 - Runtime vs persisted settings
 - Admin audit trail
 - Guardrails for repos, retries, and MCP tool policy
@@ -29,6 +30,23 @@ This guide explains runtime controls, persistence behavior, and governance guard
    - `Governance Overview`: posture, policy impact, model routing, MCP policy effect
    - `Learning & Ops`: candidate lifecycle actions + logs/investigation commands
    - `Audit & Trace`: collapsible audit timeline and request-trace review
+
+## Startup-Managed Integration Setup
+
+- Settings manages runtime-safe controls directly:
+  - Assign-to-Agent enablement
+  - handoff mode
+  - retry/timeout values
+  - webhook allowlist hosts
+- Startup-only or secret-bearing integration values stay deployment-managed:
+  - receiver URL
+  - downstream notification webhook URLs
+  - provider/shared-secret material
+- To reduce operator friction without persisting secrets into generic runtime settings, Settings includes assistants that generate:
+  - portable env blocks
+  - sample payloads
+  - smoke-test commands
+  - single-target `NOTIFY_TARGETS_JSON` examples for supported receiver sink types
 
 ## Runtime vs Durable
 
