@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: db215f0 -->
+<!-- LAST_VERIFIED: 9477f08 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -556,7 +556,7 @@ Returns failure count breakdown by type for a given time window.
 Returns the current runtime configuration (non-secret values only).
 
 The payload now includes a `settings_metadata` map so the operator surface can distinguish
-configured value from effective provenance. Source values are app-observable categories only:
+configured value from effective provenance. Source values are portable, app-observable categories only:
 `default`, `env`, `runtime_override`, `persisted_runtime_override`, and `computed`.
 
 **Auth**: `X-API-Key` + `X-Admin-Key`
@@ -633,26 +633,42 @@ configured value from effective provenance. Source values are app-observable cat
       "source": "env",
       "mutable": true,
       "requires_restart": false,
-      "durable": true
+      "durable": true,
+      "sensitive": false,
+      "note": ""
     },
     "storage_mode": {
       "source": "computed",
       "mutable": false,
       "requires_restart": false,
-      "durable": true
+      "durable": true,
+      "sensitive": false,
+      "note": ""
+    },
+    "agent_handoff_webhook_host": {
+      "source": "env",
+      "mutable": false,
+      "requires_restart": true,
+      "durable": true,
+      "sensitive": false,
+      "note": "Derived from the startup-only Assign-to-Agent webhook URL; only the destination host is exposed."
     },
     "agent_handoff_enabled": {
       "source": "runtime_override",
       "mutable": true,
       "requires_restart": false,
-      "durable": false
+      "durable": false,
+      "sensitive": false,
+      "note": ""
     }
   }
 }
 ```
 
 Notes:
+- `settings_metadata.<field>.source=env` means startup-managed config. The app intentionally does not guess whether that startup value arrived via plain env, ACA `secretref`, Helm secret, or another deployment adapter.
 - `agent_handoff_webhook_host` exposes only the configured destination hostname; the full webhook URL remains startup-only configuration in this release.
+- `settings_metadata.<field>.sensitive=true` means the field is a presence-only or operator-safe projection of hidden sensitive startup configuration.
 - `settings_metadata.<field>.durable=false` means the current value only exists in this running process until `POST /api/settings/persist` is called.
 - `computed` fields are derived status/projection values, not directly mutable settings.
 

@@ -427,6 +427,8 @@ class AppSettingMetadataView(BaseModel):
     mutable: bool = False
     requires_restart: bool = False
     durable: bool = True
+    sensitive: bool = False
+    note: str = ""
 
 
 class AdminSettingsUpdateRequest(BaseModel):

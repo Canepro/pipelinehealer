@@ -382,7 +382,13 @@ async def test_settings_endpoint_returns_non_secret_fields(monkeypatch) -> None:
     assert data["settings_metadata"]["heal_mode"]["source"] == "default"
     assert data["settings_metadata"]["storage_mode"]["source"] == "computed"
     assert data["settings_metadata"]["agent_handoff_enabled"]["mutable"] is True
-    assert data["settings_metadata"]["agent_handoff_webhook_configured"]["source"] == "computed"
+    assert data["settings_metadata"]["agent_handoff_webhook_configured"]["source"] == "env"
+    assert data["settings_metadata"]["agent_handoff_webhook_configured"]["sensitive"] is True
+    assert (
+        data["settings_metadata"]["agent_handoff_webhook_host"]["note"]
+        == "Derived from the startup-only Assign-to-Agent webhook URL; only the destination host is exposed."
+    )
+    assert data["settings_metadata"]["openai_compatible_api_key_configured"]["sensitive"] is True
     assert "azure_openai_api_key" not in data
 
 

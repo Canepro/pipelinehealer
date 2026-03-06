@@ -1,12 +1,20 @@
 # Changelog
 
+<!-- LAST_VERIFIED: 9477f08 -->
+
 All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Added
+
+- Settings and Control Center now expose stronger provenance for startup-managed fields, including sensitive presence-only signals and derived startup dependency status for Assign-to-Agent webhook, GitHub auth wiring, and OpenAI-compatible API key configuration.
+
+### Changed
+
+- Normalized operator-facing provenance language around `GET /api/settings`: `env` now represents portable startup-managed config rather than implying a specific deployment adapter such as ACA `secretref`.
 
 ## [v0.3.3] - 2026-03-05
 

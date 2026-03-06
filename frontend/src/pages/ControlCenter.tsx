@@ -13,10 +13,15 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../api/client'
-import type { LearningQueueItem, LearningQueueStatus } from '../api/client'
+import type { AppSettingMetadata, LearningQueueItem, LearningQueueStatus } from '../api/client'
 import { AUTH_ENABLED } from '../auth/config'
 import { AuditTrailPanel } from '../components/settings'
-import { getMcpEffectiveState, type McpPolicyMode } from '../components/settings/runtimeSemantics'
+import {
+  formatSettingSource,
+  getDurabilityLabel,
+  getMcpEffectiveState,
+  type McpPolicyMode,
+} from '../components/settings/runtimeSemantics'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -199,6 +204,15 @@ function learningReadinessLabel(item: LearningQueueItem): string {
   if (readiness.ready) return 'Promotion ready'
   if (readiness.requires_force_activate) return 'Needs review / force activate'
   return 'Not ready'
+}
+
+function formatMetadataSummary(metadata?: AppSettingMetadata): string {
+  if (!metadata) return 'No provenance metadata'
+  const parts: string[] = [formatSettingSource(metadata.source)]
+  if (metadata.sensitive) parts.push('Sensitive')
+  const durability = getDurabilityLabel(metadata)
+  if (durability) parts.push(durability)
+  return parts.join(' · ')
 }
 
 function PostureCard({ title, items }: { title: string; items: PostureItem[] }) {
@@ -504,6 +518,35 @@ export default function ControlCenterPage() {
       ]
     : []
 
+  const startupDependencyRows: SummaryRow[] = settings
+    ? [
+        {
+          label: 'GitHub PAT',
+          value: `${settings.github_pat_configured ? 'Configured' : 'Not set'} · ${formatMetadataSummary(settings.settings_metadata?.github_pat_configured)}`,
+          tone: settings.github_pat_configured ? 'ok' : 'muted',
+        },
+        {
+          label: 'GitHub App',
+          value: `${settings.github_app_configured ? 'Configured' : 'Not set'} · ${formatMetadataSummary(settings.settings_metadata?.github_app_configured)}`,
+          tone: settings.github_app_configured ? 'ok' : 'muted',
+        },
+        {
+          label: 'Assign-to-Agent Webhook',
+          value: `${
+            settings.agent_handoff_webhook_configured
+              ? settings.agent_handoff_webhook_host || 'Configured'
+              : 'Not configured'
+          } · ${formatMetadataSummary(settings.settings_metadata?.agent_handoff_webhook_host)}`,
+          tone: settings.agent_handoff_webhook_configured ? 'ok' : 'warn',
+        },
+        {
+          label: 'OpenAI-Compatible Key',
+          value: `${settings.openai_compatible_api_key_configured ? 'Configured' : 'Not set'} · ${formatMetadataSummary(settings.settings_metadata?.openai_compatible_api_key_configured)}`,
+          tone: settings.openai_compatible_api_key_configured ? 'ok' : 'muted',
+        },
+      ]
+    : []
+
   const azureCommands = INVESTIGATION_COMMANDS.filter((item) => item.scope === 'Azure')
   const localCommands = INVESTIGATION_COMMANDS.filter((item) => item.scope === 'Local/Docker')
 
@@ -792,11 +835,27 @@ export default function ControlCenterPage() {
                         </div>
                       ))}
                     </div>
+	                  </CardContent>
+	                </Card>
+	              </div>
+
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <Card className="h-full">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Startup-Managed Dependencies</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
+                    <SummaryRows rows={startupDependencyRows} />
+                    <p className="text-xs text-[var(--ph-muted)]">
+                      Portable provenance rule: core UI reports startup-managed config and sensitive
+                      presence signals, but it does not assume a platform-specific secret adapter such
+                      as ACA `secretref`, Helm secrets, or Docker env injection.
+                    </p>
                   </CardContent>
                 </Card>
               </div>
 
-              <Card>
+	              <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Workflow className="h-4 w-4 text-azure-400" />
