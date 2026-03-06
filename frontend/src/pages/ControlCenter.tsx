@@ -16,7 +16,12 @@ import { api } from '../api/client'
 import type { AppSettingMetadata, LearningQueueItem, LearningQueueStatus } from '../api/client'
 import { AUTH_ENABLED } from '../auth/config'
 import { AuditTrailPanel } from '../components/settings'
-import { getMcpEffectiveState, type McpPolicyMode } from '../components/settings/runtimeSemantics'
+import {
+  formatSettingSource,
+  getDurabilityLabel,
+  getMcpEffectiveState,
+  type McpPolicyMode,
+} from '../components/settings/runtimeSemantics'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -203,30 +208,10 @@ function learningReadinessLabel(item: LearningQueueItem): string {
 
 function formatMetadataSummary(metadata?: AppSettingMetadata): string {
   if (!metadata) return 'No provenance metadata'
-  const parts: string[] = []
-  switch (metadata.source) {
-    case 'default':
-      parts.push('Default')
-      break
-    case 'env':
-      parts.push('Startup config')
-      break
-    case 'runtime_override':
-      parts.push('Runtime override')
-      break
-    case 'persisted_runtime_override':
-      parts.push('Persisted override')
-      break
-    case 'computed':
-      parts.push('Computed')
-      break
-    default:
-      parts.push(metadata.source)
-      break
-  }
+  const parts: string[] = [formatSettingSource(metadata.source)]
   if (metadata.sensitive) parts.push('Sensitive')
-  if (metadata.requires_restart) parts.push('Restart required')
-  else if (metadata.mutable) parts.push(metadata.durable ? 'Durable' : 'Runtime only')
+  const durability = getDurabilityLabel(metadata)
+  if (durability) parts.push(durability)
   return parts.join(' · ')
 }
 
@@ -789,8 +774,8 @@ export default function ControlCenterPage() {
                 />
               </div>
 
-	              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-	                <Card className="h-full">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <Card className="h-full">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base">Policy Impact Preview</CardTitle>
                   </CardHeader>
@@ -818,10 +803,10 @@ export default function ControlCenterPage() {
                         },
                       ]}
                     />
-	                  </CardContent>
-	                </Card>
+                  </CardContent>
+                </Card>
 
-	                <Card className="h-full">
+                <Card className="h-full">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base">Task Model Routing Preview</CardTitle>
                   </CardHeader>
