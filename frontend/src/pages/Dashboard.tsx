@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import {
   BarChart,
   Bar,
@@ -12,7 +12,7 @@ import {
   PieChart,
   Pie,
   Cell,
-} from 'recharts'
+} from "recharts";
 import {
   Activity,
   ArrowRight,
@@ -23,98 +23,122 @@ import {
   SearchCheck,
   Copy,
   ExternalLink,
-} from 'lucide-react'
-import { toast } from 'sonner'
-import { api } from '../api/client'
-import type { Activity as ActivityItem } from '../api/client'
-import { EMPTY_STATES } from '../constants/emptyStates'
-import StatsCard from '../components/StatsCard'
-import ActivityTable from '../components/ActivityTable'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
+} from "lucide-react";
+import { toast } from "sonner";
+import { api } from "../api/client";
+import type { Activity as ActivityItem } from "../api/client";
+import { EMPTY_STATES } from "../constants/emptyStates";
+import StatsCard from "../components/StatsCard";
+import ActivityTable from "../components/ActivityTable";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const COLORS = ['#2563eb', '#0ea5e9', '#14b8a6', '#16a34a', '#f59e0b', '#64748b']
+const COLORS = [
+  "#2563eb",
+  "#0ea5e9",
+  "#14b8a6",
+  "#16a34a",
+  "#f59e0b",
+  "#64748b",
+];
 const REASON_LABELS: Record<string, string> = {
-  OUTSIDE_ALLOWED_FILES: 'Touches non-allowlisted files.',
-  LOW_CONFIDENCE: 'Model confidence below threshold.',
-  MISSING_CONTEXT: 'Insufficient logs or stack trace.',
-  REQUIRES_ENV_CONTEXT: 'Needs repo/environment context not available.',
-  SAFETY_BOUND: 'Blocked by configured safety policy.',
-}
+  OUTSIDE_ALLOWED_FILES: "Touches non-allowlisted files.",
+  LOW_CONFIDENCE: "Model confidence below threshold.",
+  MISSING_CONTEXT: "Insufficient logs or stack trace.",
+  REQUIRES_ENV_CONTEXT: "Needs repo/environment context not available.",
+  SAFETY_BOUND: "Blocked by configured safety policy.",
+};
 
 function formatReasonLabel(code: string | null): string {
-  if (!code) return 'N/A'
-  if (REASON_LABELS[code]) return REASON_LABELS[code]
+  if (!code) return "N/A";
+  if (REASON_LABELS[code]) return REASON_LABELS[code];
   return code
     .toLowerCase()
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function getEvidenceLines(activity: ActivityItem | null): string[] {
-  const lines: string[] = []
-  const details = (activity?.diagnosis?.error_details ?? {}) as Record<string, unknown>
-  const listKeys = ['key_log_lines', 'relevant_log_lines', 'log_messages', 'evidence']
+  const lines: string[] = [];
+  const details = (activity?.diagnosis?.error_details ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const listKeys = [
+    "key_log_lines",
+    "relevant_log_lines",
+    "log_messages",
+    "evidence",
+  ];
   for (const key of listKeys) {
-    const value = details[key]
-    if (!Array.isArray(value)) continue
+    const value = details[key];
+    if (!Array.isArray(value)) continue;
     for (const line of value) {
-      if (typeof line !== 'string' || line.trim().length === 0) continue
-      lines.push(line.trim())
+      if (typeof line !== "string" || line.trim().length === 0) continue;
+      lines.push(line.trim());
       if (lines.length >= 2) {
-        return lines
+        return lines;
       }
     }
   }
-  const message = details.message
-  if (typeof message === 'string' && message.trim().length > 0) {
-    lines.push(message.trim())
+  const message = details.message;
+  if (typeof message === "string" && message.trim().length > 0) {
+    lines.push(message.trim());
   }
-  const context = activity?.failure_context
+  const context = activity?.failure_context;
   if (context) {
-    if (typeof context.failing_step === 'string' && context.failing_step.trim().length > 0) {
-      lines.push(`Step: ${context.failing_step.trim()}`)
+    if (
+      typeof context.failing_step === "string" &&
+      context.failing_step.trim().length > 0
+    ) {
+      lines.push(`Step: ${context.failing_step.trim()}`);
     }
-    if (typeof context.failing_command === 'string' && context.failing_command.trim().length > 0) {
-      lines.push(`Command: ${context.failing_command.trim()}`)
+    if (
+      typeof context.failing_command === "string" &&
+      context.failing_command.trim().length > 0
+    ) {
+      lines.push(`Command: ${context.failing_command.trim()}`);
     }
-    if (typeof context.signal === 'string' && context.signal.trim().length > 0) {
-      lines.push(`Signal: ${context.signal.trim()}`)
+    if (
+      typeof context.signal === "string" &&
+      context.signal.trim().length > 0
+    ) {
+      lines.push(`Signal: ${context.signal.trim()}`);
     }
   }
-  const rootCause = activity?.diagnosis?.root_cause
-  if (typeof rootCause === 'string' && rootCause.trim().length > 0) {
-    lines.push(rootCause.trim())
+  const rootCause = activity?.diagnosis?.root_cause;
+  if (typeof rootCause === "string" && rootCause.trim().length > 0) {
+    lines.push(rootCause.trim());
   }
-  if (lines.length > 0) return lines.slice(0, 2)
+  if (lines.length > 0) return lines.slice(0, 2);
 
-  const diagnostics = activity?.external_diagnostics ?? []
+  const diagnostics = activity?.external_diagnostics ?? [];
   const representative =
-    diagnostics.find((item) => item.status === 'available') ??
-    diagnostics.find((item) => item.summary && item.summary.trim().length > 0)
-  if (!representative) return []
-  const meta = representative.metadata as Record<string, unknown>
-  const detailsBlock = meta.details as Record<string, unknown> | undefined
+    diagnostics.find((item) => item.status === "available") ??
+    diagnostics.find((item) => item.summary && item.summary.trim().length > 0);
+  if (!representative) return [];
+  const meta = representative.metadata as Record<string, unknown>;
+  const detailsBlock = meta.details as Record<string, unknown> | undefined;
   if (detailsBlock) {
-    const candidateKeys = ['summary', 'root_cause', 'investigation_findings']
+    const candidateKeys = ["summary", "root_cause", "investigation_findings"];
     for (const key of candidateKeys) {
-      const value = detailsBlock[key]
-      if (typeof value !== 'string' || value.trim().length === 0) continue
-      lines.push(value.trim())
-      if (lines.length >= 2) return lines
+      const value = detailsBlock[key];
+      if (typeof value !== "string" || value.trim().length === 0) continue;
+      lines.push(value.trim());
+      if (lines.length >= 2) return lines;
     }
   }
   if (representative.summary && representative.summary.trim().length > 0) {
-    lines.push(representative.summary.trim())
+    lines.push(representative.summary.trim());
   }
-  return lines.slice(0, 2)
+  return lines.slice(0, 2);
 }
 
 function shortActivityId(id: string): string {
-  if (id.length <= 18) return id
-  return `${id.slice(0, 8)}...${id.slice(-6)}`
+  if (id.length <= 18) return id;
+  return `${id.slice(0, 8)}...${id.slice(-6)}`;
 }
 
 export default function Dashboard() {
@@ -124,155 +148,180 @@ export default function Dashboard() {
     isError: statsError,
     error: statsErrorValue,
   } = useQuery({
-    queryKey: ['stats'],
+    queryKey: ["stats"],
     queryFn: api.getStats,
     retry: 1,
-  })
+  });
 
   const { data: activities, isLoading: activitiesLoading } = useQuery({
-    queryKey: ['activities', { limit: 50 }],
+    queryKey: ["activities", { limit: 50 }],
     queryFn: () => api.getActivities({ limit: 50 }),
-  })
+  });
 
   const { data: failureBreakdown } = useQuery({
-    queryKey: ['failureBreakdown'],
+    queryKey: ["failureBreakdown"],
     queryFn: () => api.getFailureBreakdown(30),
-  })
+  });
 
   // Transform failure breakdown for pie chart
   const pieData = failureBreakdown
     ? Object.entries(failureBreakdown).map(([name, value]) => ({
-        name: name.replace('_', ' '),
+        name: name.replace("_", " "),
         value,
       }))
-    : []
-  const totalFailures = pieData.reduce((sum, item) => sum + item.value, 0)
+    : [];
+  const totalFailures = pieData.reduce((sum, item) => sum + item.value, 0);
 
   // Transform repository data for bar chart
   const repoData = stats?.by_repository
     ? Object.entries(stats.by_repository)
         .slice(0, 5)
         .map(([name, value]) => ({
-          name: name.split('/')[1] || name,
+          name: name.split("/")[1] || name,
           count: value,
         }))
-    : []
-  const topRepository = repoData[0]
+    : [];
+  const topRepository = repoData[0];
 
   const safetyGatedRate = stats
     ? stats.actioned_remediations > 0
-      ? Math.round((stats.safety_blocked_remediations / stats.actioned_remediations) * 100)
+      ? Math.round(
+          (stats.safety_blocked_remediations / stats.actioned_remediations) *
+            100,
+        )
       : 0
-    : 0
+    : 0;
   const issueRate = stats
     ? stats.actioned_remediations > 0
-      ? Math.round((stats.issue_remediations / stats.actioned_remediations) * 100)
+      ? Math.round(
+          (stats.issue_remediations / stats.actioned_remediations) * 100,
+        )
       : 0
-    : 0
+    : 0;
   const successRate = stats
     ? stats.actioned_remediations > 0
-      ? Math.round((stats.successful_remediations / stats.actioned_remediations) * 100)
+      ? Math.round(
+          (stats.successful_remediations / stats.actioned_remediations) * 100,
+        )
       : 0
-    : 0
-  const llmFallbackRate30d = stats ? Math.round(stats.llm_fallback_rate_30d) : 0
-  const recentActivities = (activities || []).slice(0, 5)
-  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
-  const [showRawReasonCode, setShowRawReasonCode] = useState(false)
+    : 0;
+  const llmFallbackRate30d = stats
+    ? Math.round(stats.llm_fallback_rate_30d)
+    : 0;
+  const recentActivities = (activities || []).slice(0, 5);
+  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(
+    null,
+  );
+  const [showRawReasonCode, setShowRawReasonCode] = useState(false);
 
   useEffect(() => {
     if (!selectedActivityId && recentActivities.length > 0) {
-      setSelectedActivityId(recentActivities[0].id)
+      setSelectedActivityId(recentActivities[0].id);
     }
-  }, [recentActivities, selectedActivityId])
+  }, [recentActivities, selectedActivityId]);
 
   const selectedActivity = useMemo(() => {
-    if (recentActivities.length === 0) return null
+    if (recentActivities.length === 0) return null;
     return (
       recentActivities.find((activity) => activity.id === selectedActivityId) ||
       recentActivities[0]
-    )
-  }, [recentActivities, selectedActivityId])
+    );
+  }, [recentActivities, selectedActivityId]);
 
   const selectedReasonCode =
-    typeof selectedActivity?.remediation_result?.details?.not_auto_reason_code === 'string'
+    typeof selectedActivity?.remediation_result?.details
+      ?.not_auto_reason_code === "string"
       ? selectedActivity.remediation_result.details.not_auto_reason_code
-      : null
-  const selectedReasonLabel = formatReasonLabel(selectedReasonCode)
+      : null;
+  const selectedReasonLabel = formatReasonLabel(selectedReasonCode);
   const selectedActionTaken =
-    typeof selectedActivity?.remediation_result?.action_taken === 'string'
-      ? selectedActivity.remediation_result.action_taken.replace('_', ' ').toUpperCase()
-      : 'N/A'
+    typeof selectedActivity?.remediation_result?.action_taken === "string"
+      ? selectedActivity.remediation_result.action_taken
+          .replace("_", " ")
+          .toUpperCase()
+      : "N/A";
   const selectedConfidence =
-    typeof selectedActivity?.diagnosis?.confidence === 'number'
+    typeof selectedActivity?.diagnosis?.confidence === "number"
       ? `${Math.round(selectedActivity.diagnosis.confidence * 100)}%`
-      : 'N/A'
+      : "N/A";
   const selectedDiagnosisSource =
-    selectedActivity?.diagnosis?.diagnosis_source === 'llm'
-      ? 'LLM'
-      : selectedActivity?.diagnosis?.diagnosis_source === 'pattern'
-        ? 'Pattern'
-        : 'Unknown'
+    selectedActivity?.diagnosis?.diagnosis_source === "llm"
+      ? "LLM"
+      : selectedActivity?.diagnosis?.diagnosis_source === "pattern"
+        ? "Pattern"
+        : "Unknown";
   const selectedModelPath = selectedActivity?.llm_model_path
     ? `${selectedActivity.llm_model_path.provider}:${selectedActivity.llm_model_path.model}`
-    : 'N/A'
-  const selectedFallbackUsed = selectedActivity?.llm_model_path?.fallback_used ? 'Yes' : 'No'
-  const selectedLlmCalls = selectedActivity?.llm_model_path?.call_count ?? 0
-  const selectedFailureType = selectedActivity?.failure_type || 'unknown'
+    : "N/A";
+  const selectedFallbackUsed = selectedActivity?.llm_model_path?.fallback_used
+    ? "Yes"
+    : "No";
+  const selectedLlmCalls = selectedActivity?.llm_model_path?.call_count ?? 0;
+  const selectedFailureType = selectedActivity?.failure_type || "unknown";
   const selectedClassificationSignal =
-    typeof selectedActivity?.diagnosis?.error_details?.classification_signal === 'string'
+    typeof selectedActivity?.diagnosis?.error_details?.classification_signal ===
+    "string"
       ? selectedActivity.diagnosis.error_details.classification_signal
-      : ''
+      : "";
   const selectedArtifactUrl =
-    selectedActivity?.remediation_result?.pr_url || selectedActivity?.remediation_result?.issue_url || null
+    selectedActivity?.remediation_result?.pr_url ||
+    selectedActivity?.remediation_result?.issue_url ||
+    null;
   const selectedRunUrl =
     selectedActivity?.repository_name && selectedActivity?.workflow_run_id
       ? `https://github.com/${selectedActivity.repository_name}/actions/runs/${selectedActivity.workflow_run_id}`
-      : null
-  const evidenceLines = useMemo(() => getEvidenceLines(selectedActivity), [selectedActivity])
+      : null;
+  const evidenceLines = useMemo(
+    () => getEvidenceLines(selectedActivity),
+    [selectedActivity],
+  );
 
   const safetyGateReasonCounts = useMemo(() => {
-    const counts = new Map<string, number>()
+    const counts = new Map<string, number>();
     for (const activity of activities || []) {
-      const reason = activity?.remediation_result?.details?.not_auto_reason_code
-      if (typeof reason === 'string' && reason.length > 0) {
-        counts.set(reason, (counts.get(reason) || 0) + 1)
+      const reason =
+        activity?.remediation_result?.details?.not_auto_reason_code;
+      if (typeof reason === "string" && reason.length > 0) {
+        counts.set(reason, (counts.get(reason) || 0) + 1);
       }
     }
     return Array.from(counts.entries())
       .map(([code, count]) => ({ code, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 4)
-  }, [activities])
+      .slice(0, 4);
+  }, [activities]);
   const externalSignalCount = useMemo(
     () =>
       (activities || []).filter((activity) =>
-        (activity.external_diagnostics || []).some((item) => item.status === 'available')
+        (activity.external_diagnostics || []).some(
+          (item) => item.status === "available",
+        ),
       ).length,
-    [activities]
-  )
+    [activities],
+  );
   const lastUpdatedLabel = stats?.last_updated
     ? new Date(stats.last_updated).toLocaleString()
-    : 'Unavailable'
+    : "Unavailable";
 
-  const showStatsLoading = statsLoading && !statsError
+  const showStatsLoading = statsLoading && !statsError;
   const statsErrorMessage =
     statsError && statsErrorValue instanceof Error
       ? statsErrorValue.message
-      : 'Stats temporarily unavailable'
+      : "Stats temporarily unavailable";
 
   return (
     <div className="space-y-8">
       {/* Executive header */}
-      <Card className="border-azure-500/20 bg-[radial-gradient(120%_100%_at_0%_0%,rgba(53,111,174,0.25),transparent_52%),var(--ph-surface)]">
+      <Card>
         <CardContent className="p-5 md:p-6">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
             <div className="max-w-2xl">
-              <Badge variant="outline">Operations Command Center</Badge>
-              <h1 className="mt-3 text-2xl font-bold tracking-tight text-[var(--ph-text)] sm:text-3xl">
+              <h1 className="text-2xl font-semibold tracking-tight text-[var(--ph-text)] sm:text-3xl">
                 Pipeline Reliability Dashboard
               </h1>
               <p className="mt-2 text-sm leading-relaxed text-[var(--ph-muted)] sm:text-base">
-                Track remediation throughput, safety posture, and external diagnostic signals from one place.
+                Track remediation throughput, safety posture, and external
+                diagnostic signals from one place.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <Button asChild size="sm">
@@ -292,36 +341,46 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-2 gap-3 sm:min-w-[360px] lg:grid-cols-3">
               <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
-                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">Success Rate</p>
-                <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">{successRate}%</p>
+                <p className="text-xs text-[var(--ph-muted)]">Success rate</p>
+                <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">
+                  {successRate}%
+                </p>
               </div>
               <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
-                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">External Signals</p>
-                <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">{externalSignalCount}</p>
+                <p className="text-xs text-[var(--ph-muted)]">
+                  External signals
+                </p>
+                <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">
+                  {externalSignalCount}
+                </p>
               </div>
               <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
-                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">MCP Runs (30d)</p>
+                <p className="text-xs text-[var(--ph-muted)]">MCP runs (30d)</p>
                 <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">
                   {stats?.mcp_enabled_runs_30d ?? 0}
                 </p>
               </div>
               <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
-                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">LLM Fallback (30d)</p>
+                <p className="text-xs text-[var(--ph-muted)]">
+                  LLM fallback (30d)
+                </p>
                 <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">
                   {llmFallbackRate30d}%
                 </p>
               </div>
               <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
-                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">Avg Resolution</p>
+                <p className="text-xs text-[var(--ph-muted)]">Avg resolution</p>
                 <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">
                   {stats?.average_resolution_time_seconds
                     ? `${Math.round(stats.average_resolution_time_seconds)}s`
-                    : 'N/A'}
+                    : "N/A"}
                 </p>
               </div>
               <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
-                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">Last Updated</p>
-                <p className="mt-1 truncate text-sm font-medium text-[var(--ph-text)]">{lastUpdatedLabel}</p>
+                <p className="text-xs text-[var(--ph-muted)]">Last updated</p>
+                <p className="mt-1 truncate text-sm font-medium text-[var(--ph-text)]">
+                  {lastUpdatedLabel}
+                </p>
               </div>
             </div>
           </div>
@@ -330,7 +389,9 @@ export default function Dashboard() {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-[var(--ph-text)]">Healing Throughput</h2>
+          <h2 className="text-lg font-semibold text-[var(--ph-text)]">
+            Healing Throughput
+          </h2>
           <Badge variant="outline">Last 30 days</Badge>
         </div>
         {showStatsLoading ? (
@@ -378,19 +439,21 @@ export default function Dashboard() {
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Why Safety Gated</CardTitle>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            We create review-ready proposals when changes touch non-allowlisted paths or require
-            extra context.
+            We create review-ready proposals when changes touch non-allowlisted
+            paths or require extra context.
           </p>
         </CardHeader>
         <CardContent className="space-y-3 pt-0">
           {safetyGateReasonCounts.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {safetyGateReasonCounts.map((item) => (
-                  <div
-                    key={item.code}
-                    className="rounded-md border border-[var(--ph-border)] bg-slate-800/40 px-3 py-2 text-xs text-slate-200"
-                  >
-                  <div className="font-semibold">{formatReasonLabel(item.code)} ({item.count})</div>
+                <div
+                  key={item.code}
+                  className="rounded-md border border-[var(--ph-border)] bg-slate-800/40 px-3 py-2 text-xs text-slate-200"
+                >
+                  <div className="font-semibold">
+                    {formatReasonLabel(item.code)} ({item.count})
+                  </div>
                   <div className="mt-1 text-gray-400">
                     <span className="font-mono">{item.code}</span>
                   </div>
@@ -399,8 +462,12 @@ export default function Dashboard() {
             </div>
           ) : (
             <div>
-              <p className="text-sm font-medium text-[var(--ph-text)]">{EMPTY_STATES.safetyGated.title}</p>
-              <p className="mt-1 text-sm text-gray-400">{EMPTY_STATES.safetyGated.body}</p>
+              <p className="text-sm font-medium text-[var(--ph-text)]">
+                {EMPTY_STATES.safetyGated.title}
+              </p>
+              <p className="mt-1 text-sm text-gray-400">
+                {EMPTY_STATES.safetyGated.body}
+              </p>
             </div>
           )}
         </CardContent>
@@ -417,51 +484,58 @@ export default function Dashboard() {
         {/* Failure Types Pie Chart */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Failure Types (Last 30 Days)</CardTitle>
+            <CardTitle className="text-base">
+              Failure Types (Last 30 Days)
+            </CardTitle>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Total failures observed: <span className="font-semibold text-[var(--ph-text)]">{totalFailures}</span>
+              Total failures observed:{" "}
+              <span className="font-semibold text-[var(--ph-text)]">
+                {totalFailures}
+              </span>
             </p>
           </CardHeader>
           <CardContent>
             {pieData.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  paddingAngle={2}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                  fontSize={12}
-                >
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    paddingAngle={2}
+                    dataKey="value"
+                    label={({ name, percent }) =>
+                      `${name} ${(percent * 100).toFixed(0)}%`
+                    }
+                    labelLine={false}
+                    fontSize={12}
+                  >
                     {pieData.map((_, index) => (
                       <Cell
                         key={`cell-${index}`}
                         fill={COLORS[index % COLORS.length]}
                       />
                     ))}
-                </Pie>
+                  </Pie>
                   <Tooltip
                     formatter={(value: number, _name, item) => [
-                      `${value} case${value === 1 ? '' : 's'}`,
+                      `${value} case${value === 1 ? "" : "s"}`,
                       item.payload.name,
                     ]}
                     contentStyle={{
-                      backgroundColor: '#0f172a',
-                      border: '1px solid #334155',
-                      borderRadius: '8px',
-                      color: '#e2e8f0',
-                      fontSize: '12px',
-                      padding: '8px 10px',
+                      backgroundColor: "#0f172a",
+                      border: "1px solid #334155",
+                      borderRadius: "8px",
+                      color: "#e2e8f0",
+                      fontSize: "12px",
+                      padding: "8px 10px",
                     }}
-                    labelStyle={{ color: '#e2e8f0', fontWeight: 500 }}
-                    itemStyle={{ color: '#e2e8f0' }}
-                    wrapperStyle={{ maxWidth: 'min(90vw, 320px)' }}
+                    labelStyle={{ color: "#e2e8f0", fontWeight: 500 }}
+                    itemStyle={{ color: "#e2e8f0" }}
+                    wrapperStyle={{ maxWidth: "min(90vw, 320px)" }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -487,8 +561,13 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Top Repositories</CardTitle>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Most active repo: <span className="font-semibold text-[var(--ph-text)]">{topRepository?.name || 'N/A'}</span>{' '}
-              <span className="text-gray-400">({topRepository?.count || 0} runs)</span>
+              Most active repo:{" "}
+              <span className="font-semibold text-[var(--ph-text)]">
+                {topRepository?.name || "N/A"}
+              </span>{" "}
+              <span className="text-gray-400">
+                ({topRepository?.count || 0} runs)
+              </span>
             </p>
           </CardHeader>
           <CardContent>
@@ -503,13 +582,13 @@ export default function Dashboard() {
                   />
                   <XAxis
                     dataKey="name"
-                    tick={{ fill: '#e2e8f0', fontSize: 12 }}
+                    tick={{ fill: "#e2e8f0", fontSize: 12 }}
                     interval={0}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fill: '#e2e8f0', fontSize: 12 }}
+                    tick={{ fill: "#e2e8f0", fontSize: 12 }}
                     tickCount={5}
                     axisLine={false}
                     tickLine={false}
@@ -517,17 +596,20 @@ export default function Dashboard() {
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#0f172a',
-                      border: '1px solid #334155',
-                      borderRadius: '8px',
-                      color: '#e2e8f0',
-                      fontSize: '12px',
-                      padding: '8px 10px',
+                      backgroundColor: "#0f172a",
+                      border: "1px solid #334155",
+                      borderRadius: "8px",
+                      color: "#e2e8f0",
+                      fontSize: "12px",
+                      padding: "8px 10px",
                     }}
-                    labelStyle={{ color: '#e2e8f0', fontWeight: 500 }}
-                    itemStyle={{ color: '#e2e8f0' }}
-                    formatter={(value: number) => [`${value} run${value === 1 ? '' : 's'}`, 'Runs']}
-                    wrapperStyle={{ maxWidth: 'min(90vw, 320px)' }}
+                    labelStyle={{ color: "#e2e8f0", fontWeight: 500 }}
+                    itemStyle={{ color: "#e2e8f0" }}
+                    formatter={(value: number) => [
+                      `${value} run${value === 1 ? "" : "s"}`,
+                      "Runs",
+                    ]}
+                    wrapperStyle={{ maxWidth: "min(90vw, 320px)" }}
                   />
                   <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -554,7 +636,7 @@ export default function Dashboard() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
-            <SearchCheck className="h-4 w-4 text-azure-400" />
+            <SearchCheck className="h-4 w-4 text-[var(--ph-accent)]" />
             Explainability Snapshot
           </CardTitle>
         </CardHeader>
@@ -563,28 +645,37 @@ export default function Dashboard() {
             <>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <label className="space-y-1">
-                  <span className="text-xs uppercase tracking-wide text-gray-400">
-                    Selected Activity
+                  <span className="text-xs text-[var(--ph-muted)]">
+                    Selected activity
                   </span>
                   <select
-                    value={selectedActivity?.id || ''}
+                    value={selectedActivity?.id || ""}
                     onChange={(e) => setSelectedActivityId(e.target.value)}
                     className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-azure-500 dark:bg-gray-700 dark:text-gray-100"
                   >
                     {recentActivities.map((activity) => (
                       <option key={activity.id} value={activity.id}>
-                        Run #{activity.workflow_run_id} · {activity.failure_type || 'unknown'}
+                        Run #{activity.workflow_run_id} ·{" "}
+                        {activity.failure_type || "unknown"}
                       </option>
                     ))}
                   </select>
                 </label>
                 <div className="flex flex-wrap items-end gap-2">
                   <Button asChild variant="secondary" size="sm">
-                    <Link to={`/app/activities?focus=${selectedActivity?.id || ''}`}>View activity</Link>
+                    <Link
+                      to={`/app/activities?focus=${selectedActivity?.id || ""}`}
+                    >
+                      View activity
+                    </Link>
                   </Button>
                   {selectedArtifactUrl && (
                     <Button asChild variant="ghost" size="sm">
-                      <a href={selectedArtifactUrl} rel="noopener noreferrer" target="_blank">
+                      <a
+                        href={selectedArtifactUrl}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                      >
                         Open Issue/PR
                       </a>
                     </Button>
@@ -593,12 +684,12 @@ export default function Dashboard() {
                     variant="ghost"
                     size="sm"
                     onClick={async () => {
-                      const traceId = selectedActivity?.id || ''
+                      const traceId = selectedActivity?.id || "";
                       try {
-                        await navigator.clipboard.writeText(traceId)
-                        toast.success('Activity ID copied')
+                        await navigator.clipboard.writeText(traceId);
+                        toast.success("Activity ID copied");
                       } catch {
-                        toast.error('Copy failed')
+                        toast.error("Copy failed");
                       }
                     }}
                   >
@@ -610,8 +701,10 @@ export default function Dashboard() {
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
                 <div className="min-w-0 rounded-lg border border-[var(--ph-border)] p-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-400">Failure Type</p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedFailureType}</p>
+                  <p className="text-xs text-[var(--ph-muted)]">Failure type</p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">
+                    {selectedFailureType}
+                  </p>
                   {selectedClassificationSignal && (
                     <p
                       className="mt-1 line-clamp-2 text-xs text-gray-400"
@@ -622,15 +715,21 @@ export default function Dashboard() {
                   )}
                 </div>
                 <div className="min-w-0 rounded-lg border border-[var(--ph-border)] p-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-400">Confidence</p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedConfidence}</p>
+                  <p className="text-xs text-[var(--ph-muted)]">Confidence</p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">
+                    {selectedConfidence}
+                  </p>
                 </div>
                 <div className="min-w-0 rounded-lg border border-[var(--ph-border)] p-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-400">Diagnosis Source</p>
-                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">{selectedDiagnosisSource}</p>
+                  <p className="text-xs text-[var(--ph-muted)]">
+                    Diagnosis source
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--ph-text)]">
+                    {selectedDiagnosisSource}
+                  </p>
                 </div>
                 <div className="min-w-0 rounded-lg border border-[var(--ph-border)] p-3 md:col-span-2 xl:col-span-2">
-                  <p className="text-xs uppercase tracking-wide text-gray-400">Model Path</p>
+                  <p className="text-xs text-[var(--ph-muted)]">Model path</p>
                   <p
                     className="mt-1 truncate text-sm font-semibold text-[var(--ph-text)]"
                     title={selectedModelPath}
@@ -639,24 +738,31 @@ export default function Dashboard() {
                   </p>
                   {selectedActivity?.llm_model_path && (
                     <p className="mt-1 text-xs text-gray-400">
-                      Calls: {selectedLlmCalls} • Fallback used: {selectedFallbackUsed}
+                      Calls: {selectedLlmCalls} • Fallback used:{" "}
+                      {selectedFallbackUsed}
                     </p>
                   )}
                 </div>
                 <div className="min-w-0 rounded-lg border border-[var(--ph-border)] p-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-400">Proposed Action</p>
-                  <p className="mt-1 break-words text-sm font-semibold text-[var(--ph-text)]">{selectedActionTaken}</p>
+                  <p className="text-xs text-[var(--ph-muted)]">
+                    Proposed action
+                  </p>
+                  <p className="mt-1 break-words text-sm font-semibold text-[var(--ph-text)]">
+                    {selectedActionTaken}
+                  </p>
                 </div>
                 <div className="min-w-0 rounded-lg border border-[var(--ph-border)] p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs uppercase tracking-wide text-gray-400">Safety Gate</p>
+                    <p className="text-xs text-[var(--ph-muted)]">
+                      Safety gate
+                    </p>
                     {selectedReasonCode && (
                       <button
                         type="button"
                         onClick={() => setShowRawReasonCode((prev) => !prev)}
-                        className="text-[11px] font-medium text-azure-600 hover:text-azure-700 dark:text-azure-400"
+                        className="text-[11px] font-medium text-[var(--ph-accent)] hover:opacity-80"
                       >
-                        {showRawReasonCode ? 'Hide raw code' : 'Show raw code'}
+                        {showRawReasonCode ? "Hide raw code" : "Show raw code"}
                       </button>
                     )}
                   </div>
@@ -664,7 +770,10 @@ export default function Dashboard() {
                     {selectedReasonLabel}
                   </p>
                   {selectedReasonCode && showRawReasonCode && (
-                    <p className="mt-1 break-all font-mono text-[11px] text-gray-500" title={selectedReasonCode}>
+                    <p
+                      className="mt-1 break-all font-mono text-[11px] text-gray-500"
+                      title={selectedReasonCode}
+                    >
                       raw: {selectedReasonCode}
                     </p>
                   )}
@@ -673,11 +782,15 @@ export default function Dashboard() {
 
               <div className="rounded-lg border border-[var(--ph-border)] p-3">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs uppercase tracking-wide text-gray-400">Evidence</p>
+                  <p className="text-xs text-[var(--ph-muted)]">Evidence</p>
                   <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
                     {selectedRunUrl && (
                       <Button asChild size="sm" variant="ghost">
-                        <a href={selectedRunUrl} rel="noopener noreferrer" target="_blank">
+                        <a
+                          href={selectedRunUrl}
+                          rel="noopener noreferrer"
+                          target="_blank"
+                        >
                           Workflow run
                           <ExternalLink className="ml-1 h-3.5 w-3.5" />
                         </a>
@@ -697,13 +810,19 @@ export default function Dashboard() {
                 {evidenceLines.length > 0 ? (
                   <ul className="space-y-1 text-sm text-[var(--ph-text)]">
                     {evidenceLines.map((line, index) => (
-                      <li key={index} className="line-clamp-2 break-words" title={line}>
+                      <li
+                        key={index}
+                        className="line-clamp-2 break-words"
+                        title={line}
+                      >
                         {line}
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-gray-400">No structured evidence lines available.</p>
+                  <p className="text-sm text-gray-400">
+                    No structured evidence lines available.
+                  </p>
                 )}
               </div>
             </>
@@ -736,12 +855,12 @@ export default function Dashboard() {
         <Card>
           <CardContent className="p-4 md:p-6">
             <div className="flex items-center gap-4">
-              <Clock className="h-8 w-8 text-azure-500" />
+              <Clock className="h-8 w-8 text-[var(--ph-accent)]" />
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Average Resolution Time
+                <p className="text-sm text-[var(--ph-muted)]">
+                  Average resolution time
                 </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-2xl font-semibold text-[var(--ph-text)]">
                   {Math.round(stats.average_resolution_time_seconds)}s
                 </p>
               </div>
@@ -750,5 +869,5 @@ export default function Dashboard() {
         </Card>
       )}
     </div>
-  )
+  );
 }

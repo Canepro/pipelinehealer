@@ -1,6 +1,6 @@
 # Feature: Auth And Access
 
-<!-- LAST_VERIFIED: 1f53853 -->
+<!-- LAST_VERIFIED: a01bc4f -->
 
 This guide explains how users authenticate to PipelineHealer and how admin-only actions are protected.
 
@@ -39,7 +39,9 @@ Short answer: no, not for baseline usage.
    - `bash scripts/ph.sh settings:check | jq '.auth_mode,.entra_auth_enabled,.entra_admin_roles'`
 4. Test access:
    - key mode: use `X-API-Key` / `X-Admin-Key`
-   - Entra mode: sign in, go to `/settings`, use `Use Login Session`
+   - Entra mode: sign in and open `/settings` or `/control-center`
+     - admin pages now auto-use the current signed-in session
+     - `X-Admin-Key` remains available as a manual fallback/override
 
 ## Auth Modes
 
@@ -97,8 +99,9 @@ Frontend:
 - UI shows 401 after sign-in:
   - Run `bash scripts/ph.sh deploy:env` for backend auth changes.
   - If frontend `VITE_*` changed, run `bash scripts/ph.sh deploy:env`.
-- Settings page says invalid admin key while using session:
+- Settings or Control Center says invalid admin key while using session:
   - Session can be stale; re-login or clear site data.
+  - Confirm frontend runtime still has `VITE_AUTH_MODE=entra`.
 
 ## Verify With API
 

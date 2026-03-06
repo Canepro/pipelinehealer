@@ -1,385 +1,274 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  BarChart3,
-  Bot,
   CheckCircle2,
   GitBranch,
-  Layers,
-  Search,
-  Shield,
-  ShieldCheck,
   Workflow,
   Wrench,
   Zap,
-} from 'lucide-react'
-import { motion, useInView } from 'framer-motion'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-/* ------------------------------------------------------------------ */
-/*  Data                                                               */
-/* ------------------------------------------------------------------ */
+const operatorSurfaceRows = [
+  {
+    title: "Settings",
+    text: "Manage mutable runtime policy, understand provenance, and see which integration values are deployment-managed.",
+  },
+  {
+    title: "Control Center",
+    text: "Inspect governance posture, startup-managed dependencies, receiver health, and investigation paths.",
+  },
+  {
+    title: "Activity Detail",
+    text: "Trace evidence, diagnosis, remediation output, handoff audit, and external diagnostics on one activity.",
+  },
+];
 
-const capabilityCards = [
+const pipelineLifecycle = [
+  {
+    icon: GitBranch,
+    title: "Provider-specific ingress",
+    text: "GitHub Actions is native today. Jenkins can feed the same activity model through the signed bridge path.",
+  },
   {
     icon: Workflow,
-    title: 'Normalized Pipeline Intake',
-    text: 'Accepts provider-specific failure events and turns them into one auditable activity model.',
+    title: "One normalized activity model",
+    text: "Failure context, diagnostics, remediation, audit, and policy state are kept in one operator-facing record.",
   },
   {
-    icon: Bot,
-    title: 'Policy-Aware Diagnosis',
-    text: 'Combines deterministic signals, model routing, and external diagnostics without hiding confidence tradeoffs.',
+    icon: Wrench,
+    title: "Policy-aware outcomes",
+    text: "Issue, PR, retry, or agent handoff paths stay explicit about what is allowed, blocked, or missing.",
   },
-  {
-    icon: ShieldCheck,
-    title: 'Operator Control Plane',
-    text: 'Separates startup-managed config, runtime policy, and effective behavior across Settings, Control Center, and Activity Detail.',
-  },
-]
+];
 
-const processSteps = [
-  {
-    step: '01',
-    title: 'Detect',
-    text: 'Ingest software-delivery pipeline failures through provider adapters such as GitHub Actions and the Jenkins bridge.',
-  },
-  {
-    step: '02',
-    title: 'Diagnose',
-    text: 'Correlate pattern logic, external diagnostics, and model-assisted analysis into one explainable diagnosis path.',
-  },
-  {
-    step: '03',
-    title: 'Remediate',
-    text: 'Apply issue, PR, retry, or handoff actions under explicit policy and dependency gates.',
-  },
-]
-
-const operationalSignals = [
-  {
-    title: 'Portable Deployment Model',
-    text: 'OSS-first by design: local, Docker, Helm/Kubernetes, and Azure Container Apps fit the same core control-plane model.',
-  },
-  {
-    title: 'Provider Adapters',
-    text: 'GitHub Actions is native today, Jenkins is supported through a signed bridge path, and the platform boundary stays broader than CI-only tooling.',
-  },
-  {
-    title: 'Governance You Can Inspect',
-    text: 'Configured policy, effective behavior, startup-managed dependencies, and audit traceability are visible from the product surface.',
-  },
-]
-
-const platformStats = [
-  { value: 2, label: 'Ingress Paths', suffix: '' },
-  { value: 4, label: 'Operator Surfaces', suffix: '' },
-  { value: 4, label: 'Agent Stages', suffix: '' },
-  { value: 100, label: 'Auditable Actions', suffix: '%' },
-]
-
-const agentNodes = [
-  { icon: Search, label: 'Log Analyst', desc: 'Parse & classify' },
-  { icon: Bot, label: 'Diagnostician', desc: 'Root-cause analysis' },
-  { icon: Wrench, label: 'Fixer', desc: 'Generate remediation' },
-  { icon: Shield, label: 'Policy Gate', desc: 'Safety validation' },
-]
-
-/* ------------------------------------------------------------------ */
-/*  Animation helpers                                                  */
-/* ------------------------------------------------------------------ */
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0 },
-}
-
-const staggerContainer = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.1 } },
-}
-
-function FadeSection({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const inView = useInView(ref, { once: true, margin: '-60px' })
-  return (
-    <motion.div
-      ref={ref}
-      initial="hidden"
-      animate={inView ? 'visible' : 'hidden'}
-      variants={fadeUp}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  )
-}
-
-/* Animated counter that counts up when scrolled into view */
-function CountUp({ target, suffix = '' }: { target: number; suffix?: string }) {
-  const ref = useRef<HTMLSpanElement>(null)
-  const inView = useInView(ref, { once: true })
-  const [count, setCount] = useState(0)
-
-  useEffect(() => {
-    if (!inView) return
-    let frame: number
-    const duration = 1200
-    const start = performance.now()
-    function tick(now: number) {
-      const elapsed = now - start
-      const progress = Math.min(elapsed / duration, 1)
-      // ease-out cubic
-      const eased = 1 - Math.pow(1 - progress, 3)
-      setCount(Math.round(eased * target))
-      if (progress < 1) frame = requestAnimationFrame(tick)
-    }
-    frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
-  }, [inView, target])
-
-  return (
-    <span ref={ref}>
-      {count}
-      {suffix}
-    </span>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
+const platformFacts = [
+  { label: "Ingress paths", value: "2" },
+  { label: "Operator surfaces", value: "4" },
+  { label: "Agent stages", value: "4" },
+  { label: "Auditability", value: "100%" },
+];
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-[radial-gradient(1200px_500px_at_20%_-10%,rgba(53,111,174,0.18),transparent_55%),radial-gradient(1000px_420px_at_90%_0%,rgba(53,111,174,0.14),transparent_50%)]">
-      <header className="sticky top-0 z-20 border-b border-[var(--ph-border)] bg-[var(--ph-surface)]/85 backdrop-blur">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-2 rounded-lg px-1 py-1 hover:bg-slate-800/5">
-            <Zap className="h-7 w-7 text-azure-500" />
-            <span className="text-lg font-semibold tracking-tight text-[var(--ph-text)]">PipelineHealer</span>
+    <div className="min-h-screen bg-[var(--ph-bg)]">
+      <header className="border-b border-[var(--ph-border)] bg-[var(--ph-surface)]">
+        <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between px-4 sm:px-6">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]">
+              <Zap className="h-5 w-5 text-[var(--ph-accent)]" />
+            </div>
+            <div>
+              <div className="text-base font-semibold tracking-tight text-[var(--ph-text)]">
+                PipelineHealer
+              </div>
+              <div className="text-xs text-[var(--ph-muted)]">
+                OSS-first pipeline remediation platform
+              </div>
+            </div>
           </Link>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="hidden md:inline-flex">
-              OSS-first
-            </Badge>
             <Button asChild size="sm" variant="secondary">
+              <a
+                href="https://github.com/Canepro/pipelinehealer"
+                rel="noreferrer"
+                target="_blank"
+              >
+                Source
+              </a>
+            </Button>
+            <Button asChild size="sm">
               <Link to="/app">Open App</Link>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl space-y-14 px-4 py-12 sm:px-6 sm:py-16">
-        {/* Hero */}
-        <motion.section
-          initial="hidden"
-          animate="visible"
-          variants={staggerContainer}
-          className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-stretch"
-        >
-          <motion.div variants={fadeUp} transition={{ duration: 0.5 }}>
-            <Card className="h-full border-azure-500/20 bg-[color:var(--ph-surface)]/95">
-              <CardContent className="p-6 sm:p-8">
-                <Badge variant="outline" className="mb-4">
-                  Pipeline Remediation Control Plane
-                </Badge>
-                <h1 className="text-3xl font-bold tracking-tight text-[var(--ph-text)] sm:text-5xl">
-                  Diagnose, govern, and remediate pipeline failures without losing operator control
-                </h1>
-                <p className="mt-4 max-w-2xl text-base leading-relaxed text-[var(--ph-muted)] sm:text-lg">
-                  PipelineHealer turns provider-specific failure events into one explainable,
-                  policy-aware remediation workflow. Operators can see what is configured, what is
-                  effective, what is startup-managed, and what is blocked by policy or missing
-                  external wiring.
-                </p>
-                <div className="mt-8 flex flex-wrap items-center gap-3">
-                  <Button asChild size="lg" className="px-6">
-                    <Link to="/app">
-                      Open Control Plane
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <Button asChild size="lg" variant="secondary">
-                    <a href="https://github.com/Canepro/pipelinehealer" rel="noopener noreferrer" target="_blank">
-                      View Source
-                    </a>
-                  </Button>
-                  <Button asChild size="lg" variant="secondary">
-                    <a
-                      href="https://github.com/Canepro/pipelinehealer/blob/main/docs/LOCAL_DEMO_RUNBOOK.md"
-                      rel="noopener noreferrer"
-                      target="_blank"
-                    >
-                      View Runbook
-                    </a>
-                  </Button>
-                </div>
-                <div className="mt-6 flex flex-wrap gap-2 text-xs">
-                  <Badge variant="secondary">GitHub Actions</Badge>
-                  <Badge variant="secondary">Jenkins Bridge</Badge>
-                  <Badge variant="secondary">Assign-to-Agent</Badge>
-                  <Badge variant="secondary">Model Routing</Badge>
-                  <Badge variant="secondary">MCP Governance</Badge>
-                  <Badge variant="secondary">Startup Provenance</Badge>
-                  <Badge variant="secondary">Audit Trail</Badge>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+      <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-10 px-4 py-10 sm:px-6 sm:py-12">
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_360px] lg:items-start">
+          <div className="space-y-5">
+            <div className="max-w-4xl space-y-3">
+              <h1 className="text-4xl font-semibold tracking-tight text-[var(--ph-text)] sm:text-5xl">
+                Pipeline remediation with visible policy boundaries
+              </h1>
+              <p className="max-w-3xl text-base leading-7 text-[var(--ph-muted)] sm:text-lg">
+                PipelineHealer turns provider-specific pipeline failures into
+                one governed activity flow. Operators can see what the system
+                diagnosed, what remediation path was selected, what is blocked
+                by policy, and which integrations still require
+                deployment-managed wiring.
+              </p>
+            </div>
 
-          <motion.div variants={fadeUp} transition={{ duration: 0.5, delay: 0.15 }}>
-            <Card className="h-full">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Operational Snapshot</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-sm">
-                {operationalSignals.map((signal) => (
-                  <div
-                    key={signal.title}
-                    className="rounded-lg border border-[var(--ph-border)] bg-slate-800/10 p-3"
-                  >
-                    <p className="font-semibold text-[var(--ph-text)]">{signal.title}</p>
-                    <p className="mt-1 text-[var(--ph-muted)]">{signal.text}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link to="/app">
+                  Open control plane
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="secondary">
+                <a
+                  href="https://github.com/Canepro/pipelinehealer/blob/main/docs/LOCAL_DEMO_RUNBOOK.md"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Operator runbook
+                </a>
+              </Button>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {platformFacts.map((fact) => (
+                <div
+                  key={fact.label}
+                  className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-surface)] px-4 py-3"
+                >
+                  <div className="text-2xl font-semibold tracking-tight text-[var(--ph-text)]">
+                    {fact.value}
                   </div>
-                ))}
-                <div className="rounded-lg border border-azure-500/25 bg-azure-500/5 p-3">
-                  <p className="font-semibold text-[var(--ph-text)]">Operator Experience</p>
-                  <p className="mt-1 text-[var(--ph-muted)]">
-                    Dashboard for throughput, Activity Detail for execution evidence, Settings for
-                    runtime control, and Control Center for governance and investigation posture.
-                  </p>
+                  <div className="text-sm text-[var(--ph-muted)]">
+                    {fact.label}
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </motion.section>
-
-        {/* Platform capability counters */}
-        <FadeSection>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {platformStats.map((stat) => (
-              <div
-                key={stat.label}
-                className="rounded-xl border border-[var(--ph-border)] bg-[var(--ph-surface)] p-4 text-center"
-              >
-                <p className="text-3xl font-bold tracking-tight text-azure-500 sm:text-4xl">
-                  <CountUp target={stat.value} suffix={stat.suffix} />
-                </p>
-                <p className="mt-1 text-sm text-[var(--ph-muted)]">{stat.label}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </FadeSection>
 
-        {/* Architecture diagram */}
-        <FadeSection>
           <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <Layers className="h-5 w-5 text-azure-500" />
-                <CardTitle className="text-base">Multi-Agent Pipeline</CardTitle>
-              </div>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">
+                Current platform scope
+              </CardTitle>
             </CardHeader>
-            <CardContent className="px-4 pb-6 pt-2 sm:px-6">
-              <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between sm:gap-0">
-                {agentNodes.map((node, i) => (
-                  <div key={node.label} className="flex items-center gap-3 sm:flex-col sm:gap-0">
-                    <div className="flex flex-col items-center">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-azure-500/30 bg-azure-500/10">
-                        <node.icon className="h-6 w-6 text-azure-500" />
-                      </div>
-                      <p className="mt-2 text-sm font-semibold text-[var(--ph-text)]">{node.label}</p>
-                      <p className="text-xs text-[var(--ph-muted)]">{node.desc}</p>
-                    </div>
-                    {i < agentNodes.length - 1 && (
-                      <ArrowRight className="hidden h-5 w-5 shrink-0 text-[var(--ph-muted)] sm:block sm:mx-3" />
-                    )}
-                  </div>
-                ))}
+            <CardContent className="space-y-4 text-sm">
+              <div className="space-y-3">
+                <ScopeRow label="Native path" value="GitHub Actions" />
+                <ScopeRow label="Bridge path" value="Jenkins" />
+                <ScopeRow label="Agent handoff" value="Copy-only or webhook" />
+                <ScopeRow
+                  label="Reference deployment"
+                  value="Azure Container Apps"
+                />
+              </div>
+              <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/55 p-3 text-[var(--ph-muted)]">
+                Startup-only secrets stay deployment-managed. Runtime policy and
+                non-secret controls stay in the product surface.
               </div>
             </CardContent>
           </Card>
-        </FadeSection>
+        </section>
 
-        {/* Enterprise-Ready Capabilities */}
-        <FadeSection>
-          <section className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xl font-semibold text-[var(--ph-text)] sm:text-2xl">
-                Why It Holds Up Operationally
-              </h2>
-              <Badge variant="outline">Portable by design</Badge>
-            </div>
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: '-40px' }}
-              variants={staggerContainer}
-              className="grid gap-4 md:grid-cols-3"
-            >
-              {capabilityCards.map((card) => (
-                <motion.div key={card.title} variants={fadeUp} transition={{ duration: 0.4 }}>
-                  <Card className="h-full">
-                    <CardContent className="p-5">
-                      <card.icon className="mb-3 h-6 w-6 text-azure-500" />
-                      <h3 className="text-base font-semibold text-[var(--ph-text)]">{card.title}</h3>
-                      <p className="mt-2 text-sm leading-relaxed text-[var(--ph-muted)]">{card.text}</p>
-                    </CardContent>
-                  </Card>
-                </motion.div>
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">
+                What operators can inspect now
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {operatorSurfaceRows.map((row) => (
+                <div
+                  key={row.title}
+                  className="border-b border-[var(--ph-border)] pb-4 last:border-b-0 last:pb-0"
+                >
+                  <div className="font-medium text-[var(--ph-text)]">
+                    {row.title}
+                  </div>
+                  <p className="mt-1 text-sm leading-6 text-[var(--ph-muted)]">
+                    {row.text}
+                  </p>
+                </div>
               ))}
-            </motion.div>
-          </section>
-        </FadeSection>
+            </CardContent>
+          </Card>
 
-        {/* How It Works */}
-        <FadeSection>
-          <section className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xl font-semibold text-[var(--ph-text)] sm:text-2xl">How It Works</h2>
-              <Badge variant="outline">Provider adapters + shared policy core</Badge>
-            </div>
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: '-40px' }}
-              variants={staggerContainer}
-              className="grid gap-4 md:grid-cols-3"
-            >
-              {processSteps.map((step) => (
-                <motion.div key={step.title} variants={fadeUp} transition={{ duration: 0.4 }}>
-                  <Card className="h-full">
-                    <CardContent className="p-5">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="font-mono">
-                          {step.step}
-                        </Badge>
-                        {step.title === 'Detect' && <GitBranch className="h-4 w-4 text-azure-400" />}
-                        {step.title === 'Diagnose' && <BarChart3 className="h-4 w-4 text-azure-400" />}
-                        {step.title === 'Remediate' && <CheckCircle2 className="h-4 w-4 text-azure-400" />}
-                      </div>
-                      <h3 className="mt-3 text-base font-semibold text-[var(--ph-text)]">{step.title}</h3>
-                      <p className="mt-2 text-sm leading-relaxed text-[var(--ph-muted)]">{step.text}</p>
-                    </CardContent>
-                  </Card>
-                </motion.div>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">
+                How the platform flows
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {pipelineLifecycle.map((item) => (
+                <div
+                  key={item.title}
+                  className="flex gap-3 border-b border-[var(--ph-border)] pb-4 last:border-b-0 last:pb-0"
+                >
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]">
+                    <item.icon className="h-4 w-4 text-[var(--ph-accent)]" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-[var(--ph-text)]">
+                      {item.title}
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-[var(--ph-muted)]">
+                      {item.text}
+                    </p>
+                  </div>
+                </div>
               ))}
-            </motion.div>
-          </section>
-        </FadeSection>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">
+                Why the control plane matters
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-[var(--ph-muted)]">
+              <p>
+                The product is broader than CI log summarization. It is built
+                around a normalized pipeline activity model, explicit policy
+                gates, auditable remediation decisions, and deployment-neutral
+                configuration rules.
+              </p>
+              <p>
+                That is why the app distinguishes configured state, effective
+                runtime behavior, startup-managed dependencies, and outbound
+                integration health instead of collapsing everything into one
+                vague “enabled” badge.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Design principles</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <PrincipleRow text="Explain why something is blocked, not just that it is blocked." />
+              <PrincipleRow text="Keep deployment-managed secrets out of generic runtime persistence." />
+              <PrincipleRow text="Show operator-ready evidence before decorative surface polish." />
+              <PrincipleRow text="Treat Azure as a reference deployment, not the product boundary." />
+            </CardContent>
+          </Card>
+        </section>
       </main>
-
-      <footer className="border-t border-[var(--ph-border)] py-6">
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-4 text-sm text-[var(--ph-muted)] sm:flex-row sm:px-6">
-          <p>PipelineHealer · OSS-first pipeline remediation platform</p>
-          <p>GitHub Actions · Jenkins Bridge · Operator Control Plane</p>
-        </div>
-      </footer>
     </div>
-  )
+  );
+}
+
+function ScopeRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-[var(--ph-border)] pb-3 last:border-b-0 last:pb-0">
+      <span className="text-[var(--ph-muted)]">{label}</span>
+      <span className="text-right font-medium text-[var(--ph-text)]">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function PrincipleRow({ text }: { text: string }) {
+  return (
+    <div className="flex items-start gap-3 rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/55 px-3 py-2.5">
+      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ph-accent)]" />
+      <span className="leading-6 text-[var(--ph-text)]">{text}</span>
+    </div>
+  );
 }
