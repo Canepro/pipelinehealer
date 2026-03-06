@@ -36,7 +36,7 @@ def activity_summary(payload: dict[str, Any]) -> dict[str, str]:
     return {
         "activity_id": str(activity.get("id", "")).strip(),
         "repository": str(activity.get("repository", "")).strip(),
-        "workflow": str(activity.get("workflow", "")).strip(),
+        "workflow_name": str(activity.get("workflow_name", "")).strip(),
         "failure_type": str(activity.get("failure_type", "")).strip(),
     }
 

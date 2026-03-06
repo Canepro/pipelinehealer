@@ -32,7 +32,7 @@ def main(req):  # type: ignore[no-untyped-def]
         delivery_id,
         summary["activity_id"],
         summary["repository"],
-        summary["workflow"],
+        summary["workflow_name"],
         summary["failure_type"],
         targets,
     )

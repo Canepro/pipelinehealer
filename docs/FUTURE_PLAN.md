@@ -431,9 +431,9 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-048` | Assign-to-Agent UI activation path: Settings-managed handoff enablement, webhook configuration/validation, and operator test flow | `v0.4.0` | minor | High | Completed (released in `v0.4.0`) |
 | `BL-049` | MCP governance IA rework: separate configured policy from effective runtime outcome and fix misleading status/severity color semantics | `v0.4.0` | minor | High | Completed (released in `v0.4.0`) |
 | `BL-050` | Operator-surface visual/system coherence pass across Settings, Control Center, Activity Detail, and shell/landing alignment where needed | `v0.4.0` | minor | Medium | Completed (released in `v0.4.0`) |
-| `BL-051` | Deployment-facing Assign-to-Agent receiver boundary: HTTP receiver for normalized handoff events with auth, structured logging, and low-cost Azure Function reference deployment | `v0.5.0` | minor | High | Planned |
+| `BL-051` | Deployment-facing Assign-to-Agent receiver boundary: HTTP receiver for normalized handoff events with auth, structured logging, and low-cost Azure Function reference deployment | `v0.5.0` | minor | High | In Progress (receiver implemented and reference deployment live) |
 | `BL-052` | Generic notification sink contract + first adapters (`webhook`, `slack_webhook`, `teams_webhook`, `rocketchat_webhook`) for auditable outbound delivery | `v0.5.0` | minor | High | Planned |
-| `BL-053` | ACA reference integration path: wire live ACA handoff from `copy_only` to real `webhook` mode via the receiver without baking Azure assumptions into core product | `v0.5.0` | minor | High | Planned |
+| `BL-053` | ACA reference integration path: wire live ACA handoff from `copy_only` to real `webhook` mode via the receiver without baking Azure assumptions into core product | `v0.5.0` | minor | High | In Progress (live ACA switched to webhook mode; repo follow-up still open) |
 | `BL-054` | Operator-facing integration status surfacing for external receiver/notification dependencies (docs first, product surface where justified) | `v0.5.0` | minor | Medium | Planned |
 
 ## Definition of Done (Per Version)
