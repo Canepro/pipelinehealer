@@ -654,7 +654,7 @@ export default function ControlCenterPage() {
           detail: formatMetadataSummary(
             settings.settings_metadata?.agent_handoff_webhook_host,
           ),
-          mono: settings.agent_handoff_webhook_configured,
+          mono: Boolean(settings.agent_handoff_webhook_host),
           tone: settings.agent_handoff_webhook_configured ? "ok" : "warn",
         },
         {
