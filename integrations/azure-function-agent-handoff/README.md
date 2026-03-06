@@ -33,10 +33,10 @@ The function app is configured via environment variables / application settings:
   - supported target fields:
     - `type`: `webhook` or `rocketchat_webhook`
     - `url`: full `http(s)` URL
-    - `enabled`: optional boolean, default `true`
+    - `enabled`: optional JSON boolean, default `true`
     - `name`: optional operator-friendly label
     - `events`: optional `"*"` or list of event types; defaults to `"*"`
-    - `headers`: optional object of extra HTTP headers, supported for `webhook`
+    - `headers`: optional object of extra HTTP headers, supported only for `webhook`
   - example:
 
 ```json
@@ -63,6 +63,11 @@ The function app is configured via environment variables / application settings:
   - optional per-request notification delivery timeout
   - defaults to `10`
 
+- `NOTIFY_MAX_TARGETS`
+  - optional upper bound for synchronous fan-out on one request
+  - defaults to `5`
+  - extra configured targets are reported as invalid so the receiver ack path stays bounded
+
 ## Event Contract
 
 The receiver uses the same outbound handoff payload emitted by PipelineHealer. Current events default to `agent_handoff_requested` when the sender does not provide an explicit `event_type`.
@@ -81,4 +86,5 @@ Generic `webhook` targets receive the full event payload unchanged.
 
 - The receiver acknowledges accepted handoff requests even if one or more notification targets fail.
 - Delivery failures are logged with target name, type, and error code.
+- The receiver intentionally caps synchronous fan-out with `NOTIFY_MAX_TARGETS` so a misconfigured notification list cannot stretch the handoff acknowledgement path indefinitely.
 - `GET /api/healthz` includes configured/invalid target counts so deployment verification can catch bad JSON or unsupported sink types early.

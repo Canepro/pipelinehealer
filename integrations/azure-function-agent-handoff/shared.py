@@ -11,6 +11,7 @@ import azure.functions as func
 _SUPPORTED_TARGET_TYPES = {"webhook", "rocketchat_webhook"}
 _DEFAULT_EVENT_TYPE = "agent_handoff_requested"
 _DEFAULT_DELIVERY_TIMEOUT_SECONDS = 10
+_DEFAULT_MAX_TARGETS = 5
 
 
 @dataclass(frozen=True)
@@ -72,7 +73,7 @@ def _delivery_timeout_seconds() -> int:
 
 
 def _normalize_events(raw_events: Any) -> tuple[str, ...]:
-    # A target without explicit events should still receive the default handoff signal.
+    # A target without explicit events should receive all handoff events.
     if raw_events is None:
         return ("*",)
     if isinstance(raw_events, str):
@@ -106,6 +107,29 @@ def _normalize_headers(raw_headers: Any) -> tuple[tuple[str, str], ...]:
     return tuple(normalized)
 
 
+def _normalize_enabled(raw_enabled: Any) -> bool:
+    if raw_enabled is None:
+        return True
+    if not isinstance(raw_enabled, bool):
+        raise ValueError("enabled must be a JSON boolean")
+    return raw_enabled
+
+
+def _max_targets() -> int:
+    raw = os.getenv("NOTIFY_MAX_TARGETS", "").strip()
+    if not raw:
+        return _DEFAULT_MAX_TARGETS
+    try:
+        value = int(raw)
+    except ValueError:
+        logging.warning("invalid_notify_max_targets raw=%s", raw)
+        return _DEFAULT_MAX_TARGETS
+    if value <= 0:
+        logging.warning("non_positive_notify_max_targets raw=%s", raw)
+        return _DEFAULT_MAX_TARGETS
+    return value
+
+
 def _target_name(target_type: str, index: int, raw_name: Any) -> str:
     explicit = str(raw_name or "").strip()
     return explicit or f"{target_type}:{index}"
@@ -128,9 +152,13 @@ def parse_notify_targets() -> tuple[list[NotificationTarget], list[str]]:
 
     targets: list[NotificationTarget] = []
     errors: list[str] = []
+    max_targets = _max_targets()
     for index, item in enumerate(parsed, start=1):
         if not isinstance(item, dict):
             errors.append(f"target {index}: entry must be an object")
+            continue
+        if len(targets) >= max_targets:
+            errors.append(f"target {index}: exceeds NOTIFY_MAX_TARGETS={max_targets}")
             continue
 
         try:
@@ -145,14 +173,18 @@ def parse_notify_targets() -> tuple[list[NotificationTarget], list[str]]:
             if not url.startswith(("http://", "https://")):
                 raise ValueError("url must be a full http(s) URL")
 
+            headers = _normalize_headers(item.get("headers"))
+            if headers and target_type != "webhook":
+                raise ValueError("headers are only supported for webhook targets")
+
             target = NotificationTarget(
                 index=index,
                 target_type=target_type,
                 url=url,
                 events=_normalize_events(item.get("events")),
-                enabled=bool(item.get("enabled", True)),
+                enabled=_normalize_enabled(item.get("enabled")),
                 name=_target_name(target_type, index, item.get("name")),
-                headers=_normalize_headers(item.get("headers")),
+                headers=headers,
             )
             targets.append(target)
         except ValueError as exc:
@@ -236,14 +268,16 @@ def _post_json(url: str, body: dict[str, Any], headers: tuple[tuple[str, str], .
     for key, value in headers:
         request_headers[key] = value
 
-    payload_bytes = json.dumps(body).encode("utf-8")
-    req = request.Request(url, data=payload_bytes, headers=request_headers, method="POST")
     try:
+        payload_bytes = json.dumps(body).encode("utf-8")
+        req = request.Request(url, data=payload_bytes, headers=request_headers, method="POST")
         with request.urlopen(req, timeout=_delivery_timeout_seconds()) as response:
             status_code = getattr(response, "status", 0)
             if 200 <= status_code < 300:
                 return True, ""
             return False, f"http_{status_code}"
+    except ValueError as exc:
+        return False, f"request_error:{exc}"
     except error.HTTPError as exc:
         return False, f"http_{exc.code}"
     except error.URLError as exc:
@@ -261,6 +295,8 @@ def deliver_notification_targets(payload: dict[str, Any]) -> dict[str, Any]:
     skipped = 0
     results: list[dict[str, Any]] = []
 
+    # Keep synchronous fan-out bounded until BL-054/next slices decide whether
+    # delivery should move to a queue or background worker model.
     for target in targets:
         if not target.enabled:
             skipped += 1
