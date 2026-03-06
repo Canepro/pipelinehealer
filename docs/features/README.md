@@ -1,6 +1,6 @@
 # Feature Guides
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: fadd4cf -->
 
 These guides explain PipelineHealer by capability so beginners and experienced operators can quickly find what they need.
 

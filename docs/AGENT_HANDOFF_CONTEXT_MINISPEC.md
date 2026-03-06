@@ -1,6 +1,6 @@
 # Agent Handoff + Copy Context Mini-Spec
 
-<!-- LAST_VERIFIED: 41575cf -->
+<!-- LAST_VERIFIED: fadd4cf -->
 
 Status: Phase 0/1 released in `v0.3.0` (`Copy Context` + disabled `Assign to Agent`), Phase 2 delivered in `v0.3.2` (`copy_only`/`webhook`)
 Owner: PipelineHealer maintainers

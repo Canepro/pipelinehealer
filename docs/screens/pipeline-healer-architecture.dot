@@ -16,6 +16,8 @@ digraph PipelineHealerWorkflow {
   IS [label="Create Issue" shape="box"];
   RR [label="Re-run Failed Jobs" shape="box"];
   HO [label="Assign-to-Agent\nHandoff" shape="box"];
+  GW [label="Outbound Integration\nGateway / Receiver" shape="box"];
+  NT [label="Notification Sinks\nwebhook / Slack / Teams / Rocket.Chat" shape="box"];
   ADP [label="GHAW Adapter\npassive mode" shape="box"];
   CD [label="ci-doctor\nissue/comment findings" shape="box"];
   EXT [label="External diagnostics\ncontext" shape="box"];
@@ -39,6 +41,8 @@ digraph PipelineHealerWorkflow {
   GT -> IS;
   GT -> RR;
   GT -> HO;
+  HO -> GW;
+  GW -> NT;
   OR -> ST;
   BF -> ADP;
   BF -> ST;

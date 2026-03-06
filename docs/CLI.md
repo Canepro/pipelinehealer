@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 9477f08 -->
+<!-- LAST_VERIFIED: fadd4cf -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -154,6 +154,14 @@ Important:
 - Full `deploy` prunes old local ACR-tagged images and old ACR tags/manifests by default.
 - Protected from pruning: `latest`, current deploy tag, and semver-like tags (for example `v0.2.3`).
 - `--acr-retain-tags <n>` keeps the newest `n` tags per repo (`0` disables ACR pruning).
+- Outbound receiver SMTP settings are deployment-managed and currently documented, not `ph.sh`-managed:
+  - `NOTIFY_EMAIL_SMTP_HOST`
+  - `NOTIFY_EMAIL_SMTP_PORT`
+  - `NOTIFY_EMAIL_SMTP_STARTTLS`
+  - `NOTIFY_EMAIL_SMTP_SSL`
+  - `NOTIFY_EMAIL_FROM_ADDRESS`
+  - `NOTIFY_EMAIL_SMTP_USERNAME`
+  - `NOTIFY_EMAIL_SMTP_PASSWORD`
 
 Background deploy state files are namespaced under `/tmp/ph-deploy-<resource-group>/` to prevent collisions between concurrent runs.
 

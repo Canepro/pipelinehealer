@@ -85,6 +85,7 @@ interface Props {
 
 type SettingsSection = "runtime" | "intelligence" | "security";
 type NotificationTargetType =
+  | "email"
   | "webhook"
   | "slack_webhook"
   | "teams_webhook"
@@ -133,6 +134,11 @@ const NOTIFICATION_TARGET_TYPES: Array<{
   label: string;
   note: string;
 }> = [
+  {
+    value: "email",
+    label: "email",
+    note: "Send a plain-text summary through SMTP using deployment-managed mail settings.",
+  },
   {
     value: "webhook",
     label: "webhook",
@@ -220,16 +226,14 @@ function parseNotificationEventsInput(value: string): string[] {
 
 function buildNotificationTargetDraft(args: {
   targetType: NotificationTargetType;
-  url: string;
   name: string;
   events: string[];
+  url: string;
+  emailRecipients: string;
+  emailSubjectPrefix: string;
 }) {
-  const parsed = parseWebhookUrlInput(args.url);
-  if (!parsed) return null;
-
   const payload: Record<string, unknown> = {
     type: args.targetType,
-    url: parsed.url,
     enabled: true,
   };
   if (args.events.length > 0) {
@@ -238,6 +242,22 @@ function buildNotificationTargetDraft(args: {
   if (args.name.trim()) {
     payload.name = args.name.trim();
   }
+  if (args.targetType === "email") {
+    const recipients = args.emailRecipients
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (recipients.length === 0) return null;
+    payload.to = recipients;
+    if (args.emailSubjectPrefix.trim()) {
+      payload.subject_prefix = args.emailSubjectPrefix.trim();
+    }
+    return payload;
+  }
+
+  const parsed = parseWebhookUrlInput(args.url);
+  if (!parsed) return null;
+  payload.url = parsed.url;
   return payload;
 }
 
@@ -365,6 +385,10 @@ export default function AdminControlsForm({
   const [notificationTargetName, setNotificationTargetName] = useState("");
   const [notificationTargetEventsInput, setNotificationTargetEventsInput] =
     useState("agent_handoff_requested");
+  const [notificationTargetEmailRecipients, setNotificationTargetEmailRecipients] =
+    useState("");
+  const [notificationTargetEmailSubjectPrefix, setNotificationTargetEmailSubjectPrefix] =
+    useState("[PipelineHealer]");
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("runtime");
   const mcpEffectivePolicies = MCP_TOOL_DEFINITIONS.map((tool) => {
@@ -542,14 +566,27 @@ export default function AdminControlsForm({
   );
   const notificationTargetDraft = buildNotificationTargetDraft({
     targetType: notificationTargetType,
-    url: notificationTargetUrl,
     name: notificationTargetName,
     events: notificationTargetEvents,
+    url: notificationTargetUrl,
+    emailRecipients: notificationTargetEmailRecipients,
+    emailSubjectPrefix: notificationTargetEmailSubjectPrefix,
   });
   const notificationTargetEnvBlock = notificationTargetDraft
     ? [
         `NOTIFY_TARGETS_JSON=${JSON.stringify([notificationTargetDraft])}`,
         `NOTIFY_DELIVERY_TIMEOUT_SECONDS=10`,
+        ...(notificationTargetType === "email"
+          ? [
+              `NOTIFY_EMAIL_SMTP_HOST=smtp.example.com`,
+              `NOTIFY_EMAIL_SMTP_PORT=587`,
+              `NOTIFY_EMAIL_SMTP_STARTTLS=true`,
+              `NOTIFY_EMAIL_SMTP_SSL=false`,
+              `NOTIFY_EMAIL_FROM_ADDRESS=pipelinehealer@example.com`,
+              `NOTIFY_EMAIL_SMTP_USERNAME=`,
+              `NOTIFY_EMAIL_SMTP_PASSWORD=`,
+            ]
+          : []),
       ].join("\n")
     : "";
 
@@ -925,19 +962,42 @@ export default function AdminControlsForm({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[var(--ph-text)]">Target URL</Label>
-                    <Input
-                      type="text"
-                      value={notificationTargetUrl}
-                      onChange={(e) => setNotificationTargetUrl(e.target.value)}
-                      placeholder="https://example.com/webhook"
-                    />
-                    <p className="text-xs text-[var(--ph-muted)]">
-                      Use the full destination URL. Store secret-bearing values
-                      in deployment env or a secret adapter.
-                    </p>
-                  </div>
+                  {notificationTargetType === "email" ? (
+                    <div className="space-y-1">
+                      <Label className="text-[var(--ph-text)]">
+                        Recipient Email(s)
+                      </Label>
+                      <Input
+                        type="text"
+                        value={notificationTargetEmailRecipients}
+                        onChange={(e) =>
+                          setNotificationTargetEmailRecipients(e.target.value)
+                        }
+                        placeholder="ops@example.com, engineering@example.com"
+                      />
+                      <p className="text-xs text-[var(--ph-muted)]">
+                        Comma-separated recipients. SMTP relay settings stay
+                        deployment-managed and are not stored in runtime
+                        settings.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Label className="text-[var(--ph-text)]">
+                        Target URL
+                      </Label>
+                      <Input
+                        type="text"
+                        value={notificationTargetUrl}
+                        onChange={(e) => setNotificationTargetUrl(e.target.value)}
+                        placeholder="https://example.com/webhook"
+                      />
+                      <p className="text-xs text-[var(--ph-muted)]">
+                        Use the full destination URL. Store secret-bearing
+                        values in deployment env or a secret adapter.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -952,6 +1012,52 @@ export default function AdminControlsForm({
                       placeholder="Ops notifications"
                     />
                   </div>
+                  {notificationTargetType === "email" ? (
+                    <div className="space-y-1">
+                      <Label className="text-[var(--ph-text)]">
+                        Subject Prefix (optional)
+                      </Label>
+                      <Input
+                        type="text"
+                        value={notificationTargetEmailSubjectPrefix}
+                        onChange={(e) =>
+                          setNotificationTargetEmailSubjectPrefix(
+                            e.target.value,
+                          )
+                        }
+                        placeholder="[PipelineHealer]"
+                      />
+                      <p className="text-xs text-[var(--ph-muted)]">
+                        Prepended to the generated email subject before event,
+                        repository, workflow, and status fields.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Label className="text-[var(--ph-text)]">Events</Label>
+                      <Input
+                        type="text"
+                        value={notificationTargetEventsInput}
+                        onChange={(e) =>
+                          setNotificationTargetEventsInput(e.target.value)
+                        }
+                        placeholder="agent_handoff_requested"
+                      />
+                      <p className="text-xs text-[var(--ph-muted)]">
+                        Comma-separated. Blank defaults to
+                        <code className="mx-1 font-mono">
+                          agent_handoff_requested
+                        </code>
+                        . Use
+                        <code className="mx-1 font-mono">*</code>
+                        only when you want the target to receive every future
+                        receiver event.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {notificationTargetType === "email" && (
                   <div className="space-y-1">
                     <Label className="text-[var(--ph-text)]">Events</Label>
                     <Input
@@ -967,13 +1073,11 @@ export default function AdminControlsForm({
                       <code className="mx-1 font-mono">
                         agent_handoff_requested
                       </code>
-                      . Use
-                      <code className="mx-1 font-mono">*</code>
-                      only when you want the target to receive every future
-                      receiver event.
+                      . Keep email routing narrow unless you intentionally want
+                      inbox copies for every future receiver event.
                     </p>
                   </div>
-                </div>
+                )}
 
                 <div className="flex flex-wrap gap-2 text-xs">
                   {NOTIFICATION_TARGET_TYPES.map((target) => (
@@ -997,12 +1101,15 @@ export default function AdminControlsForm({
                   }
                 </p>
 
-                {notificationTargetUrl.trim() && !notificationTargetDraft && (
+                {((notificationTargetType !== "email" &&
+                  notificationTargetUrl.trim()) ||
+                  (notificationTargetType === "email" &&
+                    notificationTargetEmailRecipients.trim())) &&
+                  !notificationTargetDraft && (
                   <p className="text-sm text-rose-400">
-                    Enter a full{" "}
-                    <code className="font-mono">http(s)</code>{" "}
-                    target URL so the assistant can generate a valid
-                    notification target entry.
+                    {notificationTargetType === "email"
+                      ? "Enter at least one valid recipient email so the assistant can generate a valid notification target entry."
+                      : 'Enter a full http(s) target URL so the assistant can generate a valid notification target entry.'}
                   </p>
                 )}
 
@@ -1063,6 +1170,13 @@ export default function AdminControlsForm({
                         your existing
                         <code className="mx-1 font-mono">NOTIFY_TARGETS_JSON</code>
                         array if the receiver already has other destinations.
+                        {notificationTargetType === "email" && (
+                          <>
+                            {" "}
+                            SMTP relay host, auth, and from-address values stay
+                            deployment-managed in the receiver app settings.
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>

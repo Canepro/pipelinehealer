@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: bb2c6e6 -->
+<!-- LAST_VERIFIED: fadd4cf -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -46,7 +46,7 @@ This guide explains runtime controls, persistence behavior, and governance guard
   - portable env blocks
   - sample payloads
   - smoke-test commands
-  - single-target `NOTIFY_TARGETS_JSON` examples for supported receiver sink types
+  - single-target `NOTIFY_TARGETS_JSON` examples for supported receiver sink types, including SMTP-backed email
 
 ## Runtime vs Durable
 

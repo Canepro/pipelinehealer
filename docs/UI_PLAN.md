@@ -1,6 +1,6 @@
-# UI Maturity Plan (Through March 15, 2026)
+# UI Maturity Plan (Historical Through March 15, 2026)
 
-This document tracks visual and UX refinement work for PipelineHealer without changing core remediation logic.
+This document tracks the historical UI maturity push that carried the app through the March 15, 2026 submission window. For current and future UI work, use `docs/FUTURE_PLAN.md`.
 
 ## Design Principles
 
