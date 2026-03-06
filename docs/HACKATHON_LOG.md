@@ -27,9 +27,9 @@ This is the long-form project tracker for hackathon execution status, submission
   - `v0.3.2`: functional `Assign to Agent` integration path (tracked under `BL-039`)
 - Multi-platform notification routing is now adopted for `v0.5.0` through the outbound integration gateway, with first-wave sinks shipped for `webhook`, Slack, Teams, Rocket.Chat, and SMTP-backed email.
 - Canary scope expanded (issue-only safe mode) to `canepro/portfolio_website-main`, `canepro/rocketchat-k8s`, and `canepro/central-observability-hub-stack`; Jenkins-primary repo coverage gap identified and now tracked as bridge-first plan (`DP-003`, `BL-034`, target `v0.3.2`)
-- Release planning split is active:
+- Historical release-planning split (now shipped):
   - `v0.3.0` scope tracking issue: [#43](https://github.com/Canepro/pipelinehealer/issues/43) (`BL-036` + `BL-038`)
-  - `v0.3.2` scope tracking issue: [#44](https://github.com/Canepro/pipelinehealer/issues/44) (required: `BL-034` + `BL-039` + `BL-045`; `BL-046` shipped in `v0.3.2` via PR [#61](https://github.com/Canepro/pipelinehealer/pull/61))
+  - `v0.3.2` scope tracking issue: [#44](https://github.com/Canepro/pipelinehealer/issues/44) (historical umbrella for `BL-034` + `BL-039` + `BL-045`; `BL-046` shipped in `v0.3.2` via PR [#61](https://github.com/Canepro/pipelinehealer/pull/61))
 - `v0.3.2` freeze guardrails are now explicit:
   - required scope locked to `#36/#42/#57` for submission reliability
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
@@ -219,7 +219,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 ### Feb 13, 2026
 
-- Updated docs framing to position PipelineHealer as OSS-first, with Azure retained as the primary hackathon deployment path and local mode preserved for evaluator convenience.
+- Updated docs framing to position PipelineHealer as OSS-first, with Azure retained as the reference hackathon deployment path and local mode preserved for evaluator convenience.
 - Expanded README with deterministic fix matrix and explicit safety model.
 - Added `CONTRIBUTING.md` and `SECURITY.md` and linked them from `docs/README.md`.
 - Added repo allowlist gate (`PH_ALLOWED_REPOS`) so webhook processing can be scoped to selected repos.

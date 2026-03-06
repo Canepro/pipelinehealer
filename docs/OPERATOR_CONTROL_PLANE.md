@@ -218,7 +218,7 @@ Current forward-planning work in `v0.5.0` extends this contract through the outb
 
 This document does not require:
 
-- removing Azure support or Azure-first runbooks
+- removing Azure support or Azure reference-deployment runbooks
 - hiding deployment-specific options from advanced operators
 - forcing every infrastructure concern into the UI
 - abstracting away real provider differences

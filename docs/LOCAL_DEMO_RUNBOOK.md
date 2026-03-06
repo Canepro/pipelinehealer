@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 6793d7f -->
+<!-- LAST_VERIFIED: fadd4cf -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -56,7 +56,7 @@ Pick one profile before running commands:
 | Profile | Best for | Key commands |
 |--------|----------|--------------|
 | Local-only dev (no Azure infra) | fast iteration, local testing | host-native/Docker steps + `PH_BACKEND_URL=http://127.0.0.1:8000` API commands |
-| Azure managed (hackathon default) | demo + managed deployment | `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`, `status`, `warm`, `lowcost` |
+| Azure managed (reference demo path) | demo + managed deployment | `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`, `status`, `warm`, `lowcost` |
 | Other cloud backend (AWS/GCP/DO/K8s/etc.) | non-Azure production path | deploy containers with your platform, then use `PH_BACKEND_URL=https://<your-backend>` for API commands |
 
 Important command scope rule:

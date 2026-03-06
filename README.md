@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 6793d7f -->
+<!-- LAST_VERIFIED: fadd4cf -->
 
 > OSS-first, policy-aware pipeline remediation platform with GitHub Actions and Jenkins bridge support today.
 
@@ -248,7 +248,7 @@ flowchart TB
 
   subgraph GATE["Outbound Integration Gateway"]
     RECV["Receiver / Event Router"]
-    SINK["Webhook / Slack / Teams / Rocket.Chat"]
+    SINK["Webhook / Slack / Teams / Rocket.Chat / Email"]
   end
 
   GH --> WH --> ORCH

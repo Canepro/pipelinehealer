@@ -1,6 +1,6 @@
 # PipelineHealer Agent Handoff Receiver
 
-<!-- LAST_VERIFIED: 6793d7f -->
+<!-- LAST_VERIFIED: fadd4cf -->
 
 Minimal Azure Functions app used as the deployment-facing boundary for Assign-to-Agent webhook delivery.
 

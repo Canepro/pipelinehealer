@@ -1,6 +1,6 @@
 # Learning System Plan
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: fadd4cf -->
 
 This document explains the learning/governance subsystem, how to use it today, and what is planned next.
 

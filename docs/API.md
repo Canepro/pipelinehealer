@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 6793d7f -->
+<!-- LAST_VERIFIED: fadd4cf -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -602,7 +602,7 @@ The payload now includes a `settings_metadata` map so the operator surface can d
 configured value from effective provenance. Source values are portable, app-observable categories only:
 `default`, `env`, `runtime_override`, `persisted_runtime_override`, and `computed`.
 
-**Auth**: `X-API-Key` + `X-Admin-Key`
+**Auth**: admin auth (`Authorization: Bearer <token>` with Entra admin role in `entra`/Bearer flow, or `X-API-Key` + `X-Admin-Key` in key-based flow)
 
 **Response** `200 OK` (`AppSettingsView`):
 
@@ -719,7 +719,7 @@ Notes:
 
 Applies runtime overrides (immediate effect; persist durably via `POST /api/settings/persist`).
 
-**Auth**: `X-API-Key` + `X-Admin-Key`
+**Auth**: admin auth (`Authorization: Bearer <token>` with Entra admin role in `entra`/Bearer flow, or `X-API-Key` + `X-Admin-Key` in key-based flow)
 
 **Optional Headers**:
 
@@ -809,7 +809,7 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 
 Returns health/status for the currently selected LLM provider adapter.
 
-**Auth**: `X-API-Key` + `X-Admin-Key`
+**Auth**: admin auth (`Authorization: Bearer <token>` with Entra admin role in `entra`/Bearer flow, or `X-API-Key` + `X-Admin-Key` in key-based flow)
 
 **Response** `200 OK` (`LLMProviderHealthView`):
 
@@ -852,7 +852,7 @@ OpenAI-compatible `reason` codes:
 
 Returns health/status for the currently selected MCP provider adapter.
 
-**Auth**: `X-API-Key` + `X-Admin-Key`
+**Auth**: admin auth (`Authorization: Bearer <token>` with Entra admin role in `entra`/Bearer flow, or `X-API-Key` + `X-Admin-Key` in key-based flow)
 
 **Response** `200 OK` (`MCPProviderHealthView`):
 
@@ -872,7 +872,7 @@ Returns health/status for the currently selected MCP provider adapter.
 
 Durably persists current mutable runtime settings so they survive backend restarts and redeployments.
 
-**Auth**: `X-API-Key` + `X-Admin-Key`
+**Auth**: admin auth (`Authorization: Bearer <token>` with Entra admin role in `entra`/Bearer flow, or `X-API-Key` + `X-Admin-Key` in key-based flow)
 
 **Request Body** (optional):
 
@@ -936,7 +936,7 @@ Durably persists current mutable runtime settings so they survive backend restar
 
 Returns governance learning-queue records (candidate/approved/rejected/active/retired).
 
-**Auth**: `X-API-Key` + `X-Admin-Key`
+**Auth**: admin auth (`Authorization: Bearer <token>` with Entra admin role in `entra`/Bearer flow, or `X-API-Key` + `X-Admin-Key` in key-based flow)
 
 **Query Parameters**:
 
@@ -1005,7 +1005,7 @@ Returns governance learning-queue records (candidate/approved/rejected/active/re
 
 Scans recent successful completed activities and refreshes recurring learning candidates.
 
-**Auth**: `X-API-Key` + `X-Admin-Key`
+**Auth**: admin auth (`Authorization: Bearer <token>` with Entra admin role in `entra`/Bearer flow, or `X-API-Key` + `X-Admin-Key` in key-based flow)
 
 **Query Parameters**:
 
@@ -1035,7 +1035,7 @@ Side effects:
 
 Applies a governance decision for one learning candidate.
 
-**Auth**: `X-API-Key` + `X-Admin-Key`
+**Auth**: admin auth (`Authorization: Bearer <token>` with Entra admin role in `entra`/Bearer flow, or `X-API-Key` + `X-Admin-Key` in key-based flow)
 
 **Request Body**:
 
@@ -1080,7 +1080,7 @@ Side effects:
 
 Captures operator verification outcomes for one activity and links that evidence into learning readiness.
 
-**Auth**: `X-API-Key` + `X-Admin-Key`
+**Auth**: admin auth (`Authorization: Bearer <token>` with Entra admin role in `entra`/Bearer flow, or `X-API-Key` + `X-Admin-Key` in key-based flow)
 
 **Request Body**:
 
@@ -1123,7 +1123,7 @@ Side effects:
 
 Returns recent admin settings change records (latest first).
 
-**Auth**: `X-API-Key` + `X-Admin-Key`
+**Auth**: admin auth (`Authorization: Bearer <token>` with Entra admin role in `entra`/Bearer flow, or `X-API-Key` + `X-Admin-Key` in key-based flow)
 
 **Query Parameters**:
 

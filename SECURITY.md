@@ -1,3 +1,5 @@
+<!-- LAST_VERIFIED: fadd4cf -->
+
 # Security Policy
 
 ## Reporting a Vulnerability
@@ -30,6 +32,7 @@ Use:
 
 - `/api/*` requires `X-API-Key` outside development.
 - `/api/settings*` uses dual-key auth outside development: `X-API-Key` + `X-Admin-Key`.
+- In `AUTH_MODE=entra` or bearer-based `hybrid` flows, admin settings routes can also use bearer auth with the configured Entra admin role.
 - Production should keep webhook signature verification enabled.
 
 ## Supported Hardening Areas

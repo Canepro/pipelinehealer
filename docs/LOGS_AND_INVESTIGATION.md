@@ -1,6 +1,6 @@
 # Logs And Investigation Guide
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: fadd4cf -->
 
 Use this guide to debug PipelineHealer behavior quickly in local, Docker, and Azure runs.
 

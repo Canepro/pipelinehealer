@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: 745988e -->
+<!-- LAST_VERIFIED: fadd4cf -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -63,7 +63,7 @@ Kubernetes target:
 - chart path: `charts/pipelinehealer`
 - runbook: `../KUBERNETES_HELM_RUNBOOK.md`
 - install pattern:
-  - `helm upgrade --install pipelinehealer ./charts/pipelinehealer -n pipelinehealer --create-namespace -f values.prod.yaml`
+  - `helm upgrade --install pipelinehealer ./charts/pipelinehealer -n pipelinehealer --create-namespace -f values.production.yaml`
 
 ## Portability and Customization
 

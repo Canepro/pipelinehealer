@@ -1,6 +1,6 @@
 # Feature: Explainability And Observability
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: fadd4cf -->
 
 This guide explains where to see evidence, model path telemetry, and confidence attribution for each activity.
 
