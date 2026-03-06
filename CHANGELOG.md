@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: fa18d60 -->
+<!-- LAST_VERIFIED: d5fa311 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -8,7 +8,15 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- Release-lineage reference for `v0.5.2` scope continuity: `fa18d60`.
+- Post-`v0.5.2` continuity note: `d5fa311` shipped the notification-readability and deployed-version visibility patch line that this release formalizes.
+
+## [v0.5.2] - 2026-03-06
+
+### Changed
+
+- Improved Assign-to-Agent notification formatting across Rocket.Chat, Slack, Teams, and email so downstream messages prioritize diagnosis, remediation outcome, and action links instead of raw transport metadata.
+- Added visible UI/API release status in the application shell so operators can confirm the deployed version directly from the product surface.
+- Updated backend health/version reporting and public docs so release metadata, README guidance, and health responses stay aligned with packaged releases.
 
 ## [v0.5.1] - 2026-03-06
 
