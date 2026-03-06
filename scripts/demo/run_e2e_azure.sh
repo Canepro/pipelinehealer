@@ -205,7 +205,7 @@ fi
 
 if [[ "$DO_RESET" == "1" ]]; then
   echo "Resetting demo fixtures..."
-  "$SCRIPT_DIR/reset_demo_fixtures.sh" --repo-dir "$DEMO_REPO_DIR"
+  bash "$SCRIPT_DIR/reset_demo_fixtures.sh" --repo-dir "$DEMO_REPO_DIR"
 fi
 
 if [[ "$DO_TRIGGER" == "1" ]]; then
