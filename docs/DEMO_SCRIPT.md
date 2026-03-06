@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 6326c95 -->
+<!-- LAST_VERIFIED: c961266 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -194,6 +194,10 @@ Expected result pattern:
 - Admin audit proof should show latest entries containing `request_id`, actor fingerprint, and old/new change values.
 - Settings page should show runtime scope clearly (`Allowlist (N)` or `Unrestricted`) in the Effective Runtime Policy banner and keep controls organized by section tabs.
 
+Reference visual:
+
+![Settings — runtime policy, Assign-to-Agent integration health, and provider wiring](screens/settings-current.png)
+
 ### External diagnostics enrichment
 
 ci-doctor findings use a fast-path wait budget (default 60s) during pipeline execution. If findings are not published within that window, the backfill sweep runs automatically every 10 minutes and enriches activities when results arrive.
@@ -230,7 +234,7 @@ TELL: The dashboard shows what happened at a glance, and the shell footer shows 
 
 SHOW: Activities list, then open one completed activity.
 
-![Dashboard — processed count, safety gating, failure breakdown, explainability snapshot](screens/dashboard.png)
+![Dashboard — processed count, safety gating, failure breakdown, explainability snapshot](screens/dashboard-current.png)
 
 TELL: When a `workflow_run` fails, PipelineHealer analyzes the logs, diagnoses the root cause, and then chooses a policy-safe remediation path. Deterministic cases can become PRs. Risky or ambiguous cases fall back to structured issues.
 
@@ -238,9 +242,7 @@ TELL: When a `workflow_run` fails, PipelineHealer analyzes the logs, diagnoses t
 
 SHOW: Activity detail `PipelineHealer Decision`, `Failure Context`, `Evidence Layers`, then expand `External Findings Details`.
 
-![Activities — completed runs with Doctor Signal badges and failure types](screens/activities.png)
-
-![External Findings — ci-doctor analysis with summary, root cause, recommended actions, and AI metadata](screens/external-findings.png)
+![Activity Detail — diagnosis, remediation result, and external diagnostics in one operator view](screens/activity-detail-current.png)
 
 TELL: Each activity keeps the diagnosis, suggested fix, remediation result, evidence layers, and external findings in one place. That makes the system explainable and auditable instead of acting like a black box.
 

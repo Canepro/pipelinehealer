@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: c961266 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -184,6 +184,10 @@ Settings UI note:
 - The sample payload intentionally omits deployment-only values and should be treated as the canonical expected JSON shape for receiver validation.
 - The actual webhook URL remains startup configuration; it is not returned by the API.
 
+Reference visual:
+
+![Settings — AI and integrations section with Assign-to-Agent runtime status](screens/settings-current.png)
+
 If you are using the reference Azure Function receiver for webhook mode, its own app settings can fan out the same handoff event to notification targets:
 
 ```dotenv
@@ -204,6 +208,10 @@ NOTIFY_EMAIL_SMTP_PASSWORD=
 - `teams_webhook` targets receive a Teams Incoming Webhook message with an Adaptive Card attachment.
 - `email` targets receive a plain-text summary email over SMTP using deployment-managed relay settings.
 - Invalid notification targets are reported by the receiver health endpoint and do not block the primary handoff acknowledgement.
+
+Notification proof visual:
+
+![Rocket.Chat notification — compact Assign-to-Agent summary delivered through the reference receiver](screens/agent-handoff-rocketchat-current.png)
 
 > **That's it for getting started.** Everything else in `.env` has sensible defaults. You can tune optional settings later — see the full list in `backend/.env.example`.
 
@@ -506,6 +514,12 @@ If the workflow filename is not `ci.yml` in your repo, use the name returned by 
 ### Check the results
 
 **Dashboard** — open your frontend URL and you should see activities appearing with status badges.
+
+Reference visuals:
+
+![Dashboard — KPIs, safety framing, and explainability snapshot](screens/dashboard-current.png)
+![Activity Detail — diagnosis, remediation result, and external diagnostics](screens/activity-detail-current.png)
+![Control Center — governance posture and integration health](screens/control-center-current.png)
 
 Top-level KPI chips now also include:
 

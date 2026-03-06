@@ -581,20 +581,19 @@ export default function SettingsPage() {
                 <CardContent className="space-y-4">
                   <SettingsSummarySection
                     title="Assign-to-Agent"
+                    compact
                     items={[
                       {
                         label: "Destination",
                         value:
                           data.agent_handoff_webhook_host ||
                           "Startup URL not configured",
+                        mono: Boolean(data.agent_handoff_webhook_host),
                       },
                       {
                         label: "Receiver",
                         value: handoffIntegrationSummary.summary,
-                      },
-                      {
-                        label: "Receiver detail",
-                        value: handoffIntegrationSummary.detail,
+                        detail: handoffIntegrationSummary.detail,
                       },
                       {
                         label: "Notification targets",
@@ -603,17 +602,15 @@ export default function SettingsPage() {
                           : handoffIntegrationStatus?.notifications
                             ? `${handoffIntegrationStatus.notifications.enabled_targets} enabled / ${handoffIntegrationStatus.notifications.invalid_targets} invalid`
                             : "No receiver probe data",
-                      },
-                      {
-                        label: "Supported sinks",
-                        value: isHandoffIntegrationError
-                          ? "Probe failed"
-                          : handoffIntegrationStatus?.notifications
-                                ?.supported_target_types.length
-                            ? handoffIntegrationStatus.notifications.supported_target_types.join(
-                                ", ",
-                              )
-                            : "No receiver probe data",
+                        detail:
+                          isHandoffIntegrationError
+                            ? undefined
+                            : handoffIntegrationStatus?.notifications
+                                  ?.supported_target_types.length
+                              ? `Supported sinks: ${handoffIntegrationStatus.notifications.supported_target_types.join(
+                                  ", ",
+                                )}`
+                              : undefined,
                       },
                     ]}
                   />
@@ -676,9 +673,16 @@ export default function SettingsPage() {
 function SettingsSummarySection({
   title,
   items,
+  compact = false,
 }: {
   title: string;
-  items: Array<{ label: string; value: string | number }>;
+  items: Array<{
+    label: string;
+    value: string | number;
+    detail?: string;
+    mono?: boolean;
+  }>;
+  compact?: boolean;
 }) {
   return (
     <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/45 p-4">
@@ -689,12 +693,27 @@ function SettingsSummarySection({
         {items.map((item) => (
           <div
             key={`${title}-${item.label}`}
-            className="flex items-start justify-between gap-4 border-b border-[var(--ph-border)]/70 pb-2 last:border-b-0 last:pb-0"
+            className={
+              compact
+                ? "border-b border-[var(--ph-border)]/70 pb-3 last:border-b-0 last:pb-0"
+                : "flex items-start justify-between gap-4 border-b border-[var(--ph-border)]/70 pb-2 last:border-b-0 last:pb-0"
+            }
           >
             <span className="text-[var(--ph-muted)]">{item.label}</span>
-            <span className="max-w-[58%] break-words text-right font-medium text-[var(--ph-text)]">
-              {item.value}
-            </span>
+            <div className={compact ? "mt-1 space-y-1" : "max-w-[58%] space-y-1 text-right"}>
+              <span
+                className={`block font-medium text-[var(--ph-text)] ${
+                  item.mono ? "break-all font-mono text-xs" : "break-words"
+                }`}
+              >
+                {item.value}
+              </span>
+              {item.detail ? (
+                <div className="break-words text-xs text-[var(--ph-muted)]">
+                  {item.detail}
+                </div>
+              ) : null}
+            </div>
           </div>
         ))}
       </div>

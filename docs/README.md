@@ -1,8 +1,17 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: 03c4711 -->
+<!-- LAST_VERIFIED: c961266 -->
 
 Use this index to find the right doc quickly.
+
+## Current UI Surfaces
+
+These stable screenshots reflect the current hosted operator experience and are safe to reuse in docs and demo prep:
+
+![Dashboard — KPIs, safety framing, and explainability snapshot](screens/dashboard-current.png)
+![Activity Detail — diagnosis, remediation result, and external diagnostics](screens/activity-detail-current.png)
+![Control Center — governance posture, receiver health, and investigation shortcuts](screens/control-center-current.png)
+![Settings — runtime policy, provider wiring, and Assign-to-Agent status](screens/settings-current.png)
 
 ### Tier 1 — User-Facing (update every feature PR)
 

@@ -40,6 +40,8 @@ type PostureItem = { label: string; value: string | number };
 type SummaryRow = {
   label: string;
   value: string;
+  detail?: string;
+  mono?: boolean;
   tone?: "default" | "ok" | "warn" | "bad" | "muted";
 };
 
@@ -266,30 +268,49 @@ function OverviewBlock({
   );
 }
 
-function SummaryRows({ rows }: { rows: SummaryRow[] }) {
+function SummaryRows({
+  rows,
+  compact = false,
+}: {
+  rows: SummaryRow[];
+  compact?: boolean;
+}) {
   return (
     <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25">
       {rows.map((row) => (
         <div
           key={`${row.label}-${row.value}`}
-          className="grid grid-cols-[minmax(0,180px)_1fr] items-start gap-3 border-b border-[var(--ph-border)]/70 px-3 py-2 text-sm last:border-b-0"
+          className={
+            compact
+              ? "border-b border-[var(--ph-border)]/70 px-3 py-3 text-sm last:border-b-0"
+              : "grid grid-cols-[minmax(0,180px)_minmax(0,1fr)] items-start gap-3 border-b border-[var(--ph-border)]/70 px-3 py-2 text-sm last:border-b-0"
+          }
         >
           <span className="text-xs text-[var(--ph-muted)]">{row.label}</span>
-          <span
-            className={`font-medium ${
-              row.tone === "ok"
-                ? "text-[var(--ph-success)]"
-                : row.tone === "warn"
-                  ? "text-[var(--ph-warning)]"
-                  : row.tone === "bad"
-                    ? "text-[var(--ph-danger)]"
-                    : row.tone === "muted"
-                      ? "text-[var(--ph-muted)]"
-                      : "text-[var(--ph-text)]"
-            }`}
-          >
-            {row.value}
-          </span>
+          <div className={compact ? "mt-1 space-y-1" : "min-w-0 space-y-1"}>
+            <span
+              className={`block font-medium ${
+                row.mono ? "break-all font-mono text-xs" : "break-words"
+              } ${
+                row.tone === "ok"
+                  ? "text-[var(--ph-success)]"
+                  : row.tone === "warn"
+                    ? "text-[var(--ph-warning)]"
+                    : row.tone === "bad"
+                      ? "text-[var(--ph-danger)]"
+                      : row.tone === "muted"
+                        ? "text-[var(--ph-muted)]"
+                        : "text-[var(--ph-text)]"
+              }`}
+            >
+              {row.value}
+            </span>
+            {row.detail ? (
+              <div className="break-words text-xs text-[var(--ph-muted)]">
+                {row.detail}
+              </div>
+            ) : null}
+          </div>
         </div>
       ))}
     </div>
@@ -611,26 +632,39 @@ export default function ControlCenterPage() {
     ? [
         {
           label: "GitHub PAT",
-          value: `${settings.github_pat_configured ? "Configured" : "Not set"} · ${formatMetadataSummary(settings.settings_metadata?.github_pat_configured)}`,
+          value: settings.github_pat_configured ? "Configured" : "Not set",
+          detail: formatMetadataSummary(
+            settings.settings_metadata?.github_pat_configured,
+          ),
           tone: settings.github_pat_configured ? "ok" : "muted",
         },
         {
           label: "GitHub App",
-          value: `${settings.github_app_configured ? "Configured" : "Not set"} · ${formatMetadataSummary(settings.settings_metadata?.github_app_configured)}`,
+          value: settings.github_app_configured ? "Configured" : "Not set",
+          detail: formatMetadataSummary(
+            settings.settings_metadata?.github_app_configured,
+          ),
           tone: settings.github_app_configured ? "ok" : "muted",
         },
         {
           label: "Assign-to-Agent Webhook",
-          value: `${
-            settings.agent_handoff_webhook_configured
-              ? settings.agent_handoff_webhook_host || "Configured"
-              : "Not configured"
-          } · ${formatMetadataSummary(settings.settings_metadata?.agent_handoff_webhook_host)}`,
+          value: settings.agent_handoff_webhook_configured
+            ? settings.agent_handoff_webhook_host || "Configured"
+            : "Not configured",
+          detail: formatMetadataSummary(
+            settings.settings_metadata?.agent_handoff_webhook_host,
+          ),
+          mono: Boolean(settings.agent_handoff_webhook_host),
           tone: settings.agent_handoff_webhook_configured ? "ok" : "warn",
         },
         {
           label: "OpenAI-Compatible Key",
-          value: `${settings.openai_compatible_api_key_configured ? "Configured" : "Not set"} · ${formatMetadataSummary(settings.settings_metadata?.openai_compatible_api_key_configured)}`,
+          value: settings.openai_compatible_api_key_configured
+            ? "Configured"
+            : "Not set",
+          detail: formatMetadataSummary(
+            settings.settings_metadata?.openai_compatible_api_key_configured,
+          ),
           tone: settings.openai_compatible_api_key_configured ? "ok" : "muted",
         },
       ]
@@ -1061,10 +1095,12 @@ export default function ControlCenterPage() {
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
                     <SummaryRows
+                      compact
                       rows={[
                         {
                           label: "Receiver",
-                          value: `${handoffIntegrationSummary.summary} · ${handoffIntegrationSummary.detail}`,
+                          value: handoffIntegrationSummary.summary,
+                          detail: handoffIntegrationSummary.detail,
                           tone: handoffIntegrationSummary.tone,
                         },
                         {
@@ -1072,16 +1108,8 @@ export default function ControlCenterPage() {
                           value:
                             handoffIntegrationStatus?.webhook_host ||
                             "Not configured",
+                          mono: Boolean(handoffIntegrationStatus?.webhook_host),
                           tone: handoffIntegrationStatus?.webhook_host
-                            ? "ok"
-                            : "muted",
-                        },
-                        {
-                          label: "Health endpoint",
-                          value:
-                            handoffIntegrationStatus?.receiver_health_url ||
-                            "Not probed",
-                          tone: handoffIntegrationStatus?.receiver_health_url
                             ? "ok"
                             : "muted",
                         },
@@ -1090,6 +1118,12 @@ export default function ControlCenterPage() {
                           value: handoffIntegrationStatus?.notifications
                             ? `${handoffIntegrationStatus.notifications.enabled_targets} enabled · ${handoffIntegrationStatus.notifications.invalid_targets} invalid`
                             : "No receiver probe data",
+                          detail: handoffIntegrationStatus?.notifications
+                            ?.supported_target_types.length
+                            ? `Supported sinks: ${handoffIntegrationStatus.notifications.supported_target_types.join(
+                                ", ",
+                              )}`
+                            : undefined,
                           tone: handoffIntegrationStatus?.notifications
                             ?.invalid_targets
                             ? "warn"
@@ -1099,19 +1133,6 @@ export default function ControlCenterPage() {
                         },
                       ]}
                     />
-                    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3 text-xs">
-                      <div className="font-medium text-[var(--ph-text)]">
-                        Supported sink types
-                      </div>
-                      <div className="mt-1 break-words text-[var(--ph-muted)]">
-                        {handoffIntegrationStatus?.notifications
-                          ?.supported_target_types.length
-                          ? handoffIntegrationStatus.notifications.supported_target_types.join(
-                              ", ",
-                            )
-                          : "No receiver probe data"}
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
 
@@ -1122,7 +1143,7 @@ export default function ControlCenterPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
-                    <SummaryRows rows={startupDependencyRows} />
+                    <SummaryRows compact rows={startupDependencyRows} />
                     <p className="text-xs text-[var(--ph-muted)]">
                       Portable provenance rule: the UI reports startup-managed
                       config and sensitive presence signals, but it does not
@@ -1260,10 +1281,12 @@ export default function ControlCenterPage() {
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
                     <SummaryRows
+                      compact
                       rows={[
                         {
                           label: "Receiver",
-                          value: `${handoffIntegrationSummary.summary} · ${handoffIntegrationSummary.detail}`,
+                          value: handoffIntegrationSummary.summary,
+                          detail: handoffIntegrationSummary.detail,
                           tone: handoffIntegrationSummary.tone,
                         },
                         {
@@ -1271,6 +1294,7 @@ export default function ControlCenterPage() {
                           value:
                             handoffIntegrationStatus?.webhook_host ||
                             "Not configured",
+                          mono: Boolean(handoffIntegrationStatus?.webhook_host),
                           tone: handoffIntegrationStatus?.webhook_host
                             ? "ok"
                             : "muted",
@@ -1280,6 +1304,12 @@ export default function ControlCenterPage() {
                           value: handoffIntegrationStatus?.notifications
                             ? `${handoffIntegrationStatus.notifications.enabled_targets} enabled · ${handoffIntegrationStatus.notifications.invalid_targets} invalid`
                             : "No receiver probe data",
+                          detail: handoffIntegrationStatus?.notifications
+                            ?.supported_target_types.length
+                            ? `Supported sinks: ${handoffIntegrationStatus.notifications.supported_target_types.join(
+                                ", ",
+                              )}`
+                            : undefined,
                           tone: handoffIntegrationStatus?.notifications
                             ?.invalid_targets
                             ? "warn"
