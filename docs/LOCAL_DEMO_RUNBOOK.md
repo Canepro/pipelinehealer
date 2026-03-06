@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: b5d6a5b -->
+<!-- LAST_VERIFIED: 4048c03 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -186,12 +186,14 @@ Settings UI note:
 If you are using the reference Azure Function receiver for webhook mode, its own app settings can fan out the same handoff event to notification targets:
 
 ```dotenv
-NOTIFY_TARGETS_JSON=[{"type":"webhook","url":"https://example.com/notify"},{"type":"rocketchat_webhook","url":"https://chat.example.com/hooks/abc"}]
+NOTIFY_TARGETS_JSON=[{"type":"webhook","url":"https://example.com/notify"},{"type":"rocketchat_webhook","url":"https://chat.example.com/hooks/abc"},{"type":"slack_webhook","url":"https://hooks.slack.com/services/T000/B000/replace-me"},{"type":"teams_webhook","url":"https://example.webhook.office.com/webhookb2/replace-me"}]
 NOTIFY_DELIVERY_TIMEOUT_SECONDS=10
 ```
 
 - `webhook` targets receive the original PipelineHealer handoff payload unchanged.
 - `rocketchat_webhook` targets receive a compact chat summary derived from that same payload.
+- `slack_webhook` targets receive a text fallback plus Block Kit message summary.
+- `teams_webhook` targets receive a Teams Incoming Webhook message with an Adaptive Card attachment.
 - Invalid notification targets are reported by the receiver health endpoint and do not block the primary handoff acknowledgement.
 
 > **That's it for getting started.** Everything else in `.env` has sensible defaults. You can tune optional settings later — see the full list in `backend/.env.example`.
