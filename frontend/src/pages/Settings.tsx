@@ -11,7 +11,7 @@ import {
   toSettingsForm,
 } from '../components/settings'
 import type { SettingsFormState } from '../components/settings'
-import { describeAgentHandoffIntegrationStatus } from '../components/settings/runtimeSemantics'
+import { formatIntegrationQueryState } from '../components/settings/runtimeSemantics'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -103,11 +103,17 @@ export default function SettingsPage() {
     retry: false,
   })
 
-  const { data: handoffIntegrationStatus } = useQuery({
+  const {
+    data: handoffIntegrationStatus,
+    isError: isHandoffIntegrationError,
+    error: handoffIntegrationError,
+  } = useQuery({
     queryKey: ['agent-handoff-integration-status', hasAuthAttempt],
     queryFn: () => api.getAgentHandoffIntegrationStatus(),
     enabled: hasAuthAttempt,
     retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
   })
 
   useEffect(() => {
@@ -134,7 +140,11 @@ export default function SettingsPage() {
         normalized.includes('missing credentials')
       )
     })()
-  const handoffIntegrationSummary = describeAgentHandoffIntegrationStatus(handoffIntegrationStatus)
+  const handoffIntegrationSummary = formatIntegrationQueryState({
+    status: handoffIntegrationStatus,
+    isError: isHandoffIntegrationError,
+    error: handoffIntegrationError instanceof Error ? handoffIntegrationError : null,
+  })
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -458,7 +468,9 @@ export default function SettingsPage() {
                 },
                 {
                   label: 'Notifications',
-                  value: handoffIntegrationStatus?.notifications
+                  value: isHandoffIntegrationError
+                    ? 'Probe failed'
+                    : handoffIntegrationStatus?.notifications
                     ? `${handoffIntegrationStatus.notifications.enabled_targets} enabled / ${handoffIntegrationStatus.notifications.invalid_targets} invalid`
                     : 'No receiver probe data',
                 },
@@ -477,7 +489,10 @@ export default function SettingsPage() {
                 },
                 {
                   label: 'Supported sinks',
-                  value: handoffIntegrationStatus?.notifications?.supported_target_types.length
+                  value:
+                    isHandoffIntegrationError
+                      ? 'Probe failed'
+                      : handoffIntegrationStatus?.notifications?.supported_target_types.length
                     ? handoffIntegrationStatus.notifications.supported_target_types.join(', ')
                     : 'No receiver probe data',
                 },

@@ -1274,6 +1274,9 @@ async def _probe_agent_handoff_receiver_health(
         response.raise_for_status()
         payload = response.json()
 
+    if not isinstance(payload, dict):
+        return None
+
     notifications_raw = payload.get("notifications")
     if not isinstance(notifications_raw, dict):
         return None

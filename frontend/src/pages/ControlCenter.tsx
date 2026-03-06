@@ -17,8 +17,8 @@ import type { AppSettingMetadata, LearningQueueItem, LearningQueueStatus } from 
 import { AUTH_ENABLED } from '../auth/config'
 import { AuditTrailPanel } from '../components/settings'
 import {
-  describeAgentHandoffIntegrationStatus,
   formatSettingSource,
+  formatIntegrationQueryState,
   getDurabilityLabel,
   getMcpEffectiveState,
   type McpPolicyMode,
@@ -338,11 +338,17 @@ export default function ControlCenterPage() {
     retry: false,
   })
 
-  const { data: handoffIntegrationStatus } = useQuery({
+  const {
+    data: handoffIntegrationStatus,
+    isError: isHandoffIntegrationError,
+    error: handoffIntegrationError,
+  } = useQuery({
     queryKey: ['control-center-handoff-integration-status', hasAuthAttempt],
     queryFn: () => api.getAgentHandoffIntegrationStatus(),
     enabled: hasAuthAttempt,
     retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
   })
 
   const refreshLearningMutation = useMutation({
@@ -526,7 +532,11 @@ export default function ControlCenterPage() {
       ]
     : []
 
-  const handoffIntegrationSummary = describeAgentHandoffIntegrationStatus(handoffIntegrationStatus)
+  const handoffIntegrationSummary = formatIntegrationQueryState({
+    status: handoffIntegrationStatus,
+    isError: isHandoffIntegrationError,
+    error: handoffIntegrationError instanceof Error ? handoffIntegrationError : null,
+  })
 
   const startupDependencyRows: SummaryRow[] = settings
     ? [
@@ -848,7 +858,7 @@ export default function ControlCenterPage() {
                         </div>
                       ))}
                     </div>
-	                  </CardContent>
+                  </CardContent>
                 </Card>
               </div>
 
@@ -914,7 +924,7 @@ export default function ControlCenterPage() {
                 </Card>
               </div>
 
-	              <Card>
+              <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Workflow className="h-4 w-4 text-azure-400" />

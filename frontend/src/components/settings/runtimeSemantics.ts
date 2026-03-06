@@ -151,6 +151,13 @@ export function describeAgentHandoffIntegrationStatus(
         tone: 'warn',
       }
     case 'invalid_configuration':
+      if (status.reason === 'destination_not_allowlisted') {
+        return {
+          summary: 'Receiver blocked by allowlist',
+          detail: 'The configured receiver host is outside the webhook allowlist used for real delivery.',
+          tone: 'bad',
+        }
+      }
       return {
         summary: 'Invalid receiver URL',
         detail: 'The configured startup receiver URL is not a valid http(s) endpoint.',
@@ -185,4 +192,19 @@ export function describeAgentHandoffIntegrationStatus(
         tone: 'ok',
       }
   }
+}
+
+export function formatIntegrationQueryState(args: {
+  status?: AgentHandoffIntegrationStatus
+  isError: boolean
+  error?: Error | null
+}): { summary: string; detail: string; tone: IntegrationTone } {
+  if (args.isError) {
+    return {
+      summary: 'Probe failed',
+      detail: args.error?.message || 'Integration status request failed.',
+      tone: 'bad',
+    }
+  }
+  return describeAgentHandoffIntegrationStatus(args.status)
 }
