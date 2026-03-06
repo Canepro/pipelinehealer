@@ -798,7 +798,11 @@ def _settings_env_file() -> str | None:
 def load_settings_snapshot() -> Settings:
     """Load a fresh settings snapshot using the current env-file override rules."""
     env_file = _settings_env_file()
-    return Settings(_env_file=env_file) if env_file is not None else Settings()
+    if env_file is None:
+        return Settings()
+    # pydantic-settings accepts `_env_file` at runtime, but the generated type
+    # signature does not declare it, so keep the override localized here.
+    return Settings(_env_file=env_file)  # type: ignore[call-arg]
 
 
 def get_settings() -> Settings:
