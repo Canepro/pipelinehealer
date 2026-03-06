@@ -142,6 +142,84 @@ async def test_handoff_integration_status_handles_receiver_probe_failure(
 
 
 @pytest.mark.asyncio
+async def test_handoff_integration_status_redacts_basic_auth_from_health_url(
+    monkeypatch: pytest.MonkeyPatch, _storage: InMemoryStorage
+) -> None:
+    from src.api import dashboard
+
+    async def _fake_probe(_health_url: str):  # type: ignore[no-untyped-def]
+        return dashboard.NotificationTargetHealthView(
+            configured_targets=0,
+            enabled_targets=0,
+            invalid_targets=0,
+            supported_target_types=["webhook"],
+            errors=[],
+        )
+
+    monkeypatch.setattr(dashboard, "_probe_agent_handoff_receiver_health", _fake_probe)
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "webhook")
+    monkeypatch.setenv(
+        "AGENT_HANDOFF_WEBHOOK_URL",
+        "https://user:secret@receiver.example/api/agent-handoff",
+    )
+    reset_settings()
+
+    response = await _get_handoff_integration_status()
+    assert response.status_code == 200
+    body = response.json()
+    assert body["receiver_health_url"] == "https://receiver.example/api/healthz"
+
+
+@pytest.mark.asyncio
+async def test_handoff_integration_status_respects_allowlist_before_probe(
+    monkeypatch: pytest.MonkeyPatch, _storage: InMemoryStorage
+) -> None:
+    from src.api import dashboard
+
+    async def _unexpected_probe(_health_url: str):  # type: ignore[no-untyped-def]
+        raise AssertionError("probe should not run for non-allowlisted host")
+
+    monkeypatch.setattr(dashboard, "_probe_agent_handoff_receiver_health", _unexpected_probe)
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "webhook")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_URL", "https://blocked.example/api/agent-handoff")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_ALLOWLIST", "allowed.example")
+    reset_settings()
+
+    response = await _get_handoff_integration_status()
+    assert response.status_code == 200
+    body = response.json()
+    assert body["receiver_status"] == "invalid_configuration"
+    assert body["reason"] == "destination_not_allowlisted"
+
+
+@pytest.mark.asyncio
+async def test_handoff_integration_status_handles_malformed_notification_lists(
+    monkeypatch: pytest.MonkeyPatch, _storage: InMemoryStorage
+) -> None:
+    from src.api import dashboard
+
+    async def _fake_probe(_health_url: str):  # type: ignore[no-untyped-def]
+        raise ValueError("receiver notifications.supported_target_types must be a list")
+
+    monkeypatch.setattr(dashboard, "_probe_agent_handoff_receiver_health", _fake_probe)
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "webhook")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_URL", "https://receiver.example/api/agent-handoff")
+    reset_settings()
+
+    response = await _get_handoff_integration_status()
+    assert response.status_code == 200
+    body = response.json()
+    assert body["receiver_status"] == "unreachable"
+    assert body["reason"] == "receiver_probe_failed"
+
+
+@pytest.mark.asyncio
 async def test_copy_only_handoff_records_redacted_audit(
     monkeypatch: pytest.MonkeyPatch,
     _storage: InMemoryStorage,

@@ -1259,7 +1259,10 @@ def _agent_handoff_receiver_health_url(webhook_url: str) -> str | None:
     host = (parsed.hostname or "").strip().lower()
     if parsed.scheme not in {"http", "https"} or not host:
         return None
-    return urlunparse((parsed.scheme, parsed.netloc, "/api/healthz", "", "", ""))
+    netloc = host
+    if parsed.port is not None:
+        netloc = f"{host}:{parsed.port}"
+    return urlunparse((parsed.scheme, netloc, "/api/healthz", "", "", ""))
 
 
 async def _probe_agent_handoff_receiver_health(
@@ -1275,16 +1278,24 @@ async def _probe_agent_handoff_receiver_health(
     if not isinstance(notifications_raw, dict):
         return None
 
+    supported_target_types_raw = notifications_raw.get("supported_target_types", [])
+    if not isinstance(supported_target_types_raw, list):
+        raise ValueError("receiver notifications.supported_target_types must be a list")
+
+    errors_raw = notifications_raw.get("errors", [])
+    if not isinstance(errors_raw, list):
+        raise ValueError("receiver notifications.errors must be a list")
+
     return NotificationTargetHealthView(
         configured_targets=int(notifications_raw.get("configured_targets", 0) or 0),
         enabled_targets=int(notifications_raw.get("enabled_targets", 0) or 0),
         invalid_targets=int(notifications_raw.get("invalid_targets", 0) or 0),
         supported_target_types=[
             str(item).strip()
-            for item in notifications_raw.get("supported_target_types", [])
+            for item in supported_target_types_raw
             if str(item).strip()
         ],
-        errors=[str(item).strip() for item in notifications_raw.get("errors", []) if str(item).strip()],
+        errors=[str(item).strip() for item in errors_raw if str(item).strip()],
     )
 
 
@@ -1337,6 +1348,18 @@ async def _agent_handoff_integration_status_view() -> AgentHandoffIntegrationSta
             webhook_host=webhook_host,
             receiver_status="invalid_configuration",
             reason="invalid_webhook_url",
+            checked_at=checked_at,
+        )
+
+    if not _is_allowed_handoff_host(webhook_host, settings.agent_handoff_webhook_allowlist):
+        return AgentHandoffIntegrationStatusView(
+            enabled=True,
+            mode=mode,
+            webhook_configured=True,
+            webhook_host=webhook_host,
+            receiver_health_url=health_url,
+            receiver_status="invalid_configuration",
+            reason="destination_not_allowlisted",
             checked_at=checked_at,
         )
 
