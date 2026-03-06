@@ -548,7 +548,7 @@ export default function AdminControlsForm({
   });
   const notificationTargetEnvBlock = notificationTargetDraft
     ? [
-        `NOTIFY_TARGETS_JSON=${shellSingleQuote(JSON.stringify([notificationTargetDraft]))}`,
+        `NOTIFY_TARGETS_JSON=${JSON.stringify([notificationTargetDraft])}`,
         `NOTIFY_DELIVERY_TIMEOUT_SECONDS=10`,
       ].join("\n")
     : "";
@@ -792,7 +792,8 @@ export default function AdminControlsForm({
                     />
                     <p className="text-xs text-[var(--ph-muted)]">
                       Use the full bridge ingress URL ending in
-                      `/webhook/jenkins`. Query strings and fragments are
+                      <code className="mx-1 font-mono">/webhook/jenkins</code>.
+                      Query strings and fragments are
                       rejected so the generated signature path matches runtime
                       verification.
                     </p>
@@ -801,9 +802,12 @@ export default function AdminControlsForm({
 
                 {jenkinsBridgeUrlInput.trim() && !jenkinsBridgeTarget && (
                   <p className="text-sm text-rose-400">
-                    Enter the full `http(s)` bridge URL ending in
-                    `/webhook/jenkins` with no query string or fragment so the
-                    helper can generate the correct signed path.
+                    Enter the full{" "}
+                    <code className="font-mono">http(s)</code>{" "}
+                    bridge URL ending in
+                    <code className="mx-1 font-mono">/webhook/jenkins</code>
+                    with no query string or fragment so the helper can
+                    generate the correct signed path.
                   </p>
                 )}
 
@@ -995,8 +999,10 @@ export default function AdminControlsForm({
 
                 {notificationTargetUrl.trim() && !notificationTargetDraft && (
                   <p className="text-sm text-rose-400">
-                    Enter a full `http(s)` target URL so the assistant can
-                    generate a valid notification target entry.
+                    Enter a full{" "}
+                    <code className="font-mono">http(s)</code>{" "}
+                    target URL so the assistant can generate a valid
+                    notification target entry.
                   </p>
                 )}
 
@@ -1546,9 +1552,11 @@ export default function AdminControlsForm({
                       placeholder="https://agent.example.com/hook"
                     />
                     <p className="text-xs text-[var(--ph-muted)]">
-                      Full `http(s)` receiver URL used only for setup guidance.
-                      The assistant accepts URLs whose derived host can also be
-                      used in the runtime allowlist.
+                      Full{" "}
+                      <code className="font-mono">http(s)</code>{" "}
+                      receiver URL used only for setup guidance. The assistant
+                      accepts URLs whose derived host can also be used in the
+                      runtime allowlist.
                     </p>
                   </div>
                   <Button
@@ -1564,8 +1572,10 @@ export default function AdminControlsForm({
 
                 {handoffWebhookInput.trim() && !handoffWebhookDraft && (
                   <p className="text-sm text-rose-400">
-                    Enter a full `http(s)` webhook URL so the assistant can
-                    derive the destination host and startup env block.
+                    Enter a full{" "}
+                    <code className="font-mono">http(s)</code>{" "}
+                    webhook URL so the assistant can derive the destination
+                    host and startup env block.
                   </p>
                 )}
 
