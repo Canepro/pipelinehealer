@@ -1,8 +1,8 @@
 # Model Provider Strategy
 
-<!-- LAST_VERIFIED: c6e47b9 -->
+<!-- LAST_VERIFIED: 745988e -->
 
-PipelineHealer is Azure-first today for hackathon delivery and operational simplicity, but is being structured to avoid provider lock-in.
+PipelineHealer uses Azure as the current reference model-provider path for managed deployment and operational simplicity, but it is being structured to avoid provider lock-in.
 
 ## Goals
 

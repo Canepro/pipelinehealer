@@ -1,10 +1,10 @@
-<!-- LAST_VERIFIED: 9477f08 -->
+<!-- LAST_VERIFIED: 745988e -->
 
 # Operator Control Plane
 
 This document defines the product contract for configuration, settings provenance, and operator-facing control surfaces.
 
-It exists to keep `v0.4.0` implementation work aligned with the intended product model before code changes expand the surface area further.
+It started as the `v0.4.0` implementation contract and now remains the standing product-level design reference for control-plane changes.
 
 ## Product Model
 
@@ -187,9 +187,9 @@ Should answer:
 - what external evidence/path was used
 - whether downstream actions were blocked by policy or missing dependency
 
-## Current `v0.4.0` Focus Areas
+## Historical `v0.4.0` Focus Areas
 
-The `v0.4.0` control-plane rework is driven by four concrete gaps:
+The `v0.4.0` control-plane rework was driven by four concrete gaps:
 
 1. configuration truth is split across deployment env, secret refs, and persisted runtime overrides
 2. MCP governance surfaces mix configured and effective state in confusing ways
@@ -202,6 +202,17 @@ Tracked roadmap items:
 - `BL-048` Assign-to-Agent UI activation path
 - `BL-049` MCP governance IA rework
 - `BL-050` operator-surface visual/system coherence pass
+
+## Current Continuity
+
+The `v0.4.0` control-plane rules still govern current work:
+
+- startup-managed secrets remain deployment-managed
+- runtime-safe controls should be operator-visible in the product surface
+- configured policy and effective behavior must stay separate
+- outbound integrations should remain adapter-driven rather than product-hardcoded
+
+Current forward-planning work in `v0.5.0` extends this contract through the outbound integration gateway and notification routing, rather than replacing it.
 
 ## Non-Goals
 

@@ -8,7 +8,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 - Repo visibility: **Public** (`https://github.com/Canepro/pipelinehealer`)
 - Azure deployment: **Live** on Container Apps (backend + frontend)
-- Project positioning: OSS-first pipeline remediation platform with Azure-first hackathon deployment constraints and local mode as evaluation fallback
+- Project positioning: OSS-first pipeline remediation platform with Azure as the reference managed deployment and local/self-hosted paths preserved for evaluation and adoption
 - Runtime security: `X-API-Key` for `/api/*`; admin settings routes (`/api/settings*`) use `X-API-Key` + `X-Admin-Key` in non-development
 - Auth rollout: Microsoft Entra login and bearer token auth shipped with migration-safe `AUTH_MODE=hybrid` and strict `AUTH_MODE=entra` path ready
 - Remediation idempotency: find-or-create artifact flow shipped (reuses existing PR/issue when matched; avoids duplicate branch/PR churn on repeated runs)

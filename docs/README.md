@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: a01bc4f -->
+<!-- LAST_VERIFIED: 745988e -->
 
 Use this index to find the right doc quickly.
 
@@ -19,7 +19,7 @@ Use this index to find the right doc quickly.
 - `LOGS_AND_INVESTIGATION.md` — dedicated troubleshooting guide for logs, activity correlation, and incident playbooks
 - `DEMO_SCRIPT.md` — single-file recording checklist and 2-minute narration script
 - `LOCAL_DEMO_RUNBOOK.md` — full local and Azure E2E operator runbook
-- `MODEL_PROVIDER_STRATEGY.md` — Azure-first but provider-portable model backend strategy
+- `MODEL_PROVIDER_STRATEGY.md` — reference Azure path plus provider-portable model backend strategy
 - `MODEL_PROVIDER_SWITCH_RUNBOOK.md` — auditable provider switching and rollback playbook
 - `LEARNING_SYSTEM_PLAN.md` — learning queue lifecycle, governance model, and activation safety rules
 - `KUBERNETES_HELM_RUNBOOK.md` — Helm-based Kubernetes deployment target (secondary to Azure)

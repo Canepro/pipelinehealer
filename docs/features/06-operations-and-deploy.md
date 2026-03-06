@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: 310d40e -->
+<!-- LAST_VERIFIED: 745988e -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -67,7 +67,7 @@ Kubernetes target:
 
 ## Portability and Customization
 
-PipelineHealer is Azure-first for hackathon delivery, but not Azure-locked.
+PipelineHealer uses Azure as the current reference managed deployment, but it is not Azure-locked.
 
 - LLM provider:
   - Azure: `LLM_PROVIDER=azure_openai`
