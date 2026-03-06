@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: fa18d60 -->
+<!-- LAST_VERIFIED: 6326c95 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -36,28 +36,36 @@ Remaining submission item this doc drives: demo video length must be 2:00 max.
 Default values used in this runbook:
 
 ```bash
-export RELEASE_TAG="${RELEASE_TAG:-v0.5.1}"
+export RELEASE_TAG="${RELEASE_TAG:-v0.5.2}"
 export DEMO_REPO="${DEMO_REPO:-Canepro/pipelinehealer-demo}"
 ```
 
-## Demo Flow (3-4 Minutes)
+## Recording Plan (2 Minutes Max)
+
+Recommended recording mode:
+
+1. Run the full E2E flow off camera first so the system has already produced activities, PRs, issues, and external findings.
+2. On camera, show the live Azure-hosted UI plus one short terminal proof command.
+3. Do not wait for the full `demo:e2e` command to finish on camera; its default wait budget is for rehearsal and proof, not for a 2-minute final cut.
+
+Core on-camera path:
 
 1. Dashboard story: show `Processed`, `Actioned`, `Safety Gated`, `Issue-Only`, plus header KPIs `MCP Runs (30d)` and `LLM Fallback (30d)`.
-2. Explainability drilldown: open a focused activity and show `PipelineHealer Decision` first (root cause + remediation result), then `Failure Context` (job/step/command/signal), reason code, and the `Evidence Layers` block (`Confidence Impact by Source` + `Structured Context`).
-3. External findings: expand the "External Findings Details" panel to show ci-doctor's structured root cause, recommended actions, and doctor metadata.
-4. MCP observability (if enabled): in activity detail, show `MCP Observability` summary (`Provider`, `Status`, `Read Only`, `Reason`) where reason includes friendly text plus raw code; expand details for `Configured Tools`, `Source Attribution`, and `Tool Usage`/Action Audit (friendly status + raw codes). Clarify that `Tool Calls = 0` can still be valid when passive `gh_aw` diagnostics were used.
-5. Safety boundary: show `Why Safety Gated` microcopy and explain policy-driven issue fallback.
-6. Runtime policy + audit proof: open `/settings`, use the section tabs (`Runtime Controls`, `AI & Integrations`, `Security & Advanced`), show the Active Policy banner, and point out `Save & Persist` as one-step durable save, then run `bash scripts/ph.sh audit:proof --limit 5`.
+2. Release trust signal: briefly show the shell footer `Release` status so the deployed UI/API version alignment is visible.
+3. Explainability drilldown: open one focused activity and show `PipelineHealer Decision`, `Failure Context`, and `Evidence Layers`.
+4. External findings: expand `External Findings Details` to show ci-doctor's structured root cause, recommended actions, and doctor metadata.
+5. Safety boundary: point to `Why Safety Gated` on the dashboard and explain issue-first fallback for risky cases.
+6. Optional governance proof only if time remains: open `/settings`, show the section tabs (`Runtime Controls`, `AI & Integrations`, `Security & Advanced`), the Active Policy banner, and `Save & Persist`.
 
 ## 1) Pre-Record Setup (5-10 minutes before)
 
-Run from repo root:
+Run from repo root in WSL:
 
 ```bash
 cd /mnt/d/repos/pipelinehealer
 git status --short
 git fetch origin main
-git checkout main
+git switch main
 git pull --ff-only origin main
 gh auth status
 az account show --output table
@@ -99,14 +107,15 @@ Pass check:
 
 - command ends with `Demo fixtures reset complete.` or `No fixture changes needed.`
 
-## 3) Main E2E Demo Command (Use On Camera)
+## 3) Camera-Ready Staging (Run Before Recording)
 
 ```bash
 bash scripts/ph.sh demo:e2e --repo "$DEMO_REPO" --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180
 ```
 
-This is the recommended on-camera subset for time control.
-If you need full fixture coverage, include `prettier,docker`:
+This is the recommended pre-record command. It produces the artifacts you will show on camera without forcing you to wait live during the final cut.
+
+If you need full fixture coverage before recording, include `prettier,docker`:
 
 ```bash
 bash scripts/ph.sh demo:e2e --repo "$DEMO_REPO" --triggers dependency,lint,test,build_config,timeout,prettier,docker --wait-seconds 180 --ci-signal-wait-seconds 180
@@ -139,9 +148,22 @@ Rehearsal-only strict gate:
 bash scripts/ph.sh demo:e2e --repo "$DEMO_REPO" --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 300 --strict
 ```
 
-### Single Failure Type (faster, focused demo)
+## 4) Short On-Camera Terminal Proof
 
-If you only want to show one failure type on camera:
+Use one fast command on camera after the off-camera staging run:
+
+```bash
+bash scripts/ph.sh demo:proof --repo "$DEMO_REPO" --limit 5
+```
+
+What to say while it runs:
+
+- it proves the GitHub-side outputs already exist
+- PRs represent deterministic, high-confidence fixes
+- issues represent guarded or non-deterministic cases
+- the UI shows the same activities with diagnosis, evidence, and policy context
+
+If you insist on a live trigger on camera, keep it to one failure type and do not wait for full completion:
 
 ```bash
 gh workflow run CI --repo "$DEMO_REPO" --field failure_type=dependency
@@ -153,7 +175,7 @@ Then verify:
 bash scripts/ph.sh demo:proof --repo "$DEMO_REPO" --limit 5
 ```
 
-## 4) Verification Commands (If You Need Extra Proof)
+## 5) Verification Commands (If You Need Extra Proof)
 
 ```bash
 bash scripts/ph.sh demo:proof --repo "$DEMO_REPO" --limit 10
@@ -186,56 +208,59 @@ Or use the "Backfill Diagnostics" button on the Activity Detail page in the UI.
 
 Enriched activities show an "External Findings Details" collapsible panel in Activity Detail with structured root cause, recommended actions, and doctor metadata.
 
-## 5) 2-Minute Recording Script (Final)
+## 6) 2-Minute Recording Script (Final)
 
 Timing sanity check (March 5, 2026):
-- core `TELL` script (excluding optional insert) is ~127 words
-- at ~110-130 WPM, spoken narration is ~59-69 seconds
-- keep transitions/clicks concise; treat the optional differentiator as a swap-in, not an add-on, to stay under 2:00
+- core `TELL` script below is intentionally short so clicks, page loads, and one terminal proof command still fit inside 2:00
+- do not add the optional differentiator on top of the core script; swap it in only if you cut something else
 
 ### 0:00-0:15
 
-SHOW: Failed GitHub Actions run, red CI status indicator.
+SHOW: GitHub Actions failure, then the live PipelineHealer dashboard.
 
-TELL: CI failures slow delivery and interrupt engineering flow. PipelineHealer is a multi-agent system that turns failed GitHub Actions runs into structured remediation.
+TELL: CI failures slow delivery and force teams into repetitive triage. PipelineHealer is an Azure-hosted control plane that turns failed GitHub Actions runs into structured diagnosis and safe remediation.
 
 ### 0:15-0:30
 
-SHOW: GitHub repository, you coding, and AI assistant workflow notes.
+SHOW: Dashboard KPIs `Processed`, `Actioned`, `Safety Gated`, `Issue-Only`, plus the shell footer release status.
 
-TELL: We built PipelineHealer with AI-assisted development to reduce repetitive DevOps triage and make incident response faster, clearer, and safer.
+TELL: The dashboard shows what happened at a glance, and the shell footer shows the deployed release so operators can confirm the UI and API are aligned in production.
 
 ### 0:30-0:50
 
-SHOW: Dashboard home, highlighting agent modules.
+SHOW: Activities list, then open one completed activity.
 
 ![Dashboard — processed count, safety gating, failure breakdown, explainability snapshot](screens/dashboard.png)
 
-TELL: PipelineHealer listens for `workflow_run.completed` failures, then runs a four-agent pipeline: Log Analyzer, Diagnosis, Remediation, and Orchestrator. Each agent has a focused role, and the orchestration keeps the flow deterministic and observable.
+TELL: When a `workflow_run` fails, PipelineHealer analyzes the logs, diagnoses the root cause, and then chooses a policy-safe remediation path. Deterministic cases can become PRs. Risky or ambiguous cases fall back to structured issues.
 
 ### 0:50-1:30
+
+SHOW: Activity detail `PipelineHealer Decision`, `Failure Context`, `Evidence Layers`, then expand `External Findings Details`.
+
+![Activities — completed runs with Doctor Signal badges and failure types](screens/activities.png)
+
+![External Findings — ci-doctor analysis with summary, root cause, recommended actions, and AI metadata](screens/external-findings.png)
+
+TELL: Each activity keeps the diagnosis, suggested fix, remediation result, evidence layers, and external findings in one place. That makes the system explainable and auditable instead of acting like a black box.
+
+### 1:30-1:50
 
 SHOW: Terminal running:
 
 ```bash
-bash scripts/ph.sh demo:e2e --repo "$DEMO_REPO" --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180
+bash scripts/ph.sh demo:proof --repo "$DEMO_REPO" --limit 5
 ```
 
-SHOW: Output with webhook sync, workflow/activity output, and dashboard updating in real time.
+SHOW: Output listing recent runs, PRs, and issues.
 
-TELL: This command syncs webhooks, triggers failures, and shows PipelineHealer detect, diagnose, and remediate automatically. Deterministic fixes become PRs; uncertain cases become structured issues. If ci-doctor findings arrive, they are ingested and shown in External Findings with full traceability.
+TELL: This quick proof shows the GitHub-side artifacts: PRs for deterministic fixes and issues for guarded cases. The UI and the terminal evidence stay aligned.
 
-### 1:30-2:00
+### 1:50-2:00
 
-SHOW: Activities list with completed runs, then drill into an activity with external findings.
+SHOW: Return to dashboard `Why Safety Gated` card or the activity remediation outcome.
 
-![Activities — completed runs with Doctor Signal badges and failure types](screens/activities.png)
-
-SHOW: Expand the External Findings Details panel on an enriched activity.
-
-![External Findings — ci-doctor analysis with summary, root cause, recommended actions, and AI metadata](screens/external-findings.png)
-
-TELL: PipelineHealer shifts teams from reactive troubleshooting to structured, automated remediation, improving CI/CD reliability with clear, auditable actions.
+TELL: PipelineHealer shifts teams from reactive troubleshooting to policy-bound, auditable remediation, improving delivery reliability without hiding uncertainty.
 
 ### Optional 30-Second Differentiator Insert
 
@@ -243,7 +268,7 @@ Use this if you want to emphasize why PipelineHealer stands out in a crowded AI 
 
 TELL: PipelineHealer is not just an AI that opens PRs. It is an AI-governed remediation system with explicit trust boundaries. High-confidence, deterministic cases become reviewable PRs. Low-confidence cases become structured issues with a proposed fix, reason code, and validation steps, so uncertainty is visible instead of hidden. That gives teams speed without losing control: every action is policy-bound, auditable, and observable in the dashboard.
 
-## 6) Post-Record Cleanup
+## 7) Post-Record Cleanup
 
 Merge or close demo artifacts if needed:
 
@@ -263,7 +288,7 @@ Pass check:
 
 - `MinReplicas` returns to `0` for backend and frontend
 
-## 7) Quick Troubleshooting
+## 8) Quick Troubleshooting
 
 `401` from `/api/settings`:
 
