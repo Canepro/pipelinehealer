@@ -96,7 +96,7 @@ async def test_handoff_integration_status_reports_receiver_health(
             configured_targets=2,
             enabled_targets=1,
             invalid_targets=1,
-            supported_target_types=["webhook", "slack_webhook"],
+            supported_target_types=["webhook", "slack_webhook", "email"],
             errors=["target 2: invalid"],
         )
 
@@ -115,6 +115,7 @@ async def test_handoff_integration_status_reports_receiver_health(
     assert body["receiver_health_url"] == "https://receiver.example/api/healthz"
     assert body["notifications"]["configured_targets"] == 2
     assert body["notifications"]["invalid_targets"] == 1
+    assert "email" in body["notifications"]["supported_target_types"]
 
 
 @pytest.mark.asyncio

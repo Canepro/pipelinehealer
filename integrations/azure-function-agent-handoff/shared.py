@@ -1,14 +1,19 @@
 import json
 import logging
 import os
+import smtplib
+import ssl
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from email.message import EmailMessage
+from email.utils import parseaddr
 from typing import Any
 from urllib import error, request
 
 import azure.functions as func
 
 _SUPPORTED_TARGET_TYPES = {
+    "email",
     "rocketchat_webhook",
     "slack_webhook",
     "teams_webhook",
@@ -23,11 +28,26 @@ _DEFAULT_MAX_TARGETS = 5
 class NotificationTarget:
     index: int
     target_type: str
-    url: str
-    events: tuple[str, ...]
+    events: tuple[str, ...] = ("*",)
+    url: str = ""
     enabled: bool = True
     name: str = ""
     headers: tuple[tuple[str, str], ...] = ()
+    recipients: tuple[str, ...] = ()
+    subject_prefix: str = ""
+    from_address: str = ""
+    reply_to: str = ""
+
+
+@dataclass(frozen=True)
+class EmailTransportConfig:
+    host: str
+    port: int
+    from_address: str
+    username: str = ""
+    password: str = ""
+    use_starttls: bool = True
+    use_ssl: bool = False
 
 
 def coerce_dict(value: Any) -> dict[str, Any]:
@@ -112,6 +132,99 @@ def _normalize_headers(raw_headers: Any) -> tuple[tuple[str, str], ...]:
     return tuple(normalized)
 
 
+def _normalize_email_address(raw_value: Any, field_name: str) -> str:
+    text = str(raw_value or "").strip()
+    if not text:
+        raise ValueError(f"{field_name} must be a valid email address")
+    _, address = parseaddr(text)
+    if not address or "@" not in address or any(ch.isspace() for ch in address):
+        raise ValueError(f"{field_name} must be a valid email address")
+    return address
+
+
+def _normalize_email_recipients(raw_value: Any) -> tuple[str, ...]:
+    if isinstance(raw_value, str):
+        raw_items = [part.strip() for part in raw_value.split(",")]
+    elif isinstance(raw_value, list):
+        raw_items = [str(part).strip() for part in raw_value]
+    else:
+        raise ValueError("to must be a string or list of email addresses")
+
+    recipients = [
+        _normalize_email_address(item, "to")
+        for item in raw_items
+        if item.strip()
+    ]
+    if not recipients:
+        raise ValueError("to must include at least one email address")
+    return tuple(recipients)
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    raw = os.getenv(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _email_transport_config(targets: list[NotificationTarget]) -> tuple[EmailTransportConfig | None, list[str]]:
+    if not any(target.target_type == "email" for target in targets):
+        return None, []
+
+    errors: list[str] = []
+    host = os.getenv("NOTIFY_EMAIL_SMTP_HOST", "").strip()
+    if not host:
+        errors.append("email transport: NOTIFY_EMAIL_SMTP_HOST is required")
+
+    port_raw = os.getenv("NOTIFY_EMAIL_SMTP_PORT", "").strip()
+    port = 587
+    if port_raw:
+        try:
+            port = int(port_raw)
+        except ValueError:
+            errors.append("email transport: NOTIFY_EMAIL_SMTP_PORT must be an integer")
+    if port <= 0 or port > 65535:
+        errors.append("email transport: NOTIFY_EMAIL_SMTP_PORT must be between 1 and 65535")
+
+    from_address_raw = os.getenv("NOTIFY_EMAIL_FROM_ADDRESS", "").strip()
+    from_address = ""
+    if from_address_raw:
+        try:
+            from_address = _normalize_email_address(from_address_raw, "NOTIFY_EMAIL_FROM_ADDRESS")
+        except ValueError as exc:
+            errors.append(f"email transport: {exc}")
+    else:
+        errors.append("email transport: NOTIFY_EMAIL_FROM_ADDRESS is required")
+
+    username = os.getenv("NOTIFY_EMAIL_SMTP_USERNAME", "").strip()
+    password = os.getenv("NOTIFY_EMAIL_SMTP_PASSWORD", "").strip()
+    if username and not password:
+        errors.append("email transport: NOTIFY_EMAIL_SMTP_PASSWORD is required when username is set")
+    if password and not username:
+        errors.append("email transport: NOTIFY_EMAIL_SMTP_USERNAME is required when password is set")
+
+    use_starttls = _env_flag("NOTIFY_EMAIL_SMTP_STARTTLS", True)
+    use_ssl = _env_flag("NOTIFY_EMAIL_SMTP_SSL", False)
+    if use_starttls and use_ssl:
+        errors.append("email transport: NOTIFY_EMAIL_SMTP_STARTTLS and NOTIFY_EMAIL_SMTP_SSL cannot both be true")
+
+    if errors:
+        return None, errors
+
+    return (
+        EmailTransportConfig(
+            host=host,
+            port=port,
+            from_address=from_address,
+            username=username,
+            password=password,
+            use_starttls=use_starttls,
+            use_ssl=use_ssl,
+        ),
+        [],
+    )
+
+
 def _normalize_enabled(raw_enabled: Any) -> bool:
     if raw_enabled is None:
         return True
@@ -174,13 +287,26 @@ def parse_notify_targets() -> tuple[list[NotificationTarget], list[str]]:
                     + ", ".join(sorted(_SUPPORTED_TARGET_TYPES))
                 )
 
-            url = str(item.get("url", "")).strip()
-            if not url.startswith(("http://", "https://")):
-                raise ValueError("url must be a full http(s) URL")
-
             headers = _normalize_headers(item.get("headers"))
             if headers and target_type != "webhook":
                 raise ValueError("headers are only supported for webhook targets")
+
+            url = ""
+            recipients: tuple[str, ...] = ()
+            if target_type == "email":
+                recipients = _normalize_email_recipients(item.get("to"))
+            else:
+                url = str(item.get("url", "")).strip()
+                if not url.startswith(("http://", "https://")):
+                    raise ValueError("url must be a full http(s) URL")
+
+            subject_prefix = str(item.get("subject_prefix", "")).strip()
+            from_address = ""
+            reply_to = ""
+            if item.get("from_address") not in (None, ""):
+                from_address = _normalize_email_address(item.get("from_address"), "from_address")
+            if item.get("reply_to") not in (None, ""):
+                reply_to = _normalize_email_address(item.get("reply_to"), "reply_to")
 
             target = NotificationTarget(
                 index=index,
@@ -190,6 +316,10 @@ def parse_notify_targets() -> tuple[list[NotificationTarget], list[str]]:
                 enabled=_normalize_enabled(item.get("enabled")),
                 name=_target_name(target_type, index, item.get("name")),
                 headers=headers,
+                recipients=recipients,
+                subject_prefix=subject_prefix,
+                from_address=from_address,
+                reply_to=reply_to,
             )
             targets.append(target)
         except ValueError as exc:
@@ -200,13 +330,15 @@ def parse_notify_targets() -> tuple[list[NotificationTarget], list[str]]:
 
 def notification_target_health() -> dict[str, Any]:
     targets, errors = parse_notify_targets()
+    _, transport_errors = _email_transport_config(targets)
+    all_errors = [*errors, *transport_errors]
     enabled_targets = [target for target in targets if target.enabled]
     return {
         "configured_targets": len(targets),
         "enabled_targets": len(enabled_targets),
-        "invalid_targets": len(errors),
+        "invalid_targets": len(all_errors),
         "supported_target_types": sorted(_SUPPORTED_TARGET_TYPES),
-        "errors": errors,
+        "errors": all_errors,
     }
 
 
@@ -359,6 +491,46 @@ def _teams_payload(payload: dict[str, Any], _target: NotificationTarget) -> dict
     }
 
 
+def _email_subject(payload: dict[str, Any], target: NotificationTarget) -> str:
+    summary = activity_summary(payload)
+    normalized_event_type = event_type(payload)
+    prefix = target.subject_prefix.strip() or "[PipelineHealer]"
+    parts = [
+        prefix,
+        normalized_event_type,
+        summary["repository"] or "unknown-repository",
+        summary["workflow_name"] or "unknown-workflow",
+        summary["status"] or "unknown-status",
+    ]
+    if summary["failure_type"]:
+        parts.append(summary["failure_type"])
+    return " | ".join(parts)
+
+
+def _email_body(payload: dict[str, Any]) -> str:
+    summary = activity_summary(payload)
+    request_id = str(payload.get("request_id", "")).strip()
+    delivery_id = str(payload.get("delivery_id", "")).strip()
+    context = str(payload.get("context", "")).strip()
+    excerpt = context[:1200].strip()
+
+    lines = _chat_lines(payload)
+    if delivery_id:
+        lines.append(f"Delivery ID: {delivery_id}")
+    if request_id:
+        lines.append(f"Request ID: {request_id}")
+    lines.append("")
+    lines.append("This email was sent by the PipelineHealer outbound integration gateway.")
+    if summary["failure_type"]:
+        lines.append("Review the linked activity in PipelineHealer for full evidence and remediation context.")
+    if excerpt:
+        lines.extend(["", "Context excerpt:", excerpt])
+        if len(context) > len(excerpt):
+            lines.append("")
+            lines.append("[Context truncated for email delivery]")
+    return "\n".join(lines)
+
+
 def _payload_for_target(payload: dict[str, Any], target: NotificationTarget) -> dict[str, Any]:
     if target.target_type == "rocketchat_webhook":
         return _rocketchat_payload(payload, target)
@@ -395,8 +567,51 @@ def _post_json(url: str, body: dict[str, Any], headers: tuple[tuple[str, str], .
         return False, "timeout"
 
 
+def _send_email(
+    payload: dict[str, Any],
+    target: NotificationTarget,
+    transport: EmailTransportConfig,
+) -> tuple[bool, str]:
+    message = EmailMessage()
+    message["Subject"] = _email_subject(payload, target)
+    message["From"] = target.from_address or transport.from_address
+    message["To"] = ", ".join(target.recipients)
+    if target.reply_to:
+        message["Reply-To"] = target.reply_to
+    message.set_content(_email_body(payload))
+
+    timeout_seconds = float(_delivery_timeout_seconds())
+    ssl_context = ssl.create_default_context()
+    try:
+        if transport.use_ssl:
+            client = smtplib.SMTP_SSL(
+                transport.host,
+                transport.port,
+                timeout=timeout_seconds,
+                context=ssl_context,
+            )
+        else:
+            client = smtplib.SMTP(
+                transport.host,
+                transport.port,
+                timeout=timeout_seconds,
+            )
+
+        with client as smtp_client:
+            if transport.use_starttls:
+                smtp_client.starttls(context=ssl_context)
+            if transport.username:
+                smtp_client.login(transport.username, transport.password)
+            smtp_client.send_message(message)
+        return True, ""
+    except (TimeoutError, OSError, smtplib.SMTPException, ValueError) as exc:
+        return False, f"email_error:{exc.__class__.__name__}"
+
+
 def deliver_notification_targets(payload: dict[str, Any]) -> dict[str, Any]:
     targets, errors = parse_notify_targets()
+    email_transport, transport_errors = _email_transport_config(targets)
+    errors = [*errors, *transport_errors]
     normalized_event_type = event_type(payload)
 
     delivered = 0
@@ -416,8 +631,28 @@ def deliver_notification_targets(payload: dict[str, Any]) -> dict[str, Any]:
             results.append({"name": target.name, "type": target.target_type, "status": "event_filtered"})
             continue
 
-        body = _payload_for_target(payload, target)
-        success, error_code = _post_json(target.url, body, target.headers)
+        if target.target_type == "email":
+            if email_transport is None:
+                failed += 1
+                results.append(
+                    {
+                        "name": target.name,
+                        "type": target.target_type,
+                        "status": "failed",
+                        "error": "invalid_email_transport_config",
+                    }
+                )
+                logging.warning(
+                    "notification_delivery_failed target=%s type=%s error=%s",
+                    target.name,
+                    target.target_type,
+                    "invalid_email_transport_config",
+                )
+                continue
+            success, error_code = _send_email(payload, target, email_transport)
+        else:
+            body = _payload_for_target(payload, target)
+            success, error_code = _post_json(target.url, body, target.headers)
         if success:
             delivered += 1
             results.append({"name": target.name, "type": target.target_type, "status": "delivered"})

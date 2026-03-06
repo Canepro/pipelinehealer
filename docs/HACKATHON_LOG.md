@@ -25,7 +25,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Agent handoff roadmap moved to phased delivery:
   - `v0.3.0`: Activity Detail `Copy Context` + visible disabled `Assign to Agent` (`Coming Soon`)
   - `v0.3.2`: functional `Assign to Agent` integration path (tracked under `BL-039`)
-- Multi-platform notification routing is now adopted for `v0.5.0` through the outbound integration gateway, with first-wave sinks shipped for `webhook`, Slack, Teams, and Rocket.Chat; email remains intentionally deferred pending delivery-provider scope.
+- Multi-platform notification routing is now adopted for `v0.5.0` through the outbound integration gateway, with first-wave sinks shipped for `webhook`, Slack, Teams, Rocket.Chat, and SMTP-backed email.
 - Canary scope expanded (issue-only safe mode) to `canepro/portfolio_website-main`, `canepro/rocketchat-k8s`, and `canepro/central-observability-hub-stack`; Jenkins-primary repo coverage gap identified and now tracked as bridge-first plan (`DP-003`, `BL-034`, target `v0.3.2`)
 - Release planning split is active:
   - `v0.3.0` scope tracking issue: [#43](https://github.com/Canepro/pipelinehealer/issues/43) (`BL-036` + `BL-038`)
@@ -39,7 +39,7 @@ This is the long-form project tracker for hackathon execution status, submission
   - deployment-facing Assign-to-Agent receiver boundary
   - generic outbound event and notification routing
   - reference Azure Function deployment for ACA without making Azure the product boundary
-  - configurable notification sinks (`webhook`, Slack, Teams, Rocket.Chat first; email deferred until delivery/provider requirements are justified)
+  - configurable notification sinks (`webhook`, Slack, Teams, Rocket.Chat, and SMTP-backed email)
   - current status: receiver boundary, live ACA webhook mode, first-wave sink adapters, setup guidance, and operator integration visibility are landed on `main`
 - `v0.4.0` scope was explicitly expanded to cover operator control-plane coherence after live-capability activation exposed product gaps that conservative defaults were hiding:
 - `v0.4.0` operator control-plane coherence release is now shipped:

@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: c73337d -->
+<!-- LAST_VERIFIED: 6793d7f -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -437,6 +437,7 @@ Returns live operator-facing receiver and notification dependency status for Ass
     "invalid_targets": 0,
     "supported_target_types": [
       "rocketchat_webhook",
+      "email",
       "slack_webhook",
       "teams_webhook",
       "webhook"
@@ -453,6 +454,7 @@ Notes:
 - `receiver_status=degraded` means the receiver is reachable but one or more configured notification targets are invalid.
 - `receiver_status=unreachable` means the receiver health endpoint probe failed.
 - The probe only exposes operator-safe health metadata; it does not return the secret webhook URL.
+- `supported_target_types` now includes `email` when the reference receiver build includes SMTP-backed notification delivery.
 
 #### `POST /api/activities/{activity_id}/agent-handoff`
 

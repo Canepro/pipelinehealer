@@ -180,21 +180,29 @@ Settings UI note:
 - The Settings page now includes a webhook setup assistant for Assign-to-Agent.
 - It validates a candidate webhook URL, derives the destination host, and generates a portable env block you can copy into local `.env`, Docker/Helm values, or cloud deployment adapters.
 - It also generates a sample webhook event payload and a `curl` smoke test that use the same JSON schema as the real Assign-to-Agent webhook (including `activity.repository`, `activity.workflow_run_id`, and `activity.failure_type`) so you can validate the webhook target before changing deployment config.
-- The same area now includes a notification target setup assistant for the reference receiver. It generates a valid single-target `NOTIFY_TARGETS_JSON` example for `webhook`, `slack_webhook`, `teams_webhook`, or `rocketchat_webhook` without storing those sink URLs in runtime settings.
+- The same area now includes a notification target setup assistant for the reference receiver. It generates a valid single-target `NOTIFY_TARGETS_JSON` example for `webhook`, `slack_webhook`, `teams_webhook`, `rocketchat_webhook`, or `email` without storing those sink URLs or SMTP credentials in runtime settings.
 - The sample payload intentionally omits deployment-only values and should be treated as the canonical expected JSON shape for receiver validation.
 - The actual webhook URL remains startup configuration; it is not returned by the API.
 
 If you are using the reference Azure Function receiver for webhook mode, its own app settings can fan out the same handoff event to notification targets:
 
 ```dotenv
-NOTIFY_TARGETS_JSON=[{"type":"webhook","url":"https://example.com/notify"},{"type":"rocketchat_webhook","url":"https://chat.example.com/hooks/abc"},{"type":"slack_webhook","url":"https://hooks.slack.com/services/T000/B000/replace-me"},{"type":"teams_webhook","url":"https://example.webhook.office.com/webhookb2/replace-me"}]
+NOTIFY_TARGETS_JSON=[{"type":"webhook","url":"https://example.com/notify"},{"type":"rocketchat_webhook","url":"https://chat.example.com/hooks/abc"},{"type":"slack_webhook","url":"https://hooks.slack.com/services/T000/B000/replace-me"},{"type":"teams_webhook","url":"https://example.webhook.office.com/webhookb2/replace-me"},{"type":"email","to":["ops@example.com"],"subject_prefix":"[PipelineHealer]"}]
 NOTIFY_DELIVERY_TIMEOUT_SECONDS=10
+NOTIFY_EMAIL_SMTP_HOST=smtp.example.com
+NOTIFY_EMAIL_SMTP_PORT=587
+NOTIFY_EMAIL_SMTP_STARTTLS=true
+NOTIFY_EMAIL_SMTP_SSL=false
+NOTIFY_EMAIL_FROM_ADDRESS=pipelinehealer@example.com
+NOTIFY_EMAIL_SMTP_USERNAME=
+NOTIFY_EMAIL_SMTP_PASSWORD=
 ```
 
 - `webhook` targets receive the original PipelineHealer handoff payload unchanged.
 - `rocketchat_webhook` targets receive a compact chat summary derived from that same payload.
 - `slack_webhook` targets receive a text fallback plus Block Kit message summary.
 - `teams_webhook` targets receive a Teams Incoming Webhook message with an Adaptive Card attachment.
+- `email` targets receive a plain-text summary email over SMTP using deployment-managed relay settings.
 - Invalid notification targets are reported by the receiver health endpoint and do not block the primary handoff acknowledgement.
 
 > **That's it for getting started.** Everything else in `.env` has sensible defaults. You can tune optional settings later — see the full list in `backend/.env.example`.

@@ -297,7 +297,7 @@ Theme: outbound integration gateway + notification routing.
 2. Generic outbound event + notification model
    - Define a provider-agnostic event schema for handoff and notification fan-out.
    - Add pluggable notification sinks rather than channel-specific product assumptions.
-   - First planned adapters: `webhook`, `slack_webhook`, `teams_webhook`, `rocketchat_webhook`; `email` remains planned but deferred unless delivery/provider requirements are justified.
+   - First planned adapters: `webhook`, `slack_webhook`, `teams_webhook`, `rocketchat_webhook`, `email`.
 3. ACA/OSS deployment guidance
    - Document the receiver as a reference deployment adapter for ACA while keeping the event contract portable for OSS/self-hosted users.
    - Reuse low-cost/default Azure resources where possible (consumption/Flex-style hosting, existing monitoring) and avoid unnecessary always-on components.
@@ -308,7 +308,7 @@ Theme: outbound integration gateway + notification routing.
 ### Exit Criteria
 
 1. ACA can run Assign-to-Agent in real `webhook` mode against a live receiver, not only `copy_only`.
-2. The receiver accepts a normalized event contract and can fan out to at least one generic webhook target plus one chat-style target.
+2. The receiver accepts a normalized event contract and can fan out to generic webhook, chat-style, and SMTP-backed email targets.
 3. Notification routing is configurable without baking Slack/Teams assumptions into PipelineHealer core.
 4. The reference deployment stays cost-conscious and avoids unnecessary always-on infrastructure.
 5. Docs and roadmap make the separation between core product and deployment-specific integration layer explicit.
@@ -432,7 +432,7 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-049` | MCP governance IA rework: separate configured policy from effective runtime outcome and fix misleading status/severity color semantics | `v0.4.0` | minor | High | Completed (released in `v0.4.0`) |
 | `BL-050` | Operator-surface visual/system coherence pass across Settings, Control Center, Activity Detail, and shell/landing alignment where needed | `v0.4.0` | minor | Medium | Completed (released in `v0.4.0`) |
 | `BL-051` | Deployment-facing Assign-to-Agent receiver boundary: HTTP receiver for normalized handoff events with auth, structured logging, and low-cost Azure Function reference deployment | `v0.5.0` | minor | High | Completed (merged to `main`; reference Azure Function deployment live) |
-| `BL-052` | Generic notification sink contract + first adapters (`webhook`, `slack_webhook`, `teams_webhook`, `rocketchat_webhook`) for auditable outbound delivery | `v0.5.0` | minor | High | In Progress (all first-wave sink adapters and setup guidance shipped; release-freeze decision pending for email deferral) |
+| `BL-052` | Generic notification sink contract + first adapters (`webhook`, `slack_webhook`, `teams_webhook`, `rocketchat_webhook`, `email`) for auditable outbound delivery | `v0.5.0` | minor | High | In Progress (first-wave sink adapters are shipped; final release validation and cut decision remain) |
 | `BL-053` | ACA reference integration path: wire live ACA handoff from `copy_only` to real `webhook` mode via the receiver without baking Azure assumptions into core product | `v0.5.0` | minor | High | Completed (merged to `main`; ACA backend now runs live webhook mode against the receiver) |
 | `BL-054` | Operator-facing integration status surfacing for external receiver/notification dependencies (docs first, product surface where justified) | `v0.5.0` | minor | Medium | Completed (merged to `main`; receiver/integration health now surfaces in Settings and Control Center with session-first admin UX) |
 
