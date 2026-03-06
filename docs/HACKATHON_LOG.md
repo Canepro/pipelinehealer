@@ -1,6 +1,6 @@
 # PipelineHealer Hackathon Log
 
-**Last updated:** March 5, 2026
+**Last updated:** March 6, 2026
 
 This is the long-form project tracker for hackathon execution status, submission readiness, and milestone history.
 
@@ -34,8 +34,14 @@ This is the long-form project tracker for hackathon execution status, submission
   - required scope locked to `#36/#42/#57` for submission reliability
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
   - storage extensibility remained adapter-scoped (no core workflow rewrites during freeze)
-- Release `v0.3.3` is the current public baseline; forward planning target is `v0.4.0`
+- Release `v0.4.0` is the current public baseline; next forward-planning target is decided after post-release triage
 - `v0.4.0` scope is now explicitly expanded to cover operator control-plane coherence after live-capability activation exposed product gaps that conservative defaults were hiding:
+- `v0.4.0` operator control-plane coherence release is now shipped:
+  - settings provenance and startup-managed dependency visibility
+  - Assign-to-Agent and Jenkins setup/smoke-test assistants in Settings
+  - MCP configured-vs-effective policy clarification across Settings and Control Center
+  - landing, shell, docs, and diagram refresh around the OSS-first pipeline-platform framing
+- Historical `v0.4.0` planning rationale remains below for release archaeology:
   - MCP governance screens currently mix configured policy and effective runtime outcome in a way that can appear contradictory
   - policy/status color semantics use destructive tones for normal enabled states, which blurs "enabled" vs "blocked/risky"
   - Assign-to-Agent is functionally present but not yet operable from the main Settings surface

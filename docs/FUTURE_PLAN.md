@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 41575cf -->
+<!-- LAST_VERIFIED: 8f4038b -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -40,6 +40,7 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.3.1` | Released | Frontend runtime-config decoupling for containerized `VITE_*` settings + deploy/workflow/docs alignment |
 | `v0.3.2` | Released | Jenkins bridge + Assign-to-Agent activation + storage posture hardening + PostgreSQL adapter |
 | `v0.3.3` | Released | Landing-page polish + release/deploy alignment to ACA and Helm `0.3.3` |
+| `v0.4.0` | Released | Operator control-plane coherence: provenance visibility, handoff/Jenkins setup assistants, MCP semantics cleanup, and OSS-first control-plane framing |
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
