@@ -86,8 +86,8 @@ export default function Layout() {
           <div className="flex-shrink-0 flex border-t border-[var(--ph-border)] p-4">
             <div className="flex items-center">
               <div className="ml-3">
-                <p className="text-xs font-medium text-slate-300/90">AI Dev Days Hackathon 2026</p>
-                <p className="text-xs text-slate-500">Microsoft Agent Framework</p>
+                <p className="text-xs font-medium text-slate-300/90">OSS-first control plane</p>
+                <p className="text-xs text-slate-500">GitHub Actions + Jenkins Bridge today</p>
               </div>
             </div>
           </div>
