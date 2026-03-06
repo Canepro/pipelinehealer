@@ -1,6 +1,6 @@
 # PipelineHealer Agent Handoff Receiver
 
-<!-- LAST_VERIFIED: b5d6a5b -->
+<!-- LAST_VERIFIED: 4048c03 -->
 
 Minimal Azure Functions app used as the deployment-facing boundary for Assign-to-Agent webhook delivery.
 
@@ -11,11 +11,11 @@ Current scope (`BL-051`):
 
 Current `BL-052` scope:
 - generic outbound event routing from the same normalized handoff event
-- first sink types: `webhook`, `rocketchat_webhook`
+- first sink types: `webhook`, `rocketchat_webhook`, `slack_webhook`, `teams_webhook`
 - non-fatal delivery behavior so the receiver can acknowledge the handoff even if one notification target fails
 
 Planned follow-on:
-- additional adapters (`slack_webhook`, `teams_webhook`)
+- richer formatting/interaction features for chat sinks
 - richer operator status surfacing for downstream notification dependencies
 
 Routes:
@@ -31,7 +31,7 @@ The function app is configured via environment variables / application settings:
   - invalid targets are ignored and reported through logs plus `GET /api/healthz`
   - event routing is opt-in per target through `events`
   - supported target fields:
-    - `type`: `webhook` or `rocketchat_webhook`
+    - `type`: `webhook`, `rocketchat_webhook`, `slack_webhook`, or `teams_webhook`
     - `url`: full `http(s)` URL
     - `enabled`: optional JSON boolean, default `true`
     - `name`: optional operator-friendly label
@@ -55,6 +55,18 @@ The function app is configured via environment variables / application settings:
     "type": "rocketchat_webhook",
     "url": "https://chat.example.com/hooks/abc123",
     "events": "*"
+  },
+  {
+    "name": "slack-alerts",
+    "type": "slack_webhook",
+    "url": "https://hooks.slack.com/services/T000/B000/replace-me",
+    "events": ["agent_handoff_requested"]
+  },
+  {
+    "name": "teams-alerts",
+    "type": "teams_webhook",
+    "url": "https://example.webhook.office.com/webhookb2/replace-me",
+    "events": ["agent_handoff_requested"]
   }
 ]
 ```
@@ -81,6 +93,14 @@ Generic `webhook` targets receive the full event payload unchanged.
 - activity status
 - failure type when available
 - request id when available
+
+`slack_webhook` targets receive:
+- top-level `text` fallback
+- Block Kit sections/fields summarizing repository, workflow, activity, status, and failure type
+
+`teams_webhook` targets receive:
+- Teams Incoming Webhook `message` wrapper
+- Adaptive Card attachment with a short title and fact set for the same activity fields
 
 ## Operational Notes
 

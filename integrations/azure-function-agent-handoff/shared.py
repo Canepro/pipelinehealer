@@ -8,7 +8,12 @@ from urllib import error, request
 
 import azure.functions as func
 
-_SUPPORTED_TARGET_TYPES = {"webhook", "rocketchat_webhook"}
+_SUPPORTED_TARGET_TYPES = {
+    "rocketchat_webhook",
+    "slack_webhook",
+    "teams_webhook",
+    "webhook",
+}
 _DEFAULT_EVENT_TYPE = "agent_handoff_requested"
 _DEFAULT_DELIVERY_TIMEOUT_SECONDS = 10
 _DEFAULT_MAX_TARGETS = 5
@@ -213,16 +218,13 @@ def _webhook_payload(payload: dict[str, Any], _target: NotificationTarget) -> di
     return payload
 
 
-def _rocketchat_payload(payload: dict[str, Any], target: NotificationTarget) -> dict[str, Any]:
+def _chat_lines(payload: dict[str, Any]) -> list[str]:
     summary = activity_summary(payload)
     request_id = str(payload.get("request_id", "")).strip()
-    delivery_id = str(payload.get("delivery_id", "")).strip()
     normalized_event_type = event_type(payload)
 
-    # Keep the chat payload short and human-readable, while preserving the original
-    # event contract in a structured attachment for downstream tooling.
     lines = [
-        ":robot_face: PipelineHealer handoff received",
+        "PipelineHealer handoff received",
         f"Event: {normalized_event_type}",
         f"Repository: {summary['repository'] or 'n/a'}",
         f"Workflow: {summary['workflow_name'] or 'n/a'}",
@@ -233,6 +235,18 @@ def _rocketchat_payload(payload: dict[str, Any], target: NotificationTarget) -> 
         lines.append(f"Failure Type: {summary['failure_type']}")
     if request_id:
         lines.append(f"Request ID: {request_id}")
+    return lines
+
+
+def _rocketchat_payload(payload: dict[str, Any], target: NotificationTarget) -> dict[str, Any]:
+    summary = activity_summary(payload)
+    delivery_id = str(payload.get("delivery_id", "")).strip()
+    normalized_event_type = event_type(payload)
+
+    # Keep the chat payload short and human-readable, while preserving the original
+    # event contract in a structured attachment for downstream tooling.
+    lines = _chat_lines(payload)
+    lines[0] = ":robot_face: " + lines[0]
 
     return {
         "alias": "PipelineHealer",
@@ -254,9 +268,104 @@ def _rocketchat_payload(payload: dict[str, Any], target: NotificationTarget) -> 
     }
 
 
+def _slack_payload(payload: dict[str, Any], _target: NotificationTarget) -> dict[str, Any]:
+    lines = _chat_lines(payload)
+    summary = activity_summary(payload)
+    request_id = str(payload.get("request_id", "")).strip()
+    normalized_event_type = event_type(payload)
+
+    # Slack incoming webhooks accept normal message text plus Block Kit.
+    fields = [
+        {"type": "mrkdwn", "text": f"*Repository*\n{summary['repository'] or 'n/a'}"},
+        {"type": "mrkdwn", "text": f"*Workflow*\n{summary['workflow_name'] or 'n/a'}"},
+        {"type": "mrkdwn", "text": f"*Activity*\n{summary['activity_id'] or 'n/a'}"},
+        {"type": "mrkdwn", "text": f"*Status*\n{summary['status'] or 'n/a'}"},
+    ]
+    if summary["failure_type"]:
+        fields.append({"type": "mrkdwn", "text": f"*Failure Type*\n{summary['failure_type']}"})
+
+    # Keep the context block for supplemental metadata only so the main activity
+    # facts are not duplicated below the fields grid.
+    context_lines = [f"Event: {normalized_event_type}"]
+    if request_id:
+        context_lines.append(f"Request ID: {request_id}")
+
+    return {
+        "text": " | ".join(lines),
+        "blocks": [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*PipelineHealer handoff received*",
+                },
+            },
+            {
+                "type": "section",
+                "fields": fields,
+            },
+            {
+                "type": "context",
+                "elements": [{"type": "mrkdwn", "text": line} for line in context_lines],
+            },
+        ],
+    }
+
+
+def _teams_payload(payload: dict[str, Any], _target: NotificationTarget) -> dict[str, Any]:
+    summary = activity_summary(payload)
+    request_id = str(payload.get("request_id", "")).strip()
+    normalized_event_type = event_type(payload)
+
+    facts = [
+        {"title": "Event", "value": normalized_event_type},
+        {"title": "Repository", "value": summary["repository"] or "n/a"},
+        {"title": "Workflow", "value": summary["workflow_name"] or "n/a"},
+        {"title": "Activity", "value": summary["activity_id"] or "n/a"},
+        {"title": "Status", "value": summary["status"] or "n/a"},
+    ]
+    if summary["failure_type"]:
+        facts.append({"title": "Failure Type", "value": summary["failure_type"]})
+    if request_id:
+        facts.append({"title": "Request ID", "value": request_id})
+
+    # Teams Incoming Webhooks accept a message wrapper containing an Adaptive Card attachment.
+    return {
+        "type": "message",
+        "attachments": [
+            {
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "contentUrl": None,
+                "content": {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.2",
+                    "body": [
+                        {
+                            "type": "TextBlock",
+                            "text": "PipelineHealer handoff received",
+                            "weight": "Bolder",
+                            "size": "Medium",
+                            "wrap": True,
+                        },
+                        {
+                            "type": "FactSet",
+                            "facts": facts,
+                        },
+                    ],
+                },
+            }
+        ],
+    }
+
+
 def _payload_for_target(payload: dict[str, Any], target: NotificationTarget) -> dict[str, Any]:
     if target.target_type == "rocketchat_webhook":
         return _rocketchat_payload(payload, target)
+    if target.target_type == "slack_webhook":
+        return _slack_payload(payload, target)
+    if target.target_type == "teams_webhook":
+        return _teams_payload(payload, target)
     return _webhook_payload(payload, target)
 
 
