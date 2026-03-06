@@ -34,8 +34,13 @@ This is the long-form project tracker for hackathon execution status, submission
   - required scope locked to `#36/#42/#57` for submission reliability
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
   - storage extensibility remained adapter-scoped (no core workflow rewrites during freeze)
-- Release `v0.4.0` is the current public baseline.
-- Post-`v0.4.0` planning target is now `v0.5.0`:
+- Release `v0.5.0` is the current public baseline.
+- Post-`v0.5.0` patch target is now `v0.5.1`:
+  - frontend route correctness for explicit 404 behavior outside `/app`
+  - final semantic-theme cleanup for remaining failure badges
+  - release hygiene packaging so UI cleanup lands as tracked patch work, not local drift
+  - release tracker: [#92](https://github.com/Canepro/pipelinehealer/issues/92)
+- Historical `v0.5.0` planning target is now shipped:
   - deployment-facing Assign-to-Agent receiver boundary
   - generic outbound event and notification routing
   - reference Azure Function deployment for ACA without making Azure the product boundary

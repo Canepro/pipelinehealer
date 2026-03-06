@@ -12,6 +12,22 @@
   --ph-text: #142118;
   --ph-muted: #5e6e61;
   --ph-accent: #9a5d18;
+  --ph-accent-hover: #7d4b13;
+  --ph-success: #15803d;
+  --ph-success-bg: rgba(22, 163, 74, 0.15);
+  --ph-success-border: rgba(22, 163, 74, 0.3);
+  --ph-danger: #be123c;
+  --ph-danger-bg: rgba(225, 29, 72, 0.12);
+  --ph-danger-border: rgba(225, 29, 72, 0.25);
+  --ph-warning: #a16207;
+  --ph-warning-bg: rgba(245, 158, 11, 0.15);
+  --ph-warning-border: rgba(245, 158, 11, 0.3);
+  --ph-info: #0e7490;
+  --ph-info-bg: rgba(6, 182, 212, 0.12);
+  --ph-info-border: rgba(6, 182, 212, 0.25);
+  --ph-tooltip-bg: #1e293b;
+  --ph-tooltip-border: #475569;
+  --ph-tooltip-text: #e2e8f0;
   font-family: "IBM Plex Sans", "Public Sans", sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -30,6 +46,22 @@
     --ph-text: #e6ecf4;
     --ph-muted: #96a5b6;
     --ph-accent: #c67a28;
+    --ph-accent-hover: #d98e3d;
+    --ph-success: #4ade80;
+    --ph-success-bg: rgba(16, 185, 129, 0.2);
+    --ph-success-border: rgba(52, 211, 153, 0.3);
+    --ph-danger: #fb7185;
+    --ph-danger-bg: rgba(244, 63, 94, 0.2);
+    --ph-danger-border: rgba(251, 113, 133, 0.3);
+    --ph-warning: #fbbf24;
+    --ph-warning-bg: rgba(245, 158, 11, 0.2);
+    --ph-warning-border: rgba(251, 191, 36, 0.3);
+    --ph-info: #22d3ee;
+    --ph-info-bg: rgba(6, 182, 212, 0.2);
+    --ph-info-border: rgba(34, 211, 238, 0.3);
+    --ph-tooltip-bg: #0f172a;
+    --ph-tooltip-border: #334155;
+    --ph-tooltip-text: #e2e8f0;
   }
 }
 
@@ -62,18 +94,18 @@ body {
   }
 
   .btn-primary:hover {
-    background: #2c5b8f;
+    background: var(--ph-accent-hover);
   }
 
   .btn-secondary {
     @apply font-medium py-2 px-4 rounded-lg transition-colors;
-    background: #f1f5f9;
+    background: var(--ph-bg-elevated);
     color: var(--ph-text);
     border: 1px solid var(--ph-border);
   }
 
   .btn-secondary:hover {
-    background: #e2e8f0;
+    background: var(--ph-bg);
   }
 
   .status-badge {
@@ -82,18 +114,26 @@ body {
   }
 
   .status-completed {
-    @apply bg-emerald-500/20 text-emerald-300 border border-emerald-400/30;
+    background: var(--ph-success-bg);
+    color: var(--ph-success);
+    border: 1px solid var(--ph-success-border);
   }
 
   .status-failed {
-    @apply bg-rose-500/20 text-rose-300 border border-rose-400/30;
+    background: var(--ph-danger-bg);
+    color: var(--ph-danger);
+    border: 1px solid var(--ph-danger-border);
   }
 
   .status-pending {
-    @apply bg-amber-500/20 text-amber-300 border border-amber-400/30;
+    background: var(--ph-warning-bg);
+    color: var(--ph-warning);
+    border: 1px solid var(--ph-warning-border);
   }
 
   .status-analyzing {
-    @apply bg-cyan-500/20 text-cyan-300 border border-cyan-400/30;
+    background: var(--ph-info-bg);
+    color: var(--ph-info);
+    border: 1px solid var(--ph-info-border);
   }
 }

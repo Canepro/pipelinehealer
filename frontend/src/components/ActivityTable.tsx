@@ -3,6 +3,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { ExternalLink, GitBranch } from 'lucide-react'
 import type { Activity } from '../api/client'
 import { EMPTY_STATES } from '../constants/emptyStates'
+import { formatSourceLabel } from '../utils/formatSourceLabel'
 import StatusBadge from './StatusBadge'
 import FailureTypeBadge from './FailureTypeBadge'
 import { Badge } from '@/components/ui/badge'
@@ -31,27 +32,6 @@ const REASON_LABELS: Record<string, string> = {
   REQUIRES_ENV_CONTEXT: 'Needs environment-specific context',
   SAFETY_BOUND: 'Blocked by active safety policy',
   OUTPUT_ISSUES_DISABLED: 'Issues are disabled in target repository',
-}
-
-function formatSourceLabel(source: string): string {
-  const normalizedRaw = source.trim().toLowerCase()
-  const knownLabels: Record<string, string> = {
-    'ci-doctor': 'CI Doctor',
-    'external-diagnostics': 'External Diagnostics',
-    'github-mcp': 'GitHub MCP',
-    'knowledge-mcp': 'Knowledge MCP',
-    github: 'GitHub',
-    gh_aw: 'GitHub Agentic Workflows',
-    azure_monitor: 'Azure Monitor',
-  }
-  if (knownLabels[normalizedRaw]) {
-    return knownLabels[normalizedRaw]
-  }
-  const normalized = normalizedRaw.replace(/[_-]+/g, ' ')
-  if (!normalized) {
-    return 'External'
-  }
-  return normalized.replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
 function getExternalDiagnosticsMeta(activity: Activity): {
@@ -250,9 +230,9 @@ export default function ActivityTable({
     return (
       <Card>
         <CardContent className="p-8 text-center">
-          <GitBranch className="h-12 w-12 text-gray-400 mx-auto" />
-          <p className="mt-4 text-gray-500">{EMPTY_STATES.activities.title}</p>
-          <p className="text-sm text-gray-400">
+          <GitBranch className="h-12 w-12 text-[var(--ph-muted)] mx-auto" />
+          <p className="mt-4 text-[var(--ph-muted)]">{EMPTY_STATES.activities.title}</p>
+          <p className="text-sm text-[var(--ph-muted)]">
             {EMPTY_STATES.activities.body}
           </p>
         </CardContent>
@@ -279,12 +259,12 @@ export default function ActivityTable({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p
-                    className="truncate text-sm font-medium text-gray-900 dark:text-white"
+                    className="truncate text-sm font-medium text-[var(--ph-text)]"
                     title={activity.repository_name}
                   >
                     {activity.repository_name}
                   </p>
-                  <p className="text-xs text-gray-500">Run #{activity.workflow_run_id}</p>
+                  <p className="text-xs text-[var(--ph-muted)]">Run #{activity.workflow_run_id}</p>
                 </div>
                 <StatusBadge status={activity.status} size="sm" />
               </div>
@@ -298,7 +278,7 @@ export default function ActivityTable({
                 {activity.failure_type ? (
                   <FailureTypeBadge type={activity.failure_type} />
                 ) : (
-                  <span className="text-xs text-gray-400">No failure type</span>
+                  <span className="text-xs text-[var(--ph-muted)]">No failure type</span>
                 )}
                 {visibleStatusTags.map((tag, index) => (
                   <Badge
@@ -318,7 +298,7 @@ export default function ActivityTable({
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-[var(--ph-muted)]">
                   {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
                 </span>
                 <div className="flex items-center space-x-2">
@@ -367,24 +347,24 @@ export default function ActivityTable({
               <col className="w-[10%]" />
               <col className="w-[12%]" />
             </colgroup>
-            <thead className="bg-slate-100/70 dark:bg-slate-800/60 [&_tr]:border-b [&_tr]:border-[var(--ph-border)]">
+            <thead className="bg-[var(--ph-bg-elevated)] [&_tr]:border-b [&_tr]:border-[var(--ph-border)]">
               <tr>
-                <th className="h-12 pl-6 pr-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <th className="h-12 pl-6 pr-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-[var(--ph-muted)]">
                   Repository
                 </th>
-                <th className="h-12 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <th className="h-12 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-[var(--ph-muted)]">
                   Workflow
                 </th>
-                <th className="h-12 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <th className="h-12 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-[var(--ph-muted)]">
                   Status
                 </th>
-                <th className="h-12 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <th className="h-12 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-[var(--ph-muted)]">
                   Failure Type
                 </th>
-                <th className="h-12 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <th className="h-12 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-[var(--ph-muted)]">
                   Time
                 </th>
-                <th className="h-12 px-4 pr-6 text-left align-middle text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <th className="h-12 px-4 pr-6 text-left align-middle text-xs font-medium uppercase tracking-wide text-[var(--ph-muted)]">
                   Actions
                 </th>
               </tr>
@@ -400,21 +380,21 @@ export default function ActivityTable({
                   <tr
                     key={activity.id}
                     data-activity-id={activity.id}
-                    className={`border-b border-[var(--ph-border)] transition-colors hover:bg-slate-100/60 dark:hover:bg-slate-800/40 ${
+                    className={`border-b border-[var(--ph-border)] transition-colors hover:bg-[var(--ph-bg-elevated)] ${
                       activity.id === highlightedActivityId ? 'bg-azure-500/10' : ''
                     }`}
                   >
                     <td className="p-4 pl-6 align-middle">
                       <div className="flex items-center">
-                        <GitBranch className="mr-2 h-5 w-5 text-gray-400" />
+                        <GitBranch className="mr-2 h-5 w-5 text-[var(--ph-muted)]" />
                         <div>
                           <div
-                            className="max-w-[180px] truncate text-sm font-medium text-gray-900 dark:text-white"
+                            className="max-w-[180px] truncate text-sm font-medium text-[var(--ph-text)]"
                             title={activity.repository_name.split('/')[1]}
                           >
                             {activity.repository_name.split('/')[1]}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-[var(--ph-muted)]">
                             {activity.repository_name.split('/')[0]}
                           </div>
                         </div>
@@ -422,12 +402,12 @@ export default function ActivityTable({
                     </td>
                     <td className="p-4 align-middle">
                       <div
-                        className="max-w-[220px] truncate text-sm text-gray-900 dark:text-white"
+                        className="max-w-[220px] truncate text-sm text-[var(--ph-text)]"
                         title={activity.workflow_name}
                       >
                         {activity.workflow_name}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-[var(--ph-muted)]">
                         Run #{activity.workflow_run_id}
                       </div>
                     </td>
@@ -464,7 +444,7 @@ export default function ActivityTable({
                           <FailureTypeBadge type={activity.failure_type} />
                           {failureContext && (
                             <p
-                              className="max-w-[240px] truncate text-xs text-gray-500 dark:text-gray-400"
+                              className="max-w-[240px] truncate text-xs text-[var(--ph-muted)]"
                               title={failureContext}
                             >
                               {failureContext}
@@ -472,10 +452,10 @@ export default function ActivityTable({
                           )}
                         </div>
                       ) : (
-                        <span className="text-gray-400">-</span>
+                        <span className="text-[var(--ph-muted)]">-</span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap p-4 align-middle text-sm text-gray-500">
+                    <td className="whitespace-nowrap p-4 align-middle text-sm text-[var(--ph-muted)]">
                       {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
                     </td>
                     <td className="p-4 pr-6 align-middle text-sm">

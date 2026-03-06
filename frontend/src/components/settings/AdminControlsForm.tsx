@@ -2095,7 +2095,7 @@ export default function AdminControlsForm({
                   {mcpEffectivePolicies.map(({ tool, policy, effective }) => (
                     <div
                       key={tool.key}
-                      className="rounded-md border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-900/40 px-3 py-2"
+                      className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-surface)] px-3 py-2"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
@@ -2520,7 +2520,7 @@ export default function AdminControlsForm({
           <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
             <Card>
               <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer select-none hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors rounded-t-xl pb-4">
+                <CardHeader className="cursor-pointer select-none hover:bg-[var(--ph-bg-elevated)] transition-colors rounded-t-xl pb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Settings2 className="h-5 w-5 text-[var(--ph-accent)]" />
@@ -2696,7 +2696,7 @@ export default function AdminControlsForm({
 
                   {form.log_prompt_head_chars + form.log_prompt_tail_chars >
                     form.log_prompt_max_chars && (
-                    <p className="text-sm text-rose-500 dark:text-rose-400">
+                    <p className="text-sm text-[var(--ph-danger)]">
                       Head + tail chars (
                       {form.log_prompt_head_chars + form.log_prompt_tail_chars})
                       exceeds max ({form.log_prompt_max_chars}). The log will be

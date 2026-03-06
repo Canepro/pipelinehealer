@@ -8,6 +8,13 @@ import ActivityTable from '../components/ActivityTable'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
@@ -76,10 +83,10 @@ export default function Activities() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl font-bold text-[var(--ph-text)]">
             Activities
           </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-sm text-[var(--ph-muted)]">
             All CI/CD healing activities
           </p>
         </div>
@@ -118,35 +125,41 @@ export default function Activities() {
       <Card>
         <CardContent className="p-4 md:p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
-            <Filter className="h-5 w-5 text-gray-400" />
-            <select
-              value={filters.status}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, status: e.target.value }))
+            <Filter className="h-5 w-5 text-[var(--ph-muted)]" />
+            <Select
+              value={filters.status || '__all__'}
+              onValueChange={(value) =>
+                setFilters((prev) => ({ ...prev, status: value === '__all__' ? '' : value }))
               }
-              aria-label="Filter by status"
-              className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-azure-500 dark:bg-gray-700 dark:text-gray-100 lg:w-52"
             >
-              {statusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={filters.failure_type}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, failure_type: e.target.value }))
+              <SelectTrigger className="lg:w-52" aria-label="Filter by status">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map((option) => (
+                  <SelectItem key={option.value || '__all__'} value={option.value || '__all__'}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={filters.failure_type || '__all__'}
+              onValueChange={(value) =>
+                setFilters((prev) => ({ ...prev, failure_type: value === '__all__' ? '' : value }))
               }
-              aria-label="Filter by failure type"
-              className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-azure-500 dark:bg-gray-700 dark:text-gray-100 lg:w-52"
             >
-              {failureTypeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="lg:w-52" aria-label="Filter by failure type">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                {failureTypeOptions.map((option) => (
+                  <SelectItem key={option.value || '__all__'} value={option.value || '__all__'}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -154,7 +167,7 @@ export default function Activities() {
       {/* Activities Table */}
       {!hasFocusedActivity && focusedActivityId && (
         <Card>
-          <CardContent className="p-4 text-sm text-amber-300">
+          <CardContent className="p-4 text-sm text-[var(--ph-warning)]">
             Focused activity not in the current page. Refresh or adjust filters.
           </CardContent>
         </Card>
@@ -169,7 +182,7 @@ export default function Activities() {
 
       {/* Pagination info */}
       {activities && activities.length > 0 && (
-        <div className="text-sm text-gray-500 dark:text-gray-400 text-center">
+        <div className="text-sm text-[var(--ph-muted)] text-center">
           Showing {activities.length} activities
         </div>
       )}

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, type Activity } from "../api/client";
+import { formatSourceLabel } from "../utils/formatSourceLabel";
 import StatusBadge from "../components/StatusBadge";
 import FailureTypeBadge from "../components/FailureTypeBadge";
 
@@ -35,27 +36,6 @@ const STRUCTURED_EVIDENCE_OMIT_KEYS = new Set([
   "message",
   "raw_logs",
 ]);
-
-function formatSourceLabel(source: string): string {
-  const normalizedRaw = source.trim().toLowerCase();
-  const knownLabels: Record<string, string> = {
-    "ci-doctor": "CI Doctor",
-    "external-diagnostics": "External Diagnostics",
-    "github-mcp": "GitHub MCP",
-    "knowledge-mcp": "Knowledge MCP",
-    github: "GitHub",
-    gh_aw: "GitHub Agentic Workflows",
-    azure_monitor: "Azure Monitor",
-  };
-  if (knownLabels[normalizedRaw]) {
-    return knownLabels[normalizedRaw];
-  }
-  const normalized = normalizedRaw.replace(/[_-]+/g, " ");
-  if (!normalized) {
-    return "External Tool";
-  }
-  return normalized.replace(/\b\w/g, (char) => char.toUpperCase());
-}
 
 function formatSourceSelectionPath(path: string): string {
   const known: Record<string, string> = {
@@ -81,31 +61,31 @@ function getExternalDiagnosticStatusMeta(status: string): {
       return {
         label: "Available",
         className:
-          "inline-flex items-center rounded-md bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200",
+          "inline-flex items-center rounded-md bg-[var(--ph-success-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-success)]",
       };
     case "error":
       return {
         label: "Error",
         className:
-          "inline-flex items-center rounded-md bg-rose-100 px-2 py-1 text-xs font-medium text-rose-700 dark:bg-rose-900/40 dark:text-rose-200",
+          "inline-flex items-center rounded-md bg-[var(--ph-danger-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-danger)]",
       };
     case "unavailable":
       return {
         label: "Unavailable",
         className:
-          "inline-flex items-center rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-200",
+          "inline-flex items-center rounded-md bg-[var(--ph-warning-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-warning)]",
       };
     case "disabled":
       return {
         label: "Disabled",
         className:
-          "inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200",
+          "inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]",
       };
     default:
       return {
         label: status || "Unknown",
         className:
-          "inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200",
+          "inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]",
       };
   }
 }
@@ -335,15 +315,15 @@ type McpActionOutcome = {
 function mcpOutcomeBadgeClass(kind: McpActionOutcome["kind"]): string {
   switch (kind) {
     case "success":
-      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200";
+      return "bg-[var(--ph-success-bg)] text-[var(--ph-success)]";
     case "blocked":
-      return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200";
+      return "bg-[var(--ph-warning-bg)] text-[var(--ph-warning)]";
     case "error":
-      return "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200";
+      return "bg-[var(--ph-danger-bg)] text-[var(--ph-danger)]";
     case "timeout":
-      return "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-200";
+      return "bg-[var(--ph-warning-bg)] text-[var(--ph-warning)]";
     default:
-      return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200";
+      return "bg-[var(--ph-bg-elevated)] text-[var(--ph-text)]";
   }
 }
 
@@ -658,7 +638,7 @@ function renderInlineMarkdown(text: string): React.ReactNode[] {
       parts.push(
         <code
           key={key++}
-          className="bg-gray-200 dark:bg-gray-700 px-1 py-0.5 rounded text-xs font-mono"
+          className="bg-[var(--ph-bg-elevated)] px-1 py-0.5 rounded text-xs font-mono"
         >
           {match[2]}
         </code>,
@@ -727,7 +707,7 @@ function MarkdownBody({ text }: { text: string }) {
                   className="text-sm text-[var(--ph-text)] leading-relaxed"
                 >
                   {checked && (
-                    <span className="text-emerald-600 dark:text-emerald-400 mr-1">
+                    <span className="text-[var(--ph-success)] mr-1">
                       &#10003;
                     </span>
                   )}
@@ -823,21 +803,21 @@ function ExternalFindingsPanel({
         External Findings Details
       </button>
       {expanded && (
-        <div className="mt-3 space-y-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+        <div className="mt-3 space-y-4 rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-4">
           {(doctorEngine || doctorModel || trigger) && (
-            <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-[var(--ph-border)]">
               {doctorEngine && (
-                <span className="inline-flex items-center rounded-md bg-violet-100 px-2 py-1 text-xs font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-200">
+                <span className="inline-flex items-center rounded-md bg-[var(--ph-info-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-info)]">
                   Engine: {doctorEngine}
                 </span>
               )}
               {doctorModel && (
-                <span className="inline-flex items-center rounded-md bg-violet-100 px-2 py-1 text-xs font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-200">
+                <span className="inline-flex items-center rounded-md bg-[var(--ph-info-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-info)]">
                   Model: {doctorModel}
                 </span>
               )}
               {trigger && (
-                <span className="inline-flex items-center rounded-md bg-gray-200 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                <span className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]">
                   Trigger: {trigger}
                 </span>
               )}
@@ -925,7 +905,7 @@ export default function ActivityDetail() {
         <h2 className="mt-4 text-lg font-semibold text-[var(--ph-text)]">
           Activity Not Found
         </h2>
-        <p className="mt-2 text-gray-500">
+        <p className="mt-2 text-[var(--ph-muted)]">
           The requested activity could not be found.
         </p>
         <Link to="/app/activities" className="btn-primary mt-4 inline-block">
@@ -1066,15 +1046,15 @@ export default function ActivityDetail() {
         <div className="flex items-center space-x-4">
           <Link
             to="/app/activities"
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            className="p-2 hover:bg-[var(--ph-bg-elevated)] rounded-lg transition-colors"
           >
-            <ArrowLeft className="h-5 w-5 text-gray-500" />
+            <ArrowLeft className="h-5 w-5 text-[var(--ph-muted)]" />
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-[var(--ph-text)]">
               Activity Details
             </h1>
-            <p className="text-sm text-gray-500">{activity.id}</p>
+            <p className="text-sm text-[var(--ph-muted)]">{activity.id}</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)]/60 p-2">
@@ -1132,7 +1112,7 @@ export default function ActivityDetail() {
           <div>
             <p className="text-sm text-[var(--ph-muted)]">Repository</p>
             <div className="flex items-center mt-1">
-              <GitBranch className="h-5 w-5 text-gray-400 mr-2" />
+              <GitBranch className="h-5 w-5 text-[var(--ph-muted)] mr-2" />
               <a
                 href={`https://github.com/${activity.repository_name}`}
                 target="_blank"
@@ -1149,7 +1129,7 @@ export default function ActivityDetail() {
             <p className="mt-1 font-medium text-[var(--ph-text)]">
               {activity.workflow_name}
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-[var(--ph-muted)]">
               Run #{activity.workflow_run_id}
             </p>
           </div>
@@ -1165,19 +1145,19 @@ export default function ActivityDetail() {
               {activity.failure_type ? (
                 <FailureTypeBadge type={activity.failure_type} />
               ) : (
-                <span className="text-gray-400">Not determined</span>
+                <span className="text-[var(--ph-muted)]">Not determined</span>
               )}
             </div>
           </div>
         </div>
 
-        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mt-6 pt-6 border-t border-[var(--ph-border)] grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <p className="text-sm text-[var(--ph-muted)]">Created</p>
             <p className="mt-1 text-[var(--ph-text)]">
               {format(new Date(activity.created_at), "PPpp")}
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-[var(--ph-muted)]">
               {formatDistanceToNow(new Date(activity.created_at), {
                 addSuffix: true,
               })}
@@ -1211,7 +1191,7 @@ export default function ActivityDetail() {
           </p>
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             {activity.diagnosis && (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-4">
                 <p className="text-xs text-[var(--ph-muted)]">Diagnosis</p>
                 <p className="mt-2 text-sm text-[var(--ph-muted)]">
                   Root Cause
@@ -1230,15 +1210,15 @@ export default function ActivityDetail() {
                   </>
                 )}
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                  <span className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]">
                     Confidence:{" "}
                     {Math.round(activity.diagnosis.confidence * 100)}%
                   </span>
-                  <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                  <span className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]">
                     Auto-fixable:{" "}
                     {activity.diagnosis.is_auto_fixable ? "Yes" : "No"}
                   </span>
-                  <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                  <span className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]">
                     Source:{" "}
                     {(activity.diagnosis.diagnosis_source || "unknown").replace(
                       /_/g,
@@ -1250,7 +1230,7 @@ export default function ActivityDetail() {
             )}
 
             {activity.remediation_result && (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-4">
                 <p className="text-xs text-[var(--ph-muted)]">
                   Remediation Result
                 </p>
@@ -1310,23 +1290,23 @@ export default function ActivityDetail() {
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {remediationMeta.includesProposedFix && (
-                        <span className="inline-flex items-center rounded-md bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">
+                        <span className="inline-flex items-center rounded-md bg-[var(--ph-info-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-info)]">
                           Includes Proposed Fix
                         </span>
                       )}
                       {remediationMeta.reusedExistingPr && (
-                        <span className="inline-flex items-center rounded-md bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                        <span className="inline-flex items-center rounded-md bg-[var(--ph-success-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-success)]">
                           Reused Existing PR
                         </span>
                       )}
                       {remediationMeta.reasonCode && (
-                        <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
+                        <span className="inline-flex items-center rounded-md bg-[var(--ph-warning-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-warning)]">
                           {remediationMeta.reasonCode}
                         </span>
                       )}
                     </div>
                     {remediationMeta.reasonDetail && (
-                      <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                      <p className="mt-2 text-sm text-[var(--ph-text)]">
                         {remediationMeta.reasonDetail}
                       </p>
                     )}
@@ -1391,21 +1371,21 @@ export default function ActivityDetail() {
               return (
                 <div
                   key={`${diagnostic.source}-${diagnostic.collected_at}-${index}`}
-                  className="rounded-lg border border-gray-200 dark:border-gray-700 p-4"
+                  className="rounded-lg border border-[var(--ph-border)] p-4"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center rounded-md bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">
+                    <span className="inline-flex items-center rounded-md bg-[var(--ph-info-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-info)]">
                       {formatSourceLabel(diagnostic.source)}
                     </span>
                     <span className={statusMeta.className}>
                       {statusMeta.label}
                     </span>
                     {typeof diagnostic.matched_run_id === "number" && (
-                      <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                      <span className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]">
                         Run #{diagnostic.matched_run_id}
                       </span>
                     )}
-                    <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                    <span className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]">
                       {formatConfidenceDelta(diagnostic.confidence_delta)}
                     </span>
                   </div>
@@ -1482,8 +1462,8 @@ export default function ActivityDetail() {
           </h2>
           <div className="space-y-4">
             {hasFailureContext && (
-              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-4">
+                <p className="text-sm font-medium text-[var(--ph-text)]">
                   Failure Context
                 </p>
                 <div className="mt-2 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
@@ -1515,8 +1495,8 @@ export default function ActivityDetail() {
               </div>
             )}
             {classificationSignal && (
-              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-4">
+                <p className="text-sm font-medium text-[var(--ph-text)]">
                   Classification Signal
                 </p>
                 <p className="mt-1 text-sm text-[var(--ph-text)] break-words">
@@ -1536,7 +1516,7 @@ export default function ActivityDetail() {
               <div>
                 <p className="text-sm text-[var(--ph-muted)]">Confidence</p>
                 <div className="mt-1 flex items-center">
-                  <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 mr-2">
+                  <div className="flex-1 bg-[var(--ph-bg-elevated)] rounded-full h-2 mr-2">
                     <div
                       className="bg-azure-500 h-2 rounded-full"
                       style={{
@@ -1565,8 +1545,8 @@ export default function ActivityDetail() {
               </div>
             </div>
             {externalSignalDelta !== null && (
-              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-4">
+                <p className="text-sm font-medium text-[var(--ph-text)]">
                   External Signal Attribution
                 </p>
                 <div className="mt-2 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
@@ -1583,8 +1563,8 @@ export default function ActivityDetail() {
                     <p
                       className={
                         externalSignalDelta >= 0
-                          ? "text-emerald-600 dark:text-emerald-400"
-                          : "text-rose-600 dark:text-rose-400"
+                          ? "text-[var(--ph-success)]"
+                          : "text-[var(--ph-danger)]"
                       }
                     >
                       {formatConfidenceDelta(externalSignalDelta)}
@@ -1604,14 +1584,14 @@ export default function ActivityDetail() {
                     {externalSignalSources.map((signal, idx) => (
                       <div
                         key={`${signal.source}-${idx}`}
-                        className="rounded-md border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-900/40 px-3 py-2"
+                        className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-surface)] px-3 py-2"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm font-medium text-[var(--ph-text)]">
                             {formatSourceLabel(signal.source)}
                           </p>
                           <span
-                            className={`text-xs font-semibold ${signal.delta >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+                            className={`text-xs font-semibold ${signal.delta >= 0 ? "text-[var(--ph-success)]" : "text-[var(--ph-danger)]"}`}
                           >
                             {formatConfidenceDelta(signal.delta)}
                           </span>
@@ -1628,8 +1608,8 @@ export default function ActivityDetail() {
               </div>
             )}
             {activity.llm_model_path && (
-              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-4">
+                <p className="text-sm font-medium text-[var(--ph-text)]">
                   Model Path
                 </p>
                 <div className="mt-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
@@ -1673,9 +1653,9 @@ export default function ActivityDetail() {
               </div>
             )}
             {mcpPath && (
-              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <p className="text-sm font-medium text-[var(--ph-text)]">
                     MCP Observability
                   </p>
                   <button
@@ -1741,7 +1721,7 @@ export default function ActivityDetail() {
                 </div>
 
                 {showMcpDetails && (
-                  <div className="mt-4 border-t border-gray-200 pt-3 dark:border-gray-700">
+                  <div className="mt-4 border-t border-[var(--ph-border)] pt-3">
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                       <div>
                         <p className="text-xs text-[var(--ph-muted)]">
@@ -1752,7 +1732,7 @@ export default function ActivityDetail() {
                             {mcpPath.configured_tools.map((tool) => (
                               <span
                                 key={tool}
-                                className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-mono text-gray-700 dark:bg-gray-900/70 dark:text-gray-200"
+                                className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-mono text-[var(--ph-text)]"
                               >
                                 {tool}
                               </span>
@@ -1778,10 +1758,10 @@ export default function ActivityDetail() {
                             {mcpSourceAttribution.map(([source, count]) => (
                               <li
                                 key={source}
-                                className="flex items-center justify-between rounded border border-gray-200 px-2 py-1 text-sm dark:border-gray-700"
+                                className="flex items-center justify-between rounded border border-[var(--ph-border)] px-2 py-1 text-sm"
                               >
                                 <span className="min-w-0">
-                                  <span className="block text-gray-700 dark:text-gray-200">
+                                  <span className="block text-[var(--ph-text)]">
                                     {formatSourceLabel(source)}
                                   </span>
                                   <span className="block break-all font-mono text-[11px] text-[var(--ph-muted)]">
@@ -1811,9 +1791,9 @@ export default function ActivityDetail() {
                           {mcpToolUsage.map(([tool, count]) => (
                             <li
                               key={tool}
-                              className="flex items-center justify-between rounded border border-gray-200 px-2 py-1 text-sm dark:border-gray-700"
+                              className="flex items-center justify-between rounded border border-[var(--ph-border)] px-2 py-1 text-sm"
                             >
-                              <span className="font-mono text-xs text-gray-700 dark:text-gray-200">
+                              <span className="font-mono text-xs text-[var(--ph-text)]">
                                 {tool}
                               </span>
                               <span className="font-mono text-xs text-[var(--ph-muted)]">
@@ -1841,10 +1821,10 @@ export default function ActivityDetail() {
                             return (
                               <li
                                 key={`${entry.request_id}-${entry.tool}-${entry.payload_hash}-${index}`}
-                                className="rounded border border-gray-200 px-2 py-1 text-xs dark:border-gray-700"
+                                className="rounded border border-[var(--ph-border)] px-2 py-1 text-xs"
                               >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <p className="break-all font-mono text-gray-700 dark:text-gray-200">
+                                  <p className="break-all font-mono text-[var(--ph-text)]">
                                     {entry.tool}
                                   </p>
                                   <span
@@ -1853,7 +1833,7 @@ export default function ActivityDetail() {
                                     {outcome.label}
                                   </span>
                                 </div>
-                                <p className="mt-1 break-words text-[11px] text-gray-700 dark:text-gray-200">
+                                <p className="mt-1 break-words text-[11px] text-[var(--ph-text)]">
                                   {outcome.detail}
                                 </p>
                                 {outcome.code && showRawMcpCodes && (
@@ -1893,16 +1873,16 @@ export default function ActivityDetail() {
             {(sourceConfidenceImpact.length > 0 ||
               structuredEvidence.length > 0 ||
               rawEvidenceLines.length > 0) && (
-              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4">
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <p className="text-sm font-medium text-[var(--ph-text)]">
                     Evidence Layers
                   </p>
                   <button
                     type="button"
                     onClick={() => setShowRawEvidence((prev) => !prev)}
                     disabled={rawEvidenceLines.length === 0}
-                    className="text-xs font-medium text-[var(--ph-accent)] hover:opacity-80 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    className="text-xs font-medium text-[var(--ph-accent)] hover:opacity-80 disabled:text-[var(--ph-muted)] disabled:cursor-not-allowed"
                   >
                     {showRawEvidence
                       ? "Hide raw extracts"
@@ -1919,14 +1899,14 @@ export default function ActivityDetail() {
                         {sourceConfidenceImpact.map((item) => (
                           <div
                             key={item.source}
-                            className="rounded-md border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-900/40 px-3 py-2"
+                            className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-surface)] px-3 py-2"
                           >
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <p className="text-sm font-medium text-[var(--ph-text)]">
                                 {formatSourceLabel(item.source)}
                               </p>
                               <span
-                                className={`text-xs font-semibold ${item.delta >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+                                className={`text-xs font-semibold ${item.delta >= 0 ? "text-[var(--ph-success)]" : "text-[var(--ph-danger)]"}`}
                               >
                                 {formatConfidenceDelta(item.delta)}
                               </span>
@@ -1954,7 +1934,7 @@ export default function ActivityDetail() {
                         {structuredEvidence.map((item) => (
                           <div
                             key={item.key}
-                            className="rounded-md border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-900/40 px-3 py-2"
+                            className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-surface)] px-3 py-2"
                           >
                             <p className="text-xs text-[var(--ph-muted)]">
                               {item.label}
@@ -1973,7 +1953,7 @@ export default function ActivityDetail() {
                   </div>
                 </div>
                 {showRawEvidence && (
-                  <div className="mt-4 border-t border-gray-200 pt-3 dark:border-gray-700">
+                  <div className="mt-4 border-t border-[var(--ph-border)] pt-3">
                     <p className="text-xs text-[var(--ph-muted)]">
                       Raw Log Extracts
                     </p>
@@ -1982,7 +1962,7 @@ export default function ActivityDetail() {
                         {rawEvidenceLines.map((line, index) => (
                           <li
                             key={`${line}-${index}`}
-                            className="rounded bg-gray-100 px-2 py-1 text-xs font-mono text-gray-700 dark:bg-gray-900/70 dark:text-gray-200"
+                            className="rounded bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-mono text-[var(--ph-text)]"
                           >
                             {line}
                           </li>
@@ -2006,8 +1986,8 @@ export default function ActivityDetail() {
                       key={file}
                       className="flex items-center text-sm text-[var(--ph-text)]"
                     >
-                      <FileCode className="h-4 w-4 text-gray-400 mr-2" />
-                      <code className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
+                      <FileCode className="h-4 w-4 text-[var(--ph-muted)] mr-2" />
+                      <code className="bg-[var(--ph-bg-elevated)] px-2 py-0.5 rounded">
                         {file}
                       </code>
                     </div>

@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: e2aad10 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -284,7 +284,26 @@ Theme: operator control-plane coherence + MCP operational maturity.
 4. MCP governance screens no longer show contradictory configured/effective states without explaining the precedence rule.
 5. Release docs, changelog scope, and implementation PRs tracked this work explicitly as `v0.4.0`.
 
-## Active Target: `v0.5.0` (Minor)
+## Active Target: `v0.5.1` (Patch)
+
+Theme: frontend coherence cleanup after live `v0.5.0` validation ([#92](https://github.com/Canepro/pipelinehealer/issues/92)).
+
+### Planned Scope
+
+1. Route correctness
+   - Ensure unknown public and authenticated frontend routes resolve to an explicit `NotFound` state rather than silently falling back to the landing page.
+2. Theme-system completion
+   - Close remaining hardcoded badge/theme drift left by the frontend cleanup pass so semantic CSS vars are used consistently where that pass claimed completion.
+3. Release hygiene
+   - Package the UI/UX cleanup as a tracked patch release instead of leaving local-only frontend edits and artifacts on `main`.
+
+### Exit Criteria
+
+1. Unknown routes consistently render `NotFound` in both public and `/app` paths.
+2. Frontend lint/build remain green after the cleanup.
+3. The patch scope is documented in `CHANGELOG.md` and release planning docs before merge.
+
+## Released Target: `v0.5.0` (Minor)
 
 Theme: outbound integration gateway + notification routing.
 
@@ -435,6 +454,7 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-052` | Generic notification sink contract + first adapters (`webhook`, `slack_webhook`, `teams_webhook`, `rocketchat_webhook`, `email`) for auditable outbound delivery | `v0.5.0` | minor | High | Completed (merged to `main` on this branch; release packaging remains the only follow-on step) |
 | `BL-053` | ACA reference integration path: wire live ACA handoff from `copy_only` to real `webhook` mode via the receiver without baking Azure assumptions into core product | `v0.5.0` | minor | High | Completed (merged to `main`; ACA backend now runs live webhook mode against the receiver) |
 | `BL-054` | Operator-facing integration status surfacing for external receiver/notification dependencies (docs first, product surface where justified) | `v0.5.0` | minor | Medium | Completed (merged to `main`; receiver/integration health now surfaces in Settings and Control Center with session-first admin UX) |
+| `BL-055` | Frontend coherence patch: explicit 404 routing for public paths plus semantic badge-theme cleanup after live `v0.5.0` validation ([#92](https://github.com/Canepro/pipelinehealer/issues/92)) | `v0.5.1` | patch | Medium | In Progress |
 
 ## Definition of Done (Per Version)
 

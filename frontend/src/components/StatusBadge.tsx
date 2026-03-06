@@ -43,7 +43,7 @@ const statusConfig: Record<string, {
   },
   skipped: {
     label: 'Skipped',
-    className: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+    className: 'bg-[var(--ph-bg-elevated)] text-[var(--ph-muted)] border border-[var(--ph-border)]',
     icon: AlertTriangle,
   },
 }
@@ -51,7 +51,7 @@ const statusConfig: Record<string, {
 export default function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
   const config = statusConfig[status] || {
     label: status,
-    className: 'bg-gray-100 text-gray-800',
+    className: 'bg-[var(--ph-bg-elevated)] text-[var(--ph-muted)]',
     icon: Clock,
   }
 
