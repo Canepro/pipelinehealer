@@ -35,6 +35,35 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
+function getCssVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function useChartTheme() {
+  const [theme, setTheme] = useState({
+    tooltipBg: "#1e293b",
+    tooltipBorder: "#475569",
+    tooltipText: "#e2e8f0",
+    gridStroke: "#475569",
+    tickFill: "#96a5b6",
+  });
+  useEffect(() => {
+    const update = () =>
+      setTheme({
+        tooltipBg: getCssVar("--ph-tooltip-bg") || "#1e293b",
+        tooltipBorder: getCssVar("--ph-tooltip-border") || "#475569",
+        tooltipText: getCssVar("--ph-tooltip-text") || "#e2e8f0",
+        gridStroke: getCssVar("--ph-border") || "#475569",
+        tickFill: getCssVar("--ph-muted") || "#96a5b6",
+      });
+    update();
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return theme;
+}
+
 const COLORS = [
   "#2563eb",
   "#0ea5e9",
@@ -142,6 +171,7 @@ function shortActivityId(id: string): string {
 }
 
 export default function Dashboard() {
+  const chartTheme = useChartTheme();
   const {
     data: stats,
     isLoading: statsLoading,
@@ -438,7 +468,7 @@ export default function Dashboard() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Why Safety Gated</CardTitle>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-[var(--ph-muted)]">
             We create review-ready proposals when changes touch non-allowlisted
             paths or require extra context.
           </p>
@@ -449,12 +479,12 @@ export default function Dashboard() {
               {safetyGateReasonCounts.map((item) => (
                 <div
                   key={item.code}
-                  className="rounded-md border border-[var(--ph-border)] bg-slate-800/40 px-3 py-2 text-xs text-slate-200"
+                  className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-3 py-2 text-xs text-[var(--ph-text)]"
                 >
                   <div className="font-semibold">
                     {formatReasonLabel(item.code)} ({item.count})
                   </div>
-                  <div className="mt-1 text-gray-400">
+                  <div className="mt-1 text-[var(--ph-muted)]">
                     <span className="font-mono">{item.code}</span>
                   </div>
                 </div>
@@ -465,7 +495,7 @@ export default function Dashboard() {
               <p className="text-sm font-medium text-[var(--ph-text)]">
                 {EMPTY_STATES.safetyGated.title}
               </p>
-              <p className="mt-1 text-sm text-gray-400">
+              <p className="mt-1 text-sm text-[var(--ph-muted)]">
                 {EMPTY_STATES.safetyGated.body}
               </p>
             </div>
@@ -474,7 +504,7 @@ export default function Dashboard() {
       </Card>
 
       {statsError && (
-        <div className="rounded-lg border border-amber-300/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+        <div className="rounded-lg border border-[var(--ph-warning-border)] bg-[var(--ph-warning-bg)] px-4 py-3 text-sm text-[var(--ph-warning)]">
           Dashboard stats endpoint is unavailable: {statsErrorMessage}
         </div>
       )}
@@ -487,7 +517,7 @@ export default function Dashboard() {
             <CardTitle className="text-base">
               Failure Types (Last 30 Days)
             </CardTitle>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-[var(--ph-muted)]">
               Total failures observed:{" "}
               <span className="font-semibold text-[var(--ph-text)]">
                 {totalFailures}
@@ -526,21 +556,21 @@ export default function Dashboard() {
                       item.payload.name,
                     ]}
                     contentStyle={{
-                      backgroundColor: "#0f172a",
-                      border: "1px solid #334155",
+                      backgroundColor: chartTheme.tooltipBg,
+                      border: `1px solid ${chartTheme.tooltipBorder}`,
                       borderRadius: "8px",
-                      color: "#e2e8f0",
+                      color: chartTheme.tooltipText,
                       fontSize: "12px",
                       padding: "8px 10px",
                     }}
-                    labelStyle={{ color: "#e2e8f0", fontWeight: 500 }}
-                    itemStyle={{ color: "#e2e8f0" }}
+                    labelStyle={{ color: chartTheme.tooltipText, fontWeight: 500 }}
+                    itemStyle={{ color: chartTheme.tooltipText }}
                     wrapperStyle={{ maxWidth: "min(90vw, 320px)" }}
                   />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-[250px] flex-col items-center justify-center gap-3 text-sm text-gray-400">
+              <div className="flex h-[250px] flex-col items-center justify-center gap-3 text-sm text-[var(--ph-muted)]">
                 <p>{EMPTY_STATES.activities.body}</p>
                 <Button asChild size="sm" variant="secondary">
                   <a
@@ -560,12 +590,12 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Top Repositories</CardTitle>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-[var(--ph-muted)]">
               Most active repo:{" "}
               <span className="font-semibold text-[var(--ph-text)]">
                 {topRepository?.name || "N/A"}
               </span>{" "}
-              <span className="text-gray-400">
+              <span className="text-[var(--ph-muted)]">
                 ({topRepository?.count || 0} runs)
               </span>
             </p>
@@ -576,19 +606,19 @@ export default function Dashboard() {
                 <BarChart data={repoData}>
                   <CartesianGrid
                     strokeDasharray="2 4"
-                    stroke="#334155"
+                    stroke={chartTheme.gridStroke}
                     strokeOpacity={0.25}
                     vertical={false}
                   />
                   <XAxis
                     dataKey="name"
-                    tick={{ fill: "#e2e8f0", fontSize: 12 }}
+                    tick={{ fill: chartTheme.tickFill, fontSize: 12 }}
                     interval={0}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fill: "#e2e8f0", fontSize: 12 }}
+                    tick={{ fill: chartTheme.tickFill, fontSize: 12 }}
                     tickCount={5}
                     axisLine={false}
                     tickLine={false}
@@ -596,15 +626,15 @@ export default function Dashboard() {
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#0f172a",
-                      border: "1px solid #334155",
+                      backgroundColor: chartTheme.tooltipBg,
+                      border: `1px solid ${chartTheme.tooltipBorder}`,
                       borderRadius: "8px",
-                      color: "#e2e8f0",
+                      color: chartTheme.tooltipText,
                       fontSize: "12px",
                       padding: "8px 10px",
                     }}
-                    labelStyle={{ color: "#e2e8f0", fontWeight: 500 }}
-                    itemStyle={{ color: "#e2e8f0" }}
+                    labelStyle={{ color: chartTheme.tooltipText, fontWeight: 500 }}
+                    itemStyle={{ color: chartTheme.tooltipText }}
                     formatter={(value: number) => [
                       `${value} run${value === 1 ? "" : "s"}`,
                       "Runs",
@@ -615,7 +645,7 @@ export default function Dashboard() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-[250px] flex-col items-center justify-center gap-3 text-sm text-gray-400">
+              <div className="flex h-[250px] flex-col items-center justify-center gap-3 text-sm text-[var(--ph-muted)]">
                 <p>{EMPTY_STATES.activities.body}</p>
                 <Button asChild size="sm" variant="secondary">
                   <a
@@ -651,7 +681,7 @@ export default function Dashboard() {
                   <select
                     value={selectedActivity?.id || ""}
                     onChange={(e) => setSelectedActivityId(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-gray-100 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-azure-500 dark:bg-gray-700 dark:text-gray-100"
+                    className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-3 py-2 text-sm text-[var(--ph-text)] focus:outline-none focus:ring-2 focus:ring-azure-500"
                   >
                     {recentActivities.map((activity) => (
                       <option key={activity.id} value={activity.id}>
@@ -707,7 +737,7 @@ export default function Dashboard() {
                   </p>
                   {selectedClassificationSignal && (
                     <p
-                      className="mt-1 line-clamp-2 text-xs text-gray-400"
+                      className="mt-1 line-clamp-2 text-xs text-[var(--ph-muted)]"
                       title={`Pattern signal: ${selectedClassificationSignal}`}
                     >
                       Signal: {selectedClassificationSignal}
@@ -737,7 +767,7 @@ export default function Dashboard() {
                     {selectedModelPath}
                   </p>
                   {selectedActivity?.llm_model_path && (
-                    <p className="mt-1 text-xs text-gray-400">
+                    <p className="mt-1 text-xs text-[var(--ph-muted)]">
                       Calls: {selectedLlmCalls} • Fallback used:{" "}
                       {selectedFallbackUsed}
                     </p>
@@ -771,7 +801,7 @@ export default function Dashboard() {
                   </p>
                   {selectedReasonCode && showRawReasonCode && (
                     <p
-                      className="mt-1 break-all font-mono text-[11px] text-gray-500"
+                      className="mt-1 break-all font-mono text-[11px] text-[var(--ph-muted)]"
                       title={selectedReasonCode}
                     >
                       raw: {selectedReasonCode}
@@ -820,14 +850,14 @@ export default function Dashboard() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-[var(--ph-muted)]">
                     No structured evidence lines available.
                   </p>
                 )}
               </div>
             </>
           ) : (
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-[var(--ph-muted)]">
               {EMPTY_STATES.activities.body}
             </p>
           )}
@@ -837,7 +867,7 @@ export default function Dashboard() {
       {/* Recent Activities */}
       <section className="space-y-4">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-lg font-semibold text-[var(--ph-text)]">
             Recent Activities
           </h2>
           <Button asChild size="sm" variant="ghost">

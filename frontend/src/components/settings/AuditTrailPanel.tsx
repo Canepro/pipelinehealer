@@ -77,8 +77,8 @@ export default function AuditTrailPanel({
     <Card className="p-4 md:p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <h2 className="text-lg font-semibold text-[var(--ph-text)]">{title}</h2>
+          <p className="mt-1 text-sm text-[var(--ph-muted)]">
             {description}
           </p>
         </div>
@@ -108,7 +108,7 @@ export default function AuditTrailPanel({
       </div>
 
       {isError && (
-        <p className="mt-4 text-sm text-red-600 dark:text-red-400">
+        <p className="mt-4 text-sm text-[var(--ph-danger)]">
           {error instanceof Error ? error.message : 'Failed to load audit entries'}
         </p>
       )}
@@ -128,19 +128,19 @@ export default function AuditTrailPanel({
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="space-y-1">
                     <p
-                      className="font-mono text-[11px] text-gray-600 dark:text-gray-300"
+                      className="font-mono text-[11px] text-[var(--ph-text)]"
                       title={entry.actor || 'unknown'}
                     >
                       {formatActorLabel(entry.actor)}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-[var(--ph-muted)]">
                       {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
                       {' . '}
                       {formatAuditTimestampUtc(entry.timestamp)}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="max-w-[260px] truncate font-mono text-[11px] text-gray-400" title={entry.request_id || 'n/a'}>
+                    <span className="max-w-[260px] truncate font-mono text-[11px] text-[var(--ph-muted)]" title={entry.request_id || 'n/a'}>
                       {entry.request_id || 'n/a'}
                     </span>
                     {entry.request_id && (
@@ -167,7 +167,7 @@ export default function AuditTrailPanel({
                 </div>
 
                 <details className="mt-3 rounded-md border border-[var(--ph-border)] bg-slate-900/20 p-2">
-                  <summary className="cursor-pointer text-xs font-medium text-gray-300">
+                  <summary className="cursor-pointer text-xs font-medium text-[var(--ph-muted)]">
                     View value changes ({effectiveChanges.length})
                   </summary>
                   {effectiveChanges.length > 0 ? (
@@ -175,7 +175,7 @@ export default function AuditTrailPanel({
                       {JSON.stringify(effectiveChangeJson, null, 2)}
                     </pre>
                   ) : (
-                    <p className="mt-2 text-xs text-gray-400">No effective value changes recorded.</p>
+                    <p className="mt-2 text-xs text-[var(--ph-muted)]">No effective value changes recorded.</p>
                   )}
                 </details>
               </div>
@@ -217,8 +217,8 @@ export default function AuditTrailPanel({
 
       {isExpanded && visibleEntries && visibleEntries.length === 0 && (
         <div className="mt-4 rounded-lg border border-[var(--ph-border)] p-4">
-          <p className="text-sm font-medium text-gray-200">{EMPTY_STATES.audit.title}</p>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{EMPTY_STATES.audit.body}</p>
+          <p className="text-sm font-medium text-[var(--ph-text)]">{EMPTY_STATES.audit.title}</p>
+          <p className="mt-1 text-sm text-[var(--ph-muted)]">{EMPTY_STATES.audit.body}</p>
         </div>
       )}
     </Card>

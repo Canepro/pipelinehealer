@@ -9,11 +9,12 @@ const Activities = lazy(() => import('./pages/Activities'))
 const ActivityDetail = lazy(() => import('./pages/ActivityDetail'))
 const SettingsPage = lazy(() => import('./pages/Settings'))
 const ControlCenterPage = lazy(() => import('./pages/ControlCenter'))
+const NotFound = lazy(() => import('./pages/NotFound'))
 
 function PageFallback() {
   return (
     <div className="flex items-center justify-center min-h-[40vh]">
-      <div className="animate-pulse text-sm text-slate-400">Loading...</div>
+      <div className="animate-pulse text-sm text-[var(--ph-muted)]">Loading...</div>
     </div>
   )
 }
@@ -36,7 +37,9 @@ function App() {
           <Route path="activities" element={<Activities />} />
           <Route path="activities/:id" element={<ActivityDetail />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
   )

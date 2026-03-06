@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: e92f4a7 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -8,7 +8,10 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Fixed
+
+- Tightened frontend route behavior so unknown public URLs render the dedicated `NotFound` screen instead of silently falling back to the landing page.
+- Finished the semantic badge-theme cleanup for remaining failure-type states so light/dark mode styling stays consistent with the CSS variable system.
 
 ## [v0.5.0] - 2026-03-06
 

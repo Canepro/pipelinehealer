@@ -144,13 +144,13 @@ function toneClass(
   switch (tone) {
     case "success":
     case "ok":
-      return "text-emerald-300";
+      return "text-[var(--ph-success)]";
     case "secondary":
     case "warn":
-      return "text-amber-300";
+      return "text-[var(--ph-warning)]";
     case "destructive":
     case "bad":
-      return "text-rose-300";
+      return "text-[var(--ph-danger)]";
     default:
       return "text-[var(--ph-muted)]";
   }
@@ -278,11 +278,11 @@ function SummaryRows({ rows }: { rows: SummaryRow[] }) {
           <span
             className={`font-medium ${
               row.tone === "ok"
-                ? "text-emerald-300"
+                ? "text-[var(--ph-success)]"
                 : row.tone === "warn"
-                  ? "text-amber-300"
+                  ? "text-[var(--ph-warning)]"
                   : row.tone === "bad"
-                    ? "text-rose-300"
+                    ? "text-[var(--ph-danger)]"
                     : row.tone === "muted"
                       ? "text-[var(--ph-muted)]"
                       : "text-[var(--ph-text)]"

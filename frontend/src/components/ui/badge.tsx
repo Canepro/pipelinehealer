@@ -11,8 +11,8 @@ const badgeVariants = cva(
         default: 'border-transparent bg-[var(--ph-accent)] text-white',
         secondary:
           'border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] text-[var(--ph-text)]',
-        success: 'border-emerald-400/30 bg-emerald-500/20 text-emerald-300',
-        destructive: 'border-rose-400/30 bg-rose-500/20 text-rose-300',
+        success: 'border-[var(--ph-success-border)] bg-[var(--ph-success-bg)] text-[var(--ph-success)]',
+        destructive: 'border-[var(--ph-danger-border)] bg-[var(--ph-danger-bg)] text-[var(--ph-danger)]',
         outline: 'border-[var(--ph-border)] text-[var(--ph-muted)]',
       },
     },

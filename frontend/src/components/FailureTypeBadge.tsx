@@ -12,32 +12,32 @@ const typeConfig: Record<string, {
 }> = {
   dependency: {
     label: 'Dependency',
-    className: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200',
+    className: 'bg-[var(--ph-info-bg)] text-[var(--ph-info)] border border-[var(--ph-info-border)]',
     icon: Package,
   },
   test: {
     label: 'Test',
-    className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+    className: 'bg-[var(--ph-warning-bg)] text-[var(--ph-warning)] border border-[var(--ph-warning-border)]',
     icon: TestTube,
   },
   lint: {
     label: 'Lint',
-    className: 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-200',
+    className: 'bg-[var(--ph-success-bg)] text-[var(--ph-success)] border border-[var(--ph-success-border)]',
     icon: FileCode,
   },
   build_config: {
     label: 'Config',
-    className: 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200',
+    className: 'bg-[var(--ph-bg-elevated)] text-[var(--ph-text)] border border-[var(--ph-border)]',
     icon: Settings,
   },
   timeout: {
     label: 'Timeout',
-    className: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+    className: 'bg-[var(--ph-warning-bg)] text-[var(--ph-warning)] border border-[var(--ph-warning-border)]',
     icon: Clock,
   },
   unknown: {
     label: 'Unknown',
-    className: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+    className: 'bg-[var(--ph-bg-elevated)] text-[var(--ph-muted)] border border-[var(--ph-border)]',
     icon: Settings,
   },
 }
