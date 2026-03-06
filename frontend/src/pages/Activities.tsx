@@ -127,7 +127,7 @@ export default function Activities() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
             <Filter className="h-5 w-5 text-[var(--ph-muted)]" />
             <Select
-              value={filters.status}
+              value={filters.status || '__all__'}
               onValueChange={(value) =>
                 setFilters((prev) => ({ ...prev, status: value === '__all__' ? '' : value }))
               }
@@ -144,7 +144,7 @@ export default function Activities() {
               </SelectContent>
             </Select>
             <Select
-              value={filters.failure_type}
+              value={filters.failure_type || '__all__'}
               onValueChange={(value) =>
                 setFilters((prev) => ({ ...prev, failure_type: value === '__all__' ? '' : value }))
               }

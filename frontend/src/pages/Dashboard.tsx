@@ -58,8 +58,13 @@ function useChartTheme() {
       });
     update();
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
+    // Older Safari/WebView runtimes still use addListener/removeListener here.
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", update);
+      return () => mq.removeEventListener("change", update);
+    }
+    mq.addListener(update);
+    return () => mq.removeListener(update);
   }, []);
   return theme;
 }
