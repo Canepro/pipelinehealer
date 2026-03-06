@@ -84,6 +84,11 @@ interface Props {
 }
 
 type SettingsSection = "runtime" | "intelligence" | "security";
+type NotificationTargetType =
+  | "webhook"
+  | "slack_webhook"
+  | "teams_webhook"
+  | "rocketchat_webhook";
 type McpToolDefinition = {
   key:
     | "fetch_failure_context"
@@ -120,6 +125,33 @@ const MCP_TOOL_DEFINITIONS: McpToolDefinition[] = [
     label: "rerun_pipeline",
     description: "Trigger pipeline/job reruns through provider tools.",
     write: true,
+  },
+];
+
+const NOTIFICATION_TARGET_TYPES: Array<{
+  value: NotificationTargetType;
+  label: string;
+  note: string;
+}> = [
+  {
+    value: "webhook",
+    label: "webhook",
+    note: "Forward the original PipelineHealer payload unchanged.",
+  },
+  {
+    value: "slack_webhook",
+    label: "slack_webhook",
+    note: "Send a Slack-compatible summary with text and Block Kit.",
+  },
+  {
+    value: "teams_webhook",
+    label: "teams_webhook",
+    note: "Send a Teams Incoming Webhook message with an Adaptive Card.",
+  },
+  {
+    value: "rocketchat_webhook",
+    label: "rocketchat_webhook",
+    note: "Send a compact Rocket.Chat summary payload.",
   },
 ];
 
@@ -176,6 +208,37 @@ function parseJenkinsBridgeUrlInput(
 
 function shellSingleQuote(value: string): string {
   return `'${value.replace(/'/g, `'\"'\"'`)}'`;
+}
+
+function parseNotificationEventsInput(value: string): string[] {
+  const normalized = value
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+  return normalized.length > 0 ? normalized : ["agent_handoff_requested"];
+}
+
+function buildNotificationTargetDraft(args: {
+  targetType: NotificationTargetType;
+  url: string;
+  name: string;
+  events: string[];
+}) {
+  const parsed = parseWebhookUrlInput(args.url);
+  if (!parsed) return null;
+
+  const payload: Record<string, unknown> = {
+    type: args.targetType,
+    url: parsed.url,
+    enabled: true,
+  };
+  if (args.events.length > 0) {
+    payload.events = args.events;
+  }
+  if (args.name.trim()) {
+    payload.name = args.name.trim();
+  }
+  return payload;
 }
 
 function buildHandoffSamplePayload() {
@@ -296,6 +359,12 @@ export default function AdminControlsForm({
   const [workflowInput, setWorkflowInput] = useState("");
   const [handoffWebhookInput, setHandoffWebhookInput] = useState("");
   const [jenkinsBridgeUrlInput, setJenkinsBridgeUrlInput] = useState("");
+  const [notificationTargetType, setNotificationTargetType] =
+    useState<NotificationTargetType>("webhook");
+  const [notificationTargetUrl, setNotificationTargetUrl] = useState("");
+  const [notificationTargetName, setNotificationTargetName] = useState("");
+  const [notificationTargetEventsInput, setNotificationTargetEventsInput] =
+    useState("agent_handoff_requested");
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("runtime");
   const mcpEffectivePolicies = MCP_TOOL_DEFINITIONS.map((tool) => {
@@ -467,6 +536,21 @@ export default function AdminControlsForm({
         jenkinsBridgeTarget,
         jenkinsBridgeSamplePayload,
       )
+    : "";
+  const notificationTargetEvents = parseNotificationEventsInput(
+    notificationTargetEventsInput,
+  );
+  const notificationTargetDraft = buildNotificationTargetDraft({
+    targetType: notificationTargetType,
+    url: notificationTargetUrl,
+    name: notificationTargetName,
+    events: notificationTargetEvents,
+  });
+  const notificationTargetEnvBlock = notificationTargetDraft
+    ? [
+        `NOTIFY_TARGETS_JSON=${shellSingleQuote(JSON.stringify([notificationTargetDraft]))}`,
+        `NOTIFY_DELIVERY_TIMEOUT_SECONDS=10`,
+      ].join("\n")
     : "";
 
   const copyText = async (
@@ -799,6 +883,181 @@ export default function AdminControlsForm({
                           the payload shape.
                         </p>
                       </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4 space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-[var(--ph-text)]">
+                    Notification Target Setup Assistant
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--ph-muted)]">
+                    Generate a valid receiver target entry for
+                    <code className="mx-1 font-mono">NOTIFY_TARGETS_JSON</code>
+                    while keeping downstream sink URLs deployment-managed.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1">
+                    <Label className="text-[var(--ph-text)]">Target Type</Label>
+                    <Select
+                      value={notificationTargetType}
+                      onValueChange={(value) =>
+                        setNotificationTargetType(value as NotificationTargetType)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {NOTIFICATION_TARGET_TYPES.map((target) => (
+                          <SelectItem key={target.value} value={target.value}>
+                            {target.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[var(--ph-text)]">Target URL</Label>
+                    <Input
+                      type="text"
+                      value={notificationTargetUrl}
+                      onChange={(e) => setNotificationTargetUrl(e.target.value)}
+                      placeholder="https://example.com/webhook"
+                    />
+                    <p className="text-xs text-[var(--ph-muted)]">
+                      Use the full destination URL. Store secret-bearing values
+                      in deployment env or a secret adapter.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1">
+                    <Label className="text-[var(--ph-text)]">
+                      Friendly Name (optional)
+                    </Label>
+                    <Input
+                      type="text"
+                      value={notificationTargetName}
+                      onChange={(e) => setNotificationTargetName(e.target.value)}
+                      placeholder="Ops notifications"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[var(--ph-text)]">Events</Label>
+                    <Input
+                      type="text"
+                      value={notificationTargetEventsInput}
+                      onChange={(e) =>
+                        setNotificationTargetEventsInput(e.target.value)
+                      }
+                      placeholder="agent_handoff_requested"
+                    />
+                    <p className="text-xs text-[var(--ph-muted)]">
+                      Comma-separated. Blank defaults to
+                      <code className="mx-1 font-mono">
+                        agent_handoff_requested
+                      </code>
+                      . Use
+                      <code className="mx-1 font-mono">*</code>
+                      only when you want the target to receive every future
+                      receiver event.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {NOTIFICATION_TARGET_TYPES.map((target) => (
+                    <Badge
+                      key={target.value}
+                      variant={
+                        target.value === notificationTargetType
+                          ? "success"
+                          : "outline"
+                      }
+                    >
+                      {target.label}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-[var(--ph-muted)]">
+                  {
+                    NOTIFICATION_TARGET_TYPES.find(
+                      (target) => target.value === notificationTargetType,
+                    )?.note
+                  }
+                </p>
+
+                {notificationTargetUrl.trim() && !notificationTargetDraft && (
+                  <p className="text-sm text-rose-400">
+                    Enter a full `http(s)` target URL so the assistant can
+                    generate a valid notification target entry.
+                  </p>
+                )}
+
+                {notificationTargetDraft && (
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Label className="text-[var(--ph-muted)]">
+                          Target entry preview
+                        </Label>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={() =>
+                            copyText(
+                              JSON.stringify(notificationTargetDraft, null, 2),
+                              "Notification target copied",
+                              "Enter a valid target URL first",
+                            )
+                          }
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copy Target
+                        </Button>
+                      </div>
+                      <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
+                        {JSON.stringify(notificationTargetDraft, null, 2)}
+                      </pre>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Label className="text-[var(--ph-muted)]">
+                          Receiver env block
+                        </Label>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={() =>
+                            copyText(
+                              notificationTargetEnvBlock,
+                              "Notification env block copied",
+                              "Enter a valid target URL first",
+                            )
+                          }
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copy Env Block
+                        </Button>
+                      </div>
+                      <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
+                        {notificationTargetEnvBlock}
+                      </pre>
+                      <p className="text-xs text-[var(--ph-muted)]">
+                        This generates a single-target example. Merge it into
+                        your existing
+                        <code className="mx-1 font-mono">NOTIFY_TARGETS_JSON</code>
+                        array if the receiver already has other destinations.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -2377,6 +2636,12 @@ export default function AdminControlsForm({
                     setNewRepoInput("");
                     setNewHandoffHostInput("");
                     setHandoffWebhookInput("");
+                    setNotificationTargetType("webhook");
+                    setNotificationTargetUrl("");
+                    setNotificationTargetName("");
+                    setNotificationTargetEventsInput(
+                      "agent_handoff_requested",
+                    );
                     setGhAwWorkflowsInput(
                       reset.gh_aw_known_workflows.join(","),
                     );
