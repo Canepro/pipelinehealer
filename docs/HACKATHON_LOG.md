@@ -35,6 +35,11 @@ This is the long-form project tracker for hackathon execution status, submission
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
   - storage extensibility remained adapter-scoped (no core workflow rewrites during freeze)
 - Release `v0.4.0` is the current public baseline; next forward-planning target is decided after post-release triage
+- Post-`v0.4.0` planning target is now `v0.5.0`:
+  - deployment-facing Assign-to-Agent receiver boundary
+  - generic outbound event and notification routing
+  - reference Azure Function deployment for ACA without making Azure the product boundary
+  - configurable notification sinks (`webhook`, Slack, Teams, Rocket.Chat first; email deferred until delivery/provider requirements are justified)
 - `v0.4.0` scope is now explicitly expanded to cover operator control-plane coherence after live-capability activation exposed product gaps that conservative defaults were hiding:
 - `v0.4.0` operator control-plane coherence release is now shipped:
   - settings provenance and startup-managed dependency visibility
