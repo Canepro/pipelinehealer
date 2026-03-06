@@ -209,6 +209,10 @@ NOTIFY_EMAIL_SMTP_PASSWORD=
 - `email` targets receive a plain-text summary email over SMTP using deployment-managed relay settings.
 - Invalid notification targets are reported by the receiver health endpoint and do not block the primary handoff acknowledgement.
 
+Notification proof visual:
+
+![Rocket.Chat notification — compact Assign-to-Agent summary delivered through the reference receiver](screens/agent-handoff-rocketchat-current.png)
+
 > **That's it for getting started.** Everything else in `.env` has sensible defaults. You can tune optional settings later — see the full list in `backend/.env.example`.
 
 Non-development storage guardrail:
