@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 9502342 -->
+<!-- LAST_VERIFIED: 39aec90 -->
 
 > OSS-first, policy-aware pipeline remediation platform with GitHub Actions and Jenkins bridge support today.
 
@@ -19,14 +19,14 @@ Current provider coverage is GitHub Actions plus a signed Jenkins bridge path. T
 ![Dashboard — processed count, safety gating ratios, failure type breakdown, and explainability snapshot](docs/screens/dashboard.png)
 ![Landing page — policy-aware remediation overview and operational snapshot](docs/screens/Pipelinehealer-Landing_Page.png)
 
-## Hackathon Snapshot
+## Project Snapshot
 
 - Public repository: `https://github.com/Canepro/pipelinehealer`
 - Live reference deployment: Azure Container Apps (backend + frontend)
 - Current release baseline: [`v0.3.3`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.3.3)
 - `v0.3.2` required freeze scope shipped: `#36` (Jenkins bridge), `#42` (Assign-to-Agent), `#57` (storage posture hardening)
 - OSS-friendly durable storage is available: PostgreSQL adapter (`#58`) alongside Cosmos DB and in-memory development mode
-- Current release tracking umbrella: [#44](https://github.com/Canepro/pipelinehealer/issues/44)
+- Current release tracking umbrella: [#68](https://github.com/Canepro/pipelinehealer/issues/68)
 - Demo runbook: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
 
 ## Example Remediation Stories
@@ -216,7 +216,7 @@ flowchart TB
   end
 
   subgraph GOV["Policy and Operator Surface"]
-    UI["Dashboard / Activities / Settings"]
+    UI["Dashboard / Activities / Control Center / Settings"]
     API["Settings API<br/>/api/settings*"]
     AUD["Audit Trail"]
     LRN["Learning Queue + Promotion Gates"]
@@ -227,10 +227,11 @@ flowchart TB
     EXP["Explainability Metadata<br/>source path, reason codes"]
   end
 
-  subgraph OUT["GitHub Outcomes"]
+  subgraph OUT["Outcome Paths"]
     PR["Create or Reuse PR"]
     IS["Create or Reuse Issue"]
     RR["Retry Failed Jobs"]
+    HO["Assign-to-Agent Handoff"]
   end
 
   GH --> WH --> ORCH
@@ -240,6 +241,7 @@ flowchart TB
   REM --> PR
   REM --> IS
   REM --> RR
+  REM --> HO
 
   ORCH -. enrich .-> GHAW
   GHAW -. findings .-> DIA
@@ -259,15 +261,15 @@ flowchart TB
 
 ```mermaid
 sequenceDiagram
-  participant GH as GitHub Actions
+  participant SRC as Pipeline Source
   participant WH as Webhook API
   participant OR as Orchestrator
   participant DI as Diagnosis
   participant RM as Remediation
   participant DB as Storage
-  participant OUT as GitHub Artifacts
+  participant OUT as Provider / Handoff Outcomes
 
-  GH->>WH: workflow_run.completed (failure)
+  SRC->>WH: normalized failure event
   WH->>OR: normalized event
   OR->>DI: logs + context + policy snapshot
   DI-->>OR: diagnosis + confidence + evidence

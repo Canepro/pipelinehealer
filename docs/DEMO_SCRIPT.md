@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 41575cf -->
+<!-- LAST_VERIFIED: 39aec90 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -15,6 +15,8 @@ Related docs:
 - `docs/HACKATHON_LOG.md` for submission checklist and milestone status
 - `docs/API.md` for full API endpoint reference and best practices
 - `docs/CLI.md` for the full CLI command reference
+
+This runbook remains intentionally demo-specific and GitHub Actions-focused because the current recording flow uses the demo repo webhook path. That does not narrow the product scope; PipelineHealer itself is framed more broadly as a pipeline remediation control plane.
 
 ## Hackathon Requirement Alignment (March 5, 2026)
 

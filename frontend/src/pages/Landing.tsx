@@ -76,7 +76,7 @@ const operationalSignals = [
 
 const platformStats = [
   { value: 2, label: 'Ingress Paths', suffix: '' },
-  { value: 3, label: 'Operator Surfaces', suffix: '' },
+  { value: 4, label: 'Operator Surfaces', suffix: '' },
   { value: 4, label: 'Agent Stages', suffix: '' },
   { value: 100, label: 'Auditable Actions', suffix: '%' },
 ]

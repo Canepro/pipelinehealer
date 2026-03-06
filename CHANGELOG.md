@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 9477f08 -->
+<!-- LAST_VERIFIED: 39aec90 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -15,7 +15,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ### Changed
 
 - Normalized operator-facing provenance language around `GET /api/settings`: `env` now represents portable startup-managed config rather than implying a specific deployment adapter such as ACA `secretref`.
-- Reframed the landing page, app shell, and Settings copy around PipelineHealer as an OSS-first pipeline remediation control plane rather than a hackathon-only CI demo, aligning product language with the operator surfaces shipped in `v0.4.0`.
+- Reframed the landing page, app shell, and Settings copy around PipelineHealer as an OSS-first pipeline remediation control plane rather than a hackathon-only CI demo, aligning product language with the operator surfaces targeted for `v0.4.0`.
 
 ## [v0.3.3] - 2026-03-05
 
