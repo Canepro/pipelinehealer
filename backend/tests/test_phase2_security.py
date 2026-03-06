@@ -354,9 +354,13 @@ async def test_workflow_run_ignored_when_repo_not_in_allowlist(monkeypatch) -> N
 
 
 @pytest.mark.asyncio
-async def test_settings_endpoint_returns_non_secret_fields(monkeypatch) -> None:
+async def test_settings_endpoint_returns_non_secret_fields(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv(
+        "PIPELINEHEALER_ENV_FILE_PATH",
+        str(tmp_path / "missing-settings.env"),
+    )
     monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
     monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-mini")
     monkeypatch.setenv("AZURE_OPENAI_API_VERSION", "2025-03-01-preview")
@@ -366,6 +370,7 @@ async def test_settings_endpoint_returns_non_secret_fields(monkeypatch) -> None:
     monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_URL", "https://agent.example.com/hook")
     monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_ALLOWLIST", "agent.example.com")
     reset_settings()
+    app.state.storage = InMemoryStorage()
 
     response = await _get_settings(headers={"X-Admin-Key": "admin-secret"})
     assert response.status_code == 200
@@ -390,6 +395,23 @@ async def test_settings_endpoint_returns_non_secret_fields(monkeypatch) -> None:
     )
     assert data["settings_metadata"]["openai_compatible_api_key_configured"]["sensitive"] is True
     assert "azure_openai_api_key" not in data
+
+
+@pytest.mark.asyncio
+async def test_settings_env_file_override_controls_startup_provenance(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    env_file = tmp_path / ".env"
+    env_file.write_text("HEAL_MODE=freestyle\n", encoding="utf-8")
+    monkeypatch.setenv("PIPELINEHEALER_ENV_FILE_PATH", str(env_file))
+    reset_settings()
+    app.state.storage = InMemoryStorage()
+
+    response = await _get_settings(headers={"X-Admin-Key": "admin-secret"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["heal_mode"] == "freestyle"
+    assert body["settings_metadata"]["heal_mode"]["source"] == "env"
 
 
 @pytest.mark.asyncio
@@ -1138,10 +1160,13 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
 
 
 @pytest.mark.asyncio
-async def test_admin_persist_succeeds_without_env_file(monkeypatch) -> None:
+async def test_admin_persist_succeeds_without_env_file(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
-    monkeypatch.setenv("PIPELINEHEALER_ENV_FILE_PATH", "/tmp/nonexistent-ph-env-file")
+    monkeypatch.setenv(
+        "PIPELINEHEALER_ENV_FILE_PATH",
+        str(tmp_path / "missing-settings.env"),
+    )
     reset_settings()
 
     app.state.storage = InMemoryStorage()
@@ -1176,10 +1201,16 @@ async def test_admin_persist_succeeds_without_env_file(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_apply_persisted_runtime_settings_restores_values(monkeypatch) -> None:
+async def test_apply_persisted_runtime_settings_restores_values(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
-    monkeypatch.setenv("PIPELINEHEALER_ENV_FILE_PATH", "/tmp/nonexistent-ph-env-file")
+    monkeypatch.setenv(
+        "PIPELINEHEALER_ENV_FILE_PATH",
+        str(tmp_path / "missing-settings.env"),
+    )
     reset_settings()
 
     storage = InMemoryStorage()

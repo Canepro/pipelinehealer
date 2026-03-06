@@ -15,7 +15,7 @@ from uuid import uuid4
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
-from ..config import get_settings
+from ..config import get_settings, load_settings_snapshot
 from ..llm.adapters import get_llm_provider_adapter
 from ..models import (
     ActivityRecord,
@@ -320,7 +320,7 @@ def _setting_source_for_derived_attr(
 def _build_settings_metadata() -> dict[str, AppSettingMetadataView]:
     """Build per-field provenance metadata for the admin settings view."""
     settings = get_settings()
-    startup_settings = type(settings)()
+    startup_settings = load_settings_snapshot()
     startup_fields_set = set(startup_settings.model_fields_set)
     mutable_attr_names = {attr_name for attr_name, _ in _MUTABLE_SETTINGS_ENV_KEYS}
     metadata: dict[str, AppSettingMetadataView] = {}

@@ -1,6 +1,7 @@
 """Configuration management for PipelineHealer."""
 
 import json
+import os
 from typing import Annotated, Any
 from urllib.parse import urlparse
 
@@ -783,6 +784,27 @@ class Settings(BaseSettings):
 _settings_singleton: Settings | None = None
 
 
+def _settings_env_file() -> str | None:
+    """Resolve optional env file override for settings loading.
+
+    Tests and local operators can point settings loading at a specific env file
+    (or a nonexistent path to disable repo-root `.env` influence) using
+    `PIPELINEHEALER_ENV_FILE_PATH`.
+    """
+    override = os.getenv("PIPELINEHEALER_ENV_FILE_PATH", "").strip()
+    return override or None
+
+
+def load_settings_snapshot() -> Settings:
+    """Load a fresh settings snapshot using the current env-file override rules."""
+    env_file = _settings_env_file()
+    if env_file is None:
+        return Settings()
+    # pydantic-settings accepts `_env_file` at runtime, but the generated type
+    # signature does not declare it, so keep the override localized here.
+    return Settings(_env_file=env_file)  # type: ignore[call-arg]
+
+
 def get_settings() -> Settings:
     """Get the application settings singleton.
 
@@ -795,7 +817,7 @@ def get_settings() -> Settings:
     """
     global _settings_singleton
     if _settings_singleton is None:
-        _settings_singleton = Settings()
+        _settings_singleton = load_settings_snapshot()
     return _settings_singleton
 
 

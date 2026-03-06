@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 39aec90 -->
+<!-- LAST_VERIFIED: e0e9903 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -10,12 +10,19 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ### Added
 
-- Settings and Control Center now expose stronger provenance for startup-managed fields, including sensitive presence-only signals and derived startup dependency status for Assign-to-Agent webhook, GitHub auth wiring, and OpenAI-compatible API key configuration.
+- `f25afaa`, `628457f`, `7ecdf8a`, `9477f08` Expanded the operator control plane with settings provenance metadata, Assign-to-Agent setup/test flows, and Jenkins bridge setup/test guidance.
+- `39aec90` Settings and Control Center now expose stronger provenance for startup-managed fields, including sensitive presence-only signals and derived startup dependency status for Assign-to-Agent webhook, GitHub auth wiring, and OpenAI-compatible API key configuration.
 
 ### Changed
 
-- Normalized operator-facing provenance language around `GET /api/settings`: `env` now represents portable startup-managed config rather than implying a specific deployment adapter such as ACA `secretref`.
-- Reframed the landing page, app shell, and Settings copy around PipelineHealer as an OSS-first pipeline remediation control plane rather than a hackathon-only CI demo, aligning product language with the operator surfaces targeted for `v0.4.0`.
+- `70a30ef`, `acf955f`, `a9488fb`, `41575cf` Established the `v0.4.0` control-plane baseline and aligned the release planning/docs lineage from the `v0.3.3` baseline.
+- `39aec90` Normalized operator-facing provenance language around `GET /api/settings`: `env` now represents portable startup-managed config rather than implying a specific deployment adapter such as ACA `secretref`.
+- `e0e9903` Reframed the landing page, app shell, Settings copy, README, demo script, and architecture diagrams around PipelineHealer as an OSS-first pipeline remediation control plane rather than a hackathon-only CI demo.
+
+### Fixed
+
+- `db215f0` Fixed the workflow shutdown task-map mutation race during close/shutdown handling.
+- `6b9d82e` Added deterministic diagnosis for GitHub-hosted runner acquisition failures so those activities no longer collapse to `failure_type: not determined`.
 
 ## [v0.3.3] - 2026-03-05
 
