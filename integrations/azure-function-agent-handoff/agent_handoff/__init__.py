@@ -2,7 +2,7 @@ import logging
 
 from shared import (
     activity_summary,
-    configured_target_count,
+    deliver_notification_targets,
     event_type,
     json_response,
     utc_timestamp,
@@ -22,11 +22,12 @@ def main(req):  # type: ignore[no-untyped-def]
     normalized_event_type = event_type(payload)
     request_id = str(payload.get("request_id", "")).strip()
     delivery_id = str(payload.get("delivery_id", "")).strip()
-    targets = configured_target_count()
+    notification_summary = deliver_notification_targets(payload)
 
     logging.info(
         "agent_handoff_received event_type=%s request_id=%s delivery_id=%s "
-        "activity_id=%s repository=%s workflow=%s failure_type=%s targets=%s",
+        "activity_id=%s repository=%s workflow=%s failure_type=%s configured_targets=%s "
+        "delivered_targets=%s failed_targets=%s invalid_targets=%s",
         normalized_event_type,
         request_id,
         delivery_id,
@@ -34,19 +35,21 @@ def main(req):  # type: ignore[no-untyped-def]
         summary["repository"],
         summary["workflow_name"],
         summary["failure_type"],
-        targets,
+        notification_summary["configured_targets"],
+        notification_summary["delivered_targets"],
+        notification_summary["failed_targets"],
+        notification_summary["invalid_targets"],
     )
 
-    # BL-051 keeps the receiver boundary intentionally narrow: accept,
-    # authenticate via Function auth, log structured metadata, and return an
-    # acknowledgement. Generic outbound routing lands in BL-052.
+    # Delivery errors are reported in the acknowledgement, but they do not
+    # change the receiver's accept/ack contract for the primary handoff path.
     return json_response(
         {
             "accepted": True,
             "event_type": normalized_event_type,
             "activity_id": summary["activity_id"],
             "repository": summary["repository"],
-            "configured_targets": targets,
+            "notification_summary": notification_summary,
             "received_at": utc_timestamp(),
         }
     )

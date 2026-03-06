@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 9502342 -->
+<!-- LAST_VERIFIED: b5d6a5b -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -182,6 +182,17 @@ Settings UI note:
 - It also generates a sample webhook event payload and a `curl` smoke test that use the same JSON schema as the real Assign-to-Agent webhook (including `activity.repository`, `activity.workflow_run_id`, and `activity.failure_type`) so you can validate the webhook target before changing deployment config.
 - The sample payload intentionally omits deployment-only values and should be treated as the canonical expected JSON shape for receiver validation.
 - The actual webhook URL remains startup configuration; it is not returned by the API.
+
+If you are using the reference Azure Function receiver for webhook mode, its own app settings can fan out the same handoff event to notification targets:
+
+```dotenv
+NOTIFY_TARGETS_JSON=[{"type":"webhook","url":"https://example.com/notify"},{"type":"rocketchat_webhook","url":"https://chat.example.com/hooks/abc"}]
+NOTIFY_DELIVERY_TIMEOUT_SECONDS=10
+```
+
+- `webhook` targets receive the original PipelineHealer handoff payload unchanged.
+- `rocketchat_webhook` targets receive a compact chat summary derived from that same payload.
+- Invalid notification targets are reported by the receiver health endpoint and do not block the primary handoff acknowledgement.
 
 > **That's it for getting started.** Everything else in `.env` has sensible defaults. You can tune optional settings later — see the full list in `backend/.env.example`.
 
