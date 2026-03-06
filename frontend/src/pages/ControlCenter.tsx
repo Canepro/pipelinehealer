@@ -18,6 +18,7 @@ import { AUTH_ENABLED } from '../auth/config'
 import { AuditTrailPanel } from '../components/settings'
 import {
   formatSettingSource,
+  formatIntegrationQueryState,
   getDurabilityLabel,
   getMcpEffectiveState,
   type McpPolicyMode,
@@ -337,6 +338,19 @@ export default function ControlCenterPage() {
     retry: false,
   })
 
+  const {
+    data: handoffIntegrationStatus,
+    isError: isHandoffIntegrationError,
+    error: handoffIntegrationError,
+  } = useQuery({
+    queryKey: ['control-center-handoff-integration-status', hasAuthAttempt],
+    queryFn: () => api.getAgentHandoffIntegrationStatus(),
+    enabled: hasAuthAttempt,
+    retry: false,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+  })
+
   const refreshLearningMutation = useMutation({
     mutationFn: () =>
       api.refreshLearningQueue(effectiveAdminKey, {
@@ -517,6 +531,12 @@ export default function ControlCenterPage() {
         },
       ]
     : []
+
+  const handoffIntegrationSummary = formatIntegrationQueryState({
+    status: handoffIntegrationStatus,
+    isError: isHandoffIntegrationError,
+    error: handoffIntegrationError instanceof Error ? handoffIntegrationError : null,
+  })
 
   const startupDependencyRows: SummaryRow[] = settings
     ? [
@@ -705,7 +725,10 @@ export default function ControlCenterPage() {
 
           {activeSection === 'overview' && (
             <>
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+              <div
+                className="grid gap-4"
+                style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
+              >
                 <PostureCard
                   title="Runtime Posture"
                   items={[
@@ -835,9 +858,9 @@ export default function ControlCenterPage() {
                         </div>
                       ))}
                     </div>
-	                  </CardContent>
-	                </Card>
-	              </div>
+                  </CardContent>
+                </Card>
+              </div>
 
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <Card className="h-full">
@@ -853,9 +876,55 @@ export default function ControlCenterPage() {
                     </p>
                   </CardContent>
                 </Card>
+                <Card className="h-full">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Integration Gateway Status</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
+                    <SummaryRows
+                      rows={[
+                        {
+                          label: 'Receiver',
+                          value: `${handoffIntegrationSummary.summary} · ${handoffIntegrationSummary.detail}`,
+                          tone: handoffIntegrationSummary.tone,
+                        },
+                        {
+                          label: 'Webhook Host',
+                          value: handoffIntegrationStatus?.webhook_host || 'Not configured',
+                          tone: handoffIntegrationStatus?.webhook_host ? 'ok' : 'muted',
+                        },
+                        {
+                          label: 'Health Endpoint',
+                          value: handoffIntegrationStatus?.receiver_health_url || 'Not probed',
+                          tone: handoffIntegrationStatus?.receiver_health_url ? 'ok' : 'muted',
+                        },
+                        {
+                          label: 'Notification Targets',
+                          value: handoffIntegrationStatus?.notifications
+                            ? `${handoffIntegrationStatus.notifications.enabled_targets} enabled · ${handoffIntegrationStatus.notifications.invalid_targets} invalid`
+                            : 'No receiver probe data',
+                          tone:
+                            handoffIntegrationStatus?.notifications?.invalid_targets
+                              ? 'warn'
+                              : handoffIntegrationStatus?.notifications
+                                ? 'ok'
+                                : 'muted',
+                        },
+                      ]}
+                    />
+                    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3 text-xs">
+                      <div className="font-medium text-[var(--ph-text)]">Supported sink types</div>
+                      <div className="mt-1 break-words text-[var(--ph-muted)]">
+                        {handoffIntegrationStatus?.notifications?.supported_target_types.length
+                          ? handoffIntegrationStatus.notifications.supported_target_types.join(', ')
+                          : 'No receiver probe data'}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
-	              <Card>
+              <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Workflow className="h-4 w-4 text-azure-400" />
@@ -898,8 +967,8 @@ export default function ControlCenterPage() {
           )}
 
           {activeSection === 'learning_ops' && (
-            <div className="grid grid-cols-1 gap-4 2xl:grid-cols-12">
-              <Card className="2xl:col-span-7">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+              <Card className="xl:col-span-7">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">Learning Queue</CardTitle>
                 </CardHeader>
@@ -1066,52 +1135,88 @@ export default function ControlCenterPage() {
                 </CardContent>
               </Card>
 
-              <Card className="2xl:col-span-5">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <TerminalSquare className="h-4 w-4 text-azure-400" />
-                    Logs & Investigation Access
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild size="sm" variant="secondary">
-                      <a href={LOGS_RUNBOOK_URL} rel="noopener noreferrer" target="_blank">
-                        Logs Runbook
-                        <ExternalLink className="ml-1 h-3.5 w-3.5" />
-                      </a>
-                    </Button>
-                    {latestRunUrl && (
-                      <Button asChild size="sm" variant="ghost">
-                        <a href={latestRunUrl} rel="noopener noreferrer" target="_blank">
-                          Latest Workflow Run
+              <div className="space-y-4 xl:col-span-5">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Integration Gateway Status</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
+                    <SummaryRows
+                      rows={[
+                        {
+                          label: 'Receiver',
+                          value: `${handoffIntegrationSummary.summary} · ${handoffIntegrationSummary.detail}`,
+                          tone: handoffIntegrationSummary.tone,
+                        },
+                        {
+                          label: 'Webhook Host',
+                          value: handoffIntegrationStatus?.webhook_host || 'Not configured',
+                          tone: handoffIntegrationStatus?.webhook_host ? 'ok' : 'muted',
+                        },
+                        {
+                          label: 'Notification Targets',
+                          value: handoffIntegrationStatus?.notifications
+                            ? `${handoffIntegrationStatus.notifications.enabled_targets} enabled · ${handoffIntegrationStatus.notifications.invalid_targets} invalid`
+                            : 'No receiver probe data',
+                          tone:
+                            handoffIntegrationStatus?.notifications?.invalid_targets
+                              ? 'warn'
+                              : handoffIntegrationStatus?.notifications
+                                ? 'ok'
+                                : 'muted',
+                        },
+                      ]}
+                    />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <TerminalSquare className="h-4 w-4 text-azure-400" />
+                      Logs & Investigation Access
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button asChild size="sm" variant="secondary">
+                        <a href={LOGS_RUNBOOK_URL} rel="noopener noreferrer" target="_blank">
+                          Logs Runbook
                           <ExternalLink className="ml-1 h-3.5 w-3.5" />
                         </a>
                       </Button>
-                    )}
-                  </div>
+                      {latestRunUrl && (
+                        <Button asChild size="sm" variant="ghost">
+                          <a href={latestRunUrl} rel="noopener noreferrer" target="_blank">
+                            Latest Workflow Run
+                            <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                          </a>
+                        </Button>
+                      )}
+                    </div>
 
-                  <div className="space-y-3">
-                    <CommandScopeBlock
-                      title="Azure Deployment Commands"
-                      description="Use these when your backend is deployed to Azure Container Apps."
-                      commands={azureCommands}
-                      onCopy={copyCommand}
-                    />
-                    <CommandScopeBlock
-                      title="Local/Docker Commands"
-                      description="Use these when testing with a local backend and no Azure CLI."
-                      commands={localCommands}
-                      onCopy={copyCommand}
-                    />
-                  </div>
+                    <div className="space-y-3">
+                      <CommandScopeBlock
+                        title="Azure Deployment Commands"
+                        description="Use these when your backend is deployed to Azure Container Apps."
+                        commands={azureCommands}
+                        onCopy={copyCommand}
+                      />
+                      <CommandScopeBlock
+                        title="Local/Docker Commands"
+                        description="Use these when testing with a local backend and no Azure CLI."
+                        commands={localCommands}
+                        onCopy={copyCommand}
+                      />
+                    </div>
 
-                  <div className="text-xs text-[var(--ph-muted)]">
-                    Commands are grouped by execution scope so operators can avoid Azure-only paths
-                    during local troubleshooting.
-                  </div>
-                </CardContent>
-              </Card>
+                    <div className="text-xs text-[var(--ph-muted)]">
+                      Commands are grouped by execution scope so operators can avoid Azure-only paths
+                      during local troubleshooting.
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           )}
 

@@ -515,6 +515,30 @@ class AgentHandoffConfigView(BaseModel):
     reason: str = "ok"
 
 
+class NotificationTargetHealthView(BaseModel):
+    """Receiver-side notification target health surfaced to operators."""
+
+    configured_targets: int
+    enabled_targets: int
+    invalid_targets: int
+    supported_target_types: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+
+
+class AgentHandoffIntegrationStatusView(BaseModel):
+    """Live operator-facing status for the external handoff receiver boundary."""
+
+    enabled: bool
+    mode: AgentHandoffMode
+    webhook_configured: bool
+    webhook_host: str = ""
+    receiver_health_url: str | None = None
+    receiver_status: str
+    reason: str
+    checked_at: str
+    notifications: NotificationTargetHealthView | None = None
+
+
 class AgentHandoffRequest(BaseModel):
     """Request payload for Assign-to-Agent handoff."""
 

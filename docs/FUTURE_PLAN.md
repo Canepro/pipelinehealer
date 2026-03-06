@@ -434,7 +434,7 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-051` | Deployment-facing Assign-to-Agent receiver boundary: HTTP receiver for normalized handoff events with auth, structured logging, and low-cost Azure Function reference deployment | `v0.5.0` | minor | High | In Progress (receiver implemented and reference deployment live) |
 | `BL-052` | Generic notification sink contract + first adapters (`webhook`, `slack_webhook`, `teams_webhook`, `rocketchat_webhook`) for auditable outbound delivery | `v0.5.0` | minor | High | In Progress (`webhook`, `rocketchat_webhook`, `slack_webhook`, and `teams_webhook` receiver routing in implementation) |
 | `BL-053` | ACA reference integration path: wire live ACA handoff from `copy_only` to real `webhook` mode via the receiver without baking Azure assumptions into core product | `v0.5.0` | minor | High | In Progress (live ACA switched to webhook mode; repo follow-up still open) |
-| `BL-054` | Operator-facing integration status surfacing for external receiver/notification dependencies (docs first, product surface where justified) | `v0.5.0` | minor | Medium | Planned |
+| `BL-054` | Operator-facing integration status surfacing for external receiver/notification dependencies (docs first, product surface where justified) | `v0.5.0` | minor | Medium | In Progress (backend receiver probe + Settings/Control Center surfacing in implementation) |
 
 ## Definition of Done (Per Version)
 
