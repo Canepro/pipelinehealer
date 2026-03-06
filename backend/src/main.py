@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .api import dashboard, webhook
+from . import __version__
 from .config import get_settings
 from .observability import configure_observability
 from .workflows.pipeline_healer import PipelineHealerWorkflow, create_workflow
@@ -172,7 +173,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="PipelineHealer",
         description="Self-healing CI/CD agent system",
-        version="0.1.0",
+        version=__version__,
         lifespan=lifespan,
         docs_url="/docs" if settings.environment != "production" else None,
         redoc_url="/redoc" if settings.environment != "production" else None,
@@ -201,7 +202,7 @@ def create_app() -> FastAPI:
         """Root endpoint."""
         return {
             "service": "PipelineHealer",
-            "version": "0.1.0",
+            "version": __version__,
             "status": "running",
         }
 
@@ -210,6 +211,8 @@ def create_app() -> FastAPI:
         """Health check endpoint."""
         storage = getattr(app.state, "storage", None)
         return {
+            "service": "PipelineHealer",
+            "version": __version__,
             "status": "healthy",
             "environment": settings.environment,
             "storage_backend": _resolve_storage_backend_name(storage),

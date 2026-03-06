@@ -8,6 +8,7 @@ import httpx
 import pytest
 from fastapi import HTTPException
 
+from src import __version__
 from src.api import dashboard, security
 from src.api.security import AuthPrincipal
 from src.config import Settings, get_settings, reset_settings
@@ -864,6 +865,8 @@ async def test_health_exposes_environment_and_storage_backend(monkeypatch) -> No
     response = await _get_health()
     assert response.status_code == 200
     body = response.json()
+    assert body["service"] == "PipelineHealer"
+    assert body["version"] == __version__
     assert body["status"] == "healthy"
     assert body["environment"] == "development"
     assert body["storage_backend"] == "in_memory"

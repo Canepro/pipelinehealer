@@ -1215,6 +1215,29 @@ def _handoff_context_preview(context: str, max_chars: int = 280) -> str:
     return sanitized[: max_chars - 3] + "..."
 
 
+def _handoff_activity_url(request: Request, activity_id: str) -> str | None:
+    origin = str(request.headers.get("origin", "") or "").strip().rstrip("/")
+    if not origin.startswith(("http://", "https://")):
+        return None
+    return f"{origin}/app/activities/{activity_id}"
+
+
+def _handoff_summary(activity: ActivityRecord, request: Request) -> dict[str, Any]:
+    diagnosis = activity.diagnosis
+    remediation = activity.remediation_result
+    return {
+        "activity_url": _handoff_activity_url(request, activity.id),
+        "root_cause": (diagnosis.root_cause if diagnosis else "").strip(),
+        "suggested_fix": (diagnosis.suggested_fix if diagnosis else "").strip(),
+        "diagnosis_confidence": float(diagnosis.confidence) if diagnosis else None,
+        "remediation_action": remediation.action_taken.value if remediation else "",
+        "remediation_success": remediation.success if remediation else None,
+        "issue_url": (remediation.issue_url if remediation else "") or "",
+        "pr_url": (remediation.pr_url if remediation else "") or "",
+        "error_message": (remediation.error_message if remediation else "") or "",
+    }
+
+
 def _handoff_actor(request: Request) -> str | None:
     principal = get_request_principal(request)
     if principal is not None:
@@ -2430,6 +2453,7 @@ async def assign_activity_to_agent(
             "status": activity.status.value,
             "failure_type": activity.failure_type.value if activity.failure_type else None,
         },
+        "summary": _handoff_summary(activity, request),
         "context_format": payload.context_format,
         "context": sanitized_context,
         "sent_at": utcnow().isoformat(),

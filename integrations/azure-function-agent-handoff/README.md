@@ -1,6 +1,6 @@
 # PipelineHealer Agent Handoff Receiver
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: fa18d60 -->
 
 Minimal Azure Functions app used as the deployment-facing boundary for Assign-to-Agent webhook delivery.
 
@@ -14,9 +14,9 @@ Current `BL-052` scope:
 - first sink types: `webhook`, `rocketchat_webhook`, `slack_webhook`, `teams_webhook`, `email`
 - non-fatal delivery behavior so the receiver can acknowledge the handoff even if one notification target fails
 
-Planned follow-on:
-- richer formatting/interaction features for chat sinks
-- richer operator status surfacing for downstream notification dependencies
+Current formatting posture:
+- chat and email sinks now prioritize diagnosis, remediation outcome, and action links over raw JSON metadata
+- delivery/request identifiers are kept as footer-level metadata instead of the primary message body
 
 Routes:
 - `GET /api/healthz` (`anonymous`)

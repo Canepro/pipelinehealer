@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: e2aad10 -->
+<!-- LAST_VERIFIED: fa18d60 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -284,24 +284,28 @@ Theme: operator control-plane coherence + MCP operational maturity.
 4. MCP governance screens no longer show contradictory configured/effective states without explaining the precedence rule.
 5. Release docs, changelog scope, and implementation PRs tracked this work explicitly as `v0.4.0`.
 
-## Active Target: `v0.5.1` (Patch)
+## Active Target: `v0.5.2` (Patch)
 
-Theme: frontend coherence cleanup after live `v0.5.0` validation ([#92](https://github.com/Canepro/pipelinehealer/issues/92)).
+Theme: outbound notification readability + deployed-version visibility after live `v0.5.1` validation.
 
 ### Planned Scope
 
-1. Route correctness
-   - Ensure unknown public and authenticated frontend routes resolve to an explicit `NotFound` state rather than silently falling back to the landing page.
-2. Theme-system completion
-   - Close remaining hardcoded badge/theme drift left by the frontend cleanup pass so semantic CSS vars are used consistently where that pass claimed completion.
-3. Release hygiene
-   - Package the UI/UX cleanup as a tracked patch release instead of leaving local-only frontend edits and artifacts on `main`.
+1. Notification message quality
+   - Replace raw chat payload formatting with operator-grade summaries for Rocket.Chat and keep sink formatting aligned across Slack/Teams/email.
+   - Prioritize diagnosis, remediation outcome, and action links over transport metadata.
+2. Deployed-version visibility
+   - Expose trustworthy backend version data from the running service instead of stale hardcoded constants.
+   - Surface release/version alignment in the app shell so operators can see what is deployed without leaving the UI.
+3. Release/docs hygiene
+   - Sync user-facing docs that still describe `v0.4.0` as the current public baseline.
+   - Keep patch scope documented before merge and release.
 
 ### Exit Criteria
 
-1. Unknown routes consistently render `NotFound` in both public and `/app` paths.
-2. Frontend lint/build remain green after the cleanup.
-3. The patch scope is documented in `CHANGELOG.md` and release planning docs before merge.
+1. Chat/email sink messages summarize handoff context clearly enough for an operator to act without parsing raw JSON.
+2. The running backend reports the correct released version through public health/runtime data.
+3. The UI shows deployed release information clearly and flags frontend/backend drift when present.
+4. Docs and changelog reflect the new patch scope before merge.
 
 ## Released Target: `v0.5.0` (Minor)
 

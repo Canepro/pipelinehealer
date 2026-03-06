@@ -292,8 +292,10 @@ async def test_webhook_handoff_success_returns_queued(
 ) -> None:
     from src.api import dashboard
 
+    captured_payload: dict[str, object] = {}
+
     async def _fake_deliver(**kwargs):  # type: ignore[no-untyped-def]
-        _ = kwargs
+        captured_payload.update(kwargs["payload"])
         return True, None
 
     monkeypatch.setattr(dashboard, "_deliver_handoff_webhook", _fake_deliver)
@@ -317,6 +319,66 @@ async def test_webhook_handoff_success_returns_queued(
     body = response.json()
     assert body["status"] == "queued"
     assert body["delivery_id"].startswith("handoff:")
+    summary = captured_payload["summary"]
+    assert summary["root_cause"] == ""
+    assert summary["activity_url"] is None
+
+
+@pytest.mark.asyncio
+async def test_webhook_handoff_payload_includes_summary_and_activity_link(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.api import dashboard
+    from src.models import Diagnosis, FailureType, RemediationAction, RemediationResult
+
+    captured_payload: dict[str, object] = {}
+
+    async def _fake_deliver(**kwargs):  # type: ignore[no-untyped-def]
+        captured_payload.update(kwargs["payload"])
+        return True, None
+
+    monkeypatch.setattr(dashboard, "_deliver_handoff_webhook", _fake_deliver)
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "webhook")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_URL", "https://allowed.example/hook")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_ALLOWLIST", "allowed.example")
+    reset_settings()
+
+    activity = ActivityRecord(
+        repositoryId="1",
+        repository_name="canepro/pipelinehealer-demo",
+        workflow_run_id=126,
+        workflow_name="CI",
+        status=RemediationStatus.COMPLETED,
+        failure_type=FailureType.DEPENDENCY,
+        diagnosis=Diagnosis(
+            failure_type=FailureType.DEPENDENCY,
+            confidence=0.92,
+            root_cause="left-pad dependency is missing from package.json",
+            suggested_fix="Add left-pad to dependencies and rebuild the lockfile.",
+        ),
+        remediation_result=RemediationResult(
+            success=True,
+            action_taken=RemediationAction.CREATE_ISSUE,
+            issue_url="https://github.com/Canepro/pipelinehealer/issues/999",
+        ),
+    )
+    activity_id = await _storage.create_activity(activity)
+    response = await _post_handoff(
+        activity_id,
+        {"context": "context text"},
+        headers={"Origin": "https://frontend.example"},
+    )
+    assert response.status_code == 200
+
+    summary = captured_payload["summary"]
+    assert summary["activity_url"] == f"https://frontend.example/app/activities/{activity_id}"
+    assert summary["root_cause"] == "left-pad dependency is missing from package.json"
+    assert summary["suggested_fix"] == "Add left-pad to dependencies and rebuild the lockfile."
+    assert summary["remediation_action"] == "create_issue"
+    assert summary["issue_url"] == "https://github.com/Canepro/pipelinehealer/issues/999"
 
 
 @pytest.mark.asyncio
