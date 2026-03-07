@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 2589504 -->
+<!-- LAST_VERIFIED: 39cc970 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -45,6 +45,7 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.5.1` | Released | Frontend coherence patch for routing and semantic badge cleanup |
 | `v0.5.2` | Released | Notification readability + deployed-version visibility |
 | `v0.5.3` | Released | Demo-day frontend corrections, docs refresh, and final release-gate cleanup |
+| `v0.5.4` | Released | `asyncpg` import hardening + frontend Dockerfile workflow-warning cleanup + operator-surface panel polish |
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
@@ -288,27 +289,29 @@ Theme: operator control-plane coherence + MCP operational maturity.
 4. MCP governance screens no longer show contradictory configured/effective states without explaining the precedence rule.
 5. Release docs, changelog scope, and implementation PRs tracked this work explicitly as `v0.4.0`.
 
-## Released Target: `v0.5.3` (Patch)
+## Released Target: `v0.5.4` (Patch)
 
-Theme: demo-day frontend corrections + docs refresh + release-gate cleanup after the `v0.5.2` baseline.
+Theme: post-release correctness hardening for the `v0.5.3` follow-up fixes.
 
 ### Delivered Scope
 
-1. Operator-surface frontend corrections
-   - Tightened Settings and Control Center governance card density and corrected typography fallback behavior from the March 6 visual refresh pass.
-   - Kept the hosted UI aligned with the screenshots used in public docs and demo prep.
-2. Release/docs alignment
-   - Promoted `v0.5.3` across release manifests, README, API docs, demo defaults, and hackathon status docs.
-   - Documented the patch scope in changelog/release notes instead of treating it as silent continuity work.
-3. Demo-day quality-gate cleanup
-   - Closed the final backend lint/type/test drift uncovered during the readiness sweep so release promotion starts from a clean local baseline.
+1. PostgreSQL storage typing hardening
+   - Replaced the brittle `asyncpg` inline mypy ignore with runtime module loading via `importlib`.
+   - Kept the existing runtime behavior: missing `asyncpg` still surfaces the same operator-facing `RuntimeError`.
+2. Release workflow warning cleanup
+   - Normalized the frontend multi-stage Dockerfile alias casing to remove the remaining Dockerfile style warning emitted by the release workflow.
+3. Operator-surface polish
+   - Calmed the Control Center and Settings summary panels by aligning divider color, value emphasis, and side-column card height behavior.
+4. Release/docs alignment
+   - Promoted `v0.5.4` across release manifests, README, API docs, demo defaults, and hackathon status docs.
 
 ### Exit Criteria
 
-1. The hosted UI and docs show the same current operator surfaces during demo prep.
-2. The patch version is synchronized across release manifests and deploy tooling.
-3. Backend local quality gates are green before release promotion.
-4. Docs and changelog reflect the new patch scope before tag/deploy.
+1. Strict mypy no longer depends on environment-specific ignore code selection for `asyncpg`.
+2. The release workflow no longer emits the frontend Dockerfile alias-casing warning.
+3. Dark-mode operator summary panels no longer show harsh generic dividers or awkward uneven side-column spacing.
+4. The patch version is synchronized across release manifests and deploy tooling.
+5. Docs and changelog reflect the new patch scope before tag/deploy.
 
 ## Released Target: `v0.5.0` (Minor)
 
