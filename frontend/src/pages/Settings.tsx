@@ -719,9 +719,7 @@ function SettingsSummarySection({
                 className={`block font-medium text-[var(--ph-text)]/90 ${
                   item.mono
                     ? "break-all font-mono text-xs"
-                    : compact
-                      ? "break-words"
-                      : "break-words"
+                    : "break-words"
                 }`}
               >
                 {item.value}

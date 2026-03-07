@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 39cc970 -->
+<!-- LAST_VERIFIED: 86c6c55 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -36,7 +36,7 @@ Remaining submission item this doc drives: demo video length must be 2:00 max.
 Default values used in this runbook:
 
 ```bash
-export RELEASE_TAG="${RELEASE_TAG:-v0.5.4}"
+export RELEASE_TAG="${RELEASE_TAG:-v0.5.5}"
 export DEMO_REPO="${DEMO_REPO:-Canepro/pipelinehealer-demo}"
 ```
 
