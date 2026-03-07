@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: 9c4e889 -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -164,6 +164,28 @@ git push origin main --follow-tags
 
 Replace `X.Y.Z` with the generated version.
 
+### Protected `main` fallback
+
+If `git push origin main --follow-tags` is blocked by branch protection, use a release branch and PR:
+
+```bash
+git checkout -b release/vX.Y.Z
+git push origin release/vX.Y.Z
+gh pr create --base main --head release/vX.Y.Z --title "chore(release): vX.Y.Z"
+gh pr comment <pr-number> --body "@copilot review"
+```
+
+Recommended sequence when branch protection is active:
+
+1. Push the branch first.
+2. Open the PR and request Copilot review.
+3. Address review comments and resolve review threads before merge.
+4. If you need deployment before PR merge, push the release tag from the release-branch commit and continue with release verification + Azure promotion.
+5. Merge the PR after checks are green, then delete the branch and sync local `main`.
+
+Practical note:
+- GitHub can briefly report "base branch policy prohibits the merge" or block admin merge while review threads remain unresolved. Treat that as expected policy lag, not as a signal to bypass review discipline.
+
 ## 6) Verify Published Release
 
 Run the automated verifier:
@@ -213,11 +235,26 @@ curl -fsSL "${FRONTEND_URL}/runtime-config.js" | rg 'VITE_AUTH_MODE|VITE_ENTRA_C
 
 Expected for Entra-enabled release: `VITE_AUTH_MODE: "entra"` with matching Entra keys.
 
+### Release PR close-out
+
+Before merging the release PR, leave one short PR comment that records:
+- the release tag and workflow run used for publish
+- whether ACA deploy already happened
+- the live backend `/health` version and latest backend/frontend ACA revisions
+- whether `main` is merely catching up to an already-live release or introducing new post-tag follow-up commits
+
 ## 7) Post-Release
 
 Keep `## [Unreleased]` ready for next cycle:
 - add new entries as work lands
 - avoid batching massive undocumented changes
+
+Complete the release cleanup:
+
+1. Merge the release PR.
+2. Confirm the remote release branch is deleted.
+3. Sync local `main` to `origin/main`.
+4. Verify `git status --short` is empty.
 
 ## Rollback / Correction
 
