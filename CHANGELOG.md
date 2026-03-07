@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 39cc970 -->
+<!-- LAST_VERIFIED: 8300890 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -9,6 +9,12 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ## [Unreleased]
 
 - _No unreleased entries yet._
+
+## [v0.5.5] - 2026-03-07
+
+### Fixed
+
+- Simplified the Settings and Control Center summary-panel structure so operator cards use calmer row-based separation, avoid nested inner boxes, and keep narrow side-column values from collapsing into broken wrapped stacks in dark mode.
 
 ## [v0.5.4] - 2026-03-07
 
