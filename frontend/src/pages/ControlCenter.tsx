@@ -247,15 +247,15 @@ function OverviewBlock({
   items: PostureItem[];
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--ph-border)]/80 bg-[var(--ph-bg-elevated)]/32">
-      <div className="border-b border-[var(--ph-border)]/45 px-4 py-3 text-sm font-semibold text-[var(--ph-text)]/90">
+    <div className="overflow-hidden rounded-lg border border-[var(--ph-border)]/45 bg-[var(--ph-bg-elevated)]/30">
+      <div className="border-b border-[var(--ph-border)]/20 px-4 py-3 text-sm font-semibold text-[var(--ph-text)]/90">
         {title}
       </div>
       <div className="px-4">
         {items.map((item) => (
           <div
             key={`${title}-${item.label}`}
-            className="grid min-h-[46px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-[var(--ph-border)]/40 py-2.5 last:border-b-0"
+            className="grid min-h-[46px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-[var(--ph-border)]/18 py-2.5 last:border-b-0"
           >
             <span className="text-sm text-[var(--ph-muted)]">{item.label}</span>
             <span className="text-right text-sm font-semibold text-[var(--ph-text)]/90">
@@ -276,14 +276,14 @@ function SummaryRows({
   compact?: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--ph-border)]/80 bg-[var(--ph-bg-elevated)]/24">
+    <div className="overflow-hidden rounded-lg border border-[var(--ph-border)]/45 bg-[var(--ph-bg-elevated)]/22">
       {rows.map((row) => (
         <div
           key={`${row.label}-${row.value}`}
           className={
             compact
-              ? "grid grid-cols-1 gap-2 border-b border-[var(--ph-border)]/40 px-4 py-3 text-sm last:border-b-0 sm:grid-cols-[minmax(0,128px)_minmax(0,1fr)]"
-              : "grid grid-cols-1 gap-2 border-b border-[var(--ph-border)]/40 px-4 py-3 text-sm last:border-b-0 sm:grid-cols-[minmax(0,180px)_minmax(0,1fr)]"
+              ? "grid grid-cols-1 gap-2 border-b border-[var(--ph-border)]/18 px-4 py-3 text-sm last:border-b-0 sm:grid-cols-[minmax(0,128px)_minmax(0,1fr)]"
+              : "grid grid-cols-1 gap-2 border-b border-[var(--ph-border)]/18 px-4 py-3 text-sm last:border-b-0 sm:grid-cols-[minmax(0,180px)_minmax(0,1fr)]"
           }
         >
           <span className="pt-0.5 text-xs font-medium uppercase tracking-[0.06em] text-[var(--ph-muted)]/90">
