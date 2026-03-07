@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 2589504 -->
+<!-- LAST_VERIFIED: 39cc970 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -9,6 +9,17 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ## [Unreleased]
 
 - _No unreleased entries yet._
+
+## [v0.5.4] - 2026-03-07
+
+### Changed
+
+- Refined the Settings and Control Center governance summary panels with calmer separators, softer value emphasis, and more even side-column card structure so dark-mode operator surfaces read as intentional rather than visually noisy.
+
+### Fixed
+
+- Replaced the PostgreSQL storage `asyncpg` import ignore with a runtime `importlib.import_module("asyncpg")` lookup so strict mypy settings no longer depend on environment-specific ignore codes.
+- Normalized the frontend Dockerfile stage alias casing (`AS builder`) to clear the non-blocking Dockerfile review warning from the release workflow.
 
 ## [v0.5.3] - 2026-03-07
 

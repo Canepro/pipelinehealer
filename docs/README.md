@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: 2589504 -->
+<!-- LAST_VERIFIED: 39cc970 -->
 
 Use this index to find the right doc quickly.
 
@@ -38,7 +38,7 @@ These stable screenshots reflect the current hosted operator experience and are 
 ### Tier 3 — Internal/Transient (author discretion; archive post-submission)
 
 - `HACKATHON_LOG.md` — current phase status, submission checklist, milestone history, and freeze tracking notes
-- `FUTURE_PLAN.md` — version-targeted roadmap and release archaeology (released through `v0.5.3`)
+- `FUTURE_PLAN.md` — version-targeted roadmap and release archaeology (released through `v0.5.4`)
 - `UI_PLAN.md` — UI maturity plan, principles, and weekly tracking through submission
 - `AGENT_HANDOFF_CONTEXT_MINISPEC.md` — draft design for Activity Detail `Copy Context` + optional `Assign to Agent` handoff integration
 - `GH_AW_IMPLEMENTATION_TRACKER.md` — gh-aw research summary, Layer 1/2 checklists, decision log, and evidence

@@ -428,9 +428,9 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_360px]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_360px] xl:items-stretch">
             <div className="space-y-4">
-              <Card>
+              <Card className="overflow-hidden">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Runtime posture</CardTitle>
                 </CardHeader>
@@ -499,7 +499,7 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="overflow-hidden">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">
                     Integration management boundary
@@ -543,11 +543,11 @@ export default function SettingsPage() {
                       },
                     ]}
                   />
-                  <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/45 p-4">
-                    <div className="text-sm font-medium text-[var(--ph-text)]">
+                  <div className="overflow-hidden rounded-lg border border-[var(--ph-border)]/80 bg-[var(--ph-bg-elevated)]/38">
+                    <div className="border-b border-[var(--ph-border)]/45 px-4 py-3 text-sm font-semibold text-[var(--ph-text)]/90">
                       Deployment-managed
                     </div>
-                    <ul className="mt-3 space-y-2 text-sm leading-6 text-[var(--ph-muted)]">
+                    <ul className="space-y-2 px-4 py-4 text-sm leading-6 text-[var(--ph-muted)]">
                       <li>
                         Assign-to-Agent webhook URL and any embedded receiver
                         credentials
@@ -561,7 +561,7 @@ export default function SettingsPage() {
                         shared secret material
                       </li>
                     </ul>
-                    <p className="mt-3 text-xs text-[var(--ph-muted)]">
+                    <p className="border-t border-[var(--ph-border)]/40 px-4 py-3 text-xs leading-5 text-[var(--ph-muted)]">
                       This page exposes runtime-safe controls. Startup-only and
                       secret-bearing integration values stay deployment-managed
                       on purpose.
@@ -571,14 +571,14 @@ export default function SettingsPage() {
               </Card>
             </div>
 
-            <div className="space-y-4">
-              <Card>
+            <div className="flex h-full flex-col gap-4">
+              <Card className="flex h-full flex-col overflow-hidden">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">
                     Live integration status
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="flex flex-1 flex-col gap-4">
                   <SettingsSummarySection
                     title="Assign-to-Agent"
                     compact
@@ -614,11 +614,11 @@ export default function SettingsPage() {
                       },
                     ]}
                   />
-                  <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/45 p-4 text-sm text-[var(--ph-muted)]">
-                    <div className="font-medium text-[var(--ph-text)]">
+                  <div className="mt-auto overflow-hidden rounded-lg border border-[var(--ph-border)]/80 bg-[var(--ph-bg-elevated)]/38 text-sm text-[var(--ph-muted)]">
+                    <div className="border-b border-[var(--ph-border)]/45 px-4 py-3 font-semibold text-[var(--ph-text)]/90">
                       Operator workflow
                     </div>
-                    <ol className="mt-3 space-y-2">
+                    <ol className="space-y-2 px-4 py-4">
                       <li>
                         1. Authenticate and confirm the current runtime posture.
                       </li>
@@ -685,24 +685,38 @@ function SettingsSummarySection({
   compact?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/45 p-4">
-      <div className="mb-3 text-sm font-medium text-[var(--ph-text)]">
+    <div className="overflow-hidden rounded-lg border border-[var(--ph-border)]/80 bg-[var(--ph-bg-elevated)]/38">
+      <div className="border-b border-[var(--ph-border)]/45 px-4 py-3 text-sm font-semibold text-[var(--ph-text)]/90">
         {title}
       </div>
-      <div className="space-y-2 text-sm">
+      <div className="px-4">
         {items.map((item) => (
           <div
             key={`${title}-${item.label}`}
             className={
               compact
-                ? "border-b border-[var(--ph-border)]/70 pb-3 last:border-b-0 last:pb-0"
-                : "flex items-start justify-between gap-4 border-b border-[var(--ph-border)]/70 pb-2 last:border-b-0 last:pb-0"
+                ? "grid grid-cols-1 gap-2 border-b border-[var(--ph-border)]/40 py-3 last:border-b-0 sm:grid-cols-[minmax(0,120px)_minmax(0,1fr)]"
+                : "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-[var(--ph-border)]/40 py-2.5 last:border-b-0"
             }
           >
-            <span className="text-[var(--ph-muted)]">{item.label}</span>
-            <div className={compact ? "mt-1 space-y-1" : "max-w-[58%] space-y-1 text-right"}>
+            <span
+              className={
+                compact
+                  ? "pt-0.5 text-xs font-medium uppercase tracking-[0.06em] text-[var(--ph-muted)]/90"
+                  : "text-sm text-[var(--ph-muted)]"
+              }
+            >
+              {item.label}
+            </span>
+            <div
+              className={
+                compact
+                  ? "min-w-0 space-y-1"
+                  : "max-w-[58%] space-y-1 text-right"
+              }
+            >
               <span
-                className={`block font-medium text-[var(--ph-text)] ${
+                className={`block font-medium text-[var(--ph-text)]/90 ${
                   item.mono ? "break-all font-mono text-xs" : "break-words"
                 }`}
               >

@@ -247,18 +247,18 @@ function OverviewBlock({
   items: PostureItem[];
 }) {
   return (
-    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/35 p-4">
-      <div className="mb-3 text-sm font-medium text-[var(--ph-text)]">
+    <div className="overflow-hidden rounded-lg border border-[var(--ph-border)]/80 bg-[var(--ph-bg-elevated)]/32">
+      <div className="border-b border-[var(--ph-border)]/45 px-4 py-3 text-sm font-semibold text-[var(--ph-text)]/90">
         {title}
       </div>
-      <div className="space-y-2 text-sm">
+      <div className="px-4">
         {items.map((item) => (
           <div
             key={`${title}-${item.label}`}
-            className="flex items-start justify-between gap-4 border-b border-[var(--ph-border)]/70 pb-2 last:border-b-0 last:pb-0"
+            className="grid min-h-[46px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-[var(--ph-border)]/40 py-2.5 last:border-b-0"
           >
-            <span className="text-[var(--ph-muted)]">{item.label}</span>
-            <span className="text-right font-medium text-[var(--ph-text)]">
+            <span className="text-sm text-[var(--ph-muted)]">{item.label}</span>
+            <span className="text-right text-sm font-semibold text-[var(--ph-text)]/90">
               {item.value}
             </span>
           </div>
@@ -276,18 +276,26 @@ function SummaryRows({
   compact?: boolean;
 }) {
   return (
-    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25">
+    <div className="overflow-hidden rounded-lg border border-[var(--ph-border)]/80 bg-[var(--ph-bg-elevated)]/24">
       {rows.map((row) => (
         <div
           key={`${row.label}-${row.value}`}
           className={
             compact
-              ? "border-b border-[var(--ph-border)]/70 px-3 py-3 text-sm last:border-b-0"
-              : "grid grid-cols-[minmax(0,180px)_minmax(0,1fr)] items-start gap-3 border-b border-[var(--ph-border)]/70 px-3 py-2 text-sm last:border-b-0"
+              ? "grid grid-cols-1 gap-2 border-b border-[var(--ph-border)]/40 px-4 py-3 text-sm last:border-b-0 sm:grid-cols-[minmax(0,128px)_minmax(0,1fr)]"
+              : "grid grid-cols-1 gap-2 border-b border-[var(--ph-border)]/40 px-4 py-3 text-sm last:border-b-0 sm:grid-cols-[minmax(0,180px)_minmax(0,1fr)]"
           }
         >
-          <span className="text-xs text-[var(--ph-muted)]">{row.label}</span>
-          <div className={compact ? "mt-1 space-y-1" : "min-w-0 space-y-1"}>
+          <span className="pt-0.5 text-xs font-medium uppercase tracking-[0.06em] text-[var(--ph-muted)]/90">
+            {row.label}
+          </span>
+          <div
+            className={
+              compact
+                ? "min-w-0 space-y-1"
+                : "min-w-0 space-y-1 sm:text-right"
+            }
+          >
             <span
               className={`block font-medium ${
                 row.mono ? "break-all font-mono text-xs" : "break-words"
@@ -300,13 +308,13 @@ function SummaryRows({
                       ? "text-[var(--ph-danger)]"
                       : row.tone === "muted"
                         ? "text-[var(--ph-muted)]"
-                        : "text-[var(--ph-text)]"
+                        : "text-[var(--ph-text)]/90"
               }`}
             >
               {row.value}
             </span>
             {row.detail ? (
-              <div className="break-words text-xs text-[var(--ph-muted)]">
+              <div className="break-words text-xs leading-5 text-[var(--ph-muted)]">
                 {row.detail}
               </div>
             ) : null}
@@ -1052,8 +1060,8 @@ export default function ControlCenterPage() {
                 </Card>
               </div>
 
-              <div className="space-y-4">
-                <Card>
+              <div className="flex flex-col gap-4">
+                <Card className="overflow-hidden">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base">
                       Task model routing
@@ -1087,7 +1095,7 @@ export default function ControlCenterPage() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="overflow-hidden">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base">
                       Integration gateway status
@@ -1136,7 +1144,7 @@ export default function ControlCenterPage() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="overflow-hidden">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base">
                       Startup-managed dependencies
@@ -1152,7 +1160,7 @@ export default function ControlCenterPage() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="overflow-hidden">
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-base">
                       <ScrollText className="h-4 w-4 text-[var(--ph-accent)]" />
