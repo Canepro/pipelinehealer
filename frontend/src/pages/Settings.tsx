@@ -434,7 +434,7 @@ export default function SettingsPage() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Runtime posture</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-4 lg:grid-cols-2">
+                <CardContent className="grid gap-6 lg:grid-cols-2">
                   <SettingsSummarySection
                     title="Automation"
                     items={[
@@ -505,7 +505,7 @@ export default function SettingsPage() {
                     Integration management boundary
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-4 lg:grid-cols-2">
+                <CardContent className="grid gap-6 lg:grid-cols-2">
                   <SettingsSummarySection
                     title="Managed here"
                     items={[
@@ -543,11 +543,11 @@ export default function SettingsPage() {
                       },
                     ]}
                   />
-                  <div className="overflow-hidden rounded-lg border border-[var(--ph-border)]/45 bg-[var(--ph-bg-elevated)]/34">
-                    <div className="border-b border-[var(--ph-border)]/20 px-4 py-3 text-sm font-semibold text-[var(--ph-text)]/90">
+                  <div className="space-y-3 px-1">
+                    <div className="text-sm font-semibold text-[var(--ph-text)]/90">
                       Deployment-managed
                     </div>
-                    <ul className="space-y-2 px-4 py-4 text-sm leading-6 text-[var(--ph-muted)]">
+                    <ul className="space-y-2 text-sm leading-6 text-[var(--ph-muted)]">
                       <li>
                         Assign-to-Agent webhook URL and any embedded receiver
                         credentials
@@ -561,7 +561,7 @@ export default function SettingsPage() {
                         shared secret material
                       </li>
                     </ul>
-                    <p className="border-t border-[var(--ph-border)]/18 px-4 py-3 text-xs leading-5 text-[var(--ph-muted)]">
+                    <p className="border-t border-[var(--ph-border)]/50 pt-3 text-xs leading-5 text-[var(--ph-muted)]">
                       This page exposes runtime-safe controls. Startup-only and
                       secret-bearing integration values stay deployment-managed
                       on purpose.
@@ -614,11 +614,11 @@ export default function SettingsPage() {
                       },
                     ]}
                   />
-                  <div className="mt-auto overflow-hidden rounded-lg border border-[var(--ph-border)]/45 bg-[var(--ph-bg-elevated)]/34 text-sm text-[var(--ph-muted)]">
-                    <div className="border-b border-[var(--ph-border)]/20 px-4 py-3 font-semibold text-[var(--ph-text)]/90">
+                  <div className="mt-auto border-t border-[var(--ph-border)]/50 pt-4 text-sm text-[var(--ph-muted)]">
+                    <div className="font-semibold text-[var(--ph-text)]/90">
                       Operator workflow
                     </div>
-                    <ol className="space-y-2 px-4 py-4">
+                    <ol className="mt-3 space-y-2 leading-6">
                       <li>
                         1. Authenticate and confirm the current runtime posture.
                       </li>
@@ -685,24 +685,24 @@ function SettingsSummarySection({
   compact?: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--ph-border)]/45 bg-[var(--ph-bg-elevated)]/34">
-      <div className="border-b border-[var(--ph-border)]/20 px-4 py-3 text-sm font-semibold text-[var(--ph-text)]/90">
+    <div>
+      <div className="mb-3 text-sm font-semibold text-[var(--ph-text)]/90">
         {title}
       </div>
-      <div className="px-4">
+      <div>
         {items.map((item) => (
           <div
             key={`${title}-${item.label}`}
             className={
               compact
-                ? "grid grid-cols-[minmax(0,108px)_minmax(0,1fr)] items-start gap-3 border-b border-[var(--ph-border)]/18 py-3 last:border-b-0"
-                : "flex items-start justify-between gap-4 border-b border-[var(--ph-border)]/18 py-2.5 last:border-b-0"
+                ? "border-b border-[var(--ph-border)]/55 py-3 last:border-b-0 last:pb-0 first:pt-0"
+                : "flex items-start justify-between gap-4 border-b border-[var(--ph-border)]/55 py-3 last:border-b-0 last:pb-0 first:pt-0"
             }
           >
             <span
               className={
                 compact
-                  ? "pt-0.5 text-xs font-medium uppercase tracking-[0.06em] text-[var(--ph-muted)]/90"
+                  ? "text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--ph-muted)]/90"
                   : "text-sm text-[var(--ph-muted)]"
               }
             >
@@ -711,8 +711,8 @@ function SettingsSummarySection({
             <div
               className={
                 compact
-                  ? "min-w-0 space-y-1"
-                  : "min-w-[96px] max-w-[52%] flex-none space-y-1 text-right"
+                  ? "mt-1.5 min-w-0 space-y-1"
+                  : "min-w-[112px] max-w-[52%] flex-none space-y-1 text-right"
               }
             >
               <span
@@ -721,7 +721,7 @@ function SettingsSummarySection({
                     ? "break-all font-mono text-xs"
                     : compact
                       ? "break-words"
-                      : "whitespace-nowrap"
+                      : "break-words"
                 }`}
               >
                 {item.value}
