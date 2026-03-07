@@ -543,8 +543,8 @@ export default function SettingsPage() {
                       },
                     ]}
                   />
-                  <div className="overflow-hidden rounded-lg border border-[var(--ph-border)]/80 bg-[var(--ph-bg-elevated)]/38">
-                    <div className="border-b border-[var(--ph-border)]/45 px-4 py-3 text-sm font-semibold text-[var(--ph-text)]/90">
+                  <div className="overflow-hidden rounded-lg border border-[var(--ph-border)]/45 bg-[var(--ph-bg-elevated)]/34">
+                    <div className="border-b border-[var(--ph-border)]/20 px-4 py-3 text-sm font-semibold text-[var(--ph-text)]/90">
                       Deployment-managed
                     </div>
                     <ul className="space-y-2 px-4 py-4 text-sm leading-6 text-[var(--ph-muted)]">
@@ -561,7 +561,7 @@ export default function SettingsPage() {
                         shared secret material
                       </li>
                     </ul>
-                    <p className="border-t border-[var(--ph-border)]/40 px-4 py-3 text-xs leading-5 text-[var(--ph-muted)]">
+                    <p className="border-t border-[var(--ph-border)]/18 px-4 py-3 text-xs leading-5 text-[var(--ph-muted)]">
                       This page exposes runtime-safe controls. Startup-only and
                       secret-bearing integration values stay deployment-managed
                       on purpose.
@@ -614,8 +614,8 @@ export default function SettingsPage() {
                       },
                     ]}
                   />
-                  <div className="mt-auto overflow-hidden rounded-lg border border-[var(--ph-border)]/80 bg-[var(--ph-bg-elevated)]/38 text-sm text-[var(--ph-muted)]">
-                    <div className="border-b border-[var(--ph-border)]/45 px-4 py-3 font-semibold text-[var(--ph-text)]/90">
+                  <div className="mt-auto overflow-hidden rounded-lg border border-[var(--ph-border)]/45 bg-[var(--ph-bg-elevated)]/34 text-sm text-[var(--ph-muted)]">
+                    <div className="border-b border-[var(--ph-border)]/20 px-4 py-3 font-semibold text-[var(--ph-text)]/90">
                       Operator workflow
                     </div>
                     <ol className="space-y-2 px-4 py-4">
@@ -685,8 +685,8 @@ function SettingsSummarySection({
   compact?: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--ph-border)]/80 bg-[var(--ph-bg-elevated)]/38">
-      <div className="border-b border-[var(--ph-border)]/45 px-4 py-3 text-sm font-semibold text-[var(--ph-text)]/90">
+    <div className="overflow-hidden rounded-lg border border-[var(--ph-border)]/45 bg-[var(--ph-bg-elevated)]/34">
+      <div className="border-b border-[var(--ph-border)]/20 px-4 py-3 text-sm font-semibold text-[var(--ph-text)]/90">
         {title}
       </div>
       <div className="px-4">
@@ -695,8 +695,8 @@ function SettingsSummarySection({
             key={`${title}-${item.label}`}
             className={
               compact
-                ? "grid grid-cols-1 gap-2 border-b border-[var(--ph-border)]/40 py-3 last:border-b-0 sm:grid-cols-[minmax(0,120px)_minmax(0,1fr)]"
-                : "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-[var(--ph-border)]/40 py-2.5 last:border-b-0"
+                ? "grid grid-cols-[minmax(0,108px)_minmax(0,1fr)] items-start gap-3 border-b border-[var(--ph-border)]/18 py-3 last:border-b-0"
+                : "flex items-start justify-between gap-4 border-b border-[var(--ph-border)]/18 py-2.5 last:border-b-0"
             }
           >
             <span
@@ -712,12 +712,16 @@ function SettingsSummarySection({
               className={
                 compact
                   ? "min-w-0 space-y-1"
-                  : "max-w-[58%] space-y-1 text-right"
+                  : "min-w-[96px] max-w-[52%] flex-none space-y-1 text-right"
               }
             >
               <span
                 className={`block font-medium text-[var(--ph-text)]/90 ${
-                  item.mono ? "break-all font-mono text-xs" : "break-words"
+                  item.mono
+                    ? "break-all font-mono text-xs"
+                    : compact
+                      ? "break-words"
+                      : "whitespace-nowrap"
                 }`}
               >
                 {item.value}
