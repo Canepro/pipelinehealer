@@ -34,12 +34,11 @@ This is the long-form project tracker for hackathon execution status, submission
   - required scope locked to `#36/#42/#57` for submission reliability
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
   - storage extensibility remained adapter-scoped (no core workflow rewrites during freeze)
-- Release `v0.5.4` is the current public baseline.
-- `v0.5.4` shipped:
-  - robust `asyncpg` runtime loading in PostgreSQL storage so strict mypy no longer depends on environment-specific ignore codes
-  - frontend Dockerfile stage-alias casing cleanup to eliminate the remaining release-workflow style warning
-  - Control Center and Settings summary-panel polish to remove bright divider lines and awkward unequal card length in dark mode
-- Post-`v0.5.4` follow-on work is continuity and release planning, not demo-scope product correction.
+- Release `v0.5.5` is the current public baseline.
+- `v0.5.5` shipped:
+  - final Settings and Control Center summary-panel cleanup so dark-mode operator cards rely on calmer row separation instead of nested inner boxes
+  - release/docs alignment carry-forward across the public README, API docs, demo defaults, and roadmap/history references
+- Post-`v0.5.5` follow-on work is continuity and release planning, not demo-scope product correction.
 - Historical `v0.5.0` planning target is now shipped:
   - deployment-facing Assign-to-Agent receiver boundary
   - generic outbound event and notification routing
