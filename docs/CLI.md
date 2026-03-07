@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: 6aa92ea -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -458,6 +458,7 @@ The same action is available in the UI via the "Backfill Diagnostics" button on 
 ## Error Handling
 
 - **Missing flag values**: All `--flag value` arguments are guarded by `require_arg`. Running `--repo` without a value produces `Error: --repo requires a value argument.` (exit 2) instead of a shell crash.
+- **`demo:proof` repo fallback**: `demo:proof` defaults to `${DEMO_REPO}` when exported, otherwise `Canepro/pipelinehealer-demo`. If `--repo` is passed with an empty shell expansion (for example `--repo "$DEMO_REPO"` when `DEMO_REPO` is unset), the command warns and falls back to that default repo.
 - **Unknown arguments**: Unrecognized flags produce a clear message and exit 2.
 - **Enum validation**: `--heal-mode`, `--auto-apply-remediation`, `--auto-create-pr`, `--auto-create-issue`, `--auto-retry-workflow`, `--gh-aw-tools-enabled`, `--gh-aw-ingestion-mode`, and `--mcp-provider` validate against allowed values before proceeding.
 - **Strict mode**: `set -euo pipefail` is enabled throughout. Log grep pipelines use `|| true` to remain tolerant of empty results.
