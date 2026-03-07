@@ -96,7 +96,7 @@ When `main` is protected, use this delivery pattern instead of trying to push di
 
 1. Create a branch from current `main` (`release/vX.Y.Z` for release work, otherwise a task branch).
 2. Push the branch and open a PR with a verification summary.
-3. Request GitHub Copilot review by commenting `@copilot review` on the PR.
+3. Wait for the repository's attached review agents and bots to publish their review comments on the PR.
 4. Address review comments in code/docs, resolve review threads, and re-run the relevant checks.
 5. Add a short final PR comment summarizing what changed, what was verified, and any residual release/deploy nuance.
 6. Merge the PR, delete the branch, and sync local `main` back to `origin/main`.
@@ -104,7 +104,7 @@ When `main` is protected, use this delivery pattern instead of trying to push di
 For release cuts that must deploy before protected-branch merge completes:
 
 1. Prepare the release commit on the release branch.
-2. Tag that exact release-branch commit (`vX.Y.Z`) and push the tag.
+2. Tag that exact release-branch commit (`vX.Y.Z`) and push the tag (for example: `git tag -a vX.Y.Z -m "Release vX.Y.Z"` then `git push origin vX.Y.Z`).
 3. Wait for the GitHub `Release` workflow to succeed.
 4. Deploy to Azure Container Apps with `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`.
 5. Merge the PR afterward so protected `main` catches up to the already-deployed release commit.

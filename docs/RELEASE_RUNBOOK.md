@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: 9c4e889 -->
+<!-- LAST_VERIFIED: 5423515 -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -172,15 +172,15 @@ If `git push origin main --follow-tags` is blocked by branch protection, use a r
 git checkout -b release/vX.Y.Z
 git push origin release/vX.Y.Z
 gh pr create --base main --head release/vX.Y.Z --title "chore(release): vX.Y.Z"
-gh pr comment <pr-number> --body "@copilot review"
+git push origin vX.Y.Z
 ```
 
 Recommended sequence when branch protection is active:
 
 1. Push the branch first.
-2. Open the PR and request Copilot review.
+2. Open the PR and wait for the repository's attached review agents/bots to publish their review comments.
 3. Address review comments and resolve review threads before merge.
-4. If you need deployment before PR merge, push the release tag from the release-branch commit and continue with release verification + Azure promotion.
+4. If you need deployment before PR merge, push the release tag from the release-branch commit to `origin` (for example: `git push origin vX.Y.Z`) and continue with release verification + Azure promotion.
 5. Merge the PR after checks are green, then delete the branch and sync local `main`.
 
 Practical note:
