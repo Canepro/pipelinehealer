@@ -90,6 +90,25 @@ Before major pushes:
 - sanity-check docs for accuracy vs current runtime
 - avoid placeholder commit messages
 
+## PR and Release Workflow
+
+When `main` is protected, use this delivery pattern instead of trying to push directly:
+
+1. Create a branch from current `main` (`release/vX.Y.Z` for release work, otherwise a task branch).
+2. Push the branch and open a PR with a verification summary.
+3. Request GitHub Copilot review by commenting `@copilot review` on the PR.
+4. Address review comments in code/docs, resolve review threads, and re-run the relevant checks.
+5. Add a short final PR comment summarizing what changed, what was verified, and any residual release/deploy nuance.
+6. Merge the PR, delete the branch, and sync local `main` back to `origin/main`.
+
+For release cuts that must deploy before protected-branch merge completes:
+
+1. Prepare the release commit on the release branch.
+2. Tag that exact release-branch commit (`vX.Y.Z`) and push the tag.
+3. Wait for the GitHub `Release` workflow to succeed.
+4. Deploy to Azure Container Apps with `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`.
+5. Merge the PR afterward so protected `main` catches up to the already-deployed release commit.
+
 ## Update Policy
 
 Before major implementation work, ensure the governing docs describe the intended product model clearly enough that code is forced into the right shape. For control-plane/configuration work, update:
