@@ -1,6 +1,6 @@
 # PipelineHealer Hackathon Log
 
-**Last updated:** March 6, 2026
+**Last updated:** March 7, 2026
 
 This is the long-form project tracker for hackathon execution status, submission readiness, and milestone history.
 
@@ -34,12 +34,12 @@ This is the long-form project tracker for hackathon execution status, submission
   - required scope locked to `#36/#42/#57` for submission reliability
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
   - storage extensibility remained adapter-scoped (no core workflow rewrites during freeze)
-- Release `v0.5.2` is the current public baseline.
-- `v0.5.2` shipped:
-  - outbound notification readability for Rocket.Chat/Slack/Teams/email
-  - trustworthy deployed-version visibility in the app shell
-  - cleanup of remaining stale public-version copy after the `v0.5.1` cut
-- Post-`v0.5.2` follow-on work is continuity and release planning, not demo-scope product correction.
+- Release `v0.5.3` is the current public baseline.
+- `v0.5.3` shipped:
+  - Settings and Control Center frontend corrections from the March 6 visual refresh pass
+  - screenshot/runbook refresh so the demo docs match the hosted UI
+  - demo-day backend quality-gate cleanup (lint, mypy, pytest) before deployment promotion
+- Post-`v0.5.3` follow-on work is continuity and release planning, not demo-scope product correction.
 - Historical `v0.5.0` planning target is now shipped:
   - deployment-facing Assign-to-Agent receiver boundary
   - generic outbound event and notification routing

@@ -11,12 +11,10 @@ from src.models import (
     ExternalDiagnostic,
     ExternalDiagnosticStatus,
     RemediationStatus,
-    utcnow,
 )
 from src.storage import InMemoryStorage
 from src.tools.gh_aw_adapter import GHAWCapability
 from src.workflows.pipeline_healer import PipelineHealerWorkflow
-
 
 # ---------------------------------------------------------------------------
 # Helpers / stubs
@@ -120,7 +118,6 @@ def _make_exhausted_activity(
 
 
 def _build_orchestrator(adapter, github_tools=None, storage=None):
-    settings = get_settings()
     storage = storage or InMemoryStorage()
     gt = github_tools or _DummyGitHubTools()
     orch = OrchestratorAgent(

@@ -11,8 +11,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from .api import dashboard, webhook
 from . import __version__
+from .api import dashboard, webhook
 from .config import get_settings
 from .observability import configure_observability
 from .workflows.pipeline_healer import PipelineHealerWorkflow, create_workflow

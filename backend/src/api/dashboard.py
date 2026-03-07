@@ -19,8 +19,6 @@ from ..config import get_settings, load_settings_snapshot
 from ..llm.adapters import get_llm_provider_adapter
 from ..models import (
     ActivityRecord,
-    AppSettingMetadataView,
-    AppSettingSource,
     AdminSettingsAuditEntry,
     AdminSettingsPersistRequest,
     AdminSettingsPersistResponse,
@@ -32,6 +30,8 @@ from ..models import (
     AgentHandoffRequest,
     AgentHandoffResponse,
     AgentHandoffStatus,
+    AppSettingMetadataView,
+    AppSettingSource,
     AppSettingsView,
     DashboardStats,
     FailureType,

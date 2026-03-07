@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from src.api.webhook import verify_github_signature
-from src.config import get_settings, reset_settings
+from src.config import reset_settings
 from src.main import app
 
 

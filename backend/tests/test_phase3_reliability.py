@@ -9,7 +9,7 @@ import pytest
 
 from src.agents.log_analyzer import LogAnalyzerAgent
 from src.agents.orchestrator import OrchestratorAgent
-from src.config import get_settings, reset_settings
+from src.config import reset_settings
 from src.models import (
     GitHubRepository,
     GitHubWorkflowRun,

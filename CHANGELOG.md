@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: d5fa311 -->
+<!-- LAST_VERIFIED: 2589504 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -8,7 +8,17 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- Post-`v0.5.2` continuity note: `d5fa311` shipped the notification-readability and deployed-version visibility patch line that this release formalizes.
+- _No unreleased entries yet._
+
+## [v0.5.3] - 2026-03-07
+
+### Changed
+
+- Refreshed the Settings and Control Center operator surfaces with tighter governance card layouts, improved typography fallback behavior, and updated hosted screenshots/docs so the current UI matches demo-day guidance.
+
+### Fixed
+
+- Cleaned up backend demo-readiness drift by restoring a clean lint/typecheck/test baseline, including optional `asyncpg` typing handling and stale test-only symbols uncovered during the final verification pass.
 
 ## [v0.5.2] - 2026-03-06
 
