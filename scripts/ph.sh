@@ -629,13 +629,16 @@ audit_proof() {
 
 cmd_demo_proof() {
   need_cmd gh
-  local repo="Canepro/pipelinehealer-demo"
+  local repo="${DEMO_REPO:-Canepro/pipelinehealer-demo}"
   local limit="10"
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --repo)
-        require_arg "$1" "${2-}"
-        repo="$2"
+        if [[ -n "${2-}" ]]; then
+          repo="$2"
+        else
+          echo "Warning: --repo was provided without a value; falling back to $repo" >&2
+        fi
         shift 2
         ;;
       --limit)

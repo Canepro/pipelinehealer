@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 692605f -->
+<!-- LAST_VERIFIED: 6aa92ea -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -41,6 +41,7 @@ export DEMO_REPO="${DEMO_REPO:-Canepro/pipelinehealer-demo}"
 ```
 
 Keep `RELEASE_TAG` pinned to the latest published tag for recording. Do not point the demo flow at an untagged local branch or unreleased commit.
+If `DEMO_REPO` is not exported in your shell, either run the export block above first or omit `--repo` and let `bash scripts/ph.sh demo:proof` fall back to the default demo repo.
 
 ## Recording Plan (2 Minutes Max)
 
@@ -156,6 +157,12 @@ Use one fast command on camera after the off-camera staging run:
 
 ```bash
 bash scripts/ph.sh demo:proof --repo "$DEMO_REPO" --limit 5
+```
+
+Safe fallback if `DEMO_REPO` is unset:
+
+```bash
+bash scripts/ph.sh demo:proof --limit 5
 ```
 
 What to say while it runs:
