@@ -1,5 +1,6 @@
 """Storage layer for PipelineHealer."""
 
+import importlib
 import json
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -754,7 +755,7 @@ class PostgresStorage(ActivityStorage):
 
         if self._pool_factory is None:
             try:
-                import asyncpg  # type: ignore[import-not-found]
+                asyncpg = importlib.import_module("asyncpg")
             except ImportError as exc:
                 raise RuntimeError(
                     "PostgreSQL storage requires asyncpg. Install backend dependencies first."

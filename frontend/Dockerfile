@@ -1,5 +1,5 @@
 # PipelineHealer Frontend Dockerfile
-FROM docker.io/oven/bun:1 as builder
+FROM docker.io/oven/bun:1 AS builder
 
 WORKDIR /app
 
