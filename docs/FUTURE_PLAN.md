@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 39cc970 -->
+<!-- LAST_VERIFIED: 692605f -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -46,6 +46,27 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.5.2` | Released | Notification readability + deployed-version visibility |
 | `v0.5.3` | Released | Demo-day frontend corrections, docs refresh, and final release-gate cleanup |
 | `v0.5.4` | Released | `asyncpg` import hardening + frontend Dockerfile workflow-warning cleanup + operator-surface panel polish |
+| `v0.5.5` | Released | Final summary-panel separation cleanup + release/doc alignment carry-forward |
+
+## Released Target: `v0.5.5` (Patch)
+
+Theme: final operator-surface cleanup and release-line documentation alignment after the `v0.5.4` follow-up.
+
+### Delivered Scope
+
+1. Summary-panel structure cleanup
+   - Removed the remaining nested inner-box treatment from Settings and Control Center summary panels.
+   - Switched narrow side-column summary rows to calmer label/value separation so dark-mode cards stay readable at constrained widths.
+2. Release/documentation carry-forward
+   - Promoted `v0.5.5` across release manifests, README, API docs, demo defaults, and roadmap/history references.
+3. Review follow-up alignment
+   - Cleared the final release PR review drift with no runtime-behavior change beyond the shipped UI polish.
+
+### Exit Criteria
+
+1. Summary panels no longer present a bright wireframe or collapsed value wrapping in narrow dark-mode layouts.
+2. Release manifests and current-release docs all agree on `v0.5.5`.
+3. Demo/operator docs point at the active tagged release rather than the prior patch baseline.
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
