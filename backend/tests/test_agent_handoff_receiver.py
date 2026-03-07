@@ -97,7 +97,7 @@ def test_deliver_notification_targets_sends_email(
             assert port == 587
             assert timeout == 10.0
 
-        def __enter__(self) -> "_FakeSMTP":
+        def __enter__(self) -> _FakeSMTP:
             return self
 
         def __exit__(self, exc_type: object, exc: object, tb: object) -> None:

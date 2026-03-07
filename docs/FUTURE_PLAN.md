@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: fa18d60 -->
+<!-- LAST_VERIFIED: 2589504 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -41,6 +41,10 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.3.2` | Released | Jenkins bridge + Assign-to-Agent activation + storage posture hardening + PostgreSQL adapter |
 | `v0.3.3` | Released | Landing-page polish + release/deploy alignment to ACA and Helm `0.3.3` |
 | `v0.4.0` | Released | Operator control-plane coherence: provenance visibility, handoff/Jenkins setup assistants, MCP semantics cleanup, and OSS-first control-plane framing |
+| `v0.5.0` | Released | Outbound integration gateway + multi-platform notification routing |
+| `v0.5.1` | Released | Frontend coherence patch for routing and semantic badge cleanup |
+| `v0.5.2` | Released | Notification readability + deployed-version visibility |
+| `v0.5.3` | Released | Demo-day frontend corrections, docs refresh, and final release-gate cleanup |
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
@@ -284,28 +288,27 @@ Theme: operator control-plane coherence + MCP operational maturity.
 4. MCP governance screens no longer show contradictory configured/effective states without explaining the precedence rule.
 5. Release docs, changelog scope, and implementation PRs tracked this work explicitly as `v0.4.0`.
 
-## Active Target: `v0.5.2` (Patch)
+## Released Target: `v0.5.3` (Patch)
 
-Theme: outbound notification readability + deployed-version visibility after live `v0.5.1` validation.
+Theme: demo-day frontend corrections + docs refresh + release-gate cleanup after the `v0.5.2` baseline.
 
-### Planned Scope
+### Delivered Scope
 
-1. Notification message quality
-   - Replace raw chat payload formatting with operator-grade summaries for Rocket.Chat and keep sink formatting aligned across Slack/Teams/email.
-   - Prioritize diagnosis, remediation outcome, and action links over transport metadata.
-2. Deployed-version visibility
-   - Expose trustworthy backend version data from the running service instead of stale hardcoded constants.
-   - Surface release/version alignment in the app shell so operators can see what is deployed without leaving the UI.
-3. Release/docs hygiene
-   - Sync user-facing docs that still describe `v0.4.0` as the current public baseline.
-   - Keep patch scope documented before merge and release.
+1. Operator-surface frontend corrections
+   - Tightened Settings and Control Center governance card density and corrected typography fallback behavior from the March 6 visual refresh pass.
+   - Kept the hosted UI aligned with the screenshots used in public docs and demo prep.
+2. Release/docs alignment
+   - Promoted `v0.5.3` across release manifests, README, API docs, demo defaults, and hackathon status docs.
+   - Documented the patch scope in changelog/release notes instead of treating it as silent continuity work.
+3. Demo-day quality-gate cleanup
+   - Closed the final backend lint/type/test drift uncovered during the readiness sweep so release promotion starts from a clean local baseline.
 
 ### Exit Criteria
 
-1. Chat/email sink messages summarize handoff context clearly enough for an operator to act without parsing raw JSON.
-2. The running backend reports the correct released version through public health/runtime data.
-3. The UI shows deployed release information clearly and flags frontend/backend drift when present.
-4. Docs and changelog reflect the new patch scope before merge.
+1. The hosted UI and docs show the same current operator surfaces during demo prep.
+2. The patch version is synchronized across release manifests and deploy tooling.
+3. Backend local quality gates are green before release promotion.
+4. Docs and changelog reflect the new patch scope before tag/deploy.
 
 ## Released Target: `v0.5.0` (Minor)
 

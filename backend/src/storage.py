@@ -754,7 +754,7 @@ class PostgresStorage(ActivityStorage):
 
         if self._pool_factory is None:
             try:
-                import asyncpg  # type: ignore[import-untyped]
+                import asyncpg  # type: ignore[import-not-found]
             except ImportError as exc:
                 raise RuntimeError(
                     "PostgreSQL storage requires asyncpg. Install backend dependencies first."
