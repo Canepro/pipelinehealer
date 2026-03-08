@@ -1,6 +1,6 @@
 # Learning System Plan
 
-<!-- LAST_VERIFIED: 51d0763 -->
+<!-- LAST_VERIFIED: 85beac6 -->
 
 This document explains the learning/governance subsystem, how to use it today, and what is planned next.
 
@@ -49,8 +49,10 @@ Readiness gates for activation:
 
 Verification feedback loop:
 - operator feedback API (`identification`, `diagnosis`, `remediation` outcomes)
+- optional applied-guidance rating (`helped|neutral|hurt`) when a promoted playbook was actually used
 - per-activity durable verification payload + history
 - candidate verification counters (`pass|partial|fail`) + pass rate
+- candidate guidance-effectiveness counters (`applied`, `feedback`, `helped`, `neutral`, `hurt`) + help rate
 
 Observability and audit:
 - per-candidate `promotion_readiness` payload
@@ -89,8 +91,9 @@ API:
 Quick verification checklist:
 1. Run refresh and confirm candidate rows appear with `promotion_readiness`.
 2. Submit at least one verification payload (`pass|partial|fail`) for a related activity.
-3. Re-open the queue and confirm verification counters/pass-rate changed.
-4. Confirm audit includes the matching learning action (`learning_queue_refresh`, `learning_queue_decision`, or `learning_verification_feedback`).
+3. If the activity used promoted learning guidance, record `guidance_effectiveness` as well.
+4. Re-open the queue and confirm verification counters/pass-rate and any guidance metrics changed.
+5. Confirm audit includes the matching learning action (`learning_queue_refresh`, `learning_queue_decision`, or `learning_verification_feedback`).
 
 ## Current Constraints
 
@@ -114,6 +117,7 @@ Quick verification checklist:
    - keep manual API/UI submission as fallback.
 5. Evaluation:
    - track learning impact metrics (reuse rate, false-positive rate, manual override rate).
+   - distinguish “guidance was applied” from “guidance actually helped”.
 
 ## Structured Retrieval Injection Contract
 

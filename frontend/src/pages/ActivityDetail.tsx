@@ -117,6 +117,7 @@ function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
   reusedExistingPr: boolean;
   appliedLearningTitle: string | null;
   appliedLearningId: string | null;
+  guidanceEffectiveness: string | null;
 } {
   const includes = details?.includes_proposed_fix === true;
   const reason = (
@@ -138,6 +139,10 @@ function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
     typeof details.applied_learning_context === "object"
       ? (details.applied_learning_context as Record<string, unknown>)
       : null;
+  const verification =
+    details?.verification && typeof details.verification === "object"
+      ? (details.verification as Record<string, unknown>)
+      : null;
   return {
     includesProposedFix: includes,
     reasonCode: reason,
@@ -147,6 +152,10 @@ function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
       typeof appliedLearning?.title === "string" ? appliedLearning.title : null,
     appliedLearningId:
       typeof appliedLearning?.id === "string" ? appliedLearning.id : null,
+    guidanceEffectiveness:
+      typeof verification?.guidance_effectiveness === "string"
+        ? verification.guidance_effectiveness
+        : null,
   };
 }
 
@@ -1358,6 +1367,11 @@ export default function ActivityDetail() {
                           Applied Learning Guidance
                         </span>
                       )}
+                      {remediationMeta.guidanceEffectiveness && (
+                        <span className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]">
+                          Guidance {remediationMeta.guidanceEffectiveness}
+                        </span>
+                      )}
                       {remediationMeta.reasonCode && (
                         <span className="inline-flex items-center rounded-md bg-[var(--ph-warning-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-warning)]">
                           {remediationMeta.reasonCode}
@@ -1382,6 +1396,14 @@ export default function ActivityDetail() {
                               ({remediationMeta.appliedLearningId})
                             </span>
                           )}
+                      </p>
+                    )}
+                    {remediationMeta.guidanceEffectiveness && (
+                      <p className="mt-2 text-sm text-[var(--ph-text)]">
+                        Operator-rated guidance impact:{" "}
+                        <span className="font-medium">
+                          {remediationMeta.guidanceEffectiveness}
+                        </span>
                       </p>
                     )}
                   </div>

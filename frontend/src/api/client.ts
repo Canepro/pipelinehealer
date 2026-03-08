@@ -413,6 +413,7 @@ export interface AdminSettingsPersistResponse {
 
 export type LearningQueueStatus = 'candidate' | 'approved' | 'rejected' | 'active' | 'retired'
 export type LearningVerificationOutcome = 'pass' | 'partial' | 'fail'
+export type LearningGuidanceEffectiveness = 'helped' | 'neutral' | 'hurt'
 
 export interface LearningPromotionReadiness {
   ready: boolean
@@ -453,6 +454,12 @@ export interface LearningQueueItem {
   verification_partial_count: number
   verification_fail_count: number
   verification_pass_rate: number
+  guidance_application_count: number
+  guidance_feedback_count: number
+  guidance_helped_count: number
+  guidance_neutral_count: number
+  guidance_hurt_count: number
+  guidance_help_rate: number
   latest_activity_at?: string | null
   status: LearningQueueStatus
   decision_reason: string
@@ -475,6 +482,7 @@ export interface LearningVerificationFeedbackPayload {
   identification: LearningVerificationOutcome
   diagnosis: LearningVerificationOutcome
   remediation: LearningVerificationOutcome
+  guidance_effectiveness?: LearningGuidanceEffectiveness
   notes?: string
   issue_number?: number
   issue_url?: string
