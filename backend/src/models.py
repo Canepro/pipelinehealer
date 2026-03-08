@@ -328,6 +328,31 @@ class FailureContext(BaseModel):
     signal: str | None = None
 
 
+class LearningContextMatch(BaseModel):
+    """One ranked active learning artifact injected into runtime context."""
+
+    id: str
+    title: str
+    failure_type: FailureType | None = None
+    reason_code: str | None = None
+    suggested_playbook: str = ""
+    repositories: list[str] = Field(default_factory=list)
+    verification_pass_rate: float = 0.0
+    occurrence_count: int = 0
+    match_basis: list[str] = Field(default_factory=list)
+    match_rank: int = 0
+    match_score: float = 0.0
+
+
+class LearningContextTrace(BaseModel):
+    """Trace of retrieval-backed learning context used during one activity."""
+
+    diagnosis_matches: list[LearningContextMatch] = Field(default_factory=list)
+    remediation_matches: list[LearningContextMatch] = Field(default_factory=list)
+    diagnosis_injected: bool = False
+    remediation_injected: bool = False
+
+
 # =============================================================================
 # Activity Tracking Models
 # =============================================================================
@@ -345,6 +370,7 @@ class ActivityRecord(BaseModel):
     failure_type: FailureType | None = None
     diagnosis: Diagnosis | None = None
     failure_context: FailureContext | None = None
+    learning_context_trace: LearningContextTrace | None = None
     llm_model_path: LLMModelPath | None = None
     mcp_model_path: MCPModelPath | None = None
     remediation_result: RemediationResult | None = None

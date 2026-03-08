@@ -14,6 +14,7 @@ from ..models import (
     ExternalDiagnostic,
     ExternalDiagnosticStatus,
     FailureType,
+    LearningContextMatch,
     LLMDiagnosisRejection,
     LogAnalysis,
 )
@@ -137,11 +138,41 @@ class DiagnosisAgent:
             schema_lines.append(f'- `{failure_type.value}`: {template}')
         return "\n".join(schema_lines)
 
+    @staticmethod
+    def _prepare_learning_context_summary(
+        matches: list[LearningContextMatch] | None,
+    ) -> str:
+        """Serialize matched active learning artifacts for diagnosis context."""
+        if not matches:
+            return "Learning context: none"
+
+        lines = []
+        for match in matches[:3]:
+            basis = ", ".join(match.match_basis[:4]) if match.match_basis else "ranked retrieval"
+            line = (
+                f"- id={match.id} title={match.title[:120]} "
+                f"score={match.match_score:.2f} basis={basis}"
+            )
+            if match.reason_code:
+                line += f" reason_code={match.reason_code}"
+            if match.suggested_playbook:
+                line += f" suggested_playbook={match.suggested_playbook[:220]}"
+            lines.append(line)
+        return "Learning context:\n" + "\n".join(lines)
+
+    def preview_pattern_diagnosis(
+        self,
+        log_analyses: list[LogAnalysis],
+    ) -> Diagnosis | None:
+        """Expose deterministic pattern diagnosis as a hint for orchestration layers."""
+        return self._pattern_based_diagnosis(log_analyses)
+
     async def diagnose(
         self,
         log_analyses: list[LogAnalysis],
         workflow_info: dict[str, Any] | None = None,
         external_diagnostics: list[ExternalDiagnostic] | None = None,
+        learning_context: list[LearningContextMatch] | None = None,
     ) -> Diagnosis:
         """Diagnose the root cause of a failure based on log analyses.
 
@@ -212,6 +243,7 @@ class DiagnosisAgent:
             similar_issues=similar_issues,
         )
         external_summary = self._prepare_external_diagnostics_summary(external_diagnostics)
+        learning_summary = self._prepare_learning_context_summary(learning_context)
         error_details_schema_text = self._build_llm_error_details_schema_text()
 
         prompt = f"""Analyze the following CI/CD failure and provide a diagnosis.
@@ -221,6 +253,8 @@ class DiagnosisAgent:
 {context_summary}
 
 {external_summary}
+
+{learning_summary}
 
 Provide your diagnosis in the following JSON format:
 {{

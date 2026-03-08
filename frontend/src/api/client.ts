@@ -78,6 +78,36 @@ export interface Activity {
   failure_type?: string
   diagnosis?: Diagnosis
   failure_context?: FailureContext
+  learning_context_trace?: {
+    diagnosis_injected: boolean
+    remediation_injected: boolean
+    diagnosis_matches: Array<{
+      id: string
+      title: string
+      failure_type?: string | null
+      reason_code?: string | null
+      suggested_playbook: string
+      repositories: string[]
+      verification_pass_rate: number
+      occurrence_count: number
+      match_basis: string[]
+      match_rank: number
+      match_score: number
+    }>
+    remediation_matches: Array<{
+      id: string
+      title: string
+      failure_type?: string | null
+      reason_code?: string | null
+      suggested_playbook: string
+      repositories: string[]
+      verification_pass_rate: number
+      occurrence_count: number
+      match_basis: string[]
+      match_rank: number
+      match_score: number
+    }>
+  } | null
   llm_model_path?: {
     provider: string
     model: string

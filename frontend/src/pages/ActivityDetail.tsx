@@ -505,6 +505,11 @@ function buildActivityContext(activity: Activity): string {
     lines.push("- diagnosis: N/A");
   }
 
+  if (activity.learning_context_trace) {
+    lines.push(`- learning_context_diagnosis_matches: ${activity.learning_context_trace.diagnosis_matches.length}`);
+    lines.push(`- learning_context_remediation_matches: ${activity.learning_context_trace.remediation_matches.length}`);
+  }
+
   lines.push("");
   lines.push("## 3) Remediation Outcome");
   if (activity.remediation_result) {
@@ -961,6 +966,10 @@ export default function ActivityDetail() {
   const externalSignalSources = parseExternalSignalSources(
     diagnosisDetails?.external_signal_sources,
   );
+  const learningContextTrace = activity.learning_context_trace;
+  const diagnosisLearningMatches = learningContextTrace?.diagnosis_matches ?? [];
+  const remediationLearningMatches =
+    learningContextTrace?.remediation_matches ?? [];
   const llmRejection = activity.diagnosis?.llm_rejection;
   const llmFallbackLabel =
     activity.diagnosis?.diagnosis_source === "pattern"
@@ -1569,6 +1578,94 @@ export default function ActivityDetail() {
                 </p>
               </div>
             )}
+            {learningContextTrace &&
+              (diagnosisLearningMatches.length > 0 ||
+                remediationLearningMatches.length > 0) && (
+                <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-4">
+                  <p className="text-sm font-medium text-[var(--ph-text)]">
+                    Learning Context
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--ph-muted)]">
+                    Active playbooks retrieved for this activity and carried into diagnosis/remediation.
+                  </p>
+                  {diagnosisLearningMatches.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ph-muted)]">
+                        Diagnosis Retrieval
+                      </p>
+                      <div className="mt-2 space-y-2">
+                        {diagnosisLearningMatches.map((match) => (
+                          <div
+                            key={`diag-${match.id}`}
+                            className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-surface)] px-3 py-2"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-sm font-medium text-[var(--ph-text)]">
+                                {match.title}
+                              </p>
+                              <span className="text-xs text-[var(--ph-muted)]">
+                                rank {match.match_rank} • score {match.match_score.toFixed(2)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-[var(--ph-muted)]">
+                              {match.id}
+                              {match.reason_code ? ` • ${match.reason_code}` : ""}
+                            </p>
+                            {match.suggested_playbook && (
+                              <p className="mt-1 text-sm text-[var(--ph-text)]">
+                                {match.suggested_playbook}
+                              </p>
+                            )}
+                            {match.match_basis.length > 0 && (
+                              <p className="mt-1 text-xs text-[var(--ph-muted)]">
+                                Match basis: {match.match_basis.join(", ")}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {remediationLearningMatches.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ph-muted)]">
+                        Remediation Retrieval
+                      </p>
+                      <div className="mt-2 space-y-2">
+                        {remediationLearningMatches.map((match) => (
+                          <div
+                            key={`rem-${match.id}`}
+                            className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-surface)] px-3 py-2"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-sm font-medium text-[var(--ph-text)]">
+                                {match.title}
+                              </p>
+                              <span className="text-xs text-[var(--ph-muted)]">
+                                rank {match.match_rank} • score {match.match_score.toFixed(2)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-[var(--ph-muted)]">
+                              {match.id}
+                              {match.reason_code ? ` • ${match.reason_code}` : ""}
+                            </p>
+                            {match.suggested_playbook && (
+                              <p className="mt-1 text-sm text-[var(--ph-text)]">
+                                {match.suggested_playbook}
+                              </p>
+                            )}
+                            {match.match_basis.length > 0 && (
+                              <p className="mt-1 text-xs text-[var(--ph-muted)]">
+                                Match basis: {match.match_basis.join(", ")}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <p className="text-sm text-[var(--ph-muted)]">Confidence</p>
