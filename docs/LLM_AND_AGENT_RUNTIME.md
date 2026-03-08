@@ -1,6 +1,6 @@
 # LLM and Agent Runtime
 
-<!-- LAST_VERIFIED: 803e871 -->
+<!-- LAST_VERIFIED: 1bee670 -->
 
 This document is the operator-facing contract for how PipelineHealer uses LLMs and agents at runtime.
 
@@ -52,6 +52,7 @@ Fallback behavior:
 - malformed JSON is rejected
 - incomplete typed payloads are rejected
 - when rejection happens, PipelineHealer falls back to deterministic diagnosis when available instead of trusting partial LLM prose
+- fallback diagnoses may carry `llm_payload_rejected`, `llm_payload_rejection_reason`, and `llm_payload_candidate_count` in `error_details` for auditability
 
 Operator implication:
 - a model that can answer loosely in natural language but cannot satisfy the structured diagnosis contract is not full-capability for diagnosis

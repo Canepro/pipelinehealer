@@ -708,7 +708,13 @@ class TestPatternBasedDiagnosis:
             fallback,
         )
 
-        assert diagnosis is fallback
+        assert diagnosis.failure_type == fallback.failure_type
+        assert diagnosis.root_cause == fallback.root_cause
+        assert diagnosis.error_details.get("llm_payload_rejected") is True
+        assert "missing error_details field(s)" in str(
+            diagnosis.error_details.get("llm_payload_rejection_reason")
+        )
+        assert diagnosis.error_details.get("llm_payload_candidate_count") == 2
 
     def test_parse_llm_diagnosis_accepts_complete_failure_specific_schema(self) -> None:
         """Well-formed LLM JSON with complete typed keys should be accepted."""
@@ -751,3 +757,18 @@ class TestPatternBasedDiagnosis:
 
         assert valid is True
         assert reason == ""
+
+    def test_parse_llm_diagnosis_records_rejection_on_unknown_fallback(self) -> None:
+        """Unknown diagnoses should retain rejection telemetry when LLM payload parsing fails."""
+        diagnosis = self.agent._parse_diagnosis_response(
+            "not-json-at-all",
+            None,
+        )
+
+        assert diagnosis.failure_type == FailureType.UNKNOWN
+        assert diagnosis.diagnosis_source == DiagnosisSource.LLM
+        assert diagnosis.error_details.get("llm_payload_rejected") is True
+        assert diagnosis.error_details.get("llm_payload_rejection_reason") == (
+            "No valid structured diagnosis JSON candidate was found"
+        )
+        assert diagnosis.error_details.get("llm_payload_candidate_count") == 0
