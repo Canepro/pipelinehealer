@@ -96,3 +96,27 @@ async def test_get_recent_commits_passes_since_parameter() -> None:
     assert captured["url"] == "/repos/Canepro/pipelinehealer/commits"
     assert captured["kwargs"]["params"]["since"] == "2026-02-01T00:00:00Z"
     assert captured["kwargs"]["params"]["per_page"] == 7
+
+
+@pytest.mark.asyncio
+async def test_update_pull_request_rejects_empty_payload() -> None:
+    gh = GitHubTools(token="test-token")
+
+    with pytest.raises(ValueError, match="at least one mutable field"):
+        await gh.update_pull_request(
+            owner="Canepro",
+            repo="pipelinehealer",
+            pr_number=42,
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_issue_rejects_empty_payload() -> None:
+    gh = GitHubTools(token="test-token")
+
+    with pytest.raises(ValueError, match="at least one mutable field"):
+        await gh.update_issue(
+            owner="Canepro",
+            repo="pipelinehealer",
+            issue_number=42,
+        )

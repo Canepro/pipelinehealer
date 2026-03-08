@@ -4,6 +4,7 @@ import pytest
 
 from src.agents.diagnosis import DiagnosisAgent
 from src.models import (
+    Diagnosis,
     DiagnosisSource,
     ExternalDiagnostic,
     ExternalDiagnosticStatus,
@@ -678,3 +679,75 @@ class TestPatternBasedDiagnosis:
         assert "hosted runner" in diagnosis.root_cause
         assert diagnosis.error_details.get("reason_code") == "github_runner_acquisition_failed"
         assert diagnosis.error_details.get("infrastructure_failure") is True
+
+    def test_parse_llm_diagnosis_rejects_missing_failure_specific_fields(self) -> None:
+        """Malformed LLM JSON should fall back when required typed fields are missing."""
+        fallback = Diagnosis(
+            failure_type=FailureType.TEST,
+            confidence=0.85,
+            root_cause="pytest test failed",
+            is_auto_fixable=False,
+            suggested_fix="Run pytest locally and fix the failure.",
+            error_details={
+                "test_framework": "pytest",
+                "failed_tests": ["tests/test_api.py::test_health"],
+                "test_errors": {"tests/test_api.py::test_health": "AssertionError"},
+                "is_flaky": False,
+                "failure_scope": "test_case",
+                "suspected_files": ["tests/test_api.py"],
+            },
+            diagnosis_source=DiagnosisSource.PATTERN,
+        )
+
+        diagnosis = self.agent._parse_diagnosis_response(
+            (
+                '{"failure_type":"test","confidence":0.82,"root_cause":"pytest failed",'
+                '"affected_files":["tests/test_api.py"],"is_auto_fixable":false,'
+                '"suggested_fix":"run pytest","error_details":{"test_framework":"pytest"}}'
+            ),
+            fallback,
+        )
+
+        assert diagnosis is fallback
+
+    def test_parse_llm_diagnosis_accepts_complete_failure_specific_schema(self) -> None:
+        """Well-formed LLM JSON with complete typed keys should be accepted."""
+        diagnosis = self.agent._parse_diagnosis_response(
+            (
+                '{"failure_type":"dependency","confidence":0.81,"root_cause":"missing Python module",'
+                '"affected_files":["pyproject.toml"],"is_auto_fixable":true,'
+                '"suggested_fix":"Add the dependency and reinstall.","error_details":{'
+                '"package_name":"requests","package_manager":"pip","manifest_file":"pyproject.toml",'
+                '"current_version":"","required_version":"","resolution_kind":"missing"}}'
+            ),
+            None,
+        )
+
+        assert diagnosis.failure_type == FailureType.DEPENDENCY
+        assert diagnosis.diagnosis_source == DiagnosisSource.LLM
+        assert diagnosis.error_details.get("package_name") == "requests"
+
+    def test_validate_llm_diagnosis_payload_accepts_complete_lint_schema(self) -> None:
+        """Structured lint payloads with the full typed key set should validate cleanly."""
+        valid, reason = self.agent._validate_llm_diagnosis_payload(
+            {
+                "failure_type": "lint",
+                "confidence": 0.7,
+                "root_cause": "lint failed",
+                "affected_files": ["eslint.config.js"],
+                "is_auto_fixable": False,
+                "suggested_fix": "Add the missing config.",
+                "error_details": {
+                    "linter": "eslint",
+                    "missing_file": "eslint.config.js",
+                    "config_file": "eslint.config.js",
+                    "autofix_command": "",
+                    "violations": [],
+                    "rule_ids": [],
+                },
+            },
+            FailureType.LINT,
+        )
+
+        assert valid is True
+        assert reason == ""

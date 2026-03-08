@@ -553,6 +553,8 @@ class GitHubTools:
             payload["title"] = title
         if body is not None:
             payload["body"] = body
+        if not payload:
+            raise ValueError("update_pull_request requires at least one mutable field")
         response = await self._request(
             "PATCH",
             f"/repos/{owner}/{repo}/pulls/{pr_number}",
@@ -793,6 +795,8 @@ class GitHubTools:
             payload["state"] = state
         if state_reason is not None:
             payload["state_reason"] = state_reason
+        if not payload:
+            raise ValueError("update_issue requires at least one mutable field")
         response = await self._request(
             "PATCH",
             f"/repos/{owner}/{repo}/issues/{issue_number}",

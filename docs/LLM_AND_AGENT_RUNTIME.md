@@ -1,6 +1,6 @@
 # LLM and Agent Runtime
 
-<!-- LAST_VERIFIED: aec8f84 -->
+<!-- LAST_VERIFIED: 803e871 -->
 
 This document is the operator-facing contract for how PipelineHealer uses LLMs and agents at runtime.
 
@@ -37,6 +37,24 @@ Internal role note:
 Current limitation:
 - you cannot use Azure for analysis and `openai_compatible` for diagnosis/remediation in the same run
 - provider selection is global for the runtime, not per task
+
+## Diagnosis Contract Enforcement
+
+Diagnosis is now schema-gated, not prose-gated.
+
+Current runtime rule:
+- the diagnosis model must return exactly one JSON object
+- top-level diagnosis fields must all be present
+- `error_details` must include the full typed key set for the chosen `failure_type`
+- unknown values should be represented with empty strings, empty arrays/objects, `false`, or `0`, not omitted fields
+
+Fallback behavior:
+- malformed JSON is rejected
+- incomplete typed payloads are rejected
+- when rejection happens, PipelineHealer falls back to deterministic diagnosis when available instead of trusting partial LLM prose
+
+Operator implication:
+- a model that can answer loosely in natural language but cannot satisfy the structured diagnosis contract is not full-capability for diagnosis
 
 ## Readiness Levels
 

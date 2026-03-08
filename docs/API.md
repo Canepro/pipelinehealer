@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: d82efee -->
+<!-- LAST_VERIFIED: 803e871 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -1250,6 +1250,8 @@ When `diagnosis_source=pattern`, `error_details` may include classification tran
 - `classification_pattern`: internal pattern signature used for matching
 
 Pattern and LLM diagnoses may also include failure-type-specific structured fields in `error_details`.
+
+For LLM-sourced diagnoses, PipelineHealer now expects the full failure-type-specific key set to be present in `error_details` for the chosen `failure_type`. If the model returns malformed JSON or omits required typed keys, the LLM payload is rejected and PipelineHealer falls back to deterministic diagnosis data when available.
 
 Common examples:
 - `dependency`: `package_name`, `package_manager`, `manifest_file`, `required_version`, `resolution_kind`

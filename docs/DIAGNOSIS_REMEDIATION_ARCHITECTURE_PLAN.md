@@ -1,4 +1,4 @@
-<!-- LAST_VERIFIED: aec8f84 -->
+<!-- LAST_VERIFIED: 803e871 -->
 
 # Diagnosis and Remediation Architecture Plan
 
@@ -398,8 +398,8 @@ Use this checklist for the `v0.6.0` workstream.
 
 ### LLM layer
 
-- [ ] diagnosis prompt updated to require failure-type-specific structured JSON
-- [ ] parser rejects incomplete or malformed structured payloads cleanly
+- [x] diagnosis prompt updated to require failure-type-specific structured JSON
+- [x] parser rejects incomplete or malformed structured payloads cleanly
 - [x] role mapping documented for `analysis`, `diagnosis_refinement`, `patch_drafting`, and `operator_summary`
 
 ### Remediation layer
