@@ -94,6 +94,8 @@ Theme: LLM capability contract hardening + learning-ops rework.
 5. Research-backed alignment
    - keep the next phase anchored in official provider guidance instead of repo-local assumptions
    - implementation framing recorded in `docs/LLM_PROVIDER_RESEARCH_AND_PLAN.md`
+   - diagnosis/remediation contract hardening recorded in `docs/DIAGNOSIS_REMEDIATION_ARCHITECTURE_PLAN.md`
+   - implementation PRs for this workstream should declare `v0.6.0`, `minor`, and `Changed`
 
 ### Exit Criteria
 
