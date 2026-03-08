@@ -72,6 +72,37 @@ Theme: release-discipline hardening after the `v0.5.6` post-review gap.
 4. Release manifests and current-release docs all agree on `v0.5.7`.
 5. Demo/operator docs point at the active tagged release rather than the prior patch baseline.
 
+## Planned Target: `v0.6.0` (Minor)
+
+Theme: LLM capability contract hardening + learning-ops rework.
+
+### Must-Have Scope
+
+1. LLM capability transparency
+   - document and surface the difference between configured, provider-ready, operation-compatible, and full-capability runtime states
+   - make degraded-mode behavior explicit in operator surfaces and docs
+2. Azure endpoint/model contract hardening
+   - preserve validated Azure combinations in docs and operator guidance
+   - make endpoint/model compatibility easier to verify before release/demo promotion
+   - evaluate whether Azure routing should stay client-side or move behind a gateway abstraction as the live deployment matrix grows
+3. Learning-ops redesign
+   - move learning from recurrence tracking toward evidence-first, LLM-assisted candidate drafting
+   - add retrieval-quality improvements so active candidates materially help diagnosis/remediation
+4. Operator trust improvements
+   - show candidate provenance, evidence basis, and verification impact more clearly
+   - keep activation governance explicit and audit-first
+5. Research-backed alignment
+   - keep the next phase anchored in official provider guidance instead of repo-local assumptions
+   - implementation framing recorded in `docs/LLM_PROVIDER_RESEARCH_AND_PLAN.md`
+
+### Exit Criteria
+
+1. User-facing docs no longer imply that provider configuration alone equals full LLM capability.
+2. Operators can distinguish degraded mode from full-capability mode without reading backend logs.
+3. Learning candidates are grounded in verification/evidence quality, not just recurrence counts.
+4. Active learning artifacts can be injected back into diagnosis/remediation as structured context.
+5. Docs and operator surfaces describe the learning system honestly as a governed LLM-assisted subsystem rather than a generic queue.
+
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
 Theme: close the loop between operator verification and PipelineHealer learning, and make diagnostics source behavior explicit (especially MCP vs `gh_aw` passive mode).

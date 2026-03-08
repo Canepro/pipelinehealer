@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: ec7e28f -->
+<!-- LAST_VERIFIED: 747334d -->
 
 > OSS-first, policy-aware pipeline remediation platform with GitHub Actions and Jenkins bridge support today.
 
@@ -82,6 +82,11 @@ Defaults are already beginner-safe in `.env.example`:
 
 For managed deployment and full demo ops, use [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md).
 
+LLM readiness matters:
+- `provider-health` only confirms configuration readiness, not that your chosen model/operation pair actually works
+- for full value, verify a live LLM path with `bash scripts/ph.sh aoai:check` or an equivalent provider smoke test
+- if the LLM path is broken, PipelineHealer can still ingest runs, collect evidence, and open fallback issues, but diagnosis/remediation quality is degraded
+
 ## Product Position
 
 PipelineHealer is open source first.
@@ -147,6 +152,10 @@ Detailed docs:
 Azure model-path note:
 - when using `cognitiveservices.azure.com`, set `AZURE_OPENAI_ENDPOINT` to the base resource URL only
 - some models support Azure Responses API but reject Chat Completions; if you test with a Responses-only model, validate with `bash scripts/ph.sh aoai:check` against the target release
+- as of `v0.5.7`, the validated high-confidence Azure path for `gpt-5.1-codex-mini` is the `cognitiveservices.azure.com` base endpoint with the Responses-first runtime path
+
+LLM/runtime reference:
+- detailed capability, routing, degraded-mode, and validated-combination guidance now lives in [docs/LLM_AND_AGENT_RUNTIME.md](docs/LLM_AND_AGENT_RUNTIME.md)
 
 Persistence guardrail for non-development deployments:
 - Use a durable backend: `STORAGE_MODE=cosmos` (`COSMOS_DB_ENDPOINT`) or `STORAGE_MODE=postgres` (`POSTGRES_DSN`).
@@ -161,6 +170,22 @@ Pipeline failures create repetitive triage work and slow delivery. PipelineHeale
 - explainability fields (`diagnosis_source`, reason codes, source attribution)
 - universal failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
 - idempotent artifacts (find-or-create PR/issue reuse)
+
+## LLM Capability Contract
+
+PipelineHealer is still useful without a healthy LLM path, but it is no longer operating at full product value.
+
+- Full-capability mode:
+  - successful live analysis/diagnosis/remediation requests
+  - high-confidence classification
+  - deterministic fix PRs where the pattern is understood
+- Degraded mode:
+  - webhook/run ingestion still works
+  - evidence collection and external diagnostics still work
+  - fallback issues can still be created safely
+  - but the core diagnosis/remediation promise is weakened
+
+Treat live LLM compatibility as a release gate for demos and production posture, not as an optional nicety.
 
 ## Professional Value
 

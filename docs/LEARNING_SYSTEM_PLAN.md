@@ -1,8 +1,14 @@
 # Learning System Plan
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: 747334d -->
 
 This document explains the learning/governance subsystem, how to use it today, and what is planned next.
+
+Honest status:
+- the current learning system is useful, but it is not yet the final shape we want
+- today it behaves more like a governed recurring-pattern queue than a strong LLM-assisted learning layer
+- the next phase should rework it around evidence quality, retrieval value, and operator trust
+- this direction is now also supported by external provider guidance collected in `docs/LLM_PROVIDER_RESEARCH_AND_PLAN.md`
 
 ## Purpose
 
@@ -104,6 +110,28 @@ Quick verification checklist:
    - keep manual API/UI submission as fallback.
 5. Evaluation:
    - track learning impact metrics (reuse rate, false-positive rate, manual override rate).
+
+## Rework Direction
+
+The learning system should evolve from "repeat incidents become candidates" into an LLM-assisted, operator-governed remediation memory.
+
+Target improvements:
+
+1. Evidence-first candidate generation
+   - build candidates from repeated incidents plus verification outcomes, not recurrence alone
+2. LLM-assisted candidate drafting
+   - generate a first-pass title, playbook summary, applicability notes, and risk notes from the underlying incident evidence
+3. Retrieval quality before action
+   - use active candidates as structured context for diagnosis/remediation rather than as passive queue records only
+4. Evaluation and retirement loop
+   - measure whether learned guidance improved remediation quality, and retire candidates that create noise or drift
+5. Stronger operator trust model
+   - show why a candidate matched, what evidence it was built from, and where operator feedback changed its readiness
+
+Non-goals for the rework:
+- no silent policy mutation
+- no automatic activation without explicit operator approval
+- no hiding LLM-authored candidate text from audit history
 
 ## Safety Rules
 

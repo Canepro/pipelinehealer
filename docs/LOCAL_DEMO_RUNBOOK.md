@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 8e79a7e -->
+<!-- LAST_VERIFIED: 747334d -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -90,6 +90,11 @@ Planned support (not yet shipped):
 
 PipelineHealer needs one working LLM provider for log analysis/diagnosis/remediation.
 
+Read this as a capability requirement, not a loose preference:
+- if the LLM path is broken, PipelineHealer can still ingest runs and open safe fallback issues
+- but diagnosis/remediation quality is degraded and the product is no longer operating at full value
+- `GET /api/settings/llm/provider-health` only confirms provider readiness, not live model-operation compatibility
+
 ### Option A (Hackathon default): Azure OpenAI
 
 ### 1.1 Create an Azure OpenAI resource
@@ -113,6 +118,15 @@ In the Azure Portal, open your OpenAI resource page → **Keys and Endpoint**:
 
 > **Note:** If your endpoint uses the `cognitiveservices.azure.com` domain, that works too. PipelineHealer prefers the Azure Responses API first and falls back to Chat only when a deployment rejects Responses.
 
+Validated Azure combinations as of `v0.5.7`:
+- stable default path: `https://<resource>.openai.azure.com/` with `gpt-5-mini`
+- validated stronger diagnosis/remediation path: `https://<resource>.cognitiveservices.azure.com/` with `gpt-5.1-codex-mini`
+
+Important routing limit:
+- task-level model routing is supported
+- mixed-provider routing is not
+- one runtime uses one active provider at a time
+
 ### Option B: OpenAI-compatible provider (portable path)
 
 If you are not using Azure OpenAI, configure:
@@ -132,6 +146,9 @@ bash scripts/ph.sh settings:check | jq '.llm_provider,.openai_compatible_base_ur
 ```
 
 If you do not have `jq`, run `bash scripts/ph.sh settings:check` and inspect the raw JSON output.
+
+Reference:
+- detailed LLM/runtime behavior, degraded mode, and validated Azure combinations: `docs/LLM_AND_AGENT_RUNTIME.md`
 
 ---
 
@@ -483,6 +500,11 @@ PY
 **What success looks like:** `aoai:check` ends with `model connectivity OK (Responses API).` or `model connectivity OK (Chat API fallback).`
 
 **If it fails:** Double-check `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT_NAME`, and `AZURE_OPENAI_API_KEY` in your `backend/.env`. The endpoint should be the base URL only (no extra path segments). If `GET /api/settings/llm/provider-health` says `available=true` but the live call still fails, you have a model/operation compatibility issue rather than a missing-config issue.
+
+Interpretation rule:
+- `available=true` means "PipelineHealer can attempt LLM calls"
+- it does not mean "this model will successfully diagnose and remediate"
+- for demos and release gates, require one real canary activity with successful diagnosis/remediation rather than relying on provider-health alone
 
 Important Azure endpoint formatting rule:
 - `AZURE_OPENAI_ENDPOINT` must be only the base resource URL
