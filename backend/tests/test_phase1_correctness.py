@@ -18,6 +18,7 @@ from src.models import (
     FailureType,
     GitHubRepository,
     GitHubWorkflowRun,
+    LearningContextMatch,
     LogAnalysis,
     RemediationAction,
     RemediationPlan,
@@ -1207,6 +1208,109 @@ async def test_remediation_low_confidence_creates_review_issue() -> None:
     assert "### PipelineHealer Assessment" in body
     assert "### Operator Verification Checklist" in body
     assert f"Reason Code: {NotAutoApplyReason.LOW_CONFIDENCE.value}" in body
+
+
+@pytest.mark.asyncio
+async def test_remediation_applies_strong_learning_guidance_to_pr_plan() -> None:
+    gh = FakeGitHubTools()
+    agent = RemediationAgent(github_tools=gh)
+
+    result = await agent.remediate(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.DEPENDENCY,
+            confidence=0.92,
+            root_cause="Package `left-pad` is missing from dependencies.",
+            is_auto_fixable=True,
+            suggested_fix="Add the missing dependency.",
+            error_details={
+                "package_name": "left-pad",
+                "package_manager": "npm",
+                "required_version": "^1.3.0",
+                "current_version": "",
+                "manifest_file": "package.json",
+                "resolution_kind": "missing",
+                "reason_code": "missing_node_module",
+            },
+        ),
+        repository_info={"owner": {"login": "octo"}, "name": "demo", "default_branch": "main"},
+        workflow_run_id=123,
+        dry_run=True,
+        learning_context=[
+            LearningContextMatch(
+                id="playbook-node-dep",
+                title="Restore missing npm dependency",
+                failure_type=FailureType.DEPENDENCY,
+                reason_code="missing_node_module",
+                suggested_playbook="Add the missing package to package.json and rerun install before retrying CI.",
+                match_basis=["failure_type exact", "reason_code exact", "repository exact"],
+                match_rank=1,
+                match_score=0.94,
+                verification_pass_rate=1.0,
+                occurrence_count=4,
+            )
+        ],
+    )
+
+    assert result.success is True
+    assert result.action_taken == RemediationAction.CREATE_PR
+    applied = result.details.get("applied_learning_context")
+    assert isinstance(applied, dict)
+    assert applied.get("id") == "playbook-node-dep"
+    assert applied.get("application_mode") == "guidance_section"
+    plan = result.details.get("plan")
+    assert isinstance(plan, dict)
+    assert "## Applied Learning Guidance" in str(plan.get("pr_body"))
+    assert "## Related Active Playbooks" in str(plan.get("pr_body"))
+
+
+@pytest.mark.asyncio
+async def test_remediation_leaves_conflicting_learning_match_advisory_only() -> None:
+    gh = FakeGitHubTools()
+    agent = RemediationAgent(github_tools=gh)
+
+    result = await agent.remediate(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.DEPENDENCY,
+            confidence=0.92,
+            root_cause="Package `requests` is missing from the Python environment.",
+            is_auto_fixable=True,
+            suggested_fix="Add the missing dependency.",
+            error_details={
+                "package_name": "requests",
+                "package_manager": "pip",
+                "required_version": "2.31.0",
+                "current_version": "",
+                "manifest_file": "requirements.txt",
+                "resolution_kind": "missing",
+                "reason_code": "missing_python_module",
+            },
+        ),
+        repository_info={"owner": {"login": "octo"}, "name": "demo", "default_branch": "main"},
+        workflow_run_id=124,
+        dry_run=True,
+        learning_context=[
+            LearningContextMatch(
+                id="playbook-version-conflict",
+                title="Resolve Python version conflict",
+                failure_type=FailureType.DEPENDENCY,
+                reason_code="version_conflict",
+                suggested_playbook="Pin the conflicting dependency versions and regenerate the lock file.",
+                match_basis=["failure_type exact", "repository exact"],
+                match_rank=1,
+                match_score=0.95,
+                verification_pass_rate=1.0,
+                occurrence_count=5,
+            )
+        ],
+    )
+
+    assert result.success is True
+    assert result.action_taken == RemediationAction.CREATE_PR
+    assert result.details.get("applied_learning_context") is None
+    plan = result.details.get("plan")
+    assert isinstance(plan, dict)
+    assert "## Applied Learning Guidance" not in str(plan.get("pr_body"))
+    assert "## Related Active Playbooks" in str(plan.get("pr_body"))
 
 
 @pytest.mark.asyncio

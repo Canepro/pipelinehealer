@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 40a2683 -->
+<!-- LAST_VERIFIED: 51d0763 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -1436,6 +1436,9 @@ When `action_taken` is `create_pr`, the `remediation_result.details` object may 
 | Field | Description |
 |-------|-------------|
 | `patch_drafting_trace` | Optional list of bounded patch drafting trace records (`file`, `task`, `draft_kind`, `outcome`, `used_fallback`, `validation`, and optional `draft_error`) for safe AI-assisted single-file edits |
+| `applied_learning_context` | Optional object describing the one active playbook, if any, that was promoted from advisory retrieval into explicit remediation guidance (`id`, `title`, optional `reason_code`, `match_rank`, `match_score`, `verification_pass_rate`, `application_mode`, `action_changed`) |
+
+The `applied_learning_context` record is trace metadata only. It does not mean PipelineHealer silently changed the remediation action; current bounded guidance uses it to enrich the PR/issue body while leaving deterministic evidence and policy gates in control.
 
 ---
 
