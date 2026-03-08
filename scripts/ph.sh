@@ -634,12 +634,13 @@ cmd_demo_proof() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --repo)
-        if [[ -n "${2-}" ]]; then
+        if [[ -n "${2-}" && ${2-} != --* ]]; then
           repo="$2"
+          shift 2
         else
-          echo "Warning: --repo was provided without a value; falling back to $repo" >&2
+          echo "Warning: --repo was provided without a value or was followed by another flag; falling back to $repo" >&2
+          shift 1
         fi
-        shift 2
         ;;
       --limit)
         require_arg "$1" "${2-}"
@@ -2020,15 +2021,27 @@ def _is_fallback_compatibility_error(message: str) -> bool:
 responses_url = f'{endpoint.rstrip("/")}/openai/responses?api-version={responses_api_version}'
 payload = {"model": deployment, "input": "Reply with exactly: OK"}
 
-with httpx.Client(timeout=60.0) as client:
-    response = client.post(
-        responses_url,
-        headers={"api-key": api_key, "Content-Type": "application/json"},
-        json=payload,
-    )
+try:
+    with httpx.Client(timeout=60.0) as client:
+        response = client.post(
+            responses_url,
+            headers={"api-key": api_key, "Content-Type": "application/json"},
+            json=payload,
+        )
+except httpx.RequestError as exc:
+    print(f"AOAI connectivity FAILED: request error: {exc}", file=sys.stderr)
+    raise SystemExit(1)
 
 if response.is_success:
-    body = response.json()
+    try:
+        body = response.json()
+    except ValueError:
+        print(
+            "AOAI connectivity FAILED: invalid JSON in Responses API response",
+            file=sys.stderr,
+        )
+        print(response.text, file=sys.stderr)
+        raise SystemExit(1)
     print("model connectivity OK (Responses API).")
     print(_extract_response_text(body) or json.dumps(body))
     raise SystemExit(0)
