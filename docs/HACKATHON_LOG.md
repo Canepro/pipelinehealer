@@ -34,11 +34,12 @@ This is the long-form project tracker for hackathon execution status, submission
   - required scope locked to `#36/#42/#57` for submission reliability
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
   - storage extensibility remained adapter-scoped (no core workflow rewrites during freeze)
-- Release `v0.5.5` is the current public baseline.
-- `v0.5.5` shipped:
-  - final Settings and Control Center summary-panel cleanup so dark-mode operator cards rely on calmer row separation instead of nested inner boxes
-  - release/docs alignment carry-forward across the public README, API docs, demo defaults, and roadmap/history references
-- Post-`v0.5.5` follow-on work is continuity and release planning, not demo-scope product correction.
+- Release `v0.5.6` is the current public baseline.
+- `v0.5.6` shipped:
+  - Azure `cognitiveservices.azure.com` execution now follows the tested `Responses`-first path for `gpt-5.1-codex-mini`, with chat fallback only for compatibility cases
+  - clipboard-dependent operator actions now degrade cleanly in insecure or API-restricted browser contexts
+  - deployment docs now reflect the tested Docker and single-node Helm remote-VM workflow, including `smee`, SSH tunneling, and the `backfill` boundary
+- Post-`v0.5.6` follow-on work is continuity and release planning, not demo-scope product correction.
 - Historical `v0.5.0` planning target is now shipped:
   - deployment-facing Assign-to-Agent receiver boundary
   - generic outbound event and notification routing

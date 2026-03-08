@@ -33,6 +33,7 @@ import {
   settingSourceTone,
   type McpPolicyMode,
 } from "./runtimeSemantics";
+import { copyToClipboard } from "@/utils/copyToClipboard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -600,7 +601,7 @@ export default function AdminControlsForm({
       return;
     }
     try {
-      await navigator.clipboard.writeText(text);
+      await copyToClipboard(text);
       toast.success(successMessage);
     } catch {
       toast.error("Unable to copy generated output");

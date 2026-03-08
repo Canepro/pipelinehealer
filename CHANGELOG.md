@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 8300890 -->
+<!-- LAST_VERIFIED: 8e79a7e -->
 
 All notable changes to this project will be documented in this file.
 
@@ -9,6 +9,19 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ## [Unreleased]
 
 - _No unreleased entries yet._
+
+## [v0.5.6] - 2026-03-08
+
+### Changed
+
+- Switched Azure `cognitiveservices.azure.com` model execution to a `Responses`-first path with chat-completions fallback only for compatibility cases, matching the observed Azure VM deployment behavior for `gpt-5.1-codex-mini`.
+- Expanded the deployment runbooks with the tested single-node Helm path (`ClusterIP` + `port-forward` + SSH tunnel + `smee`) and clarified that diagnostics backfill enriches existing activities rather than discovering new failed workflow runs.
+
+### Fixed
+
+- Hardened operator copy actions across Activity Details, Control Center, Dashboard, and Settings with a clipboard fallback path so copy buttons keep working in insecure or API-restricted browser contexts.
+- Clarified Azure OpenAI endpoint guidance for `cognitiveservices.azure.com` deployments so operators use the base resource URL and can distinguish config readiness from model-operation compatibility.
+- Updated `bash scripts/ph.sh aoai:check` for non-interactive container use so local and remote VM smoke checks no longer fail on TTY allocation alone.
 
 ## [v0.5.5] - 2026-03-07
 

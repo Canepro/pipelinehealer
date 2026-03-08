@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, type Activity } from "../api/client";
+import { copyToClipboard } from "../utils/copyToClipboard";
 import { formatSourceLabel } from "../utils/formatSourceLabel";
 import StatusBadge from "../components/StatusBadge";
 import FailureTypeBadge from "../components/FailureTypeBadge";
@@ -970,12 +971,8 @@ export default function ActivityDetail() {
     failureContext?.signal,
   );
   const handleCopyContext = async () => {
-    if (!navigator.clipboard?.writeText) {
-      toast.error("Clipboard API is not available in this browser");
-      return;
-    }
     try {
-      await navigator.clipboard.writeText(buildActivityContext(activity));
+      await copyToClipboard(buildActivityContext(activity));
       toast.success("Activity context copied");
     } catch {
       toast.error("Unable to copy activity context");
@@ -999,12 +996,8 @@ export default function ActivityDetail() {
     }
     const context = buildActivityContext(activity);
     if (handoffConfig.mode === "copy_only") {
-      if (!navigator.clipboard?.writeText) {
-        toast.error("Clipboard API is not available in this browser");
-        return;
-      }
       try {
-        await navigator.clipboard.writeText(context);
+        await copyToClipboard(context);
       } catch {
         toast.error("Unable to copy handoff context");
         return;

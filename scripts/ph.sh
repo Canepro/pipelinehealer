@@ -1979,9 +1979,11 @@ cmd_aoai_check() {
   fi
 
   echo "Checking Azure OpenAI connectivity from backend container..."
-  $compose_cmd --env-file "$REPO_ROOT/backend/.env" exec backend python3 - <<'PY'
+  $compose_cmd --env-file "$REPO_ROOT/backend/.env" exec -T backend python3 - <<'PY'
+import json
 import os
 import sys
+import httpx
 from openai import AzureOpenAI
 
 missing = [k for k in ("AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_DEPLOYMENT_NAME", "AZURE_OPENAI_API_KEY") if not os.environ.get(k)]
@@ -1992,20 +1994,63 @@ if missing:
 endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
 deployment = os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"]
 api_key = os.environ["AZURE_OPENAI_API_KEY"]
-api_version = os.environ.get("AZURE_OPENAI_CHAT_API_VERSION", "2024-12-01-preview")
+responses_api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")
+chat_api_version = os.environ.get("AZURE_OPENAI_CHAT_API_VERSION", "2024-12-01-preview")
+
+
+def _extract_response_text(payload: dict) -> str:
+    for item in payload.get("output", []):
+        for content in item.get("content", []):
+            if content.get("type") == "output_text":
+                return str(content.get("text", "")).strip()
+    return ""
+
+
+def _is_fallback_compatibility_error(message: str) -> bool:
+    lowered = message.lower()
+    signals = (
+        "api version not supported",
+        "operationnotsupported",
+        "does not work with the specified model",
+        "unsupported parameter",
+    )
+    return any(signal in lowered for signal in signals)
+
+
+responses_url = f'{endpoint.rstrip("/")}/openai/responses?api-version={responses_api_version}'
+payload = {"model": deployment, "input": "Reply with exactly: OK"}
+
+with httpx.Client(timeout=60.0) as client:
+    response = client.post(
+        responses_url,
+        headers={"api-key": api_key, "Content-Type": "application/json"},
+        json=payload,
+    )
+
+if response.is_success:
+    body = response.json()
+    print("model connectivity OK (Responses API).")
+    print(_extract_response_text(body) or json.dumps(body))
+    raise SystemExit(0)
+
+error_body = response.text
+if not _is_fallback_compatibility_error(error_body):
+    print(f"AOAI connectivity FAILED: HTTP {response.status_code}", file=sys.stderr)
+    print(error_body, file=sys.stderr)
+    raise SystemExit(1)
 
 client = AzureOpenAI(
     api_key=api_key,
-    api_version=api_version,
+    api_version=chat_api_version,
     azure_endpoint=endpoint,
 )
 
 resp = client.chat.completions.create(
     model=deployment,
-    messages=[{"role": "user", "content": "Reply with OK"}],
+    messages=[{"role": "user", "content": "Reply with exactly: OK"}],
     max_tokens=8,
 )
-print("model connectivity OK.")
+print("model connectivity OK (Chat API fallback).")
 print((resp.choices[0].message.content or "").strip())
 PY
 }

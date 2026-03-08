@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 6aa92ea -->
+<!-- LAST_VERIFIED: 8e79a7e -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -18,7 +18,7 @@ Related docs:
 
 This runbook remains intentionally demo-specific and GitHub Actions-focused because the current recording flow uses the demo repo webhook path. That does not narrow the product scope; PipelineHealer itself is framed more broadly as a pipeline remediation control plane.
 
-## Hackathon Requirement Alignment (March 7, 2026)
+## Hackathon Requirement Alignment (March 8, 2026)
 
 This runbook aligns to the submission checklist in `docs/HACKATHON_LOG.md`:
 
@@ -36,7 +36,7 @@ Remaining submission item this doc drives: demo video length must be 2:00 max.
 Default values used in this runbook:
 
 ```bash
-export RELEASE_TAG="${RELEASE_TAG:-v0.5.5}"
+export RELEASE_TAG="${RELEASE_TAG:-v0.5.6}"
 export DEMO_REPO="${DEMO_REPO:-Canepro/pipelinehealer-demo}"
 ```
 

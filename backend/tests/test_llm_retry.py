@@ -215,6 +215,21 @@ class TestFallbackAgentRetry:
         assert FallbackAgent._primary_failed is True
 
     @pytest.mark.asyncio
+    async def test_operation_not_supported_switches_to_fallback(self) -> None:
+        primary = AsyncMock()
+        primary.run.side_effect = Exception(
+            "OperationNotSupported: The chatCompletion operation does not work with the specified model"
+        )
+        fallback = AsyncMock()
+        fallback.run.return_value = "fallback ok"
+
+        agent = FallbackAgent(primary, fallback)
+        result = await agent.run("hello")
+
+        assert result == "fallback ok"
+        assert FallbackAgent._primary_failed is True
+
+    @pytest.mark.asyncio
     @patch("src.agents.base.asyncio.sleep", new_callable=AsyncMock)
     async def test_fallback_path_also_retries_transient(self, mock_sleep: AsyncMock) -> None:
         FallbackAgent._primary_failed = True

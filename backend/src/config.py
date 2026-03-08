@@ -34,15 +34,14 @@ class Settings(BaseSettings):
         default="2025-04-01-preview",
         description=(
             "Azure OpenAI API version for the primary (Responses) client. "
-            "Also used for cognitiveservices.azure.com chat completions when set explicitly."
+            "Used first for both openai.azure.com and cognitiveservices.azure.com endpoints."
         ),
     )
     azure_openai_chat_api_version: str = Field(
         default="2024-12-01-preview",
         description=(
             "API version for the fallback Chat Completions client. "
-            "Used when the primary Responses client returns an API-version error, "
-            "and as the default for cognitiveservices.azure.com endpoints."
+            "Used when the primary Responses client returns a compatibility error."
         ),
     )
     azure_openai_api_key: str = Field(

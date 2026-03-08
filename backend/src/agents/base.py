@@ -141,13 +141,11 @@ class FallbackAgent:
             logger.debug("[debug-mode] Primary agent (Responses) succeeded")
             return result
         except Exception as exc:
-            message = str(exc).lower()
-            version_error = "api version not supported" in message
-            if not version_error:
+            if not _is_fallback_compatibility_error(exc):
                 raise
 
             logger.warning(
-                "Primary Azure OpenAI client failed with API-version compatibility error; "
+                "Primary Azure OpenAI client failed with a compatibility error; "
                 "switching ALL agents to fallback client (Chat). error=%s",
                 exc,
             )
@@ -156,6 +154,18 @@ class FallbackAgent:
             result = await _run_with_llm_retry(self._fallback, prompt)
             logger.debug("[debug-mode] Fallback agent (Chat) succeeded")
             return result
+
+
+def _is_fallback_compatibility_error(exc: Exception) -> bool:
+    """Return True when a primary Responses client should fall back to Chat."""
+    message = str(exc).lower()
+    compatibility_signals = (
+        "api version not supported",
+        "operationnotsupported",
+        "does not work with the specified model",
+        "unsupported parameter",
+    )
+    return any(signal in message for signal in compatibility_signals)
 
 
 class RetryingAgent:
@@ -331,8 +341,11 @@ def _create_azure_cloud_agent(
     """Create an agent-framework ChatAgent from current settings.
 
     Supports both:
-    - Azure OpenAI resources: https://<resource>.openai.azure.com/ (preferred; uses Responses API)
-    - Azure AI Services w/ OpenAI deployments: https://<resource>.cognitiveservices.azure.com/ (uses Chat API)
+    - Azure OpenAI resources: https://<resource>.openai.azure.com/
+    - Azure AI Services w/ OpenAI deployments: https://<resource>.cognitiveservices.azure.com/
+
+    Primary path is Responses API, with Chat API fallback for deployments that
+    still reject Responses.
     """
     if settings is None:
         settings = get_settings()
@@ -349,25 +362,8 @@ def _create_azure_cloud_agent(
 
     validate_azure_openai_endpoint(endpoint)
 
-    # Foundry commonly provisions OpenAI deployments behind an "AI Services" endpoint
-    # like `https://<name>.cognitiveservices.azure.com/`.
-    if "cognitiveservices.azure.com" in endpoint:
-        # For cognitiveservices endpoints, prefer the chat API version from config.
-        # Fall back to the primary api_version if chat version is unset.
-        effective_chat_version = chat_api_version or api_version
-
-        from agent_framework.azure import AzureOpenAIChatClient
-
-        foundry_chat_client: Any = AzureOpenAIChatClient(
-            endpoint=endpoint,
-            deployment_name=resolved_deployment_name,
-            api_version=effective_chat_version or None,
-            api_key=api_key or None,
-            credential=credential,
-        )
-        return _as_agent_compat(foundry_chat_client, name=name, instructions=instructions)
-
-    # For classic Azure OpenAI resources (openai.azure.com), use the Responses API.
+    # Use Responses API first for both classic Azure OpenAI and Azure AI Services
+    # endpoints, then fall back to Chat when a deployment rejects Responses.
     from agent_framework.azure import AzureOpenAIChatClient, AzureOpenAIResponsesClient
 
     # Primary version comes from AZURE_OPENAI_API_VERSION (env-driven).
