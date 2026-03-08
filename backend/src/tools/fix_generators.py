@@ -544,7 +544,7 @@ PipelineHealer automated analysis
                         "draft_kind": "eslint_flat_config",
                         "instructions": (
                             "Draft a minimal ESLint flat config for a JavaScript/ESM repository. "
-                            "Use `export default` with a single config array entry, target "
+                            "Use `export default` with a single config array entry, target the glob pattern "
                             "`**/*.{js,mjs,cjs}`, set `ecmaVersion` to `latest`, set `sourceType` "
                             "to `module`, and keep `rules` empty."
                         ),

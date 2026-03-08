@@ -1,5 +1,6 @@
 """Remediation Agent for generating fixes for CI/CD failures."""
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -1032,9 +1033,9 @@ class RemediationAgent:
         rendered_output: list[dict[str, Any]] = []
         for path in render_order:
             item: dict[str, Any] = {"file": path, "content": rendered_by_file[path]}
-            trace = trace_by_file.get(path)
-            if trace is not None:
-                item["patch_drafting_trace"] = trace
+            patch_trace: dict[str, Any] | None = trace_by_file.get(path)
+            if patch_trace is not None:
+                item["patch_drafting_trace"] = patch_trace
             rendered_output.append(item)
         return rendered_output
 
@@ -1052,9 +1053,10 @@ class RemediationAgent:
 
         draft_kind = str(change.get("draft_kind") or "bounded_patch").strip() or "bounded_patch"
         fallback_content = str(change.get("fallback_content") or "")
-        validation = change.get("validation")
-        if not isinstance(validation, dict):
+        validation_raw = change.get("validation")
+        if not isinstance(validation_raw, dict):
             raise ValueError(f"bounded_patch missing validation metadata for {file_path}")
+        validation: dict[str, Any] = validation_raw
 
         trace: dict[str, Any] = {
             "file": file_path,
@@ -1081,17 +1083,21 @@ class RemediationAgent:
             self._validate_bounded_patch_content(
                 file_path=file_path,
                 content=drafted_text,
+                draft_kind=draft_kind,
                 validation=validation,
             )
             trace["outcome"] = "drafted"
             trace["used_fallback"] = False
             return drafted_text if drafted_text.endswith("\n") else f"{drafted_text}\n", trace
+        except asyncio.CancelledError:
+            raise
         except Exception as exc:
             trace["draft_error"] = str(exc)
             if fallback_content:
                 self._validate_bounded_patch_content(
                     file_path=file_path,
                     content=fallback_content,
+                    draft_kind=draft_kind,
                     validation=validation,
                 )
                 trace["outcome"] = "fallback_content"
@@ -1144,7 +1150,9 @@ class RemediationAgent:
             if start >= 0 and end > start:
                 payload = json.loads(cleaned[start : end + 1])
             else:
-                return cleaned
+                raise ValueError(
+                    "patch draft response is not valid JSON and no JSON object could be extracted"
+                ) from None
 
         if not isinstance(payload, dict):
             raise ValueError("patch draft response must be a JSON object")
@@ -1159,6 +1167,7 @@ class RemediationAgent:
         *,
         file_path: str,
         content: str,
+        draft_kind: str,
         validation: dict[str, Any],
     ) -> None:
         """Validate bounded patch output before it is written to the repo."""
@@ -1178,6 +1187,37 @@ class RemediationAgent:
         if missing:
             raise ValueError(
                 f"bounded patch for {file_path} is missing required substrings: {missing}"
+            )
+        RemediationAgent._validate_bounded_patch_structure(
+            file_path=file_path,
+            content=normalized,
+            draft_kind=draft_kind,
+        )
+
+    @staticmethod
+    def _validate_bounded_patch_structure(
+        *,
+        file_path: str,
+        content: str,
+        draft_kind: str,
+    ) -> None:
+        """Apply lightweight structure checks for known bounded draft kinds."""
+        if draft_kind != "eslint_flat_config":
+            return
+
+        checks = [
+            ("export default", "missing `export default`"),
+            ("files: [", "missing `files` array"),
+            ("languageOptions: {", "missing `languageOptions` block"),
+            ('ecmaVersion: "latest"', "missing quoted `ecmaVersion: \"latest\"`"),
+            ('sourceType: "module"', "missing quoted `sourceType: \"module\"`"),
+            ("rules: {}", "missing empty `rules` object"),
+            ("];", "missing config terminator"),
+        ]
+        missing_reasons = [reason for needle, reason in checks if needle not in content]
+        if missing_reasons:
+            raise ValueError(
+                f"bounded patch for {file_path} failed eslint_flat_config checks: {missing_reasons}"
             )
 
     async def _get_text_file_if_exists(

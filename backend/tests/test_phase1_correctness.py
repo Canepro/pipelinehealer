@@ -1,6 +1,7 @@
 """Phase 1 correctness tests (IDs, retry, and remediation file change rendering)."""
 
 import base64
+import json
 
 import httpx
 import pytest
@@ -26,6 +27,20 @@ from src.models import (
 )
 from src.storage import InMemoryStorage
 from src.tools.fix_generators import NotAutoApplyReason
+
+
+ESLINT_FLAT_CONFIG = (
+    "export default [\n"
+    "  {\n"
+    "    files: [\"**/*.{js,mjs,cjs}\"],\n"
+    "    languageOptions: {\n"
+    "      ecmaVersion: \"latest\",\n"
+    "      sourceType: \"module\",\n"
+    "    },\n"
+    "    rules: {},\n"
+    "  },\n"
+    "];\n"
+)
 
 
 @pytest.fixture(autouse=True)
@@ -791,10 +806,10 @@ async def test_remediation_renders_bounded_patch_with_fallback_and_trace(
                 "type": "bounded_patch",
                 "draft_kind": "eslint_flat_config",
                 "instructions": "Draft a minimal ESLint flat config.",
-                "fallback_content": "export default [{ rules: {} }];\n",
+                "fallback_content": ESLINT_FLAT_CONFIG,
                 "validation": {
-                    "must_contain": ["export default", "rules: {}"],
-                    "max_bytes": 200,
+                    "must_contain": ["export default", "rules: {}", 'ecmaVersion: "latest"'],
+                    "max_bytes": 400,
                 },
             }
         ],
@@ -802,7 +817,7 @@ async def test_remediation_renders_bounded_patch_with_fallback_and_trace(
 
     assert len(rendered) == 1
     assert rendered[0]["file"] == "eslint.config.js"
-    assert rendered[0]["content"] == "export default [{ rules: {} }];\n"
+    assert rendered[0]["content"] == ESLINT_FLAT_CONFIG
     trace = rendered[0]["patch_drafting_trace"]
     assert trace["task"] == "patch_drafting"
     assert trace["outcome"] == "fallback_content"
@@ -840,6 +855,88 @@ async def test_remediation_bounded_patch_rejects_invalid_draft_without_fallback(
                     "validation": {
                         "must_contain": ["export default", "rules: {}"],
                         "max_bytes": 200,
+                    },
+                }
+            ],
+        )
+
+
+@pytest.mark.asyncio
+async def test_remediation_bounded_patch_rejects_non_json_output_without_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gh = FakeGitHubToolsWithFiles(files={})
+    agent = RemediationAgent(github_tools=gh)
+
+    class _NonJsonPatchAgent:
+        async def run(self, prompt: str) -> str:
+            _ = prompt
+            return "here is your config draft"
+
+    async def _fake_get_patch_drafting_agent() -> _NonJsonPatchAgent:
+        return _NonJsonPatchAgent()
+
+    monkeypatch.setattr(agent, "_get_patch_drafting_agent", _fake_get_patch_drafting_agent)
+
+    with pytest.raises(ValueError, match="not valid JSON"):
+        await agent._render_file_changes(
+            owner="octo",
+            repo="demo",
+            base_ref="main",
+            file_changes=[
+                {
+                    "file": "eslint.config.js",
+                    "type": "bounded_patch",
+                    "draft_kind": "eslint_flat_config",
+                    "instructions": "Draft a minimal ESLint flat config.",
+                    "validation": {
+                        "must_contain": ["export default", "rules: {}"],
+                        "max_bytes": 200,
+                    },
+                }
+            ],
+        )
+
+
+@pytest.mark.asyncio
+async def test_remediation_bounded_patch_rejects_invalid_eslint_structure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gh = FakeGitHubToolsWithFiles(files={})
+    agent = RemediationAgent(github_tools=gh)
+
+    class _StructurallyInvalidPatchAgent:
+        async def run(self, prompt: str) -> str:
+            _ = prompt
+            return (
+                '{"content":"export default [{ files: [\\"**/*.{js,mjs,cjs}\\"], '
+                'languageOptions: { ecmaVersion: latest, sourceType: \\"module\\" }, '
+                'rules: {} }];"}'
+            )
+
+    async def _fake_get_patch_drafting_agent() -> _StructurallyInvalidPatchAgent:
+        return _StructurallyInvalidPatchAgent()
+
+    monkeypatch.setattr(agent, "_get_patch_drafting_agent", _fake_get_patch_drafting_agent)
+
+    with pytest.raises(ValueError, match="eslint_flat_config checks"):
+        await agent._render_file_changes(
+            owner="octo",
+            repo="demo",
+            base_ref="main",
+            file_changes=[
+                {
+                    "file": "eslint.config.js",
+                    "type": "bounded_patch",
+                    "draft_kind": "eslint_flat_config",
+                    "instructions": "Draft a minimal ESLint flat config.",
+                    "validation": {
+                        "must_contain": [
+                            "export default",
+                            "**/*.{js,mjs,cjs}",
+                            "rules: {}",
+                        ],
+                        "max_bytes": 400,
                     },
                 }
             ],
@@ -1118,7 +1215,7 @@ async def test_create_pr_records_patch_drafting_trace(
     class _DraftingAgent:
         async def run(self, prompt: str) -> str:
             _ = prompt
-            return '{"content":"export default [{ rules: {} }];"}'
+            return json.dumps({"content": ESLINT_FLAT_CONFIG})
 
     async def _fake_get_patch_drafting_agent() -> _DraftingAgent:
         return _DraftingAgent()
@@ -1137,10 +1234,10 @@ async def test_create_pr_records_patch_drafting_trace(
                 "type": "bounded_patch",
                 "draft_kind": "eslint_flat_config",
                 "instructions": "Draft a minimal ESLint flat config.",
-                "fallback_content": "export default [{ rules: {} }];\n",
+                "fallback_content": ESLINT_FLAT_CONFIG,
                 "validation": {
-                    "must_contain": ["export default", "rules: {}"],
-                    "max_bytes": 200,
+                    "must_contain": ["export default", "rules: {}", 'ecmaVersion: "latest"'],
+                    "max_bytes": 400,
                 },
             }
         ],
