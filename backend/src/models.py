@@ -203,6 +203,14 @@ class LogAnalysis(BaseModel):
     summary: str = ""
 
 
+class LLMDiagnosisRejection(BaseModel):
+    """Structured explanation for why an LLM diagnosis payload was discarded."""
+
+    rejected: bool = False
+    reason: str = ""
+    candidate_count: int = 0
+
+
 class Diagnosis(BaseModel):
     """Root cause diagnosis result."""
 
@@ -214,6 +222,7 @@ class Diagnosis(BaseModel):
     suggested_fix: str = ""
     is_auto_fixable: bool = False
     diagnosis_source: DiagnosisSource | None = None
+    llm_rejection: LLMDiagnosisRejection | None = None
 
 
 class RemediationPlan(BaseModel):

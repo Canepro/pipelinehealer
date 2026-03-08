@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 1bee670 -->
+<!-- LAST_VERIFIED: e008e2a -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -1241,6 +1241,7 @@ Returns recent admin settings change records (latest first).
 | `root_cause` | string | Human-readable root cause |
 | `affected_files` | string[] | Suspected impacted files |
 | `error_details` | object | Additional structured details |
+| `llm_rejection` | object \| null | Explicit record of why an LLM diagnosis payload was discarded before fallback |
 | `suggested_fix` | string | High-level suggested remediation |
 | `is_auto_fixable` | bool | Whether safe auto-remediation is supported |
 
@@ -1251,7 +1252,14 @@ When `diagnosis_source=pattern`, `error_details` may include classification tran
 
 Pattern and LLM diagnoses may also include failure-type-specific structured fields in `error_details`.
 
-For LLM-sourced diagnoses, PipelineHealer now expects the full failure-type-specific key set to be present in `error_details` for the chosen `failure_type`. If the model returns malformed JSON or omits required typed keys, the LLM payload is rejected and PipelineHealer falls back to deterministic diagnosis data when available. Rejected payloads may leave observability fields such as `llm_payload_rejected`, `llm_payload_rejection_reason`, and `llm_payload_candidate_count` in `error_details`.
+For LLM-sourced diagnoses, PipelineHealer now expects the full failure-type-specific key set to be present in `error_details` for the chosen `failure_type`. If the model returns malformed JSON or omits required typed keys, the LLM payload is rejected and PipelineHealer falls back to deterministic diagnosis data when available.
+
+When rejection happens, operators should prefer the explicit `llm_rejection` object:
+- `rejected`: whether the LLM diagnosis payload was discarded
+- `reason`: parser/contract reason for rejection
+- `candidate_count`: how many diagnosis-shaped JSON candidates were inspected before fallback
+
+The legacy `error_details` observability keys (`llm_payload_rejected`, `llm_payload_rejection_reason`, `llm_payload_candidate_count`) remain for backward compatibility.
 
 Common examples:
 - `dependency`: `package_name`, `package_manager`, `manifest_file`, `required_version`, `resolution_kind`

@@ -384,17 +384,17 @@ Use this checklist for the `v0.6.0` workstream.
 
 ### Docs and contract
 
-- [ ] API and activity payload contract updated for new typed diagnosis fields
+- [x] API and activity payload contract updated for new typed diagnosis fields
 - [x] runtime docs updated to explain deterministic-first extraction plus bounded patch drafting
 - [ ] learning-system docs updated to describe structured retrieval injection
 
 ### Diagnosis layer
 
-- [ ] dependency extractor fills manifest, package, and resolution fields
-- [ ] lint extractor fills linter, config, rule, and autofix fields
-- [ ] test extractor fills framework, failed test names, and error snippets
-- [ ] timeout extractor fills job, step, timeout, and resource-signal fields
-- [ ] build-config extractor fills missing vars, permissions, file, and config-error fields
+- [x] dependency extractor fills manifest, package, and resolution fields
+- [x] lint extractor fills linter, config, rule, and autofix fields
+- [x] test extractor fills framework, failed test names, and error snippets
+- [x] timeout extractor fills job, step, timeout, and resource-signal fields
+- [x] build-config extractor fills missing vars, permissions, file, and config-error fields
 
 ### LLM layer
 
@@ -404,8 +404,8 @@ Use this checklist for the `v0.6.0` workstream.
 
 ### Remediation layer
 
-- [ ] generators consume typed fields instead of generic `suggested_fix` prose
-- [ ] issue templates render typed evidence blocks
+- [x] generators consume typed fields instead of generic `suggested_fix` prose
+- [x] issue templates render typed evidence blocks
 - [x] bounded patch drafting path introduced only for safe, known edit classes
 - [x] validation and fallback-to-issue behavior implemented for bounded patches
 
