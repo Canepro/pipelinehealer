@@ -176,6 +176,31 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.is_auto_fixable is False
         assert diagnosis.suggested_fix == "Fix the reported flake8 violations and re-run the workflow."
 
+    def test_detect_mypy_type_error(self) -> None:
+        """Mypy's file:line:error output should classify as lint/static analysis."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="types",
+            raw_logs=(
+                'backend/src/agents/remediation.py:734: error: Incompatible types in assignment '
+                '(expression has type "dict[str, Any] | None", variable has type "dict[str, Any]")  [assignment]'
+            ),
+            error_lines=[
+                'backend/src/agents/remediation.py:734: error: Incompatible types in assignment '
+                '(expression has type "dict[str, Any] | None", variable has type "dict[str, Any]")  [assignment]'
+            ],
+            summary="Type checking failed",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.LINT
+        assert diagnosis.error_details.get("linter") == "mypy"
+        assert diagnosis.error_details.get("rule_ids") == ["assignment"]
+        assert diagnosis.affected_files == ["backend/src/agents/remediation.py"]
+        assert diagnosis.suggested_fix == "Fix the reported mypy violations and re-run the workflow."
+
     def test_detect_prettier_code_style_message(self) -> None:
         """Test detection of Prettier check output signature."""
         log_analysis = LogAnalysis(
@@ -238,6 +263,38 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.suggested_fix == (
             "Run pytest locally for `test_example.py::test_something`, fix the failing assertions, "
             "and re-run the workflow."
+        )
+
+    def test_detect_pytest_collection_failure(self) -> None:
+        """Pytest collection blockers should be classified distinctly from zero-test failures."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="test",
+            raw_logs=(
+                "ERROR collecting backend/tests/test_agent_factory.py\n"
+                "SyntaxError: f-string expression part cannot include a backslash"
+            ),
+            error_lines=[
+                "ERROR collecting backend/tests/test_agent_factory.py",
+                "SyntaxError: f-string expression part cannot include a backslash",
+            ],
+            summary="Test collection failed",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.TEST
+        assert diagnosis.error_details.get("test_framework") == "pytest"
+        assert diagnosis.error_details.get("failure_scope") == "collection"
+        assert diagnosis.error_details.get("failed_tests") == []
+        assert diagnosis.error_details.get("suspected_files") == ["backend/tests/test_agent_factory.py"]
+        assert diagnosis.error_details.get("test_errors") == {
+            "summary": "ERROR collecting backend/tests/test_agent_factory.py"
+        }
+        assert diagnosis.suggested_fix == (
+            "Fix the import or syntax error blocking pytest collection for "
+            "`backend/tests/test_agent_factory.py`, then re-run the workflow."
         )
 
     def test_generic_failing_count_without_test_context_not_test(self) -> None:

@@ -242,6 +242,23 @@ class FixGenerators:
         return "\n".join(f"- `{item}`" for item in cleaned)
 
     @staticmethod
+    def _display_linter_name(linter: str) -> str:
+        normalized = str(linter or "").strip().lower()
+        names = {
+            "eslint": "ESLint",
+            "prettier": "Prettier",
+            "black": "Black",
+            "ruff": "Ruff",
+            "flake8": "Flake8",
+            "mypy": "Mypy",
+        }
+        if normalized in names:
+            return names[normalized]
+        if normalized:
+            return normalized.capitalize()
+        return "Static analysis"
+
+    @staticmethod
     def _lint_fix_command_allowlist() -> dict[str, str]:
         allowed = {}
         for linter in ("eslint", "prettier", "black", "ruff", "isort"):
@@ -257,6 +274,25 @@ class FixGenerators:
         if expected and normalized_candidate == expected:
             return expected
         return expected
+
+    def _is_collection_failure(self, diagnosis: Diagnosis, failed_tests: list[str]) -> bool:
+        if failed_tests:
+            return False
+        details = diagnosis.error_details or {}
+        failure_scope = str(details.get("failure_scope") or "").strip().lower()
+        if failure_scope == "collection":
+            return True
+        text = " ".join(
+            [
+                str(diagnosis.root_cause or ""),
+                str(diagnosis.suggested_fix or ""),
+                str((details.get("test_errors") or {}).get("summary") or ""),
+            ]
+        ).lower()
+        return any(
+            marker in text
+            for marker in ("error collecting", "collection failed", "syntaxerror", "importerror", "modulenotfounderror")
+        )
 
     def _build_pipelinehealer_assessment(
         self,
@@ -633,23 +669,41 @@ This PR adds an auto-fix workflow for {linter} issues.
             f"- {v.get('file', 'unknown')}: {v.get('message', 'Unknown violation')}"
             for v in violations[:20]  # Limit to 20 violations
         )
+        display_linter = self._display_linter_name(str(linter))
+        has_structured_violations = bool(violations)
+        issue_title = (
+            f"[PipelineHealer] {display_linter} type-check failure"
+            if str(linter).strip().lower() == "mypy" and not has_structured_violations
+            else f"[PipelineHealer] {display_linter} check failed"
+            if not has_structured_violations
+            else f"[PipelineHealer] Fix {display_linter} violations ({len(violations)} issues)"
+        )
+        issue_heading = "## Static Analysis Failure" if not has_structured_violations else "## Lint Violations"
+        suggested_fix = diagnosis.suggested_fix or (
+            f"Run `{fix_command}` locally to fix these issues."
+            if fix_command
+            else f"Fix the reported {display_linter} violations and re-run the workflow."
+        )
 
         return RemediationPlan(
             action=RemediationAction.CREATE_ISSUE,
             description=f"Create issue for {linter} violations",
-            issue_title=f"[PipelineHealer] Fix {linter} violations ({len(violations)} issues)",
+            issue_title=issue_title,
             issue_body=self._append_review_only_proposal(
-                f"""## Lint Violations
+                f"""{issue_heading}
 
-**Linter:** {linter}
-**Total Violations:** {len(violations)}
+**Tool:** {display_linter}
+**Total Violations:** {len(violations) if has_structured_violations else "None explicitly captured"}
 
 ### Violations
-{violations_list}
+{violations_list or "No structured violation list was captured from the failing logs."}
 {"... and more" if len(violations) > 20 else ""}
 
 ### Suggested Fix
-Run `{fix_command or f"{linter} --fix"}` locally to fix these issues.
+{suggested_fix}
+
+### Affected Files
+{self._render_bullet_list(diagnosis.affected_files, "- None explicitly captured")}
 
 ### Root Cause
 {diagnosis.root_cause}
@@ -729,15 +783,25 @@ The following test(s) appear to be flaky (intermittent failures):
                 or "process.exit(1)" in str(diagnosis.root_cause).lower()
             )
         )
+        collection_failure = self._is_collection_failure(diagnosis, failed_tests)
         error_details_str = "\n\n".join(
             f"**{test}**\n```\n{error}\n```" for test, error in list(test_errors.items())[:5]
         )
         issue_title = (
             "[PipelineHealer] Workflow step failure (non-test)"
             if workflow_step_failure
+            else "[PipelineHealer] Test collection/import failure"
+            if collection_failure
             else f"[PipelineHealer] Test failures: {len(failed_tests)} test(s) failed"
         )
-        heading = "## Workflow Step Failure" if workflow_step_failure else "## Test Failures"
+        heading = (
+            "## Workflow Step Failure"
+            if workflow_step_failure
+            else "## Test Collection Failure"
+            if collection_failure
+            else "## Test Failures"
+        )
+        failed_test_count = "Collection blocked" if collection_failure else str(len(failed_tests))
 
         return RemediationPlan(
             action=RemediationAction.CREATE_ISSUE,
@@ -747,7 +811,8 @@ The following test(s) appear to be flaky (intermittent failures):
                 f"""{heading}
 
 **Test Framework:** {test_framework}
-**Failed Tests:** {len(failed_tests)}
+**Failed Tests:** {failed_test_count}
+**Failure Scope:** {failure_scope or "unknown"}
 
 ### Failed Tests
 {self._render_bullet_list(failed_tests[:10], "- None explicitly captured")}

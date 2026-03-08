@@ -31,14 +31,22 @@ def test_builtin_eval_fixtures_cover_all_supported_failure_types() -> None:
     fixtures = {fixture.fixture_id: fixture for fixture in builtin_eval_fixtures()}
 
     assert set(fixtures) == {
+        "dependency_missing_python_module",
         "dependency_missing_node_module",
         "lint_missing_eslint_config",
+        "lint_mypy_assignment_type_error",
         "test_pytest_assertion_failure",
+        "test_pytest_collection_syntax_failure",
         "timeout_named_step_limit",
         "build_config_missing_secret",
     }
+    assert fixtures["dependency_missing_python_module"].expected_error_details["package_manager"] == "pip"
     assert fixtures["dependency_missing_node_module"].expected_action == RemediationAction.CREATE_PR
+    assert fixtures["lint_mypy_assignment_type_error"].expected_error_details["linter"] == "mypy"
     assert "test_errors" in fixtures["test_pytest_assertion_failure"].required_error_details
+    assert fixtures["test_pytest_collection_syntax_failure"].expected_error_details["failure_scope"] == (
+        "collection"
+    )
     assert fixtures["timeout_named_step_limit"].expected_error_details["timed_out_step"] == "Install dependencies"
     assert fixtures["build_config_missing_secret"].expected_error_details["config_file"] == (
         ".github/workflows/ci.yml"
