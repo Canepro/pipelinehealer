@@ -62,6 +62,10 @@ class FakeGitHubTools:
     def __init__(self) -> None:
         self.rerun_calls: list[tuple[str, str, int]] = []
         self.issue_calls: list[dict[str, str]] = []
+        self.issue_comment_calls: list[dict[str, str | int]] = []
+        self.issue_update_calls: list[dict[str, str | int]] = []
+        self.pull_request_update_calls: list[dict[str, str | int]] = []
+        self.pull_requests_by_number: dict[int, dict[str, object]] = {}
 
     async def get_file_contents(self, owner: str, repo: str, path: str, ref: str | None = None):
         raise NotImplementedError
@@ -119,6 +123,39 @@ class FakeGitHubTools:
     async def get_pull_request_files(self, owner: str, repo: str, pr_number: int, per_page: int = 100):
         _ = owner, repo, pr_number, per_page
         return []
+
+    async def get_pull_request(self, owner: str, repo: str, pr_number: int):
+        _ = owner, repo
+        return self.pull_requests_by_number.get(
+            pr_number,
+            {
+                "number": pr_number,
+                "body": "",
+                "html_url": f"https://github.com/{owner}/{repo}/pull/{pr_number}",
+            },
+        )
+
+    async def update_pull_request(
+        self,
+        owner: str,
+        repo: str,
+        pr_number: int,
+        *,
+        title: str | None = None,
+        body: str | None = None,
+    ):
+        _ = owner, repo, title
+        current = dict(await self.get_pull_request(owner, repo, pr_number))
+        if body is not None:
+            current["body"] = body
+        self.pull_requests_by_number[pr_number] = current
+        self.pull_request_update_calls.append(
+            {
+                "pr_number": pr_number,
+                "body": str(body or ""),
+            }
+        )
+        return current
 
     async def list_issues(
         self,
@@ -178,6 +215,38 @@ class FakeGitHubTools:
             }
         )
         return {"number": 1, "html_url": f"https://github.com/{owner}/{repo}/issues/1"}
+
+    async def add_issue_comment(self, owner: str, repo: str, issue_number: int, body: str):
+        self.issue_comment_calls.append(
+            {
+                "owner": owner,
+                "repo": repo,
+                "issue_number": issue_number,
+                "body": body,
+            }
+        )
+        return {"id": len(self.issue_comment_calls), "body": body}
+
+    async def update_issue(
+        self,
+        owner: str,
+        repo: str,
+        issue_number: int,
+        *,
+        title: str | None = None,
+        body: str | None = None,
+        state: str | None = None,
+        state_reason: str | None = None,
+    ):
+        _ = owner, repo, title, body
+        self.issue_update_calls.append(
+            {
+                "issue_number": issue_number,
+                "state": str(state or ""),
+                "state_reason": str(state_reason or ""),
+            }
+        )
+        return {"number": issue_number, "state": state, "state_reason": state_reason}
 
 
 class FakeGitHubToolsWithFiles(FakeGitHubTools):
@@ -323,6 +392,75 @@ class FakeGitHubToolsCapturePR(FakeGitHubToolsWithFiles):
             }
         )
         return {"number": 321, "html_url": f"https://github.com/{owner}/{repo}/pull/321"}
+
+
+class FakeGitHubToolsExistingGeneratedIssue(FakeGitHubTools):
+    def __init__(self) -> None:
+        super().__init__()
+        self._issues = [
+            {
+                "number": 9,
+                "html_url": "https://github.com/octo/demo/issues/9",
+                "title": "[PipelineHealer] Review required: lint",
+                "body": (
+                    "existing body\n\n"
+                    "<!-- pipelinehealer:generated-issue:review -->\n"
+                    "<!-- pipelinehealer:workflow-run:321 -->\n"
+                    "<!-- pipelinehealer:fingerprint:fixedfp123456789 -->"
+                ),
+            }
+        ]
+        self.pull_requests_by_number[77] = {
+            "number": 77,
+            "body": "Human fix PR body",
+            "html_url": "https://github.com/octo/demo/pull/77",
+        }
+
+    async def list_issues(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        state: str = "all",
+        labels: str | None = None,
+        sort: str = "updated",
+        direction: str = "desc",
+        per_page: int = 30,
+    ):
+        _ = owner, repo, state, labels, sort, direction, per_page
+        return list(self._issues)
+
+
+class FakeGitHubToolsSupersededReviewIssue(FakeGitHubToolsWithFiles):
+    def __init__(self) -> None:
+        super().__init__(files={"README.md": "hello\n"})
+        self._issues = [
+            {
+                "number": 41,
+                "html_url": "https://github.com/octo/demo/issues/41",
+                "title": "[PipelineHealer] Review required: dependency",
+                "body": (
+                    "review-only issue\n\n"
+                    "<!-- pipelinehealer:generated-issue:review -->\n"
+                    "<!-- pipelinehealer:workflow-run:555 -->\n"
+                    "<!-- pipelinehealer:fingerprint:reviewfp555 -->"
+                ),
+            }
+        ]
+
+    async def list_issues(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        state: str = "all",
+        labels: str | None = None,
+        sort: str = "updated",
+        direction: str = "desc",
+        per_page: int = 30,
+    ):
+        _ = owner, repo, state, labels, sort, direction, per_page
+        return list(self._issues)
 
 
 def _make_event() -> WorkflowRunEvent:
@@ -1151,6 +1289,80 @@ async def test_create_issue_when_issues_disabled_returns_skip() -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_issue_links_active_pull_request_for_auto_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gh = FakeGitHubTools()
+    gh.pull_requests_by_number[22] = {
+        "number": 22,
+        "body": "Human fix PR body",
+        "html_url": "https://github.com/octo/demo/pull/22",
+    }
+    agent = RemediationAgent(github_tools=gh)
+    monkeypatch.setattr(agent, "_fingerprint_for_plan", lambda plan, workflow_run_id: "issuefp1234567890")
+    plan = RemediationPlan(
+        action=RemediationAction.CREATE_ISSUE,
+        description="Escalate for manual fix",
+        issue_title="[PipelineHealer] Review required: lint",
+        issue_body="Root cause summary\n\n### Proposed Fix (For Review Only)",
+    )
+
+    result = await agent._create_issue(
+        plan,
+        owner="octo",
+        repo="demo",
+        workflow_run_id=123,
+        repository_info={"pull_request_numbers": [22]},
+    )
+
+    assert result.success is True
+    assert result.action_taken == RemediationAction.CREATE_ISSUE
+    assert result.issue_url == "https://github.com/octo/demo/issues/1"
+    assert result.details.get("linked_pull_request_numbers") == [22]
+    assert result.details.get("reused_existing_issue") is False
+    assert gh.issue_calls
+    assert "<!-- pipelinehealer:generated-issue:review -->" in gh.issue_calls[0]["body"]
+    assert "<!-- pipelinehealer:workflow-run:123 -->" in gh.issue_calls[0]["body"]
+    assert "<!-- pipelinehealer:fingerprint:issuefp1234567890 -->" in gh.issue_calls[0]["body"]
+    assert gh.pull_request_update_calls
+    assert "Closes #1" in str(gh.pull_request_update_calls[0]["body"])
+    assert gh.issue_comment_calls
+    assert "#22" in str(gh.issue_comment_calls[0]["body"])
+
+
+@pytest.mark.asyncio
+async def test_create_issue_reuses_existing_generated_issue_and_links_pr(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gh = FakeGitHubToolsExistingGeneratedIssue()
+    agent = RemediationAgent(github_tools=gh)
+    monkeypatch.setattr(agent, "_fingerprint_for_plan", lambda plan, workflow_run_id: "fixedfp123456789")
+    plan = RemediationPlan(
+        action=RemediationAction.CREATE_ISSUE,
+        description="Escalate for manual fix",
+        issue_title="[PipelineHealer] Review required: lint",
+        issue_body="Root cause summary",
+    )
+
+    result = await agent._create_issue(
+        plan,
+        owner="octo",
+        repo="demo",
+        workflow_run_id=321,
+        repository_info={"pull_request_numbers": [77]},
+    )
+
+    assert result.success is True
+    assert result.issue_url == "https://github.com/octo/demo/issues/9"
+    assert result.details.get("issue_number") == 9
+    assert result.details.get("reused_existing_issue") is True
+    assert result.details.get("linked_pull_request_numbers") == [77]
+    assert gh.issue_calls == []
+    assert gh.pull_request_update_calls
+    assert "Closes #9" in str(gh.pull_request_update_calls[0]["body"])
+
+
+@pytest.mark.asyncio
 async def test_create_pr_when_repo_read_only_returns_skip() -> None:
     gh = FakeGitHubToolsReadOnlyRepo()
     agent = RemediationAgent(github_tools=gh)
@@ -1203,6 +1415,35 @@ async def test_create_pr_reuses_existing_open_pr_on_ref_collision() -> None:
     assert result.pr_url == "https://github.com/octo/demo/pull/88"
     assert result.details.get("reused_existing_pr") is True
     assert gh.created_pr is False
+
+
+@pytest.mark.asyncio
+async def test_create_pr_closes_superseded_review_issue() -> None:
+    gh = FakeGitHubToolsSupersededReviewIssue()
+    agent = RemediationAgent(github_tools=gh)
+    plan = RemediationPlan(
+        action=RemediationAction.CREATE_PR,
+        description="Install missing dependency",
+        branch_name="fix/dependency",
+        pr_title="[PipelineHealer] dependency fix",
+        pr_body="body",
+        file_changes=[{"file": "README.md", "content": "updated"}],
+    )
+
+    result = await agent._create_pull_request(
+        plan=plan,
+        owner="octo",
+        repo="demo",
+        base_branch="main",
+        workflow_run_id=555,
+    )
+
+    assert result.success is True
+    assert result.action_taken == RemediationAction.CREATE_PR
+    assert result.details.get("closed_superseded_issue_numbers") == [41]
+    assert gh.issue_comment_calls
+    assert "Superseded by a concrete remediation PR." in str(gh.issue_comment_calls[0]["body"])
+    assert gh.issue_update_calls == [{"issue_number": 41, "state": "closed", "state_reason": "completed"}]
 
 
 @pytest.mark.asyncio

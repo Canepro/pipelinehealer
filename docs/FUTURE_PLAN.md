@@ -531,7 +531,7 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-055` | Frontend coherence patch: explicit 404 routing for public paths plus semantic badge-theme cleanup after live `v0.5.0` validation ([#92](https://github.com/Canepro/pipelinehealer/issues/92)) | `v0.5.1` | patch | Medium | In Progress |
 | `BL-056` | Incident-derived eval expansion for diagnosis/remediation hardening: capture live regressions like stale dependency suggestions, zero-count failure issues, and static-analysis/bounded-draft failures as first-class fixtures | `v0.6.0` | minor | High | In Progress |
 | `BL-057` | Review-only issue quality hardening: remove generic titles/body fallbacks (`unknown violations`, `0 test(s) failed`) by using failing-step/failing-command/static-analysis context when structured evidence is partial | `v0.6.0` | minor | High | In Progress |
-| `BL-058` | PipelineHealer-generated issue lifecycle hygiene: validate, link, and auto-close active review issues from human fix PRs, and close stale/superseded generated issues with audit comments | `v0.6.0` | patch/minor | Medium | Planned |
+| `BL-058` | PipelineHealer-generated issue lifecycle hygiene: validate, link, and auto-close active review issues from human fix PRs, and close stale/superseded generated issues with audit comments | `v0.6.0` | patch/minor | Medium | In Progress |
 
 ## Definition of Done (Per Version)
 
