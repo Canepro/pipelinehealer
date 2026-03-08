@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 588a33d -->
+<!-- LAST_VERIFIED: f8910da -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -294,7 +294,7 @@ Returns activity records with optional filtering and pagination.
         "classification_family": "dependency",
         "classification_pattern": "Cannot find module"
       },
-      "suggested_fix": "Update or install the missing dependency",
+      "suggested_fix": "Add `left-pad` to package.json and refresh the lockfile.",
       "is_auto_fixable": true
     },
     "failure_context": {
@@ -1248,6 +1248,15 @@ When `diagnosis_source=pattern`, `error_details` may include classification tran
 - `classification_signal`: human-readable signal that matched
 - `classification_family`: failure family used by the matcher
 - `classification_pattern`: internal pattern signature used for matching
+
+Pattern and LLM diagnoses may also include failure-type-specific structured fields in `error_details`.
+
+Common examples:
+- `dependency`: `package_name`, `package_manager`, `manifest_file`, `required_version`
+- `lint`: `linter`, `missing_file`, `config_file`, `autofix_command`, `violations`
+- `test`: `test_framework`, `failed_tests`, `test_errors`, `failure_scope`, `suspected_files`
+- `timeout`: `timed_out_job`, `timed_out_step`, `timeout_minutes`, `suggested_timeout`, `resource_signal`
+- `build_config`: `missing_env_vars`, `workflow_permissions_fix`, `permissions`, `misconfiguration_kind`, `config_file`
 
 ### FailureContext (object)
 

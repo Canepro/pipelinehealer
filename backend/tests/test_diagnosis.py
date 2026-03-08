@@ -148,6 +148,10 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.failure_type == FailureType.LINT
         assert "eslint" in diagnosis.error_details.get("linter", "")
         assert diagnosis.error_details.get("missing_file", "") == ""
+        assert diagnosis.error_details.get("autofix_command") == "npx eslint --fix ."
+        assert diagnosis.suggested_fix == (
+            "Run `npx eslint --fix .` locally and commit the resulting lint fixes."
+        )
 
     def test_detect_prettier_code_style_message(self) -> None:
         """Test detection of Prettier check output signature."""
@@ -181,6 +185,10 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.failure_type == FailureType.LINT
         assert diagnosis.error_details.get("linter") == "eslint"
         assert diagnosis.error_details.get("missing_file") == "eslint.config.js"
+        assert diagnosis.error_details.get("config_file") == "eslint.config.js"
+        assert diagnosis.suggested_fix == (
+            "Add `eslint.config.js` so eslint can load its required configuration."
+        )
 
     def test_detect_pytest_failure(self) -> None:
         """Test detection of pytest failures."""
@@ -198,6 +206,13 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.failure_type == FailureType.TEST
         assert diagnosis.error_details.get("test_framework") == "pytest"
         assert diagnosis.error_details.get("classification_signal") == "pytest test failed"
+        assert diagnosis.error_details.get("failed_tests") == ["test_example.py::test_something"]
+        assert diagnosis.error_details.get("failure_scope") == "test_case"
+        assert diagnosis.error_details.get("suspected_files") == ["test_example.py"]
+        assert diagnosis.suggested_fix == (
+            "Run pytest locally for `test_example.py::test_something`, fix the failing assertions, "
+            "and re-run the workflow."
+        )
 
     def test_generic_failing_count_without_test_context_not_test(self) -> None:
         """Do not classify generic failing-check counts as test failures."""
@@ -243,6 +258,8 @@ class TestPatternBasedDiagnosis:
 
         assert diagnosis is not None
         assert diagnosis.failure_type == FailureType.TIMEOUT
+        assert diagnosis.error_details.get("resource_signal") == "unknown"
+        assert diagnosis.error_details.get("timed_out_job") == "build"
 
     def test_detect_timeout_exceeded_time_limit(self) -> None:
         """Test detection of 'exceeded time limit' errors."""
@@ -258,6 +275,13 @@ class TestPatternBasedDiagnosis:
 
         assert diagnosis is not None
         assert diagnosis.failure_type == FailureType.TIMEOUT
+        assert diagnosis.error_details.get("timeout_minutes") == 30
+        assert diagnosis.error_details.get("suggested_timeout") == 60
+        assert diagnosis.error_details.get("likely_fix_kind") == "increase_timeout"
+        assert diagnosis.suggested_fix == (
+            "Increase `timeout-minutes` above 30 minutes (for example `60`) or optimize "
+            "the slow step before re-running the workflow."
+        )
 
     def test_detect_deadline_exceeded(self) -> None:
         """Test detection of 'deadline exceeded' errors."""
@@ -273,6 +297,7 @@ class TestPatternBasedDiagnosis:
 
         assert diagnosis is not None
         assert diagnosis.failure_type == FailureType.TIMEOUT
+        assert diagnosis.error_details.get("likely_fix_kind") == "increase_timeout"
 
     def test_timeout_setting_not_misclassified(self) -> None:
         """Test that benign 'timeout' config lines are not misclassified as timeout failures."""
@@ -304,6 +329,30 @@ class TestPatternBasedDiagnosis:
         assert diagnosis is not None
         assert diagnosis.failure_type == FailureType.TEST
         assert diagnosis.error_details.get("is_flaky") is True
+        assert diagnosis.suggested_fix == (
+            "Stabilize the flaky test path and remove timing or order dependence before re-running the workflow."
+        )
+
+    def test_detect_disk_exhaustion_as_timeout_resource_signal(self) -> None:
+        """Classify disk exhaustion as timeout/resource issue with specific guidance."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="build",
+            raw_logs="write error: no space left on device",
+            error_lines=["write error: no space left on device"],
+            summary="disk exhausted",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.TIMEOUT
+        assert diagnosis.error_details.get("resource_signal") == "disk"
+        assert diagnosis.error_details.get("likely_fix_kind") == "runner_capacity"
+        assert diagnosis.suggested_fix == (
+            "Free runner disk space or reduce cache, artifact, and workspace usage before "
+            "re-running the workflow."
+        )
 
     def test_detect_rate_limit_as_build_config_issue(self) -> None:
         """Test detection of API/rate-limit infrastructure failures."""
@@ -319,6 +368,11 @@ class TestPatternBasedDiagnosis:
 
         assert diagnosis is not None
         assert diagnosis.failure_type == FailureType.BUILD_CONFIG
+        assert diagnosis.error_details.get("misconfiguration_kind") == "rate_limit"
+        assert diagnosis.suggested_fix == (
+            "Reduce request volume, add retry/backoff, or use credentials with a higher API "
+            "limit before retrying."
+        )
 
     def test_detect_missing_secret_from_gh_aw_message(self) -> None:
         """Classify missing COPILOT token validation as build config."""
@@ -343,6 +397,10 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.failure_type == FailureType.BUILD_CONFIG
         assert diagnosis.root_cause == "Secret not configured"
         assert "COPILOT_GITHUB_TOKEN" in diagnosis.error_details.get("missing_env_vars", [])
+        assert diagnosis.error_details.get("misconfiguration_kind") == "secret"
+        assert diagnosis.suggested_fix == (
+            "Configure the missing repository or environment secret(s): `COPILOT_GITHUB_TOKEN`."
+        )
 
     def test_detect_workflow_permission_error(self) -> None:
         """Test detection of GitHub token permission errors."""
@@ -360,6 +418,11 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.failure_type == FailureType.BUILD_CONFIG
         assert diagnosis.is_auto_fixable is True
         assert diagnosis.error_details.get("workflow_permissions_fix") is True
+        assert diagnosis.error_details.get("misconfiguration_kind") == "workflow_permission"
+        assert diagnosis.error_details.get("config_file") == ".github/workflows/ci.yml"
+        assert diagnosis.suggested_fix == (
+            "Add a minimal workflow `permissions` block so `GITHUB_TOKEN` can perform the required action."
+        )
 
     def test_no_pattern_match_returns_none(self) -> None:
         """Test that unrecognized errors return None."""

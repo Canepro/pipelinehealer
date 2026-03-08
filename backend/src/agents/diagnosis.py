@@ -156,7 +156,12 @@ Provide your diagnosis in the following JSON format:
     "is_auto_fixable": true/false,
     "suggested_fix": "High-level suggestion",
     "error_details": {{
-        "additional": "context-specific details"
+        "additional": "context-specific details",
+        "package_name": "for dependency failures when known",
+        "missing_file": "for lint/config failures when known",
+        "failed_tests": ["for test failures when known"],
+        "timeout_minutes": 0,
+        "missing_env_vars": ["for build config failures when known"]
     }}
 }}
 
@@ -457,12 +462,17 @@ Be specific about:
 
         for pattern, linter, description, is_missing_config in lint_patterns:
             if re.search(pattern, error_text, re.IGNORECASE):
+                autofix_command = self._lint_autofix_command(linter)
                 return Diagnosis(
                     failure_type=FailureType.LINT,
                     confidence=0.9,
                     root_cause=description,
                     is_auto_fixable=True,
-                    suggested_fix="Add eslint.config.js (flat config)" if is_missing_config else f"Run {linter} with --fix flag",
+                    suggested_fix=self._build_lint_suggested_fix(
+                        linter=linter,
+                        is_missing_config=is_missing_config,
+                        missing_file="eslint.config.js" if is_missing_config else "",
+                    ),
                     diagnosis_source=DiagnosisSource.PATTERN,
                     error_details=self._build_classification_details(
                         family=FailureType.LINT,
@@ -471,7 +481,10 @@ Be specific about:
                         details={
                             "linter": linter,
                             "missing_file": "eslint.config.js" if is_missing_config else "",
+                            "config_file": "eslint.config.js" if is_missing_config else "",
+                            "autofix_command": autofix_command,
                             "violations": [],
+                            "rule_ids": [],
                         },
                     ),
                 )
@@ -484,12 +497,18 @@ Be specific about:
         ]
         for pattern, description in flaky_patterns:
             if re.search(pattern, error_text, re.IGNORECASE):
+                framework = self._detect_test_framework(error_text)
+                failed_tests = self._extract_failed_tests(error_text)
                 return Diagnosis(
                     failure_type=FailureType.TEST,
                     confidence=0.78,
                     root_cause=description,
                     is_auto_fixable=False,
-                    suggested_fix="Stabilize flaky test and remove timing/order dependence",
+                    suggested_fix=self._build_test_suggested_fix(
+                        framework=framework,
+                        failed_tests=failed_tests,
+                        is_flaky=True,
+                    ),
                     diagnosis_source=DiagnosisSource.PATTERN,
                     error_details=self._build_classification_details(
                         family=FailureType.TEST,
@@ -497,7 +516,11 @@ Be specific about:
                         signal=description,
                         details={
                             "is_flaky": True,
-                            "test_framework": self._detect_test_framework(error_text),
+                            "test_framework": framework,
+                            "failed_tests": failed_tests,
+                            "test_errors": {},
+                            "failure_scope": "suite",
+                            "suspected_files": self._suspected_files_from_tests(failed_tests),
                         },
                     ),
                 )
@@ -526,13 +549,19 @@ Be specific about:
                 # Check if it might be flaky
                 is_flaky = "timeout" in error_text.lower() or "intermittent" in error_text.lower()
                 framework = self._detect_test_framework(error_text)
+                failed_tests = self._extract_failed_tests(error_text)
+                failure_scope = "test_case" if failed_tests else "suite"
 
                 return Diagnosis(
                     failure_type=FailureType.TEST,
                     confidence=0.85,
                     root_cause=description,
                     is_auto_fixable=False,
-                    suggested_fix="Review and fix the failing tests",
+                    suggested_fix=self._build_test_suggested_fix(
+                        framework=framework,
+                        failed_tests=failed_tests,
+                        is_flaky=is_flaky,
+                    ),
                     diagnosis_source=DiagnosisSource.PATTERN,
                     error_details=self._build_classification_details(
                         family=FailureType.TEST,
@@ -541,6 +570,10 @@ Be specific about:
                         details={
                             "is_flaky": is_flaky,
                             "test_framework": framework,
+                            "failed_tests": failed_tests,
+                            "test_errors": {},
+                            "failure_scope": failure_scope,
+                            "suspected_files": self._suspected_files_from_tests(failed_tests),
                         },
                     ),
                 )
@@ -556,17 +589,37 @@ Be specific about:
 
         for pattern, description in timeout_patterns:
             if re.search(pattern, error_text, re.IGNORECASE):
+                timeout_minutes = self._extract_timeout_minutes(error_text)
+                timed_out_job = str(log_analyses[0].job_name or "Unknown").strip() if log_analyses else "Unknown"
+                resource_signal = self._detect_timeout_resource_signal(error_text)
+                likely_fix_kind = self._detect_timeout_fix_kind(description, resource_signal)
+                suggested_timeout = (
+                    max(timeout_minutes * 2, timeout_minutes + 5) if timeout_minutes > 0 else 0
+                )
                 return Diagnosis(
                     failure_type=FailureType.TIMEOUT,
                     confidence=0.8,
                     root_cause=description,
                     is_auto_fixable=False,
-                    suggested_fix="Increase timeout or optimize the slow operation",
+                    suggested_fix=self._build_timeout_suggested_fix(
+                        description=description,
+                        timeout_minutes=timeout_minutes,
+                        suggested_timeout=suggested_timeout,
+                        resource_signal=resource_signal,
+                    ),
                     diagnosis_source=DiagnosisSource.PATTERN,
                     error_details=self._build_classification_details(
                         family=FailureType.TIMEOUT,
                         pattern=pattern,
                         signal=description,
+                        details={
+                            "timed_out_job": timed_out_job,
+                            "timed_out_step": "",
+                            "timeout_minutes": timeout_minutes,
+                            "suggested_timeout": suggested_timeout,
+                            "resource_signal": resource_signal,
+                            "likely_fix_kind": likely_fix_kind,
+                        },
                     ),
                 )
 
@@ -589,7 +642,11 @@ Be specific about:
                     confidence=0.9,
                     root_cause=description,
                     is_auto_fixable=True,
-                    suggested_fix="Add minimal `permissions` block to the workflow",
+                    suggested_fix=self._build_build_config_suggested_fix(
+                        description=description,
+                        missing_vars=[],
+                        misconfiguration_kind="workflow_permission",
+                    ),
                     diagnosis_source=DiagnosisSource.PATTERN,
                     error_details=self._build_classification_details(
                         family=FailureType.BUILD_CONFIG,
@@ -597,6 +654,8 @@ Be specific about:
                         signal=description,
                         details={
                             "workflow_permissions_fix": True,
+                            "misconfiguration_kind": "workflow_permission",
+                            "config_file": ".github/workflows/ci.yml",
                             "permissions": {
                                 "contents": "write",
                                 "pull-requests": "write",
@@ -628,6 +687,8 @@ Be specific about:
                     error_text,
                     flags=re.IGNORECASE,
                 ):
+                    if env_var.upper() != env_var:
+                        continue
                     if env_var not in missing_vars:
                         missing_vars.append(env_var)
 
@@ -644,13 +705,18 @@ Be specific about:
                             and env_var not in missing_vars
                         ):
                             missing_vars.append(env_var)
+                misconfiguration_kind = self._classify_build_config_kind(description, missing_vars)
 
                 return Diagnosis(
                     failure_type=FailureType.BUILD_CONFIG,
                     confidence=0.75,
                     root_cause=description,
                     is_auto_fixable=False,
-                    suggested_fix="Check repository secrets and environment configuration",
+                    suggested_fix=self._build_build_config_suggested_fix(
+                        description=description,
+                        missing_vars=missing_vars,
+                        misconfiguration_kind=misconfiguration_kind,
+                    ),
                     diagnosis_source=DiagnosisSource.PATTERN,
                     error_details=self._build_classification_details(
                         family=FailureType.BUILD_CONFIG,
@@ -658,6 +724,9 @@ Be specific about:
                         signal=description,
                         details={
                             "missing_env_vars": missing_vars,
+                            "misconfiguration_kind": misconfiguration_kind,
+                            "config_file": "",
+                            "config_error": description,
                         },
                     ),
                 )
@@ -741,6 +810,169 @@ Be specific about:
         payload["classification_family"] = family.value
         payload["classification_pattern"] = pattern
         return payload
+
+    def _lint_autofix_command(self, linter: str) -> str:
+        commands = {
+            "eslint": "npx eslint --fix .",
+            "prettier": "npx prettier --write .",
+            "black": "black .",
+            "ruff": "ruff check --fix . && ruff format .",
+            "flake8": "",
+        }
+        return commands.get(linter, "")
+
+    def _build_lint_suggested_fix(
+        self,
+        *,
+        linter: str,
+        is_missing_config: bool,
+        missing_file: str,
+    ) -> str:
+        if is_missing_config and missing_file:
+            return f"Add `{missing_file}` so {linter} can load its required configuration."
+        autofix_command = self._lint_autofix_command(linter)
+        if autofix_command:
+            return f"Run `{autofix_command}` locally and commit the resulting lint fixes."
+        return f"Fix the reported {linter} violations and re-run the workflow."
+
+    def _extract_failed_tests(self, error_text: str) -> list[str]:
+        matches: list[str] = []
+        patterns = [
+            r"pytest\s+FAILED\s+([^\s]+)",
+            r"FAIL\s+([^\s]+\.(?:test|spec)\.[^\s:]+(?:::[^\s]+)?)",
+            r"AssertionError.*?([A-Za-z0-9_./:-]+::[A-Za-z0-9_./:-]+)",
+        ]
+        for pattern in patterns:
+            for match in re.findall(pattern, error_text, flags=re.IGNORECASE):
+                value = str(match).strip().rstrip(".,:")
+                if value and value not in matches:
+                    matches.append(value)
+        return matches
+
+    def _suspected_files_from_tests(self, failed_tests: list[str]) -> list[str]:
+        files: list[str] = []
+        for test_name in failed_tests:
+            candidate = test_name.split("::", 1)[0].strip()
+            if candidate and candidate not in files:
+                files.append(candidate)
+        return files
+
+    def _build_test_suggested_fix(
+        self,
+        *,
+        framework: str,
+        failed_tests: list[str],
+        is_flaky: bool,
+    ) -> str:
+        if is_flaky:
+            if failed_tests:
+                return (
+                    f"Stabilize flaky {framework} test(s) {', '.join(f'`{name}`' for name in failed_tests[:3])} "
+                    "and remove timing or order dependence before re-running the workflow."
+                )
+            return "Stabilize the flaky test path and remove timing or order dependence before re-running the workflow."
+        if failed_tests:
+            return (
+                f"Run {framework} locally for {', '.join(f'`{name}`' for name in failed_tests[:3])}, "
+                "fix the failing assertions, and re-run the workflow."
+            )
+        return f"Run the failing {framework} tests locally, fix the failure, and re-run the workflow."
+
+    def _extract_timeout_minutes(self, error_text: str) -> int:
+        patterns = [
+            r"exceeded.*time.*limit\s+of\s+(\d+)\s+minutes?",
+            r"timeout-minutes:\s*(\d+)",
+            r"timed?\s*out.*after\s+(\d+)\s+minutes?",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, error_text, flags=re.IGNORECASE)
+            if match:
+                try:
+                    return int(match.group(1))
+                except (TypeError, ValueError):
+                    return 0
+        return 0
+
+    def _detect_timeout_resource_signal(self, error_text: str) -> str:
+        text = error_text.lower()
+        if "no space left on device" in text or "disk space" in text:
+            return "disk"
+        if "signal 9" in text or "killed" in text or "oom" in text:
+            return "memory"
+        if "network" in text or "connection reset" in text:
+            return "network"
+        return "unknown"
+
+    def _detect_timeout_fix_kind(self, description: str, resource_signal: str) -> str:
+        if resource_signal == "disk":
+            return "runner_capacity"
+        if resource_signal == "memory":
+            return "runner_capacity"
+        if "time limit" in description.lower() or "deadline" in description.lower():
+            return "increase_timeout"
+        return "optimize_step"
+
+    def _build_timeout_suggested_fix(
+        self,
+        *,
+        description: str,
+        timeout_minutes: int,
+        suggested_timeout: int,
+        resource_signal: str,
+    ) -> str:
+        if resource_signal == "disk":
+            return "Free runner disk space or reduce cache, artifact, and workspace usage before re-running the workflow."
+        if resource_signal == "memory":
+            return "Inspect memory pressure, reduce peak memory usage, or use a larger runner before re-running the workflow."
+        if timeout_minutes > 0 and suggested_timeout > timeout_minutes:
+            return (
+                f"Increase `timeout-minutes` above {timeout_minutes} minutes "
+                f"(for example `{suggested_timeout}`) or optimize the slow step before re-running the workflow."
+            )
+        if "deadline" in description.lower():
+            return "Increase the workflow timeout or reduce the slow operation so the job completes before the deadline."
+        return "Optimize the slow operation or increase the workflow timeout before re-running the job."
+
+    def _classify_build_config_kind(self, description: str, missing_vars: list[str]) -> str:
+        lowered = description.lower()
+        if "secret" in lowered:
+            return "secret"
+        if "environment variable" in lowered or missing_vars:
+            return "env_var"
+        if "permission denied" in lowered:
+            return "runner_env"
+        if "file not found" in lowered:
+            return "file_path"
+        if "rate limit" in lowered:
+            return "rate_limit"
+        if "runner" in lowered:
+            return "runner_env"
+        return "env_var"
+
+    def _build_build_config_suggested_fix(
+        self,
+        *,
+        description: str,
+        missing_vars: list[str],
+        misconfiguration_kind: str,
+    ) -> str:
+        if misconfiguration_kind == "workflow_permission":
+            return "Add a minimal workflow `permissions` block so `GITHUB_TOKEN` can perform the required action."
+        if missing_vars and misconfiguration_kind == "secret":
+            rendered = ", ".join(f"`{name}`" for name in missing_vars[:5])
+            return f"Configure the missing repository or environment secret(s): {rendered}."
+        if missing_vars:
+            rendered = ", ".join(f"`{name}`" for name in missing_vars[:5])
+            return f"Configure the missing CI variable(s) or secret(s): {rendered}."
+        if misconfiguration_kind == "file_path":
+            return "Restore the required file or correct the configured path before re-running the workflow."
+        if misconfiguration_kind == "rate_limit":
+            return "Reduce request volume, add retry/backoff, or use credentials with a higher API limit before retrying."
+        if "permission denied" in description.lower():
+            return "Verify file, credential, or runner permissions for the failing command before re-running the workflow."
+        if "runner" in description.lower():
+            return "Verify the runner environment has the required tools, capacity, and access before re-running the workflow."
+        return "Review the build configuration and correct the missing or invalid environment settings."
 
     def _detect_test_framework(self, error_text: str) -> str:
         """Detect which test framework is being used.
