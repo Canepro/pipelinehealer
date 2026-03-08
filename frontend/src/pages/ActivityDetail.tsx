@@ -962,6 +962,14 @@ export default function ActivityDetail() {
     diagnosisDetails?.external_signal_sources,
   );
   const llmRejection = activity.diagnosis?.llm_rejection;
+  const llmFallbackLabel =
+    activity.diagnosis?.diagnosis_source === "pattern"
+      ? "Deterministic fallback was used."
+      : "Fallback diagnosis was used.";
+  const llmTelemetrySummary =
+    activity.diagnosis?.diagnosis_source === "pattern"
+      ? "PipelineHealer rejected the LLM payload and kept the deterministic diagnosis path for this activity."
+      : "PipelineHealer rejected at least one LLM payload while constructing the diagnosis for this activity.";
   const mcpPath = activity.mcp_model_path;
   const mcpSourceAttribution = Object.entries(
     mcpPath?.source_attribution ?? {},
@@ -1244,7 +1252,7 @@ export default function ActivityDetail() {
                           {llmRejection.reason || "The model response did not satisfy the diagnosis contract."}
                         </p>
                         <p className="mt-1 text-xs text-[var(--ph-muted)]">
-                          Deterministic fallback was used. JSON candidates checked:{" "}
+                          {llmFallbackLabel} JSON candidates checked:{" "}
                           {llmRejection.candidate_count}
                         </p>
                       </div>
@@ -1557,7 +1565,7 @@ export default function ActivityDetail() {
                   </div>
                 </div>
                 <p className="mt-3 text-xs text-[var(--ph-muted)]">
-                  PipelineHealer rejected the LLM payload and kept the deterministic diagnosis path for this activity.
+                  {llmTelemetrySummary}
                 </p>
               </div>
             )}

@@ -53,6 +53,7 @@ Fallback behavior:
 - incomplete typed payloads are rejected
 - when rejection happens, PipelineHealer falls back to deterministic diagnosis when available instead of trusting partial LLM prose
 - fallback diagnoses now expose `diagnosis.llm_rejection` for operator-facing auditability
+- `diagnosis.llm_rejection.candidate_count` reports diagnosis-shaped JSON candidates, not every brace-balanced substring in the raw model output
 - the legacy `error_details` rejection keys remain for backward compatibility and lower-level traces
 
 Operator implication:

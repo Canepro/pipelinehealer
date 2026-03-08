@@ -1257,7 +1257,7 @@ For LLM-sourced diagnoses, PipelineHealer now expects the full failure-type-spec
 When rejection happens, operators should prefer the explicit `llm_rejection` object:
 - `rejected`: whether the LLM diagnosis payload was discarded
 - `reason`: parser/contract reason for rejection
-- `candidate_count`: how many JSON candidates were inspected before fallback
+- `candidate_count`: how many diagnosis-shaped JSON candidates were inspected before fallback
 
 The legacy `error_details` observability keys (`llm_payload_rejected`, `llm_payload_rejection_reason`, `llm_payload_candidate_count`) remain for backward compatibility.
 

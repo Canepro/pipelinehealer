@@ -1584,6 +1584,19 @@ Be specific about:
             }
         )
 
+    @staticmethod
+    def _extract_diagnosis_json_candidates(raw_candidates: list[str]) -> list[dict[str, Any]]:
+        """Return parsed diagnosis-shaped JSON objects from brace-balanced candidates."""
+        parsed_candidates: list[dict[str, Any]] = []
+        for candidate in raw_candidates:
+            try:
+                data = json.loads(candidate)
+            except (json.JSONDecodeError, ValueError):
+                continue
+            if isinstance(data, dict) and "failure_type" in data:
+                parsed_candidates.append(data)
+        return parsed_candidates
+
     def _parse_diagnosis_response(
         self,
         response_text: str,
@@ -1609,19 +1622,11 @@ Be specific about:
         # Strip markdown code fences that some LLMs wrap around JSON.
         cleaned = re.sub(r"```(?:json)?\s*", "", response_text)
         cleaned = re.sub(r"```\s*$", "", cleaned, flags=re.MULTILINE)
-        candidates = self._extract_json_candidates(cleaned)
+        raw_candidates = self._extract_json_candidates(cleaned)
+        candidates = self._extract_diagnosis_json_candidates(raw_candidates)
         rejection_reasons: list[str] = []
 
-        for candidate in candidates:
-            try:
-                data = json.loads(candidate)
-            except (json.JSONDecodeError, ValueError):
-                continue
-
-            # Must look like a diagnosis object (at minimum a failure_type key).
-            if not isinstance(data, dict) or "failure_type" not in data:
-                continue
-
+        for data in candidates:
             failure_type_str = str(data.get("failure_type", "unknown")).lower()
             failure_type = failure_type_map.get(failure_type_str, FailureType.UNKNOWN)
             is_valid, reason = self._validate_llm_diagnosis_payload(data, failure_type)
@@ -1665,11 +1670,11 @@ Be specific about:
 
         return self._record_llm_payload_rejection(
             Diagnosis(
-            failure_type=FailureType.UNKNOWN,
-            confidence=0.3,
-            root_cause="Could not determine root cause",
-            is_auto_fixable=False,
-            diagnosis_source=DiagnosisSource.LLM,
+                failure_type=FailureType.UNKNOWN,
+                confidence=0.3,
+                root_cause="Could not determine root cause",
+                is_auto_fixable=False,
+                diagnosis_source=DiagnosisSource.LLM,
             ),
             reason=rejection_reason,
             candidate_count=len(candidates),

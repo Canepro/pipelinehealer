@@ -714,11 +714,11 @@ class TestPatternBasedDiagnosis:
         assert "missing error_details field(s)" in str(
             diagnosis.error_details.get("llm_payload_rejection_reason")
         )
-        assert diagnosis.error_details.get("llm_payload_candidate_count") == 2
+        assert diagnosis.error_details.get("llm_payload_candidate_count") == 1
         assert diagnosis.llm_rejection is not None
         assert diagnosis.llm_rejection.rejected is True
         assert "missing error_details field(s)" in diagnosis.llm_rejection.reason
-        assert diagnosis.llm_rejection.candidate_count == 2
+        assert diagnosis.llm_rejection.candidate_count == 1
 
     def test_parse_llm_diagnosis_accepts_complete_failure_specific_schema(self) -> None:
         """Well-formed LLM JSON with complete typed keys should be accepted."""
