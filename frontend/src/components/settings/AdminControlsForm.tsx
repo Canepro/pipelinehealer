@@ -33,6 +33,7 @@ import {
   getDurabilityLabel,
   getMcpEffectiveState,
   settingSourceTone,
+  type IntegrationTone,
   type McpPolicyMode,
 } from "./runtimeSemantics";
 import { copyToClipboard } from "@/utils/copyToClipboard";
@@ -74,7 +75,7 @@ interface Props {
   llmCapabilitySummary?: {
     summary: string;
     detail: string;
-    tone: "ok" | "warn" | "bad" | "muted";
+    tone: IntegrationTone;
   };
   hasUnsavedChanges: boolean;
   newRepoInput: string;

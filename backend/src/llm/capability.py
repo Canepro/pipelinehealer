@@ -1,6 +1,6 @@
 """Operator-facing LLM capability assessment derived from config and live activity evidence."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from ..models import (
@@ -15,6 +15,7 @@ from ..models import (
 from ..storage import ActivityStorage
 
 _CAPABILITY_LOOKBACK_DAYS = 14
+_CAPABILITY_SCAN_PAGE_SIZE = 200
 
 
 def _required_llm_config_present(settings: Any) -> bool:
@@ -109,6 +110,42 @@ def _is_full_capability_activity(activity: ActivityRecord) -> bool:
     return details.get("not_auto_reason_code") != "LOW_CONFIDENCE"
 
 
+async def _latest_matching_activity(
+    *,
+    storage: ActivityStorage,
+    provider: str,
+    configured_models: set[str],
+    since: datetime,
+) -> ActivityRecord | None:
+    offset = 0
+    latest: ActivityRecord | None = None
+
+    while True:
+        page = await storage.get_activities(
+            limit=_CAPABILITY_SCAN_PAGE_SIZE,
+            offset=offset,
+            since=since,
+        )
+        if not page:
+            break
+
+        for activity in page:
+            if not _activity_matches_runtime(
+                activity,
+                provider=provider,
+                configured_models=configured_models,
+            ):
+                continue
+            if latest is None or activity.updated_at > latest.updated_at:
+                latest = activity
+
+        if len(page) < _CAPABILITY_SCAN_PAGE_SIZE:
+            break
+        offset += len(page)
+
+    return latest
+
+
 async def build_llm_capability_snapshot(
     *,
     settings: Any,
@@ -149,28 +186,21 @@ async def build_llm_capability_snapshot(
 
     provider = str(provider_health.get("provider", "") or "").strip().lower()
     configured_models = _configured_models(settings)
-    recent_activities = await storage.get_activities(
-        limit=100,
-        since=utcnow() - timedelta(days=_CAPABILITY_LOOKBACK_DAYS),
+    since = utcnow() - timedelta(days=_CAPABILITY_LOOKBACK_DAYS)
+    latest = await _latest_matching_activity(
+        storage=storage,
+        provider=provider,
+        configured_models=configured_models,
+        since=since,
     )
-    matching = [
-        activity
-        for activity in recent_activities
-        if _activity_matches_runtime(
-            activity,
-            provider=provider,
-            configured_models=configured_models,
-        )
-    ]
 
-    if not matching:
+    if latest is None:
         snapshot["capability_state"] = LLMCapabilityState.PROVIDER_READY
         snapshot["capability_summary"] = (
             "Provider readiness checks pass, but there is no recent live activity for the current model routing."
         )
         return snapshot
 
-    latest = matching[0]
     evidence = _to_evidence(latest)
     snapshot["last_validated_at"] = evidence.observed_at
     snapshot["last_validation"] = evidence

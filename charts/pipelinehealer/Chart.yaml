@@ -2,8 +2,8 @@ apiVersion: v2
 name: pipelinehealer
 description: Helm chart for deploying PipelineHealer backend and frontend to Kubernetes
 type: application
-version: 0.5.8
-appVersion: "0.5.8"
+version: 0.5.9
+appVersion: "0.5.9"
 keywords:
   - cicd
   - ai
