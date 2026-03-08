@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: ec7e28f -->
+<!-- LAST_VERIFIED: 9c5cc40 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -9,6 +9,14 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ## [Unreleased]
 
 - _No unreleased entries yet._
+
+## [v0.5.9] - 2026-03-08
+
+### Fixed
+
+- Scanned recent capability evidence via paging instead of truncating to the first 100 activities, so busy repos no longer lose valid model-matching validation records behind unrelated traffic.
+- Selected the latest matching LLM validation by `updated_at` rather than assuming `created_at` order reflects the freshest evidence, keeping `last_validated_at` aligned with the surfaced validation record.
+- Reused the shared frontend integration-tone type for capability summaries so Settings prop types stay aligned with the runtime semantics contract.
 
 ## [v0.5.8] - 2026-03-08
 

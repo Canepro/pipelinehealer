@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import httpx
 import pytest
 
@@ -12,6 +14,7 @@ from src.models import (
     RemediationAction,
     RemediationResult,
     RemediationStatus,
+    utcnow,
 )
 from src.storage import InMemoryStorage
 
@@ -41,6 +44,10 @@ async def _get_llm_provider_health() -> httpx.Response:
                 "X-Admin-Key": "admin-secret",
             },
         )
+
+
+def _store_activity(storage: InMemoryStorage, activity: ActivityRecord) -> None:
+    storage._activities[activity.id or f"activity-{activity.workflow_run_id}"] = activity
 
 
 @pytest.mark.asyncio
@@ -151,3 +158,168 @@ async def test_llm_provider_health_reports_full_capability_after_successful_llm_
     assert body["last_validation"]["failure_type"] == "lint"
     assert body["last_validation"]["diagnosis_source"] == "llm"
     assert body["last_validation"]["remediation_action"] == "create_pr"
+
+
+@pytest.mark.asyncio
+async def test_llm_provider_health_pages_past_unrelated_recent_activity() -> None:
+    storage = InMemoryStorage()
+    app.state.storage = storage
+    now = utcnow()
+
+    for index in range(205):
+        _store_activity(
+            storage,
+            ActivityRecord(
+                id=f"recent-unrelated-{index}",
+                repositoryId="repo-1",
+                repository_name="Canepro/pipelinehealer-demo",
+                workflow_run_id=1000 + index,
+                workflow_name="CI",
+                status=RemediationStatus.COMPLETED,
+                failure_type=FailureType.LINT,
+                diagnosis=Diagnosis(
+                    failure_type=FailureType.LINT,
+                    confidence=0.91,
+                    root_cause="Different provider",
+                    diagnosis_source=DiagnosisSource.LLM,
+                ),
+                llm_model_path=LLMModelPath(
+                    provider="openai_compatible",
+                    model="other-model",
+                    fallback_used=False,
+                    call_count=1,
+                    total_latency_ms=1000.0,
+                    error_count=0,
+                ),
+                remediation_result=RemediationResult(
+                    success=True,
+                    action_taken=RemediationAction.CREATE_PR,
+                    pr_url=f"https://github.com/Canepro/pipelinehealer-demo/pull/{index}",
+                ),
+                created_at=now - timedelta(minutes=index),
+                updated_at=now - timedelta(minutes=index),
+            ),
+        )
+
+    _store_activity(
+        storage,
+        ActivityRecord(
+            id="matching-older",
+            repositoryId="repo-1",
+            repository_name="Canepro/pipelinehealer-demo",
+            workflow_run_id=2200,
+            workflow_name="CI",
+            status=RemediationStatus.COMPLETED,
+            failure_type=FailureType.LINT,
+            diagnosis=Diagnosis(
+                failure_type=FailureType.LINT,
+                confidence=0.87,
+                root_cause="ESLint config missing",
+                diagnosis_source=DiagnosisSource.LLM,
+            ),
+            llm_model_path=LLMModelPath(
+                provider="azure_openai",
+                model="gpt-5.1-codex-mini",
+                fallback_used=False,
+                call_count=2,
+                total_latency_ms=22000.0,
+                error_count=0,
+            ),
+            remediation_result=RemediationResult(
+                success=True,
+                action_taken=RemediationAction.CREATE_PR,
+                pr_url="https://github.com/Canepro/pipelinehealer-demo/pull/2200",
+            ),
+            created_at=now - timedelta(hours=5),
+            updated_at=now - timedelta(hours=5),
+        ),
+    )
+
+    response = await _get_llm_provider_health()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["capability_state"] == "full_capability"
+    assert body["last_validation"]["activity_id"] == "matching-older"
+    assert body["last_validation"]["model"] == "gpt-5.1-codex-mini"
+
+
+@pytest.mark.asyncio
+async def test_llm_provider_health_prefers_latest_updated_matching_activity() -> None:
+    storage = InMemoryStorage()
+    app.state.storage = storage
+    now = utcnow()
+
+    _store_activity(
+        storage,
+        ActivityRecord(
+            id="newer-created",
+            repositoryId="repo-1",
+            repository_name="Canepro/pipelinehealer-demo",
+            workflow_run_id=3001,
+            workflow_name="CI",
+            status=RemediationStatus.COMPLETED,
+            failure_type=FailureType.LINT,
+            diagnosis=Diagnosis(
+                failure_type=FailureType.LINT,
+                confidence=0.9,
+                root_cause="Earlier validation",
+                diagnosis_source=DiagnosisSource.LLM,
+            ),
+            llm_model_path=LLMModelPath(
+                provider="azure_openai",
+                model="gpt-5.1-codex-mini",
+                fallback_used=False,
+                call_count=2,
+                total_latency_ms=21000.0,
+                error_count=0,
+            ),
+            remediation_result=RemediationResult(
+                success=True,
+                action_taken=RemediationAction.CREATE_PR,
+                pr_url="https://github.com/Canepro/pipelinehealer-demo/pull/3001",
+            ),
+            created_at=now - timedelta(minutes=5),
+            updated_at=now - timedelta(minutes=4),
+        ),
+    )
+    _store_activity(
+        storage,
+        ActivityRecord(
+            id="latest-updated",
+            repositoryId="repo-1",
+            repository_name="Canepro/pipelinehealer-demo",
+            workflow_run_id=3002,
+            workflow_name="CI",
+            status=RemediationStatus.COMPLETED,
+            failure_type=FailureType.LINT,
+            diagnosis=Diagnosis(
+                failure_type=FailureType.LINT,
+                confidence=0.93,
+                root_cause="Later validation",
+                diagnosis_source=DiagnosisSource.LLM,
+            ),
+            llm_model_path=LLMModelPath(
+                provider="azure_openai",
+                model="gpt-5.1-codex-mini",
+                fallback_used=False,
+                call_count=2,
+                total_latency_ms=20500.0,
+                error_count=0,
+            ),
+            remediation_result=RemediationResult(
+                success=True,
+                action_taken=RemediationAction.CREATE_PR,
+                pr_url="https://github.com/Canepro/pipelinehealer-demo/pull/3002",
+            ),
+            created_at=now - timedelta(hours=2),
+            updated_at=now - timedelta(minutes=1),
+        ),
+    )
+
+    response = await _get_llm_provider_health()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["last_validation"]["activity_id"] == "latest-updated"
+    assert body["last_validated_at"] == body["last_validation"]["observed_at"]
