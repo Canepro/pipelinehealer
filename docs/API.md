@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: ec7e28f -->
+<!-- LAST_VERIFIED: 747334d -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -846,6 +846,7 @@ Important:
 - It does **not** execute a live completion/request against the configured model.
 - `available=true` means PipelineHealer has enough configuration to attempt LLM calls, not that every model/operation combination is guaranteed to succeed.
 - For Azure deployments, verify live model compatibility separately with `bash scripts/ph.sh aoai:check` or a direct provider smoke test.
+- If live LLM calls fail, PipelineHealer can still ingest runs and create safe fallback issues, but diagnosis/remediation should be treated as degraded-mode behavior rather than full-capability behavior.
 
 OpenAI-compatible `reason` codes:
 

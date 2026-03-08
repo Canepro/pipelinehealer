@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: 86c6c55 -->
+<!-- LAST_VERIFIED: 747334d -->
 
 Use this index to find the right doc quickly.
 
@@ -29,6 +29,8 @@ These stable screenshots reflect the current hosted operator experience and are 
 - `DEMO_SCRIPT.md` — single-file recording checklist and 2-minute narration script
 - `LOCAL_DEMO_RUNBOOK.md` — full local and Azure E2E operator runbook
 - `MODEL_PROVIDER_STRATEGY.md` — reference Azure path plus provider-portable model backend strategy
+- `LLM_AND_AGENT_RUNTIME.md` — validated LLM runtime behavior, degraded-mode contract, and Azure endpoint/model guidance
+- `LLM_PROVIDER_RESEARCH_AND_PLAN.md` — source-backed provider research and the resulting PipelineHealer implementation direction
 - `MODEL_PROVIDER_SWITCH_RUNBOOK.md` — auditable provider switching and rollback playbook
 - `LEARNING_SYSTEM_PLAN.md` — learning queue lifecycle, governance model, and activation safety rules
 - `KUBERNETES_HELM_RUNBOOK.md` — Helm-based Kubernetes deployment target (secondary to Azure)

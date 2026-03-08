@@ -1,6 +1,6 @@
 # Model Provider Strategy
 
-<!-- LAST_VERIFIED: 745988e -->
+<!-- LAST_VERIFIED: 747334d -->
 
 PipelineHealer uses Azure as the current reference model-provider path for managed deployment and operational simplicity, but it is being structured to avoid provider lock-in.
 
@@ -35,6 +35,7 @@ Future provider candidates:
 - Azure provider path remains active default.
 - `openai_compatible` provider path is implemented (runtime config + health + execution path).
 - `custom` remains scaffolded (no-op with explicit health/status).
+- only one provider is active per runtime today; cross-provider per-task routing is not implemented
 - task-level overrides are live via:
   - `LLM_MODEL_ANALYSIS`
   - `LLM_MODEL_DIAGNOSIS`
@@ -43,6 +44,7 @@ Future provider candidates:
 - Provider health endpoint available at:
   - `GET /api/settings/llm/provider-health`
 - Model-path telemetry is available per activity (`llm_model_path`) and surfaced in UI.
+- runtime/provider-health should be treated as readiness, not as a guarantee that every model/operation pair is live-compatible
 - 0.4 hardening tests now cover:
   - provider contract normalization (consistent diagnosis output shape)
   - transient error retry behavior on openai-compatible runtime path (429, 5xx, timeout)
@@ -59,3 +61,4 @@ Future provider candidates:
 
 - Provider switching and rollback runbook: `docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md`
 - Kubernetes secondary deploy target: `docs/KUBERNETES_HELM_RUNBOOK.md`
+- Runtime capability/degraded-mode reference: `docs/LLM_AND_AGENT_RUNTIME.md`
