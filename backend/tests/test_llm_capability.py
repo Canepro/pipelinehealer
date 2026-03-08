@@ -46,8 +46,14 @@ async def _get_llm_provider_health() -> httpx.Response:
         )
 
 
-def _store_activity(storage: InMemoryStorage, activity: ActivityRecord) -> None:
-    storage._activities[activity.id or f"activity-{activity.workflow_run_id}"] = activity
+async def _store_activity(storage: InMemoryStorage, activity: ActivityRecord) -> None:
+    created_at = activity.created_at
+    updated_at = activity.updated_at
+    await storage.create_activity(activity)
+    stored = await storage.get_activity(activity.id)
+    assert stored is not None
+    stored.created_at = created_at
+    stored.updated_at = updated_at
 
 
 @pytest.mark.asyncio
@@ -167,7 +173,7 @@ async def test_llm_provider_health_pages_past_unrelated_recent_activity() -> Non
     now = utcnow()
 
     for index in range(205):
-        _store_activity(
+        await _store_activity(
             storage,
             ActivityRecord(
                 id=f"recent-unrelated-{index}",
@@ -201,7 +207,7 @@ async def test_llm_provider_health_pages_past_unrelated_recent_activity() -> Non
             ),
         )
 
-    _store_activity(
+    await _store_activity(
         storage,
         ActivityRecord(
             id="matching-older",
@@ -250,7 +256,7 @@ async def test_llm_provider_health_prefers_latest_updated_matching_activity() ->
     app.state.storage = storage
     now = utcnow()
 
-    _store_activity(
+    await _store_activity(
         storage,
         ActivityRecord(
             id="newer-created",
@@ -283,7 +289,7 @@ async def test_llm_provider_health_prefers_latest_updated_matching_activity() ->
             updated_at=now - timedelta(minutes=4),
         ),
     )
-    _store_activity(
+    await _store_activity(
         storage,
         ActivityRecord(
             id="latest-updated",

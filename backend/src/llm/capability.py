@@ -117,31 +117,20 @@ async def _latest_matching_activity(
     configured_models: set[str],
     since: datetime,
 ) -> ActivityRecord | None:
-    offset = 0
     latest: ActivityRecord | None = None
 
-    while True:
-        page = await storage.get_activities(
-            limit=_CAPABILITY_SCAN_PAGE_SIZE,
-            offset=offset,
-            since=since,
-        )
-        if not page:
-            break
-
-        for activity in page:
-            if not _activity_matches_runtime(
-                activity,
-                provider=provider,
-                configured_models=configured_models,
-            ):
-                continue
-            if latest is None or activity.updated_at > latest.updated_at:
-                latest = activity
-
-        if len(page) < _CAPABILITY_SCAN_PAGE_SIZE:
-            break
-        offset += len(page)
+    async for activity in storage.iter_activities(
+        since=since,
+        page_size=_CAPABILITY_SCAN_PAGE_SIZE,
+    ):
+        if not _activity_matches_runtime(
+            activity,
+            provider=provider,
+            configured_models=configured_models,
+        ):
+            continue
+        if latest is None or activity.updated_at > latest.updated_at:
+            latest = activity
 
     return latest
 
