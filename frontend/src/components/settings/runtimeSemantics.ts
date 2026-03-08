@@ -2,6 +2,7 @@ import type {
   AgentHandoffIntegrationStatus,
   AppSettingMetadata,
   AppSettingSource,
+  LLMProviderHealth,
 } from '../../api/client'
 
 export type BadgeTone = 'success' | 'secondary' | 'destructive' | 'outline'
@@ -14,6 +15,72 @@ export type McpEffectiveState = {
 }
 
 export type IntegrationTone = 'ok' | 'warn' | 'bad' | 'muted'
+
+export function describeLlmCapability(
+  health?: LLMProviderHealth
+): { summary: string; detail: string; tone: IntegrationTone } {
+  if (!health) {
+    return {
+      summary: 'Status unavailable',
+      detail: 'LLM capability evidence has not been loaded yet.',
+      tone: 'muted',
+    }
+  }
+
+  switch (health.capability_state) {
+    case 'full_capability':
+      return {
+        summary: 'Full capability',
+        detail: health.capability_summary,
+        tone: 'ok',
+      }
+    case 'operation_compatible':
+      return {
+        summary: 'Operation-compatible',
+        detail: health.capability_summary,
+        tone: 'warn',
+      }
+    case 'provider_ready':
+      return {
+        summary: 'Provider-ready',
+        detail: health.capability_summary,
+        tone: 'warn',
+      }
+    case 'configured':
+      return {
+        summary: 'Configured only',
+        detail: health.capability_summary,
+        tone: 'warn',
+      }
+    case 'degraded':
+      return {
+        summary: 'Degraded',
+        detail: health.capability_summary,
+        tone: 'bad',
+      }
+    case 'not_implemented':
+      return {
+        summary: 'Scaffolded only',
+        detail: health.capability_summary,
+        tone: 'bad',
+      }
+    default:
+      return {
+        summary: 'Not configured',
+        detail: health.capability_summary || 'Required LLM settings are missing.',
+        tone: 'muted',
+      }
+  }
+}
+
+export function formatLlmValidationLabel(health?: LLMProviderHealth): string {
+  const validation = health?.last_validation
+  if (!validation) return 'No recent canary'
+  const parts = [validation.model]
+  if (validation.failure_type) parts.push(validation.failure_type)
+  if (validation.remediation_action) parts.push(validation.remediation_action)
+  return parts.join(' · ')
+}
 
 export function formatSettingSource(source: AppSettingSource): string {
   switch (source) {

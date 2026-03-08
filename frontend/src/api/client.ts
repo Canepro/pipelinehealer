@@ -226,12 +226,39 @@ export interface AppSettingMetadata {
 export interface LLMProviderHealth {
   provider: string
   implemented: boolean
+  configured: boolean
   available: boolean
+  provider_ready: boolean
+  operation_compatible: boolean
+  full_capability: boolean
+  capability_state:
+    | 'not_configured'
+    | 'configured'
+    | 'provider_ready'
+    | 'operation_compatible'
+    | 'full_capability'
+    | 'degraded'
+    | 'not_implemented'
+  capability_summary: string
   reason: string
   message: string
   endpoint?: string
   deployment_name?: string
   api_version?: string
+  last_validated_at?: string | null
+  last_validation?: {
+    activity_id: string
+    workflow_run_id: number
+    observed_at: string
+    model: string
+    fallback_used: boolean
+    error_count: number
+    failure_type?: string | null
+    diagnosis_source?: string | null
+    diagnosis_confidence?: number | null
+    remediation_action?: string | null
+    remediation_success?: boolean | null
+  } | null
 }
 
 export interface MCPProviderHealth {

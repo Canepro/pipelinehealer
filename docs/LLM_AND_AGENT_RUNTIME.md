@@ -1,6 +1,6 @@
 # LLM and Agent Runtime
 
-<!-- LAST_VERIFIED: 747334d -->
+<!-- LAST_VERIFIED: 588a33d -->
 
 This document is the operator-facing contract for how PipelineHealer uses LLMs and agents at runtime.
 
@@ -55,6 +55,7 @@ There are four different states operators need to distinguish.
 
 Important:
 - `provider-health` proves `2`, not `3` or `4`
+- Settings and Control Center now surface these states directly from `GET /api/settings/llm/provider-health` via `capability_state`, `capability_summary`, and `last_validation`
 
 ## Degraded Mode
 

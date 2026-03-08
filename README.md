@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 747334d -->
+<!-- LAST_VERIFIED: 588a33d -->
 
 > OSS-first, policy-aware pipeline remediation platform with GitHub Actions and Jenkins bridge support today.
 
@@ -84,6 +84,7 @@ For managed deployment and full demo ops, use [docs/LOCAL_DEMO_RUNBOOK.md](docs/
 
 LLM readiness matters:
 - `provider-health` only confirms configuration readiness, not that your chosen model/operation pair actually works
+- `GET /api/settings/llm/provider-health` now also exposes `capability_state`, recent validation evidence, and whether the current routing has reached full-capability or degraded mode
 - for full value, verify a live LLM path with `bash scripts/ph.sh aoai:check` or an equivalent provider smoke test
 - if the LLM path is broken, PipelineHealer can still ingest runs, collect evidence, and open fallback issues, but diagnosis/remediation quality is degraded
 

@@ -13,7 +13,10 @@ import {
   toSettingsForm,
 } from "../components/settings";
 import type { SettingsFormState } from "../components/settings";
-import { formatIntegrationQueryState } from "../components/settings/runtimeSemantics";
+import {
+  describeLlmCapability,
+  formatIntegrationQueryState,
+} from "../components/settings/runtimeSemantics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -160,6 +163,7 @@ export default function SettingsPage() {
     error:
       handoffIntegrationError instanceof Error ? handoffIntegrationError : null,
   });
+  const llmCapabilitySummary = describeLlmCapability(llmProviderHealth);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -648,6 +652,7 @@ export default function SettingsPage() {
             isLlmHealthLoading={isLlmHealthLoading}
             mcpProviderHealth={mcpProviderHealth}
             isMcpHealthLoading={isMcpHealthLoading}
+            llmCapabilitySummary={llmCapabilitySummary}
             hasUnsavedChanges={hasUnsavedChanges}
             newRepoInput={newRepoInput}
             setNewRepoInput={setNewRepoInput}

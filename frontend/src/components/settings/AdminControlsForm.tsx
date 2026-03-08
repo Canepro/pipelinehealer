@@ -27,6 +27,8 @@ import {
   toSettingsForm,
 } from "./types";
 import {
+  describeLlmCapability,
+  formatLlmValidationLabel,
   formatSettingSource,
   getDurabilityLabel,
   getMcpEffectiveState,
@@ -69,6 +71,11 @@ interface Props {
   isLlmHealthLoading?: boolean;
   mcpProviderHealth?: MCPProviderHealth;
   isMcpHealthLoading?: boolean;
+  llmCapabilitySummary?: {
+    summary: string;
+    detail: string;
+    tone: "ok" | "warn" | "bad" | "muted";
+  };
   hasUnsavedChanges: boolean;
   newRepoInput: string;
   setNewRepoInput: Dispatch<SetStateAction<string>>;
@@ -362,6 +369,7 @@ export default function AdminControlsForm({
   isLlmHealthLoading,
   mcpProviderHealth,
   isMcpHealthLoading,
+  llmCapabilitySummary,
   hasUnsavedChanges,
   newRepoInput,
   setNewRepoInput,
@@ -423,6 +431,9 @@ export default function AdminControlsForm({
     form.llm_provider === "azure_openai"
       ? form.azure_openai_deployment_name.trim()
       : form.openai_compatible_model.trim();
+  const resolvedLlmCapability =
+    llmCapabilitySummary ?? describeLlmCapability(llmProviderHealth);
+  const llmValidationLabel = formatLlmValidationLabel(llmProviderHealth);
   const taskModelPreview = [
     {
       key: "analysis",
@@ -1342,7 +1353,26 @@ export default function AdminControlsForm({
                       : "Unknown"
                   }
                 />
+                <ReadOnlyField
+                  label="Capability State"
+                  value={
+                    isLlmHealthLoading
+                      ? "Checking..."
+                      : resolvedLlmCapability.summary
+                  }
+                />
+                <ReadOnlyField
+                  label="Last validation"
+                  value={
+                    isLlmHealthLoading ? "Checking..." : llmValidationLabel
+                  }
+                />
               </div>
+              <p className="text-xs text-[var(--ph-muted)]">
+                {isLlmHealthLoading
+                  ? "Checking recent live LLM capability evidence..."
+                  : resolvedLlmCapability.detail}
+              </p>
               <Separator />
               <div className="space-y-3">
                 <p className="text-sm font-medium text-[var(--ph-text)]">

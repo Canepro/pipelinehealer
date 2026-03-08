@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 747334d -->
+<!-- LAST_VERIFIED: 588a33d -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -819,12 +819,20 @@ Returns health/status for the currently selected LLM provider adapter.
 {
   "provider": "azure_openai",
   "implemented": true,
+  "configured": true,
   "available": true,
+  "provider_ready": true,
+  "operation_compatible": false,
+  "full_capability": false,
+  "capability_state": "provider_ready",
+  "capability_summary": "Provider readiness checks pass, but there is no recent live activity for the current model routing.",
   "reason": "ok",
   "message": "Azure OpenAI provider configuration looks valid.",
   "endpoint": "https://example.openai.azure.com/",
   "deployment_name": "gpt-5-mini",
-  "api_version": "2025-04-01-preview"
+  "api_version": "2025-04-01-preview",
+  "last_validated_at": null,
+  "last_validation": null
 }
 ```
 
@@ -843,10 +851,22 @@ Example when using `llm_provider=openai_compatible` with missing config:
 Important:
 
 - This endpoint validates provider configuration shape and adapter readiness.
-- It does **not** execute a live completion/request against the configured model.
+- It does **not** execute a new live completion/request during the probe itself.
 - `available=true` means PipelineHealer has enough configuration to attempt LLM calls, not that every model/operation combination is guaranteed to succeed.
+- `capability_state` is derived from both provider readiness and the most recent matching live activity for the current routing.
+- `last_validation` reflects recent stored LLM evidence, not a synchronous on-demand canary.
 - For Azure deployments, verify live model compatibility separately with `bash scripts/ph.sh aoai:check` or a direct provider smoke test.
 - If live LLM calls fail, PipelineHealer can still ingest runs and create safe fallback issues, but diagnosis/remediation should be treated as degraded-mode behavior rather than full-capability behavior.
+
+`capability_state` values:
+
+- `not_configured`: required provider settings are missing
+- `configured`: required settings are present, but readiness checks are failing
+- `provider_ready`: provider readiness passes, but no recent live validation exists for current routing
+- `operation_compatible`: recent live activity completed without LLM call errors
+- `full_capability`: recent live activity completed with successful LLM diagnosis/remediation
+- `degraded`: recent live activity hit LLM call errors for the current routing
+- `not_implemented`: provider is scaffolded only
 
 OpenAI-compatible `reason` codes:
 

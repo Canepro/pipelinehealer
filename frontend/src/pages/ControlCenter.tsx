@@ -24,7 +24,9 @@ import { useApiAuthReady } from "../auth/apiAuthReady";
 import { AUTH_ENABLED } from "../auth/config";
 import { AuditTrailPanel } from "../components/settings";
 import {
+  describeLlmCapability,
   formatSettingSource,
+  formatLlmValidationLabel,
   formatIntegrationQueryState,
   getDurabilityLabel,
   getMcpEffectiveState,
@@ -636,6 +638,8 @@ export default function ControlCenterPage() {
     error:
       handoffIntegrationError instanceof Error ? handoffIntegrationError : null,
   });
+  const llmCapabilitySummary = describeLlmCapability(llmHealth);
+  const llmValidationLabel = formatLlmValidationLabel(llmHealth);
 
   const startupDependencyRows: SummaryRow[] = settings
     ? [
@@ -948,12 +952,16 @@ export default function ControlCenterPage() {
                       title="Provider readiness"
                       items={[
                         {
-                          label: "LLM",
+                          label: "LLM state",
                           value: llmLoading
                             ? "Checking..."
-                            : llmHealth?.available
-                              ? "Available"
-                              : "Unavailable",
+                            : llmCapabilitySummary.summary,
+                        },
+                        {
+                          label: "LLM validation",
+                          value: llmLoading
+                            ? "Checking..."
+                            : llmValidationLabel,
                         },
                         {
                           label: "MCP",
@@ -1075,6 +1083,20 @@ export default function ControlCenterPage() {
                         {
                           label: "Default model",
                           value: providerDefaultModel || "Not configured",
+                        },
+                        {
+                          label: "Capability",
+                          value: llmCapabilitySummary.summary,
+                          detail: llmCapabilitySummary.detail,
+                          tone: llmCapabilitySummary.tone,
+                        },
+                        {
+                          label: "Last validation",
+                          value: llmValidationLabel,
+                          detail: llmHealth?.last_validated_at
+                            ? new Date(llmHealth.last_validated_at).toLocaleString()
+                            : "Run one real canary activity to prove the current routing.",
+                          tone: llmHealth?.last_validated_at ? "default" : "muted",
                         },
                       ]}
                     />
