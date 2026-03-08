@@ -1,5 +1,6 @@
 """Remediation Agent for generating fixes for CI/CD failures."""
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -50,6 +51,7 @@ class RemediationAgent:
         # Default fix generators to settings-driven behavior (safe vs demo).
         self._fix_generators = fix_generators or FixGenerators(heal_mode=self._settings.heal_mode)
         self._agent: Any | None = None
+        self._patch_drafting_agent: Any | None = None
 
     async def _get_agent(self) -> Any:
         """Get or create the agent instance."""
@@ -64,11 +66,25 @@ class RemediationAgent:
 
         return self._agent
 
+    async def _get_patch_drafting_agent(self) -> Any:
+        """Get or create the bounded patch drafting agent instance."""
+        if self._patch_drafting_agent is None:
+            self._patch_drafting_agent = create_cloud_agent(
+                name="PatchDrafting",
+                instructions=get_agent_prompt("patch_drafting"),
+                credential=self._credential,
+                task="patch_drafting",
+                settings=self._settings,
+            )
+
+        return self._patch_drafting_agent
+
     def refresh_runtime_settings(self) -> None:
         """Apply mutable runtime settings without restarting the process."""
         self._settings = get_settings()
         self._fix_generators.set_heal_mode(self._settings.heal_mode)
         self._agent = None
+        self._patch_drafting_agent = None
 
     @staticmethod
     def _extract_github_error_message(response: httpx.Response) -> str:
@@ -390,6 +406,16 @@ class RemediationAgent:
         return f"<!-- pipelinehealer:fingerprint:{fingerprint} -->"
 
     @staticmethod
+    def _extract_patch_drafting_trace(rendered_changes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Extract bounded patch trace records from rendered file changes."""
+        traces: list[dict[str, Any]] = []
+        for change in rendered_changes:
+            trace = change.get("patch_drafting_trace")
+            if isinstance(trace, dict):
+                traces.append(trace)
+        return traces
+
+    @staticmethod
     def _branch_suffix(base_branch_name: str, attempt: int) -> str:
         """Generate collision-safe branch suffix while staying under common limits."""
         if attempt <= 1:
@@ -596,6 +622,7 @@ class RemediationAgent:
                     plan=plan,
                     reason="No applicable file changes to commit",
                 )
+            patch_drafting_trace = self._extract_patch_drafting_trace(rendered_changes)
 
             run_branch_name: str | None = None
             for attempt in range(1, 5):
@@ -762,6 +789,7 @@ class RemediationAgent:
                     "branch_name": run_branch_name,
                     "reused_existing_pr": False,
                     "remediation_fingerprint": remediation_fp,
+                    "patch_drafting_trace": patch_drafting_trace,
                 },
             )
 
@@ -853,15 +881,17 @@ class RemediationAgent:
         repo: str,
         base_ref: str,
         file_changes: list[dict[str, Any]],
-    ) -> list[dict[str, str]]:
+    ) -> list[dict[str, Any]]:
         """Convert structured change requests into concrete {file, content} updates.
 
         Supports:
         - {file, content}: raw content replacement
         - type=json_update: update a dotted JSON path (e.g. dependencies.foo)
         - type=line_update: regex replace a matching line, or append if missing
+        - type=bounded_patch: bounded AI-assisted draft with validation and deterministic fallback
         """
         rendered_by_file: dict[str, str] = {}
+        trace_by_file: dict[str, dict[str, Any]] = {}
         render_order: list[str] = []
         working_files: dict[str, str] = {}
         working_exists: dict[str, bool] = {}
@@ -979,6 +1009,19 @@ class RemediationAgent:
                 working_files[selected_path] = new_text
                 working_exists[selected_path] = True
 
+            elif change_type == "bounded_patch":
+                new_text, trace = await self._render_bounded_patch_change(
+                    file_path=selected_path,
+                    current_text=current_text,
+                    change=change,
+                )
+                rendered_by_file[selected_path] = new_text
+                trace_by_file[selected_path] = trace
+                if selected_path not in render_order:
+                    render_order.append(selected_path)
+                working_files[selected_path] = new_text
+                working_exists[selected_path] = True
+
             else:
                 logger.warning(
                     "Unsupported file change type '%s' for path '%s'; skipping change.",
@@ -987,7 +1030,195 @@ class RemediationAgent:
                 )
                 continue
 
-        return [{"file": path, "content": rendered_by_file[path]} for path in render_order]
+        rendered_output: list[dict[str, Any]] = []
+        for path in render_order:
+            item: dict[str, Any] = {"file": path, "content": rendered_by_file[path]}
+            patch_trace: dict[str, Any] | None = trace_by_file.get(path)
+            if patch_trace is not None:
+                item["patch_drafting_trace"] = patch_trace
+            rendered_output.append(item)
+        return rendered_output
+
+    async def _render_bounded_patch_change(
+        self,
+        *,
+        file_path: str,
+        current_text: str,
+        change: dict[str, Any],
+    ) -> tuple[str, dict[str, Any]]:
+        """Render one bounded patch change with validation and deterministic fallback."""
+        instructions = str(change.get("instructions") or "").strip()
+        if not instructions:
+            raise ValueError(f"bounded_patch missing instructions for {file_path}")
+
+        draft_kind = str(change.get("draft_kind") or "bounded_patch").strip() or "bounded_patch"
+        fallback_content = str(change.get("fallback_content") or "")
+        validation_raw = change.get("validation")
+        if not isinstance(validation_raw, dict):
+            raise ValueError(f"bounded_patch missing validation metadata for {file_path}")
+        validation: dict[str, Any] = validation_raw
+
+        trace: dict[str, Any] = {
+            "file": file_path,
+            "task": "patch_drafting",
+            "draft_kind": draft_kind,
+            "validation": {
+                "must_contain": list(validation.get("must_contain") or []),
+                "max_bytes": validation.get("max_bytes"),
+            },
+            "outcome": "not_attempted",
+        }
+
+        try:
+            agent = await self._get_patch_drafting_agent()
+            response = await agent.run(
+                self._build_bounded_patch_prompt(
+                    file_path=file_path,
+                    current_text=current_text,
+                    instructions=instructions,
+                    validation=validation,
+                )
+            )
+            drafted_text = self._extract_bounded_patch_content(str(response or ""))
+            self._validate_bounded_patch_content(
+                file_path=file_path,
+                content=drafted_text,
+                draft_kind=draft_kind,
+                validation=validation,
+            )
+            trace["outcome"] = "drafted"
+            trace["used_fallback"] = False
+            return drafted_text if drafted_text.endswith("\n") else f"{drafted_text}\n", trace
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            trace["draft_error"] = str(exc)
+            if fallback_content:
+                self._validate_bounded_patch_content(
+                    file_path=file_path,
+                    content=fallback_content,
+                    draft_kind=draft_kind,
+                    validation=validation,
+                )
+                trace["outcome"] = "fallback_content"
+                trace["used_fallback"] = True
+                return (
+                    fallback_content if fallback_content.endswith("\n") else f"{fallback_content}\n",
+                    trace,
+                )
+            trace["outcome"] = "validation_failed"
+            raise ValueError(f"bounded_patch failed for {file_path}: {exc}") from exc
+
+    @staticmethod
+    def _build_bounded_patch_prompt(
+        *,
+        file_path: str,
+        current_text: str,
+        instructions: str,
+        validation: dict[str, Any],
+    ) -> str:
+        """Build a constrained patch-drafting prompt for one file."""
+        must_contain = [str(item).strip() for item in validation.get("must_contain", []) if str(item).strip()]
+        max_bytes = validation.get("max_bytes")
+        current_block = current_text if current_text.strip() else "<new file>"
+        return (
+            "Draft the full contents for exactly one repository file.\n\n"
+            f"Target file: {file_path}\n"
+            "Edit mode: bounded single-file draft\n\n"
+            "Instructions:\n"
+            f"{instructions}\n\n"
+            "Validation requirements:\n"
+            f"- Required substrings: {must_contain or ['<none>']}\n"
+            f"- Max bytes: {max_bytes if max_bytes is not None else 'unspecified'}\n\n"
+            "Current file contents:\n"
+            f"{current_block}\n\n"
+            'Return JSON only: {"content":"<full file contents>"}'
+        )
+
+    @staticmethod
+    def _extract_bounded_patch_content(response: str) -> str:
+        """Extract full-file content from a bounded patch drafting response."""
+        cleaned = response.strip()
+        if not cleaned:
+            raise ValueError("empty patch draft response")
+
+        try:
+            payload = json.loads(cleaned)
+        except json.JSONDecodeError:
+            start = cleaned.find("{")
+            end = cleaned.rfind("}")
+            if start >= 0 and end > start:
+                payload = json.loads(cleaned[start : end + 1])
+            else:
+                raise ValueError(
+                    "patch draft response is not valid JSON and no JSON object could be extracted"
+                ) from None
+
+        if not isinstance(payload, dict):
+            raise ValueError("patch draft response must be a JSON object")
+
+        content = payload.get("content")
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("patch draft response missing non-empty content")
+        return content
+
+    @staticmethod
+    def _validate_bounded_patch_content(
+        *,
+        file_path: str,
+        content: str,
+        draft_kind: str,
+        validation: dict[str, Any],
+    ) -> None:
+        """Validate bounded patch output before it is written to the repo."""
+        normalized = content if content.endswith("\n") else f"{content}\n"
+        max_bytes = validation.get("max_bytes")
+        if isinstance(max_bytes, int) and max_bytes > 0:
+            size = len(normalized.encode("utf-8"))
+            if size > max_bytes:
+                raise ValueError(
+                    f"bounded patch for {file_path} exceeds max_bytes ({size} > {max_bytes})"
+                )
+
+        required_substrings = [
+            str(item).strip() for item in validation.get("must_contain", []) if str(item).strip()
+        ]
+        missing = [item for item in required_substrings if item not in normalized]
+        if missing:
+            raise ValueError(
+                f"bounded patch for {file_path} is missing required substrings: {missing}"
+            )
+        RemediationAgent._validate_bounded_patch_structure(
+            file_path=file_path,
+            content=normalized,
+            draft_kind=draft_kind,
+        )
+
+    @staticmethod
+    def _validate_bounded_patch_structure(
+        *,
+        file_path: str,
+        content: str,
+        draft_kind: str,
+    ) -> None:
+        """Apply lightweight structure checks for known bounded draft kinds."""
+        if draft_kind != "eslint_flat_config":
+            return
+
+        checks = [
+            ("export default", "missing `export default`"),
+            ("files: [", "missing `files` array"),
+            ("languageOptions: {", "missing `languageOptions` block"),
+            ('ecmaVersion: "latest"', "missing quoted `ecmaVersion: \"latest\"`"),
+            ('sourceType: "module"', "missing quoted `sourceType: \"module\"`"),
+            ("rules: {}", "missing empty `rules` object"),
+            ("];", "missing config terminator"),
+        ]
+        missing_reasons = [reason for needle, reason in checks if needle not in content]
+        if missing_reasons:
+            raise ValueError(
+                f"bounded patch for {file_path} failed eslint_flat_config checks: {missing_reasons}"
+            )
 
     async def _get_text_file_if_exists(
         self,

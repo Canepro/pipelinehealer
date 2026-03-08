@@ -274,6 +274,17 @@ def _plan_validation_passed(plan: RemediationPlan) -> bool:
                 if not (change.get("file") or change.get("files")):
                     return False
                 continue
+            if change_type == "bounded_patch":
+                if not change.get("file"):
+                    return False
+                if not str(change.get("instructions") or "").strip():
+                    return False
+                validation = change.get("validation")
+                if not isinstance(validation, dict):
+                    return False
+                if not str(change.get("fallback_content") or "").strip():
+                    return False
+                continue
             if change.get("file") and change.get("content") is not None:
                 continue
             return False

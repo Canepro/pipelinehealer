@@ -1,4 +1,4 @@
-<!-- LAST_VERIFIED: b5bb08d -->
+<!-- LAST_VERIFIED: aec8f84 -->
 
 # Diagnosis and Remediation Architecture Plan
 
@@ -372,6 +372,12 @@ Portable rules:
 - publish success criteria for role/model changes
 - gate rollout on eval performance plus real canary evidence
 
+### Phase 5: Incident-Driven Quality Hardening
+
+- add live-incident regressions from PipelineHealer-generated issues into the fixture corpus
+- remove generic review-only issue fallbacks when the system has failing-step, command, or static-analysis context
+- formalize generated-issue to human-PR linkage and stale-issue closure behavior
+
 ## Implementation Checklist
 
 Use this checklist for the `v0.6.0` workstream.
@@ -379,7 +385,7 @@ Use this checklist for the `v0.6.0` workstream.
 ### Docs and contract
 
 - [ ] API and activity payload contract updated for new typed diagnosis fields
-- [ ] runtime docs updated to explain deterministic-first extraction plus bounded patch drafting
+- [x] runtime docs updated to explain deterministic-first extraction plus bounded patch drafting
 - [ ] learning-system docs updated to describe structured retrieval injection
 
 ### Diagnosis layer
@@ -394,20 +400,23 @@ Use this checklist for the `v0.6.0` workstream.
 
 - [ ] diagnosis prompt updated to require failure-type-specific structured JSON
 - [ ] parser rejects incomplete or malformed structured payloads cleanly
-- [ ] role mapping documented for `analysis`, `diagnosis_refinement`, `patch_drafting`, and `operator_summary`
+- [x] role mapping documented for `analysis`, `diagnosis_refinement`, `patch_drafting`, and `operator_summary`
 
 ### Remediation layer
 
 - [ ] generators consume typed fields instead of generic `suggested_fix` prose
 - [ ] issue templates render typed evidence blocks
-- [ ] bounded patch drafting path introduced only for safe, known edit classes
-- [ ] validation and fallback-to-issue behavior implemented for bounded patches
+- [x] bounded patch drafting path introduced only for safe, known edit classes
+- [x] validation and fallback-to-issue behavior implemented for bounded patches
 
 ### Evaluation and rollout
 
 - [x] incident fixture set created for dependency, lint, test, timeout, and build-config cases
 - [x] eval metrics recorded for classification accuracy, field completeness, action correctness, and validation pass rate
 - [x] rollout gates defined for schema changes and model-role changes
+- [ ] live incident regressions from generated issues are added to the eval corpus before release closeout
+- [ ] generated issue quality avoids generic empty-count titles and bodies for static-analysis/import-blocking failures
+- [ ] generated review issues can be linked to active human fix PRs with auto-close semantics and stale-issue cleanup guidance
 
 ## Suggested PR Slices
 
@@ -418,6 +427,7 @@ Recommended PR order for `v0.6.0`:
 3. remediation generator alignment
 4. bounded patch drafting path
 5. eval harness and rollout gate wiring
+6. incident-driven eval and issue-quality hardening
 
 ## Recommended Immediate Next Step
 

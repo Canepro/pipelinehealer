@@ -244,6 +244,31 @@ async def test_lint_autofix_workflow_pr_uses_structured_autofix_command() -> Non
 
 
 @pytest.mark.asyncio
+async def test_lint_missing_eslint_config_uses_bounded_patch_plan() -> None:
+    gen = FixGenerators(heal_mode="safe")
+    plan = await gen.generate_fix(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.LINT,
+            confidence=0.95,
+            root_cause="ESLint could not find a flat config",
+            is_auto_fixable=True,
+            error_details={
+                "linter": "eslint",
+                "missing_file": "eslint.config.js",
+                "config_file": "eslint.config.js",
+            },
+            suggested_fix="Add `eslint.config.js` so eslint can load its required configuration.",
+        ),
+        repository_info={},
+    )
+    assert plan.action == RemediationAction.CREATE_PR
+    assert plan.file_changes
+    assert plan.file_changes[0]["type"] == "bounded_patch"
+    assert plan.file_changes[0]["file"] == "eslint.config.js"
+    assert plan.file_changes[0]["draft_kind"] == "eslint_flat_config"
+
+
+@pytest.mark.asyncio
 async def test_lint_autofix_workflow_ignores_untrusted_command_override() -> None:
     gen = FixGenerators(heal_mode="safe")
     plan = await gen.generate_fix(

@@ -90,6 +90,21 @@ def test_resolve_model_for_task_falls_back_to_provider_default() -> None:
     assert model == "gpt-4o-mini"
 
 
+def test_resolve_model_for_patch_drafting_uses_remediation_override() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="azure_openai",
+        azure_openai_deployment_name="gpt-5-mini",
+        llm_model_remediation="gpt-5.1-codex-mini",
+    )
+    model = _resolve_model_for_task(
+        settings=settings,
+        provider=LLMProviderName.AZURE_OPENAI,
+        task="patch_drafting",
+    )
+    assert model == "gpt-5.1-codex-mini"
+
+
 def test_create_cloud_agent_openai_compatible_accepts_task_override_model() -> None:
     settings = Settings(
         _env_file=None,

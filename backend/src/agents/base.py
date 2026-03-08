@@ -15,7 +15,14 @@ from ..llm.telemetry import record_llm_call
 
 logger = logging.getLogger(__name__)
 
-LLMTaskName = Literal["default", "analysis", "diagnosis", "remediation", "orchestrator"]
+LLMTaskName = Literal[
+    "default",
+    "analysis",
+    "diagnosis",
+    "remediation",
+    "patch_drafting",
+    "orchestrator",
+]
 
 # Retry settings for transient LLM errors (429, 5xx, network).
 _LLM_MAX_RETRIES = 3
@@ -217,6 +224,7 @@ def _resolve_model_for_task(*, settings: Any, provider: LLMProviderName, task: L
         "analysis": "llm_model_analysis",
         "diagnosis": "llm_model_diagnosis",
         "remediation": "llm_model_remediation",
+        "patch_drafting": "llm_model_remediation",
         "default": "",
         "orchestrator": "",
     }
@@ -495,6 +503,23 @@ Guidelines:
 - Always provide clear documentation of what was found
 
 Be conservative - when in doubt, create an issue rather than a potentially broken PR.""",
+    "patch_drafting": """You are a Patch Drafting Agent specialized in producing bounded, reviewable file edits.
+
+Your role is to:
+1. Draft the full contents of exactly one file for a narrowly-scoped remediation plan.
+2. Stay strictly within the provided file path, edit class, and guardrails.
+3. Return only machine-readable output.
+
+Rules:
+- Never change files outside the requested target path.
+- Never add commentary, markdown fences, or explanations.
+- Never invent extra configuration unrelated to the requested fix.
+- If the request is ambiguous or unsafe, return an empty content payload.
+
+Output format:
+Return valid JSON only:
+{"content": "<full file contents>"}
+""",
     "orchestrator": """You are the Orchestrator Agent for PipelineHealer, a CI/CD self-healing system.
 
 Your role is to:

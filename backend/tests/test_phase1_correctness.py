@@ -1,6 +1,7 @@
 """Phase 1 correctness tests (IDs, retry, and remediation file change rendering)."""
 
 import base64
+import json
 
 import httpx
 import pytest
@@ -26,6 +27,20 @@ from src.models import (
 )
 from src.storage import InMemoryStorage
 from src.tools.fix_generators import NotAutoApplyReason
+
+
+ESLINT_FLAT_CONFIG = (
+    "export default [\n"
+    "  {\n"
+    "    files: [\"**/*.{js,mjs,cjs}\"],\n"
+    "    languageOptions: {\n"
+    "      ecmaVersion: \"latest\",\n"
+    "      sourceType: \"module\",\n"
+    "    },\n"
+    "    rules: {},\n"
+    "  },\n"
+    "];\n"
+)
 
 
 @pytest.fixture(autouse=True)
@@ -765,6 +780,170 @@ async def test_remediation_renders_json_update_into_content() -> None:
 
 
 @pytest.mark.asyncio
+async def test_remediation_renders_bounded_patch_with_fallback_and_trace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gh = FakeGitHubToolsWithFiles(files={})
+    agent = RemediationAgent(github_tools=gh)
+
+    class _EmptyPatchAgent:
+        async def run(self, prompt: str) -> str:
+            _ = prompt
+            return ""
+
+    async def _fake_get_patch_drafting_agent() -> _EmptyPatchAgent:
+        return _EmptyPatchAgent()
+
+    monkeypatch.setattr(agent, "_get_patch_drafting_agent", _fake_get_patch_drafting_agent)
+
+    rendered = await agent._render_file_changes(
+        owner="octo",
+        repo="demo",
+        base_ref="main",
+        file_changes=[
+            {
+                "file": "eslint.config.js",
+                "type": "bounded_patch",
+                "draft_kind": "eslint_flat_config",
+                "instructions": "Draft a minimal ESLint flat config.",
+                "fallback_content": ESLINT_FLAT_CONFIG,
+                "validation": {
+                    "must_contain": ["export default", "rules: {}", 'ecmaVersion: "latest"'],
+                    "max_bytes": 400,
+                },
+            }
+        ],
+    )
+
+    assert len(rendered) == 1
+    assert rendered[0]["file"] == "eslint.config.js"
+    assert rendered[0]["content"] == ESLINT_FLAT_CONFIG
+    trace = rendered[0]["patch_drafting_trace"]
+    assert trace["task"] == "patch_drafting"
+    assert trace["outcome"] == "fallback_content"
+    assert trace["used_fallback"] is True
+
+
+@pytest.mark.asyncio
+async def test_remediation_bounded_patch_rejects_invalid_draft_without_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gh = FakeGitHubToolsWithFiles(files={})
+    agent = RemediationAgent(github_tools=gh)
+
+    class _InvalidPatchAgent:
+        async def run(self, prompt: str) -> str:
+            _ = prompt
+            return '{"content":"console.log(1)"}'
+
+    async def _fake_get_patch_drafting_agent() -> _InvalidPatchAgent:
+        return _InvalidPatchAgent()
+
+    monkeypatch.setattr(agent, "_get_patch_drafting_agent", _fake_get_patch_drafting_agent)
+
+    with pytest.raises(ValueError, match="missing required substrings"):
+        await agent._render_file_changes(
+            owner="octo",
+            repo="demo",
+            base_ref="main",
+            file_changes=[
+                {
+                    "file": "eslint.config.js",
+                    "type": "bounded_patch",
+                    "draft_kind": "eslint_flat_config",
+                    "instructions": "Draft a minimal ESLint flat config.",
+                    "validation": {
+                        "must_contain": ["export default", "rules: {}"],
+                        "max_bytes": 200,
+                    },
+                }
+            ],
+        )
+
+
+@pytest.mark.asyncio
+async def test_remediation_bounded_patch_rejects_non_json_output_without_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gh = FakeGitHubToolsWithFiles(files={})
+    agent = RemediationAgent(github_tools=gh)
+
+    class _NonJsonPatchAgent:
+        async def run(self, prompt: str) -> str:
+            _ = prompt
+            return "here is your config draft"
+
+    async def _fake_get_patch_drafting_agent() -> _NonJsonPatchAgent:
+        return _NonJsonPatchAgent()
+
+    monkeypatch.setattr(agent, "_get_patch_drafting_agent", _fake_get_patch_drafting_agent)
+
+    with pytest.raises(ValueError, match="not valid JSON"):
+        await agent._render_file_changes(
+            owner="octo",
+            repo="demo",
+            base_ref="main",
+            file_changes=[
+                {
+                    "file": "eslint.config.js",
+                    "type": "bounded_patch",
+                    "draft_kind": "eslint_flat_config",
+                    "instructions": "Draft a minimal ESLint flat config.",
+                    "validation": {
+                        "must_contain": ["export default", "rules: {}"],
+                        "max_bytes": 200,
+                    },
+                }
+            ],
+        )
+
+
+@pytest.mark.asyncio
+async def test_remediation_bounded_patch_rejects_invalid_eslint_structure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gh = FakeGitHubToolsWithFiles(files={})
+    agent = RemediationAgent(github_tools=gh)
+
+    class _StructurallyInvalidPatchAgent:
+        async def run(self, prompt: str) -> str:
+            _ = prompt
+            return (
+                '{"content":"export default [{ files: [\\"**/*.{js,mjs,cjs}\\"], '
+                'languageOptions: { ecmaVersion: latest, sourceType: \\"module\\" }, '
+                'rules: {} }];"}'
+            )
+
+    async def _fake_get_patch_drafting_agent() -> _StructurallyInvalidPatchAgent:
+        return _StructurallyInvalidPatchAgent()
+
+    monkeypatch.setattr(agent, "_get_patch_drafting_agent", _fake_get_patch_drafting_agent)
+
+    with pytest.raises(ValueError, match="eslint_flat_config checks"):
+        await agent._render_file_changes(
+            owner="octo",
+            repo="demo",
+            base_ref="main",
+            file_changes=[
+                {
+                    "file": "eslint.config.js",
+                    "type": "bounded_patch",
+                    "draft_kind": "eslint_flat_config",
+                    "instructions": "Draft a minimal ESLint flat config.",
+                    "validation": {
+                        "must_contain": [
+                            "export default",
+                            "**/*.{js,mjs,cjs}",
+                            "rules: {}",
+                        ],
+                        "max_bytes": 400,
+                    },
+                }
+            ],
+        )
+
+
+@pytest.mark.asyncio
 async def test_dashboard_retry_calls_rerun_failed_jobs() -> None:
     storage = InMemoryStorage()
     gh = FakeGitHubTools()
@@ -1024,6 +1203,61 @@ async def test_create_pr_reuses_existing_open_pr_on_ref_collision() -> None:
     assert result.pr_url == "https://github.com/octo/demo/pull/88"
     assert result.details.get("reused_existing_pr") is True
     assert gh.created_pr is False
+
+
+@pytest.mark.asyncio
+async def test_create_pr_records_patch_drafting_trace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gh = FakeGitHubToolsCapturePR(files={})
+    agent = RemediationAgent(github_tools=gh)
+
+    class _DraftingAgent:
+        async def run(self, prompt: str) -> str:
+            _ = prompt
+            return json.dumps({"content": ESLINT_FLAT_CONFIG})
+
+    async def _fake_get_patch_drafting_agent() -> _DraftingAgent:
+        return _DraftingAgent()
+
+    monkeypatch.setattr(agent, "_get_patch_drafting_agent", _fake_get_patch_drafting_agent)
+
+    plan = RemediationPlan(
+        action=RemediationAction.CREATE_PR,
+        description="Add eslint flat config",
+        branch_name="fix/lint-eslint-config",
+        pr_title="fix(lint): add eslint.config.js",
+        pr_body="body",
+        file_changes=[
+            {
+                "file": "eslint.config.js",
+                "type": "bounded_patch",
+                "draft_kind": "eslint_flat_config",
+                "instructions": "Draft a minimal ESLint flat config.",
+                "fallback_content": ESLINT_FLAT_CONFIG,
+                "validation": {
+                    "must_contain": ["export default", "rules: {}", 'ecmaVersion: "latest"'],
+                    "max_bytes": 400,
+                },
+            }
+        ],
+    )
+
+    result = await agent._create_pull_request(
+        plan=plan,
+        owner="octo",
+        repo="demo",
+        base_branch="main",
+        workflow_run_id=901,
+    )
+
+    assert result.success is True
+    assert result.action_taken == RemediationAction.CREATE_PR
+    traces = result.details.get("patch_drafting_trace")
+    assert isinstance(traces, list)
+    assert traces[0]["file"] == "eslint.config.js"
+    assert traces[0]["outcome"] == "drafted"
+    assert traces[0]["used_fallback"] is False
 
 
 # ---------------------------------------------------------------------------

@@ -96,6 +96,11 @@ Theme: LLM capability contract hardening + learning-ops rework.
    - implementation framing recorded in `docs/LLM_PROVIDER_RESEARCH_AND_PLAN.md`
    - diagnosis/remediation contract hardening recorded in `docs/DIAGNOSIS_REMEDIATION_ARCHITECTURE_PLAN.md`
    - implementation PRs for this workstream should declare `v0.6.0`, `minor`, and `Changed`
+6. Incident-driven diagnosis/remediation hardening
+   - convert live PipelineHealer incidents into regression fixtures, not just synthetic examples
+   - improve review-only issue quality so titles and bodies stay specific even when deterministic evidence is partial
+   - link generated review issues to the active human fix PR when one exists, and close stale/superseded generated issues promptly
+   - use bounded patch validation lessons from live CI failures to harden safe AI-assisted edit classes before widening scope
 
 ### Exit Criteria
 
@@ -104,6 +109,7 @@ Theme: LLM capability contract hardening + learning-ops rework.
 3. Learning candidates are grounded in verification/evidence quality, not just recurrence counts.
 4. Active learning artifacts can be injected back into diagnosis/remediation as structured context.
 5. Docs and operator surfaces describe the learning system honestly as a governed LLM-assisted subsystem rather than a generic queue.
+6. Real incident regressions that surfaced during `v0.6.0` work are captured in evals or tracked follow-on slices before release closeout.
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
@@ -523,6 +529,9 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-053` | ACA reference integration path: wire live ACA handoff from `copy_only` to real `webhook` mode via the receiver without baking Azure assumptions into core product | `v0.5.0` | minor | High | Completed (merged to `main`; ACA backend now runs live webhook mode against the receiver) |
 | `BL-054` | Operator-facing integration status surfacing for external receiver/notification dependencies (docs first, product surface where justified) | `v0.5.0` | minor | Medium | Completed (merged to `main`; receiver/integration health now surfaces in Settings and Control Center with session-first admin UX) |
 | `BL-055` | Frontend coherence patch: explicit 404 routing for public paths plus semantic badge-theme cleanup after live `v0.5.0` validation ([#92](https://github.com/Canepro/pipelinehealer/issues/92)) | `v0.5.1` | patch | Medium | In Progress |
+| `BL-056` | Incident-derived eval expansion for diagnosis/remediation hardening: capture live regressions like stale dependency suggestions, zero-count failure issues, and static-analysis/bounded-draft failures as first-class fixtures | `v0.6.0` | minor | High | Planned |
+| `BL-057` | Review-only issue quality hardening: remove generic titles/body fallbacks (`unknown violations`, `0 test(s) failed`) by using failing-step/failing-command/static-analysis context when structured evidence is partial | `v0.6.0` | minor | High | Planned |
+| `BL-058` | PipelineHealer-generated issue lifecycle hygiene: validate, link, and auto-close active review issues from human fix PRs, and close stale/superseded generated issues with audit comments | `v0.6.0` | patch/minor | Medium | Planned |
 
 ## Definition of Done (Per Version)
 
