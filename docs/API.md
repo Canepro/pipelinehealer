@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 51d0763 -->
+<!-- LAST_VERIFIED: 85beac6 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -1016,6 +1016,12 @@ Returns governance learning-queue records (candidate/approved/rejected/active/re
     "verification_partial_count": 0,
     "verification_fail_count": 0,
     "verification_pass_rate": 1.0,
+    "guidance_application_count": 3,
+    "guidance_feedback_count": 2,
+    "guidance_helped_count": 1,
+    "guidance_neutral_count": 1,
+    "guidance_hurt_count": 0,
+    "guidance_help_rate": 0.5,
     "latest_activity_at": "2026-02-18T20:14:00Z",
     "status": "candidate",
     "decision_reason": "",
@@ -1140,6 +1146,7 @@ Captures operator verification outcomes for one activity and links that evidence
   "identification": "pass",
   "diagnosis": "partial",
   "remediation": "pass",
+  "guidance_effectiveness": "helped",
   "notes": "Diagnosis needed minor correction after rerun.",
   "issue_number": 25,
   "target_version": "vX.Y.Z"
@@ -1147,6 +1154,8 @@ Captures operator verification outcomes for one activity and links that evidence
 ```
 
 Outcomes are `pass|partial|fail`.
+`guidance_effectiveness` is optional and only valid when the activity contains `remediation_result.details.applied_learning_context`.
+Allowed values are `helped|neutral|hurt`.
 
 `overall` is derived server-side:
 - if any dimension is `fail` -> `fail`
@@ -1167,6 +1176,7 @@ Outcomes are `pass|partial|fail`.
 Side effects:
 - Updates `remediation_result.details.verification` and appends `verification_history`.
 - Recomputes verification counters/readiness for affected learning candidates.
+- Recomputes applied-guidance effectiveness metrics for any active playbook linked to the activity, based on a bounded recent activity window rather than the full historical activity set (`guidance_application_count`, `guidance_feedback_count`, `guidance_helped_count`, `guidance_neutral_count`, `guidance_hurt_count`, `guidance_help_rate`).
 - Appends admin audit entry with `changed_keys=["learning_verification_feedback"]`.
 
 #### `GET /api/settings/audit`

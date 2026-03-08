@@ -36,6 +36,7 @@ from ..models import (
     AppSettingsView,
     DashboardStats,
     FailureType,
+    LearningGuidanceEffectiveness,
     LearningPromotionReadiness,
     LearningQueueDecisionRequest,
     LearningQueueItem,
@@ -587,6 +588,17 @@ def _normalize_verification_outcome(value: Any) -> str | None:
     return None
 
 
+def _normalize_guidance_effectiveness(value: Any) -> str | None:
+    normalized = str(value or "").strip().lower()
+    if normalized in {
+        LearningGuidanceEffectiveness.HELPED.value,
+        LearningGuidanceEffectiveness.NEUTRAL.value,
+        LearningGuidanceEffectiveness.HURT.value,
+    }:
+        return normalized
+    return None
+
+
 def _derive_verification_overall(
     *,
     identification: str,
@@ -622,13 +634,82 @@ def _extract_activity_verification(activity: ActivityRecord) -> dict[str, Any] |
         diagnosis=diagnosis,
         remediation=remediation_outcome,
     )
+    guidance_effectiveness = _normalize_guidance_effectiveness(
+        payload.get("guidance_effectiveness")
+    )
     return {
         "identification": identification,
         "diagnosis": diagnosis,
         "remediation": remediation_outcome,
         "overall": overall,
+        "guidance_effectiveness": guidance_effectiveness,
         "recorded_at": payload.get("recorded_at"),
         "issue_number": payload.get("issue_number"),
+    }
+
+
+def _extract_applied_learning_context(activity: ActivityRecord) -> dict[str, Any] | None:
+    """Extract normalized applied learning guidance metadata from one activity result."""
+    remediation = activity.remediation_result
+    if remediation is None or not isinstance(remediation.details, dict):
+        return None
+    payload = remediation.details.get("applied_learning_context")
+    if not isinstance(payload, dict):
+        return None
+    candidate_id = str(payload.get("id") or "").strip()
+    if not candidate_id:
+        return None
+    return {
+        "id": candidate_id,
+        "title": str(payload.get("title") or "").strip(),
+        "reason_code": _normalize_reason_code(payload.get("reason_code")),
+        "match_rank": payload.get("match_rank"),
+        "match_score": payload.get("match_score"),
+    }
+
+
+def _compute_guidance_metrics(
+    candidate_id: str,
+    activities: list[ActivityRecord],
+) -> dict[str, int | float]:
+    """Compute bounded applied-guidance metrics for one learning candidate."""
+    guidance_application_count = 0
+    guidance_feedback_count = 0
+    guidance_helped_count = 0
+    guidance_neutral_count = 0
+    guidance_hurt_count = 0
+
+    for activity in activities:
+        applied_learning = _extract_applied_learning_context(activity)
+        if applied_learning is None or applied_learning.get("id") != candidate_id:
+            continue
+        guidance_application_count += 1
+        verification = _extract_activity_verification(activity)
+        guidance_effectiveness = (
+            str(verification.get("guidance_effectiveness") or "") if verification else ""
+        )
+        if guidance_effectiveness == LearningGuidanceEffectiveness.HELPED.value:
+            guidance_feedback_count += 1
+            guidance_helped_count += 1
+        elif guidance_effectiveness == LearningGuidanceEffectiveness.NEUTRAL.value:
+            guidance_feedback_count += 1
+            guidance_neutral_count += 1
+        elif guidance_effectiveness == LearningGuidanceEffectiveness.HURT.value:
+            guidance_feedback_count += 1
+            guidance_hurt_count += 1
+
+    guidance_help_rate = (
+        round((guidance_helped_count / guidance_feedback_count), 4)
+        if guidance_feedback_count > 0
+        else 0.0
+    )
+    return {
+        "guidance_application_count": guidance_application_count,
+        "guidance_feedback_count": guidance_feedback_count,
+        "guidance_helped_count": guidance_helped_count,
+        "guidance_neutral_count": guidance_neutral_count,
+        "guidance_hurt_count": guidance_hurt_count,
+        "guidance_help_rate": guidance_help_rate,
     }
 
 
@@ -771,14 +852,13 @@ def _summarize_learning_title(
     return f"{failure}: unclassified recurring incident"
 
 
-async def _collect_recent_activities(
+async def _collect_bounded_activities(
     storage: ActivityStorage,
     *,
-    lookback_hours: float,
     max_scan: int,
+    since: datetime | None = None,
 ) -> list[ActivityRecord]:
-    """Collect recent activities with bounded pagination for learning refresh."""
-    since = utcnow() - timedelta(hours=lookback_hours)
+    """Collect activities with bounded pagination for refresh and metrics recomputation."""
     collected: list[ActivityRecord] = []
     offset = 0
     page_size = min(100, max_scan)
@@ -793,6 +873,17 @@ async def _collect_recent_activities(
         if len(batch) < limit:
             break
     return collected
+
+
+async def _collect_recent_activities(
+    storage: ActivityStorage,
+    *,
+    lookback_hours: float,
+    max_scan: int,
+) -> list[ActivityRecord]:
+    """Collect recent activities with bounded pagination for learning refresh."""
+    since = utcnow() - timedelta(hours=lookback_hours)
+    return await _collect_bounded_activities(storage, max_scan=max_scan, since=since)
 
 
 def _extract_learning_candidates(
@@ -841,6 +932,11 @@ def _extract_learning_candidates(
                 "verification_pass_count": 0,
                 "verification_partial_count": 0,
                 "verification_fail_count": 0,
+                "guidance_application_count": 0,
+                "guidance_feedback_count": 0,
+                "guidance_helped_count": 0,
+                "guidance_neutral_count": 0,
+                "guidance_hurt_count": 0,
                 "latest_activity_at": None,
             },
         )
@@ -899,6 +995,16 @@ def _extract_learning_candidates(
         )
         candidate.promotion_readiness = _evaluate_learning_promotion_readiness(candidate)
         candidates.append(candidate)
+
+    candidates_by_id = {candidate.id: candidate for candidate in candidates}
+    for candidate in candidates:
+        guidance_metrics = _compute_guidance_metrics(candidate.id, activities)
+        candidate.guidance_application_count = int(guidance_metrics["guidance_application_count"])
+        candidate.guidance_feedback_count = int(guidance_metrics["guidance_feedback_count"])
+        candidate.guidance_helped_count = int(guidance_metrics["guidance_helped_count"])
+        candidate.guidance_neutral_count = int(guidance_metrics["guidance_neutral_count"])
+        candidate.guidance_hurt_count = int(guidance_metrics["guidance_hurt_count"])
+        candidate.guidance_help_rate = float(guidance_metrics["guidance_help_rate"])
     epoch = datetime.fromtimestamp(0, tz=utcnow().tzinfo)
     candidates.sort(
         key=lambda item: (item.latest_activity_at or epoch).timestamp(),
@@ -2177,6 +2283,12 @@ async def record_learning_feedback(
         if isinstance(activity.remediation_result.details, dict)
         else {}
     )
+    applied_learning_context = _extract_applied_learning_context(activity)
+    if payload.guidance_effectiveness is not None and applied_learning_context is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Activity has no applied learning guidance to rate",
+        )
     actor = _build_admin_settings_actor_fingerprint(
         request=request,
         x_admin_key=x_admin_key,
@@ -2192,6 +2304,9 @@ async def record_learning_feedback(
         "diagnosis": payload.diagnosis.value,
         "remediation": payload.remediation.value,
         "overall": verification_overall,
+        "guidance_effectiveness": (
+            payload.guidance_effectiveness.value if payload.guidance_effectiveness is not None else None
+        ),
         "notes": payload.notes.strip(),
         "issue_number": payload.issue_number,
         "issue_url": (payload.issue_url or "").strip() or None,
@@ -2209,13 +2324,18 @@ async def record_learning_feedback(
     await storage.update_activity(activity)
 
     updated_candidate_ids: list[str] = []
+    activity_window: list[ActivityRecord] = []
     existing_items = await storage.list_learning_queue_items(limit=300)
     for row in existing_items:
         try:
             candidate = LearningQueueItem(**row)
         except Exception:
             continue
-        if activity.id not in candidate.sample_activity_ids:
+        candidate_was_sampled = activity.id in candidate.sample_activity_ids
+        candidate_received_guidance = (
+            applied_learning_context is not None and applied_learning_context.get("id") == candidate.id
+        )
+        if not candidate_was_sampled and not candidate_received_guidance:
             continue
         pass_count = 0
         partial_count = 0
@@ -2241,6 +2361,16 @@ async def record_learning_feedback(
         candidate.verification_partial_count = partial_count
         candidate.verification_fail_count = fail_count
         candidate.verification_pass_rate = round((pass_count / sample_count), 4) if sample_count > 0 else 0.0
+        if candidate_received_guidance:
+            if not activity_window:
+                activity_window = await _collect_bounded_activities(storage, max_scan=2000)
+            guidance_metrics = _compute_guidance_metrics(candidate.id, activity_window)
+            candidate.guidance_application_count = int(guidance_metrics["guidance_application_count"])
+            candidate.guidance_feedback_count = int(guidance_metrics["guidance_feedback_count"])
+            candidate.guidance_helped_count = int(guidance_metrics["guidance_helped_count"])
+            candidate.guidance_neutral_count = int(guidance_metrics["guidance_neutral_count"])
+            candidate.guidance_hurt_count = int(guidance_metrics["guidance_hurt_count"])
+            candidate.guidance_help_rate = float(guidance_metrics["guidance_help_rate"])
         candidate.updated_at = recorded_at
         candidate.promotion_readiness = _evaluate_learning_promotion_readiness(candidate)
         await storage.upsert_learning_queue_item(candidate.model_dump(mode="json"))

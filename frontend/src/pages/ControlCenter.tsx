@@ -1582,6 +1582,20 @@ function LearningQueueItemRow({
               )}
             </>
           )}
+          {item.guidance_application_count > 0 && (
+            <p>
+              Guidance applied on {item.guidance_application_count} run
+              {item.guidance_application_count === 1 ? "" : "s"}
+              {item.guidance_feedback_count > 0 && (
+                <>
+                  {" · "}
+                  {(item.guidance_help_rate * 100).toFixed(0)}% helped
+                  {" · "}
+                  {item.guidance_hurt_count} hurt
+                </>
+              )}
+            </p>
+          )}
         </div>
 
         {/* Keep actions grouped so the queue reads as an operator worklist, not a card gallery. */}

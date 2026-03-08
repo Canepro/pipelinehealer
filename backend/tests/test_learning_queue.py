@@ -66,6 +66,7 @@ async def _post_feedback(
     identification: str,
     diagnosis: str,
     remediation: str,
+    guidance_effectiveness: str | None = None,
     notes: str = "",
     issue_number: int | None = None,
 ) -> httpx.Response:
@@ -77,6 +78,8 @@ async def _post_feedback(
         "remediation": remediation,
         "notes": notes,
     }
+    if guidance_effectiveness is not None:
+        payload["guidance_effectiveness"] = guidance_effectiveness
     if issue_number is not None:
         payload["issue_number"] = issue_number
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -376,3 +379,139 @@ async def test_learning_feedback_updates_candidate_verification_and_readiness() 
     history = details.get("verification_history")
     assert isinstance(history, list)
     assert len(history) >= 2
+
+
+@pytest.mark.asyncio
+async def test_learning_feedback_tracks_guidance_effectiveness_for_applied_playbook() -> None:
+    storage = app.state.storage
+    for run_id in (610, 611):
+        seed = ActivityRecord(
+            repositoryId="repo-1",
+            repository_name="owner/repo",
+            workflow_run_id=run_id,
+            workflow_name="CI",
+            status=RemediationStatus.COMPLETED,
+            failure_type=FailureType.LINT,
+            diagnosis=Diagnosis(
+                failure_type=FailureType.LINT,
+                confidence=0.9,
+                root_cause="ESLint flat config missing",
+                is_auto_fixable=True,
+                suggested_fix="Add eslint.config.js.",
+                error_details={"reason_code": "missing_eslint_flat_config"},
+            ),
+            remediation_result=RemediationResult(
+                success=True,
+                action_taken=RemediationAction.CREATE_PR,
+                details={"reason_code": "missing_eslint_flat_config"},
+            ),
+        )
+        await storage.create_activity(seed)
+
+    refreshed = await _refresh_learning_queue()
+    assert refreshed.status_code == 200
+
+    queue_before = await _get_learning_queue()
+    candidate = queue_before.json()[0]
+    candidate_id = candidate["id"]
+    assert candidate["guidance_application_count"] == 0
+    assert candidate["guidance_feedback_count"] == 0
+
+    guided_activity = ActivityRecord(
+        repositoryId="repo-1",
+        repository_name="owner/repo",
+        workflow_run_id=612,
+        workflow_name="CI",
+        status=RemediationStatus.COMPLETED,
+        failure_type=FailureType.LINT,
+        diagnosis=Diagnosis(
+            failure_type=FailureType.LINT,
+            confidence=0.9,
+            root_cause="ESLint flat config missing",
+            is_auto_fixable=True,
+            suggested_fix="Add eslint.config.js.",
+            error_details={"reason_code": "missing_eslint_flat_config"},
+        ),
+        remediation_result=RemediationResult(
+            success=True,
+            action_taken=RemediationAction.CREATE_PR,
+            details={
+                "applied_learning_context": {
+                    "id": candidate_id,
+                    "title": "Restore ESLint flat config",
+                    "reason_code": "missing_eslint_flat_config",
+                    "match_rank": 1,
+                    "match_score": 0.94,
+                    "verification_pass_rate": 1.0,
+                    "application_mode": "guidance_section",
+                    "action_changed": False,
+                }
+            },
+        ),
+    )
+    activity_id = await storage.create_activity(guided_activity)
+
+    feedback = await _post_feedback(
+        activity_id=activity_id,
+        identification="pass",
+        diagnosis="pass",
+        remediation="pass",
+        guidance_effectiveness="helped",
+        notes="The promoted playbook matched exactly and reduced manual triage.",
+    )
+    assert feedback.status_code == 200
+    assert feedback.json()["verification_overall"] == "pass"
+
+    queue_after = await _get_learning_queue()
+    updated = queue_after.json()[0]
+    assert updated["guidance_application_count"] == 1
+    assert updated["guidance_feedback_count"] == 1
+    assert updated["guidance_helped_count"] == 1
+    assert updated["guidance_neutral_count"] == 0
+    assert updated["guidance_hurt_count"] == 0
+    assert updated["guidance_help_rate"] == 1.0
+
+    updated_activity = await storage.get_activity(activity_id)
+    assert updated_activity is not None
+    details = updated_activity.remediation_result.details if updated_activity.remediation_result else {}
+    verification = details.get("verification")
+    assert isinstance(verification, dict)
+    assert verification.get("guidance_effectiveness") == "helped"
+
+
+@pytest.mark.asyncio
+async def test_learning_feedback_rejects_guidance_effectiveness_without_applied_guidance() -> None:
+    storage = app.state.storage
+    activity = ActivityRecord(
+        repositoryId="repo-1",
+        repository_name="owner/repo",
+        workflow_run_id=620,
+        workflow_name="CI",
+        status=RemediationStatus.COMPLETED,
+        failure_type=FailureType.TEST,
+        diagnosis=Diagnosis(
+            failure_type=FailureType.TEST,
+            confidence=0.8,
+            root_cause="Test failed",
+            is_auto_fixable=False,
+            suggested_fix="Inspect the failing test.",
+            error_details={"reason_code": "test_assertion_failure"},
+        ),
+        remediation_result=RemediationResult(
+            success=True,
+            action_taken=RemediationAction.CREATE_ISSUE,
+            details={},
+        ),
+    )
+    activity_id = await storage.create_activity(activity)
+
+    response = await _post_feedback(
+        activity_id=activity_id,
+        identification="pass",
+        diagnosis="pass",
+        remediation="partial",
+        guidance_effectiveness="neutral",
+        notes="No learning guidance was actually applied here.",
+    )
+    assert response.status_code == 409
+    assert "no applied learning guidance" in response.text.lower()

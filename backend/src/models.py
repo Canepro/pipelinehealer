@@ -663,6 +663,14 @@ class LearningVerificationOutcome(StrEnum):
     FAIL = "fail"
 
 
+class LearningGuidanceEffectiveness(StrEnum):
+    """Operator-rated impact of promoted learning guidance on one activity."""
+
+    HELPED = "helped"
+    NEUTRAL = "neutral"
+    HURT = "hurt"
+
+
 class LearningPromotionReadiness(BaseModel):
     """Promotion-readiness evaluation for activating a learned playbook."""
 
@@ -706,6 +714,12 @@ class LearningQueueItem(BaseModel):
     verification_partial_count: int = 0
     verification_fail_count: int = 0
     verification_pass_rate: float = 0.0
+    guidance_application_count: int = 0
+    guidance_feedback_count: int = 0
+    guidance_helped_count: int = 0
+    guidance_neutral_count: int = 0
+    guidance_hurt_count: int = 0
+    guidance_help_rate: float = 0.0
     latest_activity_at: datetime | None = None
     status: LearningQueueStatus = LearningQueueStatus.CANDIDATE
     decision_reason: str = ""
@@ -740,6 +754,7 @@ class LearningVerificationFeedbackRequest(BaseModel):
     identification: LearningVerificationOutcome
     diagnosis: LearningVerificationOutcome
     remediation: LearningVerificationOutcome
+    guidance_effectiveness: LearningGuidanceEffectiveness | None = None
     notes: str = ""
     issue_number: int | None = Field(default=None, ge=1)
     issue_url: str | None = None
