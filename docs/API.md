@@ -1176,7 +1176,7 @@ Allowed values are `helped|neutral|hurt`.
 Side effects:
 - Updates `remediation_result.details.verification` and appends `verification_history`.
 - Recomputes verification counters/readiness for affected learning candidates.
-- Recomputes applied-guidance effectiveness metrics for any active playbook linked to the activity (`guidance_application_count`, `guidance_feedback_count`, `guidance_helped_count`, `guidance_neutral_count`, `guidance_hurt_count`, `guidance_help_rate`).
+- Recomputes applied-guidance effectiveness metrics for any active playbook linked to the activity, based on a bounded recent activity window rather than the full historical activity set (`guidance_application_count`, `guidance_feedback_count`, `guidance_helped_count`, `guidance_neutral_count`, `guidance_hurt_count`, `guidance_help_rate`).
 - Appends admin audit entry with `changed_keys=["learning_verification_feedback"]`.
 
 #### `GET /api/settings/audit`

@@ -668,6 +668,51 @@ def _extract_applied_learning_context(activity: ActivityRecord) -> dict[str, Any
     }
 
 
+def _compute_guidance_metrics(
+    candidate_id: str,
+    activities: list[ActivityRecord],
+) -> dict[str, int | float]:
+    """Compute bounded applied-guidance metrics for one learning candidate."""
+    guidance_application_count = 0
+    guidance_feedback_count = 0
+    guidance_helped_count = 0
+    guidance_neutral_count = 0
+    guidance_hurt_count = 0
+
+    for activity in activities:
+        applied_learning = _extract_applied_learning_context(activity)
+        if applied_learning is None or applied_learning.get("id") != candidate_id:
+            continue
+        guidance_application_count += 1
+        verification = _extract_activity_verification(activity)
+        guidance_effectiveness = (
+            str(verification.get("guidance_effectiveness") or "") if verification else ""
+        )
+        if guidance_effectiveness == LearningGuidanceEffectiveness.HELPED.value:
+            guidance_feedback_count += 1
+            guidance_helped_count += 1
+        elif guidance_effectiveness == LearningGuidanceEffectiveness.NEUTRAL.value:
+            guidance_feedback_count += 1
+            guidance_neutral_count += 1
+        elif guidance_effectiveness == LearningGuidanceEffectiveness.HURT.value:
+            guidance_feedback_count += 1
+            guidance_hurt_count += 1
+
+    guidance_help_rate = (
+        round((guidance_helped_count / guidance_feedback_count), 4)
+        if guidance_feedback_count > 0
+        else 0.0
+    )
+    return {
+        "guidance_application_count": guidance_application_count,
+        "guidance_feedback_count": guidance_feedback_count,
+        "guidance_helped_count": guidance_helped_count,
+        "guidance_neutral_count": guidance_neutral_count,
+        "guidance_hurt_count": guidance_hurt_count,
+        "guidance_help_rate": guidance_help_rate,
+    }
+
+
 def _extract_activity_reason_code(activity: ActivityRecord) -> str | None:
     """Extract stable reason code from activity diagnosis/remediation context."""
     diagnosis_details = activity.diagnosis.error_details if activity.diagnosis else {}
@@ -952,37 +997,14 @@ def _extract_learning_candidates(
         candidates.append(candidate)
 
     candidates_by_id = {candidate.id: candidate for candidate in candidates}
-    for activity in activities:
-        applied_learning = _extract_applied_learning_context(activity)
-        if applied_learning is None:
-            continue
-        matched_candidate = candidates_by_id.get(str(applied_learning.get("id") or "").strip())
-        if matched_candidate is None:
-            continue
-        matched_candidate.guidance_application_count += 1
-        verification = _extract_activity_verification(activity)
-        guidance_effectiveness = (
-            str(verification.get("guidance_effectiveness") or "") if verification else ""
-        )
-        if guidance_effectiveness not in {
-            LearningGuidanceEffectiveness.HELPED.value,
-            LearningGuidanceEffectiveness.NEUTRAL.value,
-            LearningGuidanceEffectiveness.HURT.value,
-        }:
-            continue
-        matched_candidate.guidance_feedback_count += 1
-        if guidance_effectiveness == LearningGuidanceEffectiveness.HELPED.value:
-            matched_candidate.guidance_helped_count += 1
-        elif guidance_effectiveness == LearningGuidanceEffectiveness.NEUTRAL.value:
-            matched_candidate.guidance_neutral_count += 1
-        else:
-            matched_candidate.guidance_hurt_count += 1
-
     for candidate in candidates:
-        candidate.guidance_help_rate = round(
-            (candidate.guidance_helped_count / candidate.guidance_feedback_count),
-            4,
-        ) if candidate.guidance_feedback_count > 0 else 0.0
+        guidance_metrics = _compute_guidance_metrics(candidate.id, activities)
+        candidate.guidance_application_count = int(guidance_metrics["guidance_application_count"])
+        candidate.guidance_feedback_count = int(guidance_metrics["guidance_feedback_count"])
+        candidate.guidance_helped_count = int(guidance_metrics["guidance_helped_count"])
+        candidate.guidance_neutral_count = int(guidance_metrics["guidance_neutral_count"])
+        candidate.guidance_hurt_count = int(guidance_metrics["guidance_hurt_count"])
+        candidate.guidance_help_rate = float(guidance_metrics["guidance_help_rate"])
     epoch = datetime.fromtimestamp(0, tz=utcnow().tzinfo)
     candidates.sort(
         key=lambda item: (item.latest_activity_at or epoch).timestamp(),
@@ -2302,7 +2324,7 @@ async def record_learning_feedback(
     await storage.update_activity(activity)
 
     updated_candidate_ids: list[str] = []
-    activity_window = await _collect_bounded_activities(storage, max_scan=2000)
+    activity_window: list[ActivityRecord] = []
     existing_items = await storage.list_learning_queue_items(limit=300)
     for row in existing_items:
         try:
@@ -2339,41 +2361,16 @@ async def record_learning_feedback(
         candidate.verification_partial_count = partial_count
         candidate.verification_fail_count = fail_count
         candidate.verification_pass_rate = round((pass_count / sample_count), 4) if sample_count > 0 else 0.0
-        guidance_application_count = 0
-        guidance_feedback_count = 0
-        guidance_helped_count = 0
-        guidance_neutral_count = 0
-        guidance_hurt_count = 0
-        for observed_activity in activity_window:
-            applied_learning = _extract_applied_learning_context(observed_activity)
-            if applied_learning is None or applied_learning.get("id") != candidate.id:
-                continue
-            guidance_application_count += 1
-            observed_verification = _extract_activity_verification(observed_activity)
-            guidance_effectiveness = (
-                str(observed_verification.get("guidance_effectiveness") or "")
-                if observed_verification
-                else ""
-            )
-            if guidance_effectiveness == LearningGuidanceEffectiveness.HELPED.value:
-                guidance_feedback_count += 1
-                guidance_helped_count += 1
-            elif guidance_effectiveness == LearningGuidanceEffectiveness.NEUTRAL.value:
-                guidance_feedback_count += 1
-                guidance_neutral_count += 1
-            elif guidance_effectiveness == LearningGuidanceEffectiveness.HURT.value:
-                guidance_feedback_count += 1
-                guidance_hurt_count += 1
-        candidate.guidance_application_count = guidance_application_count
-        candidate.guidance_feedback_count = guidance_feedback_count
-        candidate.guidance_helped_count = guidance_helped_count
-        candidate.guidance_neutral_count = guidance_neutral_count
-        candidate.guidance_hurt_count = guidance_hurt_count
-        candidate.guidance_help_rate = (
-            round((guidance_helped_count / guidance_feedback_count), 4)
-            if guidance_feedback_count > 0
-            else 0.0
-        )
+        if candidate_received_guidance:
+            if not activity_window:
+                activity_window = await _collect_bounded_activities(storage, max_scan=2000)
+            guidance_metrics = _compute_guidance_metrics(candidate.id, activity_window)
+            candidate.guidance_application_count = int(guidance_metrics["guidance_application_count"])
+            candidate.guidance_feedback_count = int(guidance_metrics["guidance_feedback_count"])
+            candidate.guidance_helped_count = int(guidance_metrics["guidance_helped_count"])
+            candidate.guidance_neutral_count = int(guidance_metrics["guidance_neutral_count"])
+            candidate.guidance_hurt_count = int(guidance_metrics["guidance_hurt_count"])
+            candidate.guidance_help_rate = float(guidance_metrics["guidance_help_rate"])
         candidate.updated_at = recorded_at
         candidate.promotion_readiness = _evaluate_learning_promotion_readiness(candidate)
         await storage.upsert_learning_queue_item(candidate.model_dump(mode="json"))
