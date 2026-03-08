@@ -11,7 +11,11 @@ authors = [
 keywords = ["ai", "agents", "devops", "cicd", "github-actions", "azure"]
 
 dependencies = [
-    "agent-framework>=0.1.0",
+    # Published Agent Framework builds are currently pre-releases; pinning an
+    # explicit rc floor keeps editable installs resolvable in pip/uv.
+    "agent-framework-core>=1.0.0rc3",
+    # uv requires explicit opt-in for this transitive pre-release dependency.
+    "azure-ai-projects==2.0.0b4",
     "aiohttp>=3.10.0",
     "azure-identity>=1.19.0",
     "azure-cosmos>=4.9.0",
