@@ -62,6 +62,33 @@ async def test_demo_mode_timeout_generates_timeout_bump_pr_plan() -> None:
 
 
 @pytest.mark.asyncio
+async def test_demo_mode_timeout_with_disk_signal_generates_issue_plan() -> None:
+    gen = FixGenerators(heal_mode="demo")
+    plan = await gen.generate_fix(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.TIMEOUT,
+            confidence=0.9,
+            root_cause="Runner disk space exhausted",
+            is_auto_fixable=False,
+            error_details={
+                "timed_out_job": "build",
+                "timed_out_step": "Install dependencies",
+                "timeout_minutes": 15,
+                "suggested_timeout": 30,
+                "resource_signal": "disk",
+                "likely_fix_kind": "runner_capacity",
+            },
+        ),
+        repository_info={},
+    )
+    assert plan.action == RemediationAction.CREATE_ISSUE
+    assert plan.issue_title == "[PipelineHealer] Runner disk space exhausted"
+    assert plan.issue_body is not None
+    assert "Resource Signal" in plan.issue_body
+    assert "reduce cache, artifact, or workspace size" in plan.issue_body.lower()
+
+
+@pytest.mark.asyncio
 async def test_build_config_permissions_error_generates_permissions_pr_plan() -> None:
     gen = FixGenerators(heal_mode="safe")
     plan = await gen.generate_fix(
@@ -137,6 +164,80 @@ async def test_test_fix_uses_workflow_step_title_when_no_failed_tests() -> None:
     assert plan.issue_title == "[PipelineHealer] Workflow step failure (non-test)"
     assert plan.issue_body is not None
     assert "## Workflow Step Failure" in plan.issue_body
+
+
+@pytest.mark.asyncio
+async def test_test_fix_uses_structured_failed_test_fields_in_issue_body() -> None:
+    gen = FixGenerators(heal_mode="safe")
+    plan = await gen.generate_fix(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.TEST,
+            confidence=0.9,
+            root_cause="pytest test failed",
+            is_auto_fixable=False,
+            error_details={
+                "failed_tests": ["tests/test_api.py::test_health"],
+                "test_framework": "pytest",
+                "test_errors": {"tests/test_api.py::test_health": "AssertionError: expected 200"},
+                "failure_scope": "test_case",
+                "suspected_files": ["tests/test_api.py"],
+            },
+            suggested_fix="Run pytest locally for `tests/test_api.py::test_health`, fix the failing assertions, and re-run the workflow.",
+        ),
+        repository_info={},
+    )
+    assert plan.action == RemediationAction.CREATE_ISSUE
+    assert plan.issue_body is not None
+    assert "tests/test_api.py::test_health" in plan.issue_body
+    assert "### Suspected Files" in plan.issue_body
+    assert "`tests/test_api.py`" in plan.issue_body
+
+
+@pytest.mark.asyncio
+async def test_build_config_rate_limit_issue_uses_specific_title_and_hint() -> None:
+    gen = FixGenerators(heal_mode="safe")
+    plan = await gen.generate_fix(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.BUILD_CONFIG,
+            confidence=0.9,
+            root_cause="External API rate limit reached",
+            is_auto_fixable=False,
+            error_details={
+                "misconfiguration_kind": "rate_limit",
+                "config_error": "HTTP 403 API rate limit exceeded",
+            },
+            suggested_fix="Reduce request volume, add retry/backoff, or use credentials with a higher API limit before retrying.",
+        ),
+        repository_info={},
+    )
+    assert plan.action == RemediationAction.CREATE_ISSUE
+    assert plan.issue_title == "[PipelineHealer] External API rate limit reached"
+    assert plan.issue_body is not None
+    assert "### Operator Hint" in plan.issue_body
+    assert "higher limit" in plan.issue_body
+
+
+@pytest.mark.asyncio
+async def test_lint_autofix_workflow_pr_uses_structured_autofix_command() -> None:
+    gen = FixGenerators(heal_mode="safe")
+    plan = await gen.generate_fix(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.LINT,
+            confidence=0.95,
+            root_cause="Ruff linting error",
+            is_auto_fixable=True,
+            error_details={
+                "linter": "ruff",
+                "autofix_command": "ruff check --fix . && ruff format .",
+                "violations": [],
+            },
+        ),
+        repository_info={},
+    )
+    assert plan.action == RemediationAction.CREATE_PR
+    assert plan.pr_body is not None
+    assert "### Fix Command" in plan.pr_body
+    assert "ruff check --fix . && ruff format ." in plan.pr_body
 
 
 @pytest.mark.asyncio

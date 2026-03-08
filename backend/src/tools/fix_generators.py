@@ -224,7 +224,37 @@ class FixGenerators:
             lines.insert(2, f"3. Run the related {framework} tests locally before pushing.")
             lines[3] = "4. Re-run the failing GitHub Actions workflow."
             lines.append("5. Confirm the original failing step now passes and no new failures are introduced.")
+        if diagnosis.failure_type == FailureType.TIMEOUT:
+            resource_signal = str(details.get("resource_signal") or "").strip().lower()
+            if resource_signal in {"disk", "memory"}:
+                lines.insert(2, "3. Verify the runner has enough capacity for the retried workflow.")
+                lines[3] = "4. Re-run the failing GitHub Actions workflow."
+                lines.append("5. Confirm the capacity-related failure does not recur.")
         return "\n".join(lines)
+
+    @staticmethod
+    def _render_bullet_list(items: list[str], fallback: str) -> str:
+        cleaned = [str(item).strip() for item in items if str(item).strip()]
+        if not cleaned:
+            return fallback
+        return "\n".join(f"- `{item}`" for item in cleaned)
+
+    @staticmethod
+    def _lint_fix_command_allowlist() -> dict[str, str]:
+        allowed = {}
+        for linter in ("eslint", "prettier", "black", "ruff", "isort"):
+            command = lint_autofix_command(linter)
+            if command:
+                allowed[linter] = command
+        return allowed
+
+    def _resolve_lint_fix_command(self, linter: str, candidate: str) -> str:
+        allowed = self._lint_fix_command_allowlist()
+        expected = allowed.get(str(linter).strip().lower(), "")
+        normalized_candidate = str(candidate or "").strip()
+        if expected and normalized_candidate == expected:
+            return expected
+        return expected
 
     def _build_pipelinehealer_assessment(
         self,
@@ -281,6 +311,7 @@ class FixGenerators:
         if diagnosis.failure_type == FailureType.LINT:
             linter = str(details.get("linter") or "").strip().lower()
             missing_file = str(details.get("missing_file") or "").strip()
+            autofix_command = str(details.get("autofix_command") or "").strip()
             if linter == "eslint" and missing_file.startswith("eslint.config"):
                 return (
                     f"{missing_file}\n"
@@ -291,7 +322,7 @@ class FixGenerators:
                     "  },\n"
                     "];"
                 )
-            fix_cmd = lint_autofix_command(linter)
+            fix_cmd = self._resolve_lint_fix_command(linter, autofix_command)
             if fix_cmd:
                 return f"Run locally:\n{fix_cmd}"
 
@@ -315,7 +346,13 @@ class FixGenerators:
 
         if diagnosis.failure_type == FailureType.TIMEOUT:
             suggested = details.get("suggested_timeout")
-            if isinstance(suggested, int) and suggested > 0:
+            likely_fix_kind = str(details.get("likely_fix_kind") or "").strip().lower()
+            resource_signal = str(details.get("resource_signal") or "").strip().lower()
+            if resource_signal == "disk":
+                return "Reduce disk usage on the runner or use a larger-capacity runner."
+            if resource_signal == "memory":
+                return "Reduce peak memory usage or use a larger runner."
+            if likely_fix_kind == "increase_timeout" and isinstance(suggested, int) and suggested > 0:
                 return (
                     ".github/workflows/ci.yml\n"
                     f"timeout-minutes: {suggested}"
@@ -323,6 +360,12 @@ class FixGenerators:
 
         if diagnosis.failure_type == FailureType.TEST:
             framework = str(details.get("test_framework") or "test framework")
+            failed_tests = [str(item).strip() for item in details.get("failed_tests") or [] if str(item).strip()]
+            if failed_tests:
+                return (
+                    "Run locally and verify failing tests:\n"
+                    + "\n".join(f"- {framework} {name}" for name in failed_tests[:5])
+                )
             return (
                 "Run locally and verify failing tests:\n"
                 f"- {framework} test run\n"
@@ -494,7 +537,10 @@ PipelineHealer automated analysis
             )
 
         # For auto-fixable linters, suggest running the fix command
-        fix_command = lint_autofix_command(linter)
+        fix_command = self._resolve_lint_fix_command(
+            str(linter),
+            str(error_details.get("autofix_command") or "").strip(),
+        )
 
         if fix_command and diagnosis.is_auto_fixable:
             # Create a workflow that runs the fix
@@ -538,6 +584,9 @@ This PR adds an auto-fix workflow for {linter} issues.
 1. Merge this PR
 2. Run the "Auto-fix {linter}" workflow manually
 3. The workflow will automatically fix and commit the changes
+
+### Fix Command
+`{fix_command}`
 
 ### Violations Found
 {len(violations)} violation(s) detected
@@ -594,6 +643,8 @@ Run `{fix_command or f"{linter} --fix"}` locally to fix these issues.
         failed_tests = error_details.get("failed_tests", [])
         is_flaky = error_details.get("is_flaky", False)
         test_framework = error_details.get("test_framework", "unknown")
+        failure_scope = str(error_details.get("failure_scope") or "").strip().lower()
+        suspected_files = [str(item).strip() for item in error_details.get("suspected_files", []) if str(item).strip()]
 
         if is_flaky and self._is_demo_mode:
             # Demo mode: if the diagnosis indicates flakiness, the most reliable "self-heal"
@@ -615,7 +666,7 @@ Run `{fix_command or f"{linter} --fix"}` locally to fix these issues.
 The following test(s) appear to be flaky (intermittent failures):
 
 ### Failed Tests
-{chr(10).join(f"- `{t}`" for t in failed_tests)}
+{self._render_bullet_list(failed_tests, "- None explicitly captured")}
 
 ### Recommendations
 1. **Retry Strategy**: Consider adding retry logic for these tests
@@ -641,7 +692,10 @@ The following test(s) appear to be flaky (intermittent failures):
         workflow_step_failure = (
             len(failed_tests) == 0
             and (
-                "workflow" in affected_blob
+                failure_scope == "workflow_step"
+                or failure_scope == "step"
+                or failure_scope == "job"
+                or "workflow" in affected_blob
                 or "github_run_attempt" in str(diagnosis.root_cause).lower()
                 or "process.exit(1)" in str(diagnosis.root_cause).lower()
             )
@@ -667,14 +721,17 @@ The following test(s) appear to be flaky (intermittent failures):
 **Failed Tests:** {len(failed_tests)}
 
 ### Failed Tests
-{chr(10).join(f"- `{t}`" for t in failed_tests[:10])}
-{"... and more" if len(failed_tests) > 10 else ""}
+{self._render_bullet_list(failed_tests[:10], "- None explicitly captured")}
+{"\n... and more" if len(failed_tests) > 10 else ""}
 
 ### Error Details
 {error_details_str or "No detailed errors captured"}
 
 ### Affected Files
 {chr(10).join(f"- `{f}`" for f in diagnosis.affected_files) or "None identified"}
+
+### Suspected Files
+{self._render_bullet_list(suspected_files, "- None identified")}
 
 ### Root Cause Analysis
 {diagnosis.root_cause}
@@ -743,8 +800,9 @@ The following test(s) appear to be flaky (intermittent failures):
         missing_vars = error_details.get("missing_env_vars", [])
         config_file = error_details.get("config_file", "")
         config_error = error_details.get("config_error", "")
+        misconfiguration_kind = str(error_details.get("misconfiguration_kind") or "").strip().lower()
 
-        if missing_vars and self._is_demo_mode:
+        if missing_vars and self._is_demo_mode and misconfiguration_kind in {"env_var", "secret", ""}:
             # Demo mode: only auto-fix non-secret-looking variables, and only in workflow files
             # (never attempt to "set secrets").
             safe_vars: list[str] = []
@@ -797,15 +855,25 @@ The following test(s) appear to be flaky (intermittent failures):
         if missing_vars:
             # Create issue about missing environment variables
             vars_list = "\n".join(f"- `{v}`" for v in missing_vars)
+            title = (
+                "[PipelineHealer] Missing secrets in CI"
+                if misconfiguration_kind == "secret"
+                else "[PipelineHealer] Missing environment variables in CI"
+            )
+            intro = (
+                "The CI workflow failed due to missing secrets."
+                if misconfiguration_kind == "secret"
+                else "The CI workflow failed due to missing environment variables."
+            )
 
             return RemediationPlan(
                 action=RemediationAction.CREATE_ISSUE,
                 description="Create issue for missing environment variables",
-                issue_title="[PipelineHealer] Missing environment variables in CI",
+                issue_title=title,
                 issue_body=self._append_review_only_proposal(
                     f"""## Missing Environment Variables
 
-The CI workflow failed due to missing environment variables.
+{intro}
 
 ### Missing Variables
 {vars_list}
@@ -826,14 +894,27 @@ The CI workflow failed due to missing environment variables.
             )
 
         # Generic build config issue
+        issue_title_by_kind = {
+            "file_path": "[PipelineHealer] Required file missing in CI",
+            "rate_limit": "[PipelineHealer] External API rate limit reached",
+            "runner_env": "[PipelineHealer] Runner environment issue",
+            "workflow_permission": "[PipelineHealer] Workflow permissions misconfigured",
+        }
+        detail_hint_by_kind = {
+            "file_path": "Restore the required file or correct the configured path.",
+            "rate_limit": "Reduce request volume, add backoff, or use a credential with a higher limit.",
+            "runner_env": "Verify runner permissions, tools, and available capacity.",
+            "workflow_permission": "Add or correct the workflow `permissions` block.",
+        }
         return RemediationPlan(
             action=RemediationAction.CREATE_ISSUE,
             description="Create issue for build configuration error",
-            issue_title="[PipelineHealer] Build configuration error",
+            issue_title=issue_title_by_kind.get(misconfiguration_kind, "[PipelineHealer] Build configuration error"),
             issue_body=self._append_review_only_proposal(
                 f"""## Build Configuration Error
 
 **Config File:** {config_file or "Unknown"}
+**Configuration Kind:** {misconfiguration_kind or "unknown"}
 
 ### Error
 ```
@@ -845,6 +926,9 @@ The CI workflow failed due to missing environment variables.
 
 ### Suggested Fix
 {diagnosis.suggested_fix or "Review the configuration file for syntax errors or missing fields"}
+
+### Operator Hint
+{detail_hint_by_kind.get(misconfiguration_kind, "Review the configuration file for syntax errors or missing fields.")}
 
 ---
 *This issue was automatically created by PipelineHealer*
@@ -862,10 +946,22 @@ The CI workflow failed due to missing environment variables.
         error_details = diagnosis.error_details
 
         timed_out_step = error_details.get("timed_out_step", "Unknown")
+        timed_out_job = error_details.get("timed_out_job", "Unknown")
         timeout_minutes = error_details.get("timeout_minutes", 0)
         suggested_timeout = error_details.get("suggested_timeout", timeout_minutes * 2)
+        resource_signal = str(error_details.get("resource_signal") or "").strip().lower()
+        likely_fix_kind = str(error_details.get("likely_fix_kind") or "").strip().lower()
+        if not likely_fix_kind:
+            likely_fix_kind = (
+                "increase_timeout"
+                if isinstance(suggested_timeout, int)
+                and isinstance(timeout_minutes, int)
+                and suggested_timeout > timeout_minutes >= 0
+                and resource_signal not in {"disk", "memory"}
+                else "optimize_step"
+            )
 
-        if self._is_demo_mode:
+        if self._is_demo_mode and likely_fix_kind == "increase_timeout":
             # Demo mode: open a deterministic PR that bumps timeout-minutes in the demo workflow.
             # This is intentionally conservative: if we can't find the key, the PR will not be created
             # and PipelineHealer should fall back to an issue.
@@ -901,22 +997,40 @@ The CI workflow failed due to missing environment variables.
                 ),
             )
 
+        issue_title = (
+            "[PipelineHealer] Runner disk space exhausted"
+            if resource_signal == "disk"
+            else "[PipelineHealer] Runner memory pressure or forced kill"
+            if resource_signal == "memory"
+            else f"[PipelineHealer] Workflow timeout in '{timed_out_step}'"
+        )
+        guidance = (
+            "Reduce cache, artifact, or workspace size, or move the job to a runner with more disk."
+            if resource_signal == "disk"
+            else "Reduce peak memory usage, split the job, or move it to a larger runner."
+            if resource_signal == "memory"
+            else "Increase the timeout if the step is legitimately slow, or optimize the step."
+        )
+
         return RemediationPlan(
             action=RemediationAction.CREATE_ISSUE,
             description="Create issue for timeout investigation",
-            issue_title=f"[PipelineHealer] Workflow timeout in '{timed_out_step}'",
+            issue_title=issue_title,
             issue_body=self._append_review_only_proposal(
                 f"""## Workflow Timeout
 
 The CI workflow timed out during execution.
 
 ### Details
+- **Job:** {timed_out_job}
 - **Step:** {timed_out_step}
 - **Current Timeout:** {timeout_minutes} minutes
 - **Suggested Timeout:** {suggested_timeout} minutes
+- **Resource Signal:** {resource_signal or "unknown"}
+- **Likely Fix Kind:** {likely_fix_kind or "unknown"}
 
 ### Recommendations
-1. **Increase Timeout**: If the step legitimately needs more time, increase the timeout
+1. **Primary Action**: {guidance}
 2. **Optimize**: Look for ways to speed up the step:
    - Use caching for dependencies
    - Parallelize tests
@@ -927,7 +1041,7 @@ The CI workflow timed out during execution.
 Add `timeout-minutes` to the step or job in your workflow:
 ```yaml
 jobs:
-  build:
+  {timed_out_job or "build"}:
     timeout-minutes: {suggested_timeout}
     steps:
       - name: {timed_out_step}
