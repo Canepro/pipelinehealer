@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 8e79a7e -->
+<!-- LAST_VERIFIED: ec7e28f -->
 
 All notable changes to this project will be documented in this file.
 
@@ -9,6 +9,17 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ## [Unreleased]
 
 - _No unreleased entries yet._
+
+## [v0.5.7] - 2026-03-08
+
+### Changed
+
+- Tightened the protected-branch release runbook so tags must be cut from the post-review branch commit only after attached review agents finish commenting and review threads are resolved.
+
+### Fixed
+
+- Corrected `bash scripts/ph.sh demo:proof` argument parsing so `--repo` no longer consumes the next flag or aborts on a missing value.
+- Hardened `bash scripts/ph.sh aoai:check` so Responses API request and JSON parsing failures now return concise operator-facing errors instead of raw Python tracebacks.
 
 ## [v0.5.6] - 2026-03-08
 

@@ -101,13 +101,20 @@ When `main` is protected, use this delivery pattern instead of trying to push di
 5. Add a short final PR comment summarizing what changed, what was verified, and any residual release/deploy nuance.
 6. Merge the PR, delete the branch, and sync local `main` back to `origin/main`.
 
+Important:
+
+- Do not treat "all CI checks are green" as sufficient to tag or release while attached review agents/bots are still actively publishing comments.
+- A release tag must point at the post-review branch commit, not at an earlier pre-review candidate commit.
+- If review comments arrive after a tag is pushed and require code changes, cut a new patch release from the reviewed commit rather than reusing the earlier tag.
+
 For release cuts that must deploy before protected-branch merge completes:
 
 1. Prepare the release commit on the release branch.
-2. Tag that exact release-branch commit (`vX.Y.Z`) and push the tag (for example: `git tag -a vX.Y.Z -m "Release vX.Y.Z"` then `git push origin vX.Y.Z`).
-3. Wait for the GitHub `Release` workflow to succeed.
-4. Deploy to Azure Container Apps with `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`.
-5. Merge the PR afterward so protected `main` catches up to the already-deployed release commit.
+2. Wait for attached review agents/bots to finish commenting, address the findings, resolve review threads, and confirm the branch checks are green on the post-review commit.
+3. Tag that exact reviewed release-branch commit (`vX.Y.Z`) and push the tag (for example: `git tag -a vX.Y.Z -m "Release vX.Y.Z"` then `git push origin vX.Y.Z`).
+4. Wait for the GitHub `Release` workflow to succeed.
+5. Deploy to Azure Container Apps with `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`.
+6. Merge the PR afterward so protected `main` catches up to the already-deployed release commit.
 
 ## Update Policy
 
