@@ -7,6 +7,7 @@ from enum import StrEnum
 from typing import Any
 
 from ..models import Diagnosis, FailureType, RemediationAction, RemediationPlan
+from .lint_autofix import lint_autofix_command
 
 logger = logging.getLogger(__name__)
 
@@ -290,12 +291,7 @@ class FixGenerators:
                     "  },\n"
                     "];"
                 )
-            fix_cmd = {
-                "prettier": "npx prettier --write .",
-                "eslint": "npx eslint --fix .",
-                "black": "black .",
-                "ruff": "ruff check --fix . && ruff format .",
-            }.get(linter)
+            fix_cmd = lint_autofix_command(linter)
             if fix_cmd:
                 return f"Run locally:\n{fix_cmd}"
 
@@ -498,15 +494,7 @@ PipelineHealer automated analysis
             )
 
         # For auto-fixable linters, suggest running the fix command
-        auto_fix_commands = {
-            "eslint": "npx eslint --fix .",
-            "prettier": "npx prettier --write .",
-            "black": "black .",
-            "ruff": "ruff check --fix . && ruff format .",
-            "isort": "isort .",
-        }
-
-        fix_command = auto_fix_commands.get(linter)
+        fix_command = lint_autofix_command(linter)
 
         if fix_command and diagnosis.is_auto_fixable:
             # Create a workflow that runs the fix

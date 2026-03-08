@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: f8910da -->
+<!-- LAST_VERIFIED: 18c11bd -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -294,7 +294,7 @@ Returns activity records with optional filtering and pagination.
         "classification_family": "dependency",
         "classification_pattern": "Cannot find module"
       },
-      "suggested_fix": "Add `left-pad` to package.json and refresh the lockfile.",
+      "suggested_fix": "Update or install the missing dependency.",
       "is_auto_fixable": true
     },
     "failure_context": {
@@ -1255,7 +1255,7 @@ Common examples:
 - `dependency`: `package_name`, `package_manager`, `manifest_file`, `required_version`
 - `lint`: `linter`, `missing_file`, `config_file`, `autofix_command`, `violations`
 - `test`: `test_framework`, `failed_tests`, `test_errors`, `failure_scope`, `suspected_files`
-- `timeout`: `timed_out_job`, `timed_out_step`, `timeout_minutes`, `suggested_timeout`, `resource_signal`
+- `timeout`: `timed_out_job`, `timed_out_step`, `timeout_minutes`, `suggested_timeout`, `resource_signal`, `likely_fix_kind`
 - `build_config`: `missing_env_vars`, `workflow_permissions_fix`, `permissions`, `misconfiguration_kind`, `config_file`
 
 ### FailureContext (object)

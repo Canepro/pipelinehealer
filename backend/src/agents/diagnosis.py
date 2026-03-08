@@ -17,6 +17,7 @@ from ..models import (
     LogAnalysis,
 )
 from ..tools.github_tools import GitHubTools
+from ..tools.lint_autofix import lint_autofix_command
 from .base import create_cloud_agent, get_agent_prompt
 
 logger = logging.getLogger(__name__)
@@ -462,12 +463,13 @@ Be specific about:
 
         for pattern, linter, description, is_missing_config in lint_patterns:
             if re.search(pattern, error_text, re.IGNORECASE):
-                autofix_command = self._lint_autofix_command(linter)
+                autofix_command = lint_autofix_command(linter)
+                is_auto_fixable = is_missing_config or bool(autofix_command)
                 return Diagnosis(
                     failure_type=FailureType.LINT,
                     confidence=0.9,
                     root_cause=description,
-                    is_auto_fixable=True,
+                    is_auto_fixable=is_auto_fixable,
                     suggested_fix=self._build_lint_suggested_fix(
                         linter=linter,
                         is_missing_config=is_missing_config,
@@ -811,16 +813,6 @@ Be specific about:
         payload["classification_pattern"] = pattern
         return payload
 
-    def _lint_autofix_command(self, linter: str) -> str:
-        commands = {
-            "eslint": "npx eslint --fix .",
-            "prettier": "npx prettier --write .",
-            "black": "black .",
-            "ruff": "ruff check --fix . && ruff format .",
-            "flake8": "",
-        }
-        return commands.get(linter, "")
-
     def _build_lint_suggested_fix(
         self,
         *,
@@ -830,7 +822,7 @@ Be specific about:
     ) -> str:
         if is_missing_config and missing_file:
             return f"Add `{missing_file}` so {linter} can load its required configuration."
-        autofix_command = self._lint_autofix_command(linter)
+        autofix_command = lint_autofix_command(linter)
         if autofix_command:
             return f"Run `{autofix_command}` locally and commit the resulting lint fixes."
         return f"Fix the reported {linter} violations and re-run the workflow."
@@ -897,7 +889,11 @@ Be specific about:
         text = error_text.lower()
         if "no space left on device" in text or "disk space" in text:
             return "disk"
-        if "signal 9" in text or "killed" in text or "oom" in text:
+        if (
+            "oom" in text
+            or "out of memory" in text
+            or ("signal 9" in text and "memory" in text)
+        ):
             return "memory"
         if "network" in text or "connection reset" in text:
             return "network"

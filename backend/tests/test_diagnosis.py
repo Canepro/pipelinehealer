@@ -153,6 +153,25 @@ class TestPatternBasedDiagnosis:
             "Run `npx eslint --fix .` locally and commit the resulting lint fixes."
         )
 
+    def test_detect_flake8_error_is_not_auto_fixable(self) -> None:
+        """Flake8 violations should stay review-only without a deterministic autofix command."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="lint",
+            raw_logs="flake8 error: F401 imported but unused",
+            error_lines=["flake8 error: F401 imported but unused"],
+            summary="Linting failed",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.LINT
+        assert diagnosis.error_details.get("linter") == "flake8"
+        assert diagnosis.error_details.get("autofix_command") == ""
+        assert diagnosis.is_auto_fixable is False
+        assert diagnosis.suggested_fix == "Fix the reported flake8 violations and re-run the workflow."
+
     def test_detect_prettier_code_style_message(self) -> None:
         """Test detection of Prettier check output signature."""
         log_analysis = LogAnalysis(
@@ -297,6 +316,23 @@ class TestPatternBasedDiagnosis:
 
         assert diagnosis is not None
         assert diagnosis.failure_type == FailureType.TIMEOUT
+        assert diagnosis.error_details.get("likely_fix_kind") == "increase_timeout"
+
+    def test_detect_killed_timeout_without_memory_signal_stays_unknown(self) -> None:
+        """Generic killed logs should not be mislabeled as memory pressure."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="build",
+            raw_logs="Error: exceeded time limit of 15 minutes; process was killed",
+            error_lines=["Error: exceeded time limit of 15 minutes; process was killed"],
+            summary="Time limit exceeded",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.TIMEOUT
+        assert diagnosis.error_details.get("resource_signal") == "unknown"
         assert diagnosis.error_details.get("likely_fix_kind") == "increase_timeout"
 
     def test_timeout_setting_not_misclassified(self) -> None:
