@@ -525,6 +525,41 @@ class GitHubTools:
         )
         return cast(dict[str, Any], response.json())
 
+    async def get_pull_request(
+        self,
+        owner: str,
+        repo: str,
+        pr_number: int,
+    ) -> dict[str, Any]:
+        """Fetch one pull request."""
+        response = await self._request(
+            "GET",
+            f"/repos/{owner}/{repo}/pulls/{pr_number}",
+        )
+        return cast(dict[str, Any], response.json())
+
+    async def update_pull_request(
+        self,
+        owner: str,
+        repo: str,
+        pr_number: int,
+        *,
+        title: str | None = None,
+        body: str | None = None,
+    ) -> dict[str, Any]:
+        """Update mutable pull request fields."""
+        payload: dict[str, Any] = {}
+        if title is not None:
+            payload["title"] = title
+        if body is not None:
+            payload["body"] = body
+        response = await self._request(
+            "PATCH",
+            f"/repos/{owner}/{repo}/pulls/{pr_number}",
+            json=payload,
+        )
+        return cast(dict[str, Any], response.json())
+
     async def get_pull_request_files(
         self,
         owner: str,
@@ -737,6 +772,34 @@ class GitHubTools:
         items = cast(list[dict[str, Any]], response.json())
         return [item for item in items if "pull_request" not in item]
 
+    async def update_issue(
+        self,
+        owner: str,
+        repo: str,
+        issue_number: int,
+        *,
+        title: str | None = None,
+        body: str | None = None,
+        state: str | None = None,
+        state_reason: str | None = None,
+    ) -> dict[str, Any]:
+        """Update mutable issue fields including open/closed state."""
+        payload: dict[str, Any] = {}
+        if title is not None:
+            payload["title"] = title
+        if body is not None:
+            payload["body"] = body
+        if state is not None:
+            payload["state"] = state
+        if state_reason is not None:
+            payload["state_reason"] = state_reason
+        response = await self._request(
+            "PATCH",
+            f"/repos/{owner}/{repo}/issues/{issue_number}",
+            json=payload,
+        )
+        return cast(dict[str, Any], response.json())
+
     # =========================================================================
     # Workflow Re-run Tools
     # =========================================================================
@@ -808,12 +871,15 @@ def create_github_tool_functions(github_tools: GitHubTools) -> dict[str, Any]:
         "create_branch": github_tools.create_branch,
         "create_or_update_file": github_tools.create_or_update_file,
         "create_pull_request": github_tools.create_pull_request,
+        "get_pull_request": github_tools.get_pull_request,
+        "update_pull_request": github_tools.update_pull_request,
         "list_pull_requests": github_tools.list_pull_requests,
         "get_pull_request_files": github_tools.get_pull_request_files,
         "create_issue": github_tools.create_issue,
         "add_issue_comment": github_tools.add_issue_comment,
         "list_issue_comments": github_tools.list_issue_comments,
         "list_issues": github_tools.list_issues,
+        "update_issue": github_tools.update_issue,
         "search_issues": github_tools.search_issues,
         "rerun_workflow": github_tools.rerun_workflow,
         "rerun_failed_jobs": github_tools.rerun_failed_jobs,

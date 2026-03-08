@@ -416,7 +416,7 @@ Use this checklist for the `v0.6.0` workstream.
 - [x] rollout gates defined for schema changes and model-role changes
 - [x] live incident regressions from generated issues are added to the eval corpus before release closeout
 - [x] generated issue quality avoids generic empty-count titles and bodies for static-analysis/import-blocking failures
-- [ ] generated review issues can be linked to active human fix PRs with auto-close semantics and stale-issue cleanup guidance
+- [x] generated review issues can be linked to active human fix PRs with auto-close semantics and stale-issue cleanup guidance
 
 ## Suggested PR Slices
 

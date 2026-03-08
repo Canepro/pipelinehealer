@@ -320,7 +320,11 @@ class RemediationAgent:
 
         # Apply the remediation
         try:
-            result = await self._apply_remediation(plan, repository_info, workflow_run_id)
+            result = await self._apply_remediation(
+                plan,
+                repository_info,
+                workflow_run_id,
+            )
             return result
         except Exception as e:
             logger.exception(f"Failed to apply remediation: {e}")
@@ -368,11 +372,23 @@ class RemediationAgent:
                 workflow_run_id=workflow_run_id,
             )
         elif plan.action == RemediationAction.CREATE_ISSUE:
-            return await self._create_issue(plan, owner, repo, workflow_run_id)
+            return await self._create_issue(
+                plan,
+                owner,
+                repo,
+                workflow_run_id,
+                repository_info=repository_info,
+            )
         elif plan.action == RemediationAction.RETRY_WORKFLOW:
             return await self._retry_workflow(owner, repo, workflow_run_id)
         elif plan.action == RemediationAction.NOTIFY:
-            return await self._create_issue(plan, owner, repo, workflow_run_id)
+            return await self._create_issue(
+                plan,
+                owner,
+                repo,
+                workflow_run_id,
+                repository_info=repository_info,
+            )
         else:
             return RemediationResult(
                 success=False,
@@ -404,6 +420,15 @@ class RemediationAgent:
     @staticmethod
     def _fingerprint_marker(fingerprint: str) -> str:
         return f"<!-- pipelinehealer:fingerprint:{fingerprint} -->"
+
+    @staticmethod
+    def _workflow_run_marker(workflow_run_id: int) -> str:
+        return f"<!-- pipelinehealer:workflow-run:{workflow_run_id} -->"
+
+    @staticmethod
+    def _generated_issue_kind_marker(kind: str) -> str:
+        normalized = re.sub(r"[^a-z0-9_-]+", "-", str(kind).strip().lower()) or "issue"
+        return f"<!-- pipelinehealer:generated-issue:{normalized} -->"
 
     @staticmethod
     def _extract_patch_drafting_trace(rendered_changes: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -512,6 +537,156 @@ class RemediationAgent:
             if marker in body and "auto-fix tracking" in title:
                 return issue
         return None
+
+    async def _find_existing_generated_issue(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        marker: str,
+        workflow_run_id: int,
+        kind: str,
+        title: str,
+    ) -> dict[str, Any] | None:
+        """Find an existing open generated issue for this workflow run and artifact kind."""
+        run_marker = self._workflow_run_marker(workflow_run_id)
+        kind_marker = self._generated_issue_kind_marker(kind)
+        normalized_title = str(title or "").strip()
+        issues = await self._github_tools.list_issues(
+            owner=owner,
+            repo=repo,
+            state="open",
+            labels="pipelinehealer",
+            per_page=100,
+        )
+        for issue in issues:
+            body = str(issue.get("body", "") or "")
+            if marker in body:
+                return issue
+            issue_title = str(issue.get("title", "") or "").strip()
+            if run_marker in body and kind_marker in body and issue_title == normalized_title:
+                return issue
+        return None
+
+    async def _find_superseded_review_issues(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        workflow_run_id: int,
+    ) -> list[dict[str, Any]]:
+        """Find open review-only generated issues for the same workflow run."""
+        run_marker = self._workflow_run_marker(workflow_run_id)
+        kind_marker = self._generated_issue_kind_marker("review")
+        issues = await self._github_tools.list_issues(
+            owner=owner,
+            repo=repo,
+            state="open",
+            labels="pipelinehealer",
+            per_page=100,
+        )
+        return [
+            issue
+            for issue in issues
+            if run_marker in str(issue.get("body", "") or "")
+            and kind_marker in str(issue.get("body", "") or "")
+        ]
+
+    async def _link_generated_issue_to_pull_requests(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        issue_number: int,
+        issue_url: str,
+        pull_request_numbers: list[int],
+    ) -> list[int]:
+        """Append deterministic closure references to active PRs for this generated issue."""
+        linked: list[int] = []
+        marker = f"<!-- pipelinehealer:linked-issue:{issue_number} -->"
+        for pr_number in pull_request_numbers:
+            try:
+                pr = await self._github_tools.get_pull_request(owner, repo, pr_number)
+                current_body = str(pr.get("body", "") or "").rstrip()
+                if marker in current_body or f"Closes #{issue_number}" in current_body:
+                    linked.append(pr_number)
+                    continue
+
+                appended = (
+                    ("\n\n" if current_body else "")
+                    + "PipelineHealer linked issue:\n"
+                    + f"Closes #{issue_number}\n"
+                    + f"{marker}\n"
+                )
+                updated_body = f"{current_body}{appended}" if current_body else appended.lstrip()
+                await self._github_tools.update_pull_request(
+                    owner=owner,
+                    repo=repo,
+                    pr_number=pr_number,
+                    body=updated_body,
+                )
+                linked.append(pr_number)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to link generated issue #%s to PR #%s in %s/%s: %s",
+                    issue_number,
+                    pr_number,
+                    owner,
+                    repo,
+                    exc,
+                )
+
+        if linked:
+            try:
+                rendered = ", ".join(f"#{number}" for number in linked)
+                await self._github_tools.add_issue_comment(
+                    owner=owner,
+                    repo=repo,
+                    issue_number=issue_number,
+                    body=(
+                        "PipelineHealer linked this generated issue to active pull request(s): "
+                        f"{rendered}.\n\n"
+                        f"Issue URL: {issue_url}"
+                    ),
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to comment on linked generated issue #%s in %s/%s: %s",
+                    issue_number,
+                    owner,
+                    repo,
+                    exc,
+                )
+
+        return linked
+
+    async def _close_superseded_generated_issue(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        issue_number: int,
+        pr_number: int,
+        pr_url: str,
+    ) -> None:
+        """Close a stale generated review issue once a concrete PR supersedes it."""
+        await self._github_tools.add_issue_comment(
+            owner=owner,
+            repo=repo,
+            issue_number=issue_number,
+            body=(
+                "Superseded by a concrete remediation PR.\n\n"
+                f"- PR: #{pr_number} ({pr_url})\n"
+                "- Reason: PipelineHealer opened a PR-based fix for the same workflow run."
+            ),
+        )
+        await self._github_tools.update_issue(
+            owner=owner,
+            repo=repo,
+            issue_number=issue_number,
+            state="closed",
+            state_reason="completed",
+        )
 
     async def _create_pull_request(
         self,
@@ -778,6 +953,36 @@ class RemediationAgent:
             pr_url = pr_result.get("html_url", "")
             logger.info(f"Created PR: {pr_url}")
 
+            superseded_issues = await self._find_superseded_review_issues(
+                owner=owner,
+                repo=repo,
+                workflow_run_id=workflow_run_id,
+            )
+            closed_superseded_issue_numbers: list[int] = []
+            for issue in superseded_issues:
+                issue_number = issue.get("number")
+                if not isinstance(issue_number, int):
+                    continue
+                if tracking_issue_number is not None and issue_number == tracking_issue_number:
+                    continue
+                try:
+                    await self._close_superseded_generated_issue(
+                        owner=owner,
+                        repo=repo,
+                        issue_number=issue_number,
+                        pr_number=int(pr_result.get("number") or 0),
+                        pr_url=pr_url,
+                    )
+                    closed_superseded_issue_numbers.append(issue_number)
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to close superseded generated issue #%s in %s/%s: %s",
+                        issue_number,
+                        owner,
+                        repo,
+                        exc,
+                    )
+
             return RemediationResult(
                 success=True,
                 action_taken=RemediationAction.CREATE_PR,
@@ -790,6 +995,7 @@ class RemediationAgent:
                     "reused_existing_pr": False,
                     "remediation_fingerprint": remediation_fp,
                     "patch_drafting_trace": patch_drafting_trace,
+                    "closed_superseded_issue_numbers": closed_superseded_issue_numbers,
                 },
             )
 
@@ -1270,6 +1476,7 @@ class RemediationAgent:
         owner: str,
         repo: str,
         workflow_run_id: int,
+        repository_info: dict[str, Any] | None = None,
     ) -> RemediationResult:
         """Create an issue with the diagnosis details.
 
@@ -1283,8 +1490,55 @@ class RemediationAgent:
             Result of the issue creation
         """
         try:
+            remediation_fp = self._fingerprint_for_plan(plan, workflow_run_id)
+            fp_marker = self._fingerprint_marker(remediation_fp)
+            existing_issue = await self._find_existing_generated_issue(
+                owner=owner,
+                repo=repo,
+                marker=fp_marker,
+                workflow_run_id=workflow_run_id,
+                kind="review",
+                title=plan.issue_title or "[PipelineHealer] CI Failure Analysis",
+            )
+            pull_request_numbers = [
+                int(number)
+                for number in ((repository_info or {}).get("pull_request_numbers") or [])
+                if isinstance(number, int)
+            ]
+            if existing_issue is not None:
+                issue_number = existing_issue.get("number")
+                issue_url = str(existing_issue.get("html_url", "") or "")
+                reused_issue_linked_pr_numbers: list[int] = []
+                if isinstance(issue_number, int) and pull_request_numbers:
+                    reused_issue_linked_pr_numbers = await self._link_generated_issue_to_pull_requests(
+                        owner=owner,
+                        repo=repo,
+                        issue_number=issue_number,
+                        issue_url=issue_url,
+                        pull_request_numbers=pull_request_numbers,
+                    )
+                return RemediationResult(
+                    success=True,
+                    action_taken=RemediationAction.CREATE_ISSUE,
+                    issue_url=issue_url,
+                    details={
+                        "issue_number": issue_number,
+                        "reused_existing_issue": True,
+                        "remediation_fingerprint": remediation_fp,
+                        "linked_pull_request_numbers": reused_issue_linked_pr_numbers,
+                    },
+                )
+
             # Add workflow run link to the issue body
-            body = plan.issue_body or ""
+            body = (plan.issue_body or "").rstrip()
+            body += (
+                "\n\n"
+                + self._generated_issue_kind_marker("review")
+                + "\n"
+                + self._workflow_run_marker(workflow_run_id)
+                + "\n"
+                + fp_marker
+            )
             body += f"\n\n**Workflow Run:** https://github.com/{owner}/{repo}/actions/runs/{workflow_run_id}"
             includes_proposed_fix = "### Proposed Fix (For Review Only)" in body
             reason_code_match = re.search(r"Reason Code:\s*([A-Z_]+)", body)
@@ -1302,16 +1556,29 @@ class RemediationAgent:
 
             issue_url = issue_result.get("html_url", "")
             logger.info(f"Created issue: {issue_url}")
+            issue_number = issue_result.get("number")
+            linked_pr_numbers: list[int] = []
+            if isinstance(issue_number, int) and pull_request_numbers:
+                linked_pr_numbers = await self._link_generated_issue_to_pull_requests(
+                    owner=owner,
+                    repo=repo,
+                    issue_number=issue_number,
+                    issue_url=issue_url,
+                    pull_request_numbers=pull_request_numbers,
+                )
 
             return RemediationResult(
                 success=True,
                 action_taken=RemediationAction.CREATE_ISSUE,
                 issue_url=issue_url,
                 details={
-                    "issue_number": issue_result.get("number"),
+                    "issue_number": issue_number,
                     "includes_proposed_fix": includes_proposed_fix,
                     "not_auto_reason_code": not_auto_reason_code,
                     "not_auto_reason_detail": not_auto_reason_detail,
+                    "remediation_fingerprint": remediation_fp,
+                    "linked_pull_request_numbers": linked_pr_numbers,
+                    "reused_existing_issue": False,
                 },
             )
 
