@@ -115,6 +115,8 @@ function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
   reasonCode: string | null;
   reasonDetail: string | null;
   reusedExistingPr: boolean;
+  appliedLearningTitle: string | null;
+  appliedLearningId: string | null;
 } {
   const includes = details?.includes_proposed_fix === true;
   const reason = (
@@ -131,11 +133,20 @@ function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
         ? details.reason_detail
         : null;
   const reusedExistingPr = details?.reused_existing_pr === true;
+  const appliedLearning =
+    details?.applied_learning_context &&
+    typeof details.applied_learning_context === "object"
+      ? (details.applied_learning_context as Record<string, unknown>)
+      : null;
   return {
     includesProposedFix: includes,
     reasonCode: reason,
     reasonDetail,
     reusedExistingPr,
+    appliedLearningTitle:
+      typeof appliedLearning?.title === "string" ? appliedLearning.title : null,
+    appliedLearningId:
+      typeof appliedLearning?.id === "string" ? appliedLearning.id : null,
   };
 }
 
@@ -1324,6 +1335,7 @@ export default function ActivityDetail() {
                 </div>
                 {(remediationMeta.includesProposedFix ||
                   remediationMeta.reusedExistingPr ||
+                  remediationMeta.appliedLearningId ||
                   remediationMeta.reasonCode ||
                   remediationMeta.reasonDetail) && (
                   <div className="mt-3">
@@ -1341,6 +1353,11 @@ export default function ActivityDetail() {
                           Reused Existing PR
                         </span>
                       )}
+                      {remediationMeta.appliedLearningId && (
+                        <span className="inline-flex items-center rounded-md bg-[var(--ph-info-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-info)]">
+                          Applied Learning Guidance
+                        </span>
+                      )}
                       {remediationMeta.reasonCode && (
                         <span className="inline-flex items-center rounded-md bg-[var(--ph-warning-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-warning)]">
                           {remediationMeta.reasonCode}
@@ -1350,6 +1367,21 @@ export default function ActivityDetail() {
                     {remediationMeta.reasonDetail && (
                       <p className="mt-2 text-sm text-[var(--ph-text)]">
                         {remediationMeta.reasonDetail}
+                      </p>
+                    )}
+                    {remediationMeta.appliedLearningId && (
+                      <p className="mt-2 text-sm text-[var(--ph-text)]">
+                        Active playbook applied:{" "}
+                        <span className="font-medium">
+                          {remediationMeta.appliedLearningTitle || remediationMeta.appliedLearningId}
+                        </span>
+                        {remediationMeta.appliedLearningTitle &&
+                          remediationMeta.appliedLearningTitle !== remediationMeta.appliedLearningId && (
+                            <span className="text-[var(--ph-muted)]">
+                              {" "}
+                              ({remediationMeta.appliedLearningId})
+                            </span>
+                          )}
                       </p>
                     )}
                   </div>

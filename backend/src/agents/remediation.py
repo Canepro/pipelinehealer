@@ -291,9 +291,6 @@ class RemediationAgent:
                 error_message=f"Failed to generate fix plan: {e}",
             )
 
-        if learning_context:
-            plan = self._augment_plan_with_learning_context(plan, learning_context)
-
         if plan.action == RemediationAction.CREATE_PR and self._is_jenkins_bridge_issue_only(
             repository_info
         ):
@@ -311,16 +308,44 @@ class RemediationAgent:
                 reason_code=NotAutoApplyReason.SAFETY_BOUND,
             )
 
+        applied_learning_match = self._select_applied_learning_match(
+            diagnosis,
+            plan,
+            learning_context,
+        )
+        if applied_learning_match is not None:
+            plan = self._augment_plan_with_applied_learning_guidance(plan, applied_learning_match)
+        if learning_context:
+            plan = self._augment_plan_with_learning_context(plan, learning_context)
+
+        applied_learning_details = (
+            {
+                "id": applied_learning_match.id,
+                "title": applied_learning_match.title,
+                "reason_code": applied_learning_match.reason_code,
+                "match_rank": applied_learning_match.match_rank,
+                "match_score": applied_learning_match.match_score,
+                "verification_pass_rate": applied_learning_match.verification_pass_rate,
+                "application_mode": "guidance_section",
+                "action_changed": False,
+            }
+            if applied_learning_match is not None and self._plan_contains_applied_learning_guidance(plan)
+            else None
+        )
+
         logger.info(f"Generated remediation plan: {plan.action.value} - {plan.description}")
 
         if dry_run:
+            details: dict[str, Any] = {
+                "plan": plan.model_dump(),
+                "dry_run": True,
+            }
+            if applied_learning_details is not None:
+                details["applied_learning_context"] = applied_learning_details
             return RemediationResult(
                 success=True,
                 action_taken=plan.action,
-                details={
-                    "plan": plan.model_dump(),
-                    "dry_run": True,
-                },
+                details=details,
             )
 
         # Apply the remediation
@@ -330,6 +355,11 @@ class RemediationAgent:
                 repository_info,
                 workflow_run_id,
             )
+            if (
+                applied_learning_details is not None
+                and self._result_published_applied_learning_guidance(result)
+            ):
+                result.details["applied_learning_context"] = applied_learning_details
             return result
         except Exception as e:
             logger.exception(f"Failed to apply remediation: {e}")
@@ -439,6 +469,128 @@ class RemediationAgent:
         if not updates:
             return plan
         return plan.model_copy(update=updates)
+
+    @staticmethod
+    def _normalize_learning_reason_code(value: str | None) -> str:
+        """Normalize reason codes before comparing diagnosis and learning matches."""
+        return re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower()).strip("_")
+
+    def _diagnosis_reason_code(self, diagnosis: Diagnosis) -> str:
+        """Extract a stable reason code from diagnosis details when available."""
+        details = diagnosis.error_details if isinstance(diagnosis.error_details, dict) else {}
+        for raw in (
+            details.get("reason_code"),
+            details.get("classification_pattern"),
+            details.get("classification_signal"),
+            details.get("misconfiguration_kind"),
+            details.get("resolution_kind"),
+            details.get("failure_scope"),
+        ):
+            normalized = self._normalize_learning_reason_code(
+                raw if isinstance(raw, str) else None
+            )
+            if normalized:
+                return normalized
+        return ""
+
+    def _select_applied_learning_match(
+        self,
+        diagnosis: Diagnosis,
+        plan: RemediationPlan,
+        learning_context: list[LearningContextMatch] | None,
+    ) -> LearningContextMatch | None:
+        """Promote one strong learning match into bounded remediation guidance."""
+        if not learning_context or diagnosis.confidence < 0.5:
+            return None
+        if not (plan.pr_body or plan.issue_body):
+            return None
+
+        top_match = learning_context[0]
+        if not str(top_match.suggested_playbook or "").strip():
+            return None
+        if top_match.match_rank not in {0, 1}:
+            return None
+        if top_match.match_score < 0.88:
+            return None
+        if top_match.verification_pass_rate < 0.6:
+            return None
+        if top_match.failure_type and top_match.failure_type != diagnosis.failure_type:
+            return None
+
+        diagnosis_reason_code = self._diagnosis_reason_code(diagnosis)
+        match_reason_code = self._normalize_learning_reason_code(top_match.reason_code)
+        if diagnosis_reason_code and match_reason_code and diagnosis_reason_code != match_reason_code:
+            return None
+
+        return top_match
+
+    @staticmethod
+    def _render_applied_learning_guidance(match: LearningContextMatch) -> str:
+        """Render the bounded guidance section when one active playbook is promoted."""
+        basis = ", ".join(match.match_basis[:4]) if match.match_basis else "ranked retrieval"
+        verification_pct = int(round(match.verification_pass_rate * 100))
+        lines = [
+            "## Applied Learning Guidance",
+            "",
+            (
+                "This remediation plan was refined using one active playbook that matched the "
+                "current failure evidence."
+            ),
+            "",
+            f"- Playbook: `{match.id}` {match.title}",
+            f"- Match basis: {basis}",
+            f"- Match score: {match.match_score:.2f} (rank {match.match_rank})",
+            f"- Verification pass rate: {verification_pct}%",
+            f"- Observed recurrence count: {match.occurrence_count}",
+        ]
+        if match.reason_code:
+            lines.append(f"- Reason code: `{match.reason_code}`")
+        lines.extend(
+            [
+                "",
+                "### Playbook Guidance",
+                match.suggested_playbook.strip(),
+                "",
+                (
+                    "This guidance supplements deterministic evidence and did not change the "
+                    "selected remediation action on its own."
+                ),
+            ]
+        )
+        return "\n".join(lines)
+
+    def _augment_plan_with_applied_learning_guidance(
+        self,
+        plan: RemediationPlan,
+        match: LearningContextMatch,
+    ) -> RemediationPlan:
+        """Append the promoted learning guidance section to operator-facing artifacts."""
+        rendered = self._render_applied_learning_guidance(match)
+        updates: dict[str, Any] = {}
+        if plan.pr_body:
+            updates["pr_body"] = f"{plan.pr_body.rstrip()}\n\n{rendered}\n"
+        if plan.issue_body:
+            updates["issue_body"] = f"{plan.issue_body.rstrip()}\n\n{rendered}\n"
+        if not updates:
+            return plan
+        return plan.model_copy(update=updates)
+
+    @staticmethod
+    def _plan_contains_applied_learning_guidance(plan: RemediationPlan) -> bool:
+        """Return whether the rendered plan body includes applied learning guidance."""
+        marker = "## Applied Learning Guidance"
+        return marker in str(plan.pr_body or "") or marker in str(plan.issue_body or "")
+
+    @staticmethod
+    def _result_published_applied_learning_guidance(result: RemediationResult) -> bool:
+        """Return whether the final remediation result published a fresh guided artifact."""
+        if not result.success:
+            return False
+        if result.action_taken == RemediationAction.CREATE_PR:
+            return result.details.get("reused_existing_pr") is False
+        if result.action_taken in {RemediationAction.CREATE_ISSUE, RemediationAction.NOTIFY}:
+            return result.details.get("reused_existing_issue") is False
+        return False
 
     def _branch_name_for_run(self, base_branch_name: str, workflow_run_id: int) -> str:
         """Return a stable unique branch name for a workflow run to avoid ref collisions."""

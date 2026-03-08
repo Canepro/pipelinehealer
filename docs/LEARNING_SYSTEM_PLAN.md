@@ -1,6 +1,6 @@
 # Learning System Plan
 
-<!-- LAST_VERIFIED: 40a2683 -->
+<!-- LAST_VERIFIED: 51d0763 -->
 
 This document explains the learning/governance subsystem, how to use it today, and what is planned next.
 
@@ -57,6 +57,7 @@ Observability and audit:
 - decision audit metadata includes readiness before/after
 - forced activation metadata includes actor, reasons, and request id
 - activity-level learning context trace showing which active artifacts were injected into diagnosis/remediation
+- remediation results can now record when one strong active playbook was promoted into explicit applied guidance
 
 ## What Learning Does Not Do (Yet)
 
@@ -95,13 +96,14 @@ Quick verification checklist:
 
 - Candidate text fields (`suggested_playbook`, `reason_code`, `title`) are generated from observed incidents.
 - Inline operator editing of candidate fields is not implemented yet.
-- Active playbooks are governed artifacts today; full retrieval/applicator loop is the next phase.
+- Active playbooks are governed artifacts today; bounded runtime influence is now implemented as guidance, not as silent action selection.
 
 ## Immediate Next (Planned)
 
 1. Retrieval-before-diagnosis/remediation:
    - initial runtime retrieval trace is now implemented for active artifacts.
-   - next step is to deepen how that structured context influences diagnosis/remediation quality, scoring, and evaluation.
+   - a strong top match can now be promoted into an explicit remediation guidance section when it agrees with current evidence.
+   - next step is to deepen scoring, evaluation, and operator feedback on whether the applied guidance actually helped.
 2. Operator field editing:
    - safe `PATCH` endpoint + audited edits for candidate text fields.
 3. Promotion execution preview:
@@ -140,7 +142,7 @@ Recommended runtime rules:
 - keep retrieval read-only; no activation or mutation in the diagnosis/remediation path
 - inject a bounded number of matches with explicit ranking metadata (`match_rank`, `match_score`, and `match_basis`)
 - preserve deterministic evidence as the primary source of truth
-- treat learning context as advisory unless a later contract explicitly promotes it to a governed action path
+- treat learning context as advisory by default; only a strong top match may be promoted into explicit guidance, and that promotion must be recorded
 
 Recommended operator-facing behavior:
 - activities should be able to show when learning context was injected
