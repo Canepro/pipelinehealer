@@ -683,6 +683,16 @@ class ActivityStorage:
 
         return breakdown
 
+    async def iter_activities(
+        self,
+        *,
+        since: datetime | None = None,
+        page_size: int = 200,
+    ) -> AsyncIterator[ActivityRecord]:
+        """Yield activities using the adapter's efficient paging strategy."""
+        async for activity in self._iter_activities(since=since, page_size=page_size):
+            yield activity
+
     async def _iter_activities(
         self,
         *,
