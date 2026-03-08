@@ -661,10 +661,10 @@ export default function Dashboard() {
                     fill="#3b82f6"
                     radius={[4, 4, 0, 0]}
                     cursor="pointer"
-                    onClick={(data) =>
+                    onClick={(data: { payload?: { fullName?: string } } | undefined) =>
                       handleRepositoryBarClick(
-                        data && typeof data.fullName === "string"
-                          ? data.fullName
+                        typeof data?.payload?.fullName === "string"
+                          ? data.payload.fullName
                           : undefined,
                       )
                     }

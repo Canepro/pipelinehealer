@@ -376,7 +376,8 @@ Be specific about:
                     flags=re.IGNORECASE,
                 )
                 if python_missing_match:
-                    package_name = python_missing_match.group(1)
+                    raw_module = python_missing_match.group(1)
+                    package_name = raw_module.split(".")[0] if raw_module else ""
 
                 if not package_name:
                     package_match = re.search(
@@ -399,12 +400,26 @@ Be specific about:
 
                 # Infer package manager from the matched pattern/context, not from incidental words.
                 # This keeps Node "Cannot find module ..." from defaulting to pip.
-                package_manager = "npm" if (
-                    "npm" in pattern
-                    or "npm" in error_text.lower()
-                    or "bun" in error_text.lower()
-                    or "Cannot find module" in pattern
-                ) else "pip"
+                normalized_error_text = error_text.lower()
+                normalized_description = description.lower()
+                package_manager = (
+                    "npm"
+                    if (
+                        "npm" in pattern
+                        or "npm" in normalized_error_text
+                        or "bun" in normalized_error_text
+                        or "Cannot find module" in pattern
+                    )
+                    else "pip"
+                    if (
+                        "python" in normalized_description
+                        or "pip" in normalized_description
+                        or "modulenotfounderror" in normalized_error_text
+                    )
+                    else "docker"
+                    if "docker" in normalized_description or "manifest" in normalized_description
+                    else "generic"
+                )
 
                 return Diagnosis(
                     failure_type=FailureType.DEPENDENCY,
@@ -659,7 +674,19 @@ Be specific about:
         """Build a dependency fix suggestion from the matched package context."""
         normalized_manager = package_manager.strip().lower()
         normalized_package = package_name.strip()
-        is_version_conflict = "conflict" in description.lower() or "resolve" in description.lower()
+        normalized_description = description.lower()
+        is_version_conflict = any(
+            marker in normalized_description
+            for marker in (
+                "conflict",
+                "resolve",
+                "resolution",
+                "eresolve",
+                "peer dep",
+                "peer dependency",
+                "unable to resolve dependency tree",
+            )
+        )
 
         if normalized_manager == "npm":
             if normalized_package:
@@ -671,20 +698,34 @@ Be specific about:
                 return f"Add `{normalized_package}` to package.json and refresh the lockfile."
             return "Update package.json dependencies and refresh the lockfile."
 
-        if normalized_package:
-            if is_version_conflict:
+        if normalized_manager in {"pip", "uv", "python"}:
+            if normalized_package:
+                if is_version_conflict:
+                    return (
+                        f"Update Python dependency `{normalized_package}` in pyproject.toml or "
+                        "requirements.txt to a compatible version and reinstall dependencies."
+                    )
                 return (
-                    f"Update Python dependency `{normalized_package}` in pyproject.toml or "
-                    "requirements.txt to a compatible version and reinstall dependencies."
+                    f"Add Python dependency `{normalized_package}` in pyproject.toml or "
+                    "requirements.txt and reinstall dependencies."
                 )
-            return (
-                f"Add Python dependency `{normalized_package}` in pyproject.toml or "
-                "requirements.txt and reinstall dependencies."
-            )
+            if is_version_conflict:
+                return "Update the dependency version constraint to a compatible release and reinstall."
+            return "Add the missing dependency to the project manifest and reinstall dependencies."
 
+        if normalized_manager == "docker":
+            if normalized_package:
+                return (
+                    f"Update the referenced image or package `{normalized_package}` to one that exists "
+                    "in the configured registry and re-run the workflow."
+                )
+            return "Update the referenced container image or registry path and re-run the workflow."
+
+        if normalized_package:
+            return f"Install or restore the missing package/resource `{normalized_package}` and re-run the workflow."
         if is_version_conflict:
-            return "Update the dependency version constraint to a compatible release and reinstall."
-        return "Add the missing dependency to the project manifest and reinstall dependencies."
+            return "Update the conflicting dependency or package version to a compatible release and re-run the workflow."
+        return "Install or restore the missing package/resource and re-run the workflow."
 
     def _build_classification_details(
         self,

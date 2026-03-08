@@ -47,6 +47,7 @@ export default function Activities() {
     failure_type: failureTypeParam,
     limit: 50,
   })
+  const [repositoryDraft, setRepositoryDraft] = useState(repositoryParam)
   const [highlightedActivityId, setHighlightedActivityId] = useState<string | null>(null)
 
   const { data: activities, isLoading, refetch, isFetching } = useQuery({
@@ -78,6 +79,29 @@ export default function Activities() {
   }, [failureTypeParam, repositoryParam, statusParam])
 
   useEffect(() => {
+    setRepositoryDraft(repositoryParam)
+  }, [repositoryParam])
+
+  useEffect(() => {
+    if (repositoryDraft === filters.repository) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setFilters((prev) => ({ ...prev, repository: repositoryDraft }))
+      const nextParams = new URLSearchParams(searchParams)
+      if (repositoryDraft) {
+        nextParams.set('repository', repositoryDraft)
+      } else {
+        nextParams.delete('repository')
+      }
+      setSearchParams(nextParams, { replace: true })
+    }, 300)
+
+    return () => window.clearTimeout(timer)
+  }, [filters.repository, repositoryDraft, searchParams, setSearchParams])
+
+  useEffect(() => {
     if (!focusedActivityId || !activities || !hasFocusedActivity) return
 
     setHighlightedActivityId(focusedActivityId)
@@ -102,7 +126,7 @@ export default function Activities() {
     }
   }
 
-  const updateFilter = (key: 'repository' | 'status' | 'failure_type', value: string) => {
+  const updateFilter = (key: 'status' | 'failure_type', value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }))
 
     const nextParams = new URLSearchParams(searchParams)
@@ -164,8 +188,8 @@ export default function Activities() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
             <Filter className="h-5 w-5 text-[var(--ph-muted)]" />
             <Input
-              value={filters.repository}
-              onChange={(event) => updateFilter('repository', event.target.value)}
+              value={repositoryDraft}
+              onChange={(event) => setRepositoryDraft(event.target.value)}
               className="lg:w-[22rem]"
               placeholder="Filter by repository (owner/repo)"
               aria-label="Filter by repository"
@@ -203,7 +227,7 @@ export default function Activities() {
               </SelectContent>
             </Select>
             {filters.repository && (
-              <Button variant="ghost" size="sm" onClick={() => updateFilter('repository', '')}>
+              <Button variant="ghost" size="sm" onClick={() => setRepositoryDraft('')}>
                 Clear repo
               </Button>
             )}

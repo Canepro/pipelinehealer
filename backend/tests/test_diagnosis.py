@@ -57,6 +57,26 @@ class TestPatternBasedDiagnosis:
             "and reinstall dependencies."
         )
 
+    def test_detect_python_submodule_not_found_normalizes_package_name(self) -> None:
+        """Top-level import names should drive Python package suggestions."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="test",
+            raw_logs="ModuleNotFoundError: No module named 'requests.adapters'",
+            error_lines=["ModuleNotFoundError: No module named 'requests.adapters'"],
+            summary="Import failed",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.DEPENDENCY
+        assert diagnosis.error_details.get("package_name") == "requests"
+        assert diagnosis.suggested_fix == (
+            "Add Python dependency `requests` in pyproject.toml or requirements.txt "
+            "and reinstall dependencies."
+        )
+
     def test_detect_node_missing_module_suggests_manifest_update(self) -> None:
         """Test that missing Node modules get a package.json-specific suggestion."""
         log_analysis = LogAnalysis(
@@ -75,6 +95,41 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.error_details.get("package_manager") == "npm"
         assert diagnosis.suggested_fix == (
             "Add `left-pad` to package.json and refresh the lockfile."
+        )
+
+    def test_detect_npm_resolution_conflict_suggests_compatible_version(self) -> None:
+        """ERESOLVE signatures should produce version-conflict guidance."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="build",
+            raw_logs="npm ERR! ERESOLVE unable to resolve dependency tree",
+            error_lines=["npm ERR! ERESOLVE unable to resolve dependency tree"],
+            summary="Dependency resolution failed",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.DEPENDENCY
+        assert diagnosis.suggested_fix == "Update package.json dependencies and refresh the lockfile."
+
+    def test_generic_missing_package_does_not_assume_python_manifest(self) -> None:
+        """Generic package errors should stay neutral instead of pointing at pyproject.toml."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="build",
+            raw_logs="Package 'libpq-dev' was not found",
+            error_lines=["Package 'libpq-dev' was not found"],
+            summary="System package missing",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.DEPENDENCY
+        assert diagnosis.error_details.get("package_manager") == "generic"
+        assert diagnosis.suggested_fix == (
+            "Install or restore the missing package/resource `libpq-dev` and re-run the workflow."
         )
 
     def test_detect_eslint_error(self) -> None:
