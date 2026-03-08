@@ -13,6 +13,9 @@ import {
   FileCode,
   AlertTriangle,
   Bot,
+  KeyRound,
+  ShieldCheck,
+  Workflow,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, type Activity } from "../api/client";
@@ -20,6 +23,13 @@ import { copyToClipboard } from "../utils/copyToClipboard";
 import { formatSourceLabel } from "../utils/formatSourceLabel";
 import StatusBadge from "../components/StatusBadge";
 import FailureTypeBadge from "../components/FailureTypeBadge";
+import VerificationWorkspace from "../components/activity/VerificationWorkspace";
+import {
+  formatVerificationOutcomeLabel,
+  getLatestVerification,
+  getVerificationHistory,
+} from "../components/activity/verification";
+import { Badge } from "@/components/ui/badge";
 
 const RAW_EVIDENCE_KEYS = new Set([
   "key_log_lines",
@@ -883,6 +893,40 @@ function ExternalFindingsPanel({
   );
 }
 
+function IncidentRecordPanel({
+  icon,
+  sectionLabel,
+  title,
+  summary,
+  children,
+}: {
+  icon: React.ReactNode;
+  sectionLabel: string;
+  title: string;
+  summary: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-5">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 rounded-lg bg-[color:var(--ph-surface)] p-2 text-[var(--ph-accent)]">
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-[var(--ph-muted)]">
+            {sectionLabel}
+          </p>
+          <h3 className="mt-1 text-base font-semibold text-[var(--ph-text)]">
+            {title}
+          </h3>
+          <p className="mt-1 text-sm text-[var(--ph-muted)]">{summary}</p>
+        </div>
+      </div>
+      <div className="mt-4 space-y-4">{children}</div>
+    </div>
+  );
+}
+
 export default function ActivityDetail() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
@@ -955,6 +999,11 @@ export default function ActivityDetail() {
   const remediationMeta = getIssueProposalMeta(
     activity.remediation_result?.details,
   );
+  const remediationDetails = activity.remediation_result?.details as
+    | Record<string, unknown>
+    | undefined;
+  const currentVerification = getLatestVerification(remediationDetails);
+  const verificationHistory = getVerificationHistory(remediationDetails);
   const externalDiagnostics = activity.external_diagnostics ?? [];
   const diagnosisDetails = activity.diagnosis?.error_details as
     | Record<string, unknown>
@@ -1020,6 +1069,25 @@ export default function ActivityDetail() {
     failureContext?.failing_command ||
     failureContext?.signal,
   );
+  const summaryLine = [
+    activity.failure_type ? `${activity.failure_type} incident` : "Pipeline incident",
+    activity.repository_name,
+    activity.workflow_name,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+  const whatHappenedSummary = hasFailureContext
+    ? [
+        failureContext?.failing_job ? `Job ${failureContext.failing_job}` : null,
+        failureContext?.failing_step ? `Step ${failureContext.failing_step}` : null,
+        failureContext?.signal ? `Signal: ${failureContext.signal}` : null,
+      ]
+        .filter(Boolean)
+        .join(" • ")
+    : "Failure context was captured from the pipeline run and stored with this activity.";
+  const remediationOutcomeSummary = activity.remediation_result
+    ? `${formatActionTaken(activity.remediation_result.action_taken)} ${activity.remediation_result.success ? "completed successfully" : "did not complete successfully"}.`
+    : "No remediation artifact was published for this activity.";
   const handleCopyContext = async () => {
     try {
       await copyToClipboard(buildActivityContext(activity));
@@ -1149,177 +1217,242 @@ export default function ActivityDetail() {
         </div>
       </div>
 
-      {/* Overview Card */}
-      <div className="card p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div>
-            <p className="text-sm text-[var(--ph-muted)]">Repository</p>
-            <div className="flex items-center mt-1">
-              <GitBranch className="h-5 w-5 text-[var(--ph-muted)] mr-2" />
-              <a
-                href={`https://github.com/${activity.repository_name}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[var(--ph-accent)] hover:opacity-80 font-medium"
-              >
-                {activity.repository_name}
-                <ExternalLink className="h-3 w-3 inline ml-1" />
-              </a>
+      <div className="card overflow-hidden p-0">
+        <div className="border-b border-[var(--ph-border)] bg-[var(--ph-surface)] px-6 py-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-medium text-[var(--ph-muted)]">
+                Incident snapshot
+              </p>
+              <h2 className="mt-1 text-2xl font-semibold text-[var(--ph-text)]">
+                {summaryLine}
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm text-[var(--ph-muted)]">
+                One record for the run, diagnosis, remediation decision, and any operator verification that followed.
+              </p>
             </div>
-          </div>
-          <div>
-            <p className="text-sm text-[var(--ph-muted)]">Workflow</p>
-            <p className="mt-1 font-medium text-[var(--ph-text)]">
-              {activity.workflow_name}
-            </p>
-            <p className="text-xs text-[var(--ph-muted)]">
-              Run #{activity.workflow_run_id}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[var(--ph-muted)]">Status</p>
-            <div className="mt-1">
+            <div className="flex flex-wrap gap-2">
               <StatusBadge status={activity.status} />
-            </div>
-          </div>
-          <div>
-            <p className="text-sm text-[var(--ph-muted)]">Failure Type</p>
-            <div className="mt-1">
               {activity.failure_type ? (
                 <FailureTypeBadge type={activity.failure_type} />
               ) : (
-                <span className="text-[var(--ph-muted)]">Not determined</span>
+                <Badge variant="outline">Failure Type Pending</Badge>
+              )}
+              {currentVerification ? (
+                <Badge variant="outline">
+                  Verified {formatVerificationOutcomeLabel(currentVerification.overall)}
+                </Badge>
+              ) : (
+                <Badge variant="outline">Needs Verification</Badge>
               )}
             </div>
           </div>
         </div>
-
-        <div className="mt-6 pt-6 border-t border-[var(--ph-border)] grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <p className="text-sm text-[var(--ph-muted)]">Created</p>
-            <p className="mt-1 text-[var(--ph-text)]">
+        <div className="grid grid-cols-1 gap-px bg-[var(--ph-border)] md:grid-cols-2 xl:grid-cols-4">
+          <div className="bg-[var(--ph-surface)] px-6 py-5">
+            <p className="text-[11px] uppercase tracking-wide text-[var(--ph-muted)]">
+              Repository
+            </p>
+            <div className="mt-2 flex items-center">
+              <GitBranch className="mr-2 h-4 w-4 text-[var(--ph-muted)]" />
+              <a
+                href={`https://github.com/${activity.repository_name}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-[var(--ph-accent)] hover:opacity-80"
+              >
+                {activity.repository_name}
+                <ExternalLink className="ml-1 inline h-3 w-3" />
+              </a>
+            </div>
+            <p className="mt-3 text-[11px] text-[var(--ph-muted)]">
+              Activity ID: {activity.id}
+            </p>
+          </div>
+          <div className="bg-[var(--ph-surface)] px-6 py-5">
+            <p className="text-[11px] uppercase tracking-wide text-[var(--ph-muted)]">
+              Workflow Run
+            </p>
+            <p className="mt-2 font-medium text-[var(--ph-text)]">
+              {activity.workflow_name}
+            </p>
+            <p className="mt-1 text-sm text-[var(--ph-muted)]">
+              Run #{activity.workflow_run_id}
+            </p>
+          </div>
+          <div className="bg-[var(--ph-surface)] px-6 py-5">
+            <p className="text-[11px] uppercase tracking-wide text-[var(--ph-muted)]">
+              Created
+            </p>
+            <p className="mt-2 font-medium text-[var(--ph-text)]">
               {format(new Date(activity.created_at), "PPpp")}
             </p>
-            <p className="text-xs text-[var(--ph-muted)]">
+            <p className="mt-1 text-sm text-[var(--ph-muted)]">
               {formatDistanceToNow(new Date(activity.created_at), {
                 addSuffix: true,
               })}
             </p>
           </div>
-          <div>
-            <p className="text-sm text-[var(--ph-muted)]">Updated</p>
-            <p className="mt-1 text-[var(--ph-text)]">
+          <div className="bg-[var(--ph-surface)] px-6 py-5">
+            <p className="text-[11px] uppercase tracking-wide text-[var(--ph-muted)]">
+              Updated
+            </p>
+            <p className="mt-2 font-medium text-[var(--ph-text)]">
               {format(new Date(activity.updated_at), "PPpp")}
             </p>
+            <p className="mt-1 text-sm text-[var(--ph-muted)]">
+              Duration:{" "}
+              {typeof activity.duration_seconds === "number"
+                ? `${Math.round(activity.duration_seconds)}s`
+                : "N/A"}
+            </p>
           </div>
-          {activity.duration_seconds && (
-            <div>
-              <p className="text-sm text-[var(--ph-muted)]">Duration</p>
-              <p className="mt-1 text-[var(--ph-text)]">
-                {Math.round(activity.duration_seconds)}s
-              </p>
-            </div>
-          )}
         </div>
       </div>
 
-      {(activity.diagnosis || activity.remediation_result) && (
-        <div className="card p-6">
+      <div className="card p-6">
+        <div className="flex flex-col gap-2">
           <h2 className="text-lg font-semibold text-[var(--ph-text)]">
-            PipelineHealer Decision
+            Incident Record
           </h2>
-          <p className="mt-1 text-sm text-[var(--ph-muted)]">
-            Primary diagnosis and remediation outcome, presented in execution
-            order.
+          <p className="text-sm text-[var(--ph-muted)]">
+            Structured operator view of what happened, what PipelineHealer concluded, what action it took, and what still needs review.
           </p>
-          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {activity.diagnosis && (
-              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-4">
-                <p className="text-xs text-[var(--ph-muted)]">Diagnosis</p>
-                <p className="mt-2 text-sm text-[var(--ph-muted)]">
-                  Root Cause
+        </div>
+        <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <IncidentRecordPanel
+            icon={<AlertTriangle className="h-4 w-4" />}
+            sectionLabel="What happened"
+            title="Failure context and run evidence"
+            summary={whatHappenedSummary}
+          >
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">
+                  Failing Job
+                </p>
+                <p className="mt-1 text-sm text-[var(--ph-text)] break-words">
+                  {failureContext?.failing_job || "Not captured"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">
+                  Failing Step
+                </p>
+                <p className="mt-1 text-sm text-[var(--ph-text)] break-words">
+                  {failureContext?.failing_step || "Not captured"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">
+                  Command
+                </p>
+                <p className="mt-1 text-sm text-[var(--ph-text)] break-words">
+                  {failureContext?.failing_command || "Not captured"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">
+                  Diagnostics
                 </p>
                 <p className="mt-1 text-sm text-[var(--ph-text)]">
-                  {activity.diagnosis.root_cause}
+                  {externalDiagnostics.length} external signal
+                  {externalDiagnostics.length === 1 ? "" : "s"}
                 </p>
-                {activity.diagnosis.suggested_fix && (
-                  <>
-                    <p className="mt-3 text-sm text-[var(--ph-muted)]">
+              </div>
+            </div>
+          </IncidentRecordPanel>
+
+          <IncidentRecordPanel
+            icon={<ShieldCheck className="h-4 w-4" />}
+            sectionLabel="What PipelineHealer concluded"
+            title="Diagnosis and confidence"
+            summary={
+              activity.diagnosis
+                ? activity.diagnosis.root_cause
+                : "Diagnosis has not been captured for this activity."
+            }
+          >
+            {activity.diagnosis ? (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">
+                    Confidence {Math.round(activity.diagnosis.confidence * 100)}%
+                  </Badge>
+                  <Badge variant="outline">
+                    Auto-fixable {activity.diagnosis.is_auto_fixable ? "Yes" : "No"}
+                  </Badge>
+                  <Badge variant="outline">
+                    Source {(activity.diagnosis.diagnosis_source || "unknown").replace(/_/g, " ")}
+                  </Badge>
+                </div>
+                {activity.diagnosis.suggested_fix ? (
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">
                       Suggested Fix
                     </p>
                     <p className="mt-1 text-sm text-[var(--ph-text)]">
                       {activity.diagnosis.suggested_fix}
                     </p>
-                  </>
-                )}
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]">
-                    Confidence:{" "}
-                    {Math.round(activity.diagnosis.confidence * 100)}%
-                  </span>
-                  <span className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]">
-                    Auto-fixable:{" "}
-                    {activity.diagnosis.is_auto_fixable ? "Yes" : "No"}
-                  </span>
-                  <span className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]">
-                    Source:{" "}
-                    {(activity.diagnosis.diagnosis_source || "unknown").replace(
-                      /_/g,
-                      " ",
-                    )}
-                  </span>
-                </div>
-                {llmRejection?.rejected && (
-                  <div className="mt-4 rounded-md border border-[var(--ph-warning)]/25 bg-[var(--ph-warning-bg)] px-3 py-3">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ph-warning)]" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-[var(--ph-text)]">
-                          LLM diagnosis discarded
-                        </p>
-                        <p className="mt-1 text-sm text-[var(--ph-text)] break-words">
-                          {llmRejection.reason || "The model response did not satisfy the diagnosis contract."}
-                        </p>
-                        <p className="mt-1 text-xs text-[var(--ph-muted)]">
-                          {llmFallbackLabel} JSON candidates checked:{" "}
-                          {llmRejection.candidate_count}
-                        </p>
-                      </div>
-                    </div>
                   </div>
-                )}
-              </div>
+                ) : null}
+                {llmRejection?.rejected ? (
+                  <div className="rounded-md border border-[var(--ph-warning)]/25 bg-[var(--ph-warning-bg)] px-3 py-3">
+                    <p className="text-sm font-medium text-[var(--ph-text)]">
+                      LLM diagnosis discarded
+                    </p>
+                    <p className="mt-1 text-sm text-[var(--ph-text)] break-words">
+                      {llmRejection.reason ||
+                        "The model response did not satisfy the diagnosis contract."}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--ph-muted)]">
+                      {llmFallbackLabel} JSON candidates checked:{" "}
+                      {llmRejection.candidate_count}
+                    </p>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-sm text-[var(--ph-muted)]">
+                This activity has no diagnosis payload yet.
+              </p>
             )}
+          </IncidentRecordPanel>
 
-            {activity.remediation_result && (
-              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-4">
-                <p className="text-xs text-[var(--ph-muted)]">
-                  Remediation Result
-                </p>
-                <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
+          <IncidentRecordPanel
+            icon={<Workflow className="h-4 w-4" />}
+            sectionLabel="What it did"
+            title="Remediation artifact and publishing outcome"
+            summary={remediationOutcomeSummary}
+          >
+            {activity.remediation_result ? (
+              <>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div>
-                    <p className="text-[var(--ph-muted)]">Action Taken</p>
-                    <p className="text-[var(--ph-text)]">
-                      {formatActionTaken(
-                        activity.remediation_result.action_taken,
-                      )}
+                    <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">
+                      Action Taken
+                    </p>
+                    <p className="mt-1 text-sm text-[var(--ph-text)]">
+                      {formatActionTaken(activity.remediation_result.action_taken)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[var(--ph-muted)]">Success</p>
+                    <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">
+                      Success
+                    </p>
                     <p
                       className={
                         activity.remediation_result.success
-                          ? "text-green-600 font-medium"
-                          : "text-red-600 font-medium"
+                          ? "mt-1 text-sm font-medium text-[var(--ph-success)]"
+                          : "mt-1 text-sm font-medium text-[var(--ph-danger)]"
                       }
                     >
                       {activity.remediation_result.success ? "Yes" : "No"}
                     </p>
                   </div>
                 </div>
-                <div className="mt-3 space-y-2">
-                  {activity.remediation_result.pr_url && (
+                <div className="flex flex-wrap gap-2">
+                  {activity.remediation_result.pr_url ? (
                     <a
                       href={activity.remediation_result.pr_url}
                       target="_blank"
@@ -1329,8 +1462,8 @@ export default function ActivityDetail() {
                       Open Pull Request
                       <ExternalLink className="ml-1 h-4 w-4" />
                     </a>
-                  )}
-                  {activity.remediation_result.issue_url && (
+                  ) : null}
+                  {activity.remediation_result.issue_url ? (
                     <a
                       href={activity.remediation_result.issue_url}
                       target="_blank"
@@ -1340,84 +1473,71 @@ export default function ActivityDetail() {
                       Open Issue
                       <ExternalLink className="ml-1 h-4 w-4" />
                     </a>
-                  )}
+                  ) : null}
                 </div>
                 {(remediationMeta.includesProposedFix ||
                   remediationMeta.reusedExistingPr ||
                   remediationMeta.appliedLearningId ||
                   remediationMeta.reasonCode ||
                   remediationMeta.reasonDetail) && (
-                  <div className="mt-3">
-                    <p className="text-xs text-[var(--ph-muted)]">
-                      Result Metadata
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">
+                      Publication metadata
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {remediationMeta.includesProposedFix && (
-                        <span className="inline-flex items-center rounded-md bg-[var(--ph-info-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-info)]">
-                          Includes Proposed Fix
-                        </span>
-                      )}
-                      {remediationMeta.reusedExistingPr && (
-                        <span className="inline-flex items-center rounded-md bg-[var(--ph-success-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-success)]">
-                          Reused Existing PR
-                        </span>
-                      )}
-                      {remediationMeta.appliedLearningId && (
-                        <span className="inline-flex items-center rounded-md bg-[var(--ph-info-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-info)]">
-                          Applied Learning Guidance
-                        </span>
-                      )}
-                      {remediationMeta.guidanceEffectiveness && (
-                        <span className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]">
-                          Guidance {remediationMeta.guidanceEffectiveness}
-                        </span>
-                      )}
-                      {remediationMeta.reasonCode && (
-                        <span className="inline-flex items-center rounded-md bg-[var(--ph-warning-bg)] px-2 py-1 text-xs font-medium text-[var(--ph-warning)]">
-                          {remediationMeta.reasonCode}
-                        </span>
-                      )}
+                      {remediationMeta.includesProposedFix ? (
+                        <Badge variant="outline">Includes Proposed Fix</Badge>
+                      ) : null}
+                      {remediationMeta.reusedExistingPr ? (
+                        <Badge variant="outline">Reused Existing PR</Badge>
+                      ) : null}
+                      {remediationMeta.appliedLearningId ? (
+                        <Badge variant="outline">Applied Learning Guidance</Badge>
+                      ) : null}
+                      {remediationMeta.reasonCode ? (
+                        <Badge variant="outline">{remediationMeta.reasonCode}</Badge>
+                      ) : null}
                     </div>
-                    {remediationMeta.reasonDetail && (
+                    {remediationMeta.reasonDetail ? (
                       <p className="mt-2 text-sm text-[var(--ph-text)]">
                         {remediationMeta.reasonDetail}
                       </p>
-                    )}
-                    {remediationMeta.appliedLearningId && (
-                      <p className="mt-2 text-sm text-[var(--ph-text)]">
-                        Active playbook applied:{" "}
-                        <span className="font-medium">
-                          {remediationMeta.appliedLearningTitle || remediationMeta.appliedLearningId}
-                        </span>
-                        {remediationMeta.appliedLearningTitle &&
-                          remediationMeta.appliedLearningTitle !== remediationMeta.appliedLearningId && (
-                            <span className="text-[var(--ph-muted)]">
-                              {" "}
-                              ({remediationMeta.appliedLearningId})
-                            </span>
-                          )}
+                    ) : null}
+                    {activity.remediation_result.error_message ? (
+                      <p className="mt-2 text-sm text-[var(--ph-danger)]">
+                        {activity.remediation_result.error_message}
                       </p>
-                    )}
-                    {remediationMeta.guidanceEffectiveness && (
-                      <p className="mt-2 text-sm text-[var(--ph-text)]">
-                        Operator-rated guidance impact:{" "}
-                        <span className="font-medium">
-                          {remediationMeta.guidanceEffectiveness}
-                        </span>
-                      </p>
-                    )}
+                    ) : null}
                   </div>
                 )}
-                {activity.remediation_result.error_message && (
-                  <p className="mt-3 text-sm text-red-600">
-                    {activity.remediation_result.error_message}
-                  </p>
-                )}
-              </div>
+              </>
+            ) : (
+              <p className="text-sm text-[var(--ph-muted)]">
+                No remediation result has been recorded for this activity.
+              </p>
             )}
-          </div>
+          </IncidentRecordPanel>
+
+          <IncidentRecordPanel
+            icon={<KeyRound className="h-4 w-4" />}
+            sectionLabel="What still needs review"
+            title="Operator verification and feedback"
+            summary={
+              currentVerification
+                ? `Latest overall verification is ${formatVerificationOutcomeLabel(currentVerification.overall)}.`
+                : "This incident has not been operator-verified yet."
+            }
+          >
+            <VerificationWorkspace
+              activity={activity}
+              currentVerification={currentVerification}
+              verificationHistory={verificationHistory}
+              appliedLearningId={remediationMeta.appliedLearningId}
+              appliedLearningTitle={remediationMeta.appliedLearningTitle}
+            />
+          </IncidentRecordPanel>
         </div>
-      )}
+      </div>
 
       {/* External Diagnostics Card */}
       <div className="card p-6">

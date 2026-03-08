@@ -111,6 +111,51 @@ Theme: LLM capability contract hardening + learning-ops rework.
 5. Docs and operator surfaces describe the learning system honestly as a governed LLM-assisted subsystem rather than a generic queue.
 6. Real incident regressions that surfaced during `v0.6.0` work are captured in evals or tracked follow-on slices before release closeout.
 
+## Planned Follow-On Slice Within `v0.6.0` (Minor)
+
+Theme: operator workflow maturity and trust-first incident operations.
+
+### Must-Have Scope
+
+1. Verification workspace UX
+   - add a first-class operator verification flow in the UI instead of keeping learning feedback API-only
+   - allow operators to record `identification`, `diagnosis`, `remediation`, and `guidance_effectiveness` from the product surface
+   - show previous verification history and affected learning candidate(s) before submit
+2. Activity Detail incident-record upgrade
+   - restructure Activity Detail around incident workflow sections (`what happened`, `what PipelineHealer concluded`, `what it did`, `what still needs review`)
+   - keep raw evidence available but secondary and collapsible
+   - surface policy/runtime provenance, learning influence, and verification state more clearly
+3. Control Center learning explainability
+   - show why a learning candidate is ready/not ready, which incidents support it, and whether guided runs helped or hurt
+   - improve queue readability so it behaves like an operator worklist, not just a record list
+4. Review queue / trust operations surface
+   - add a focused operator queue for review-only outputs, skipped artifact publication, low-confidence diagnoses, and harmful guidance follow-up
+   - keep linkage to remediation issues/PRs and verification tasks visible from one place
+5. Operator trust reporting
+   - add compact reporting for diagnosis accuracy, remediation usefulness, guidance helped-rate, and noisy failure classes
+   - prefer governed, comprehensible metrics over model-centric vanity metrics
+
+### Delivery Shape
+
+Recommended implementation split: `2-3` PRs, not one monolith and not many small PRs.
+
+1. PR 1: verification workspace + feedback UX
+2. PR 2: Activity Detail + Control Center explainability/trust-surface redesign
+3. PR 3: review queue + trust reporting, if scope still warrants it after PR 1/2 land
+
+Because `v0.6.0` has not been cut yet, this slice remains in the active `v0.6.0` release scope rather than rolling forward to a new target version.
+
+Direct pushes are not recommended for this slice. The work changes multiple operator-facing surfaces and trust contracts, so protected-branch review is part of the quality bar, not just process overhead.
+
+### Exit Criteria
+
+1. Operators can submit verification and guidance-effectiveness feedback from the UI without using raw API calls.
+2. Activity Detail reads like an incident record with clear primary/secondary information hierarchy.
+3. Control Center explains learning readiness and recent guidance outcomes without requiring log/API digging.
+4. A dedicated review queue exists for items requiring human action or trust follow-up.
+5. Trust metrics are visible in-product and aligned with documented governance semantics.
+6. The slice lands in no more than `3` reviewed PRs unless scope is explicitly re-cut in the roadmap first.
+
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 
 Theme: close the loop between operator verification and PipelineHealer learning, and make diagnostics source behavior explicit (especially MCP vs `gh_aw` passive mode).
@@ -532,6 +577,11 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-056` | Incident-derived eval expansion for diagnosis/remediation hardening: capture live regressions like stale dependency suggestions, zero-count failure issues, and static-analysis/bounded-draft failures as first-class fixtures | `v0.6.0` | minor | High | In Progress |
 | `BL-057` | Review-only issue quality hardening: remove generic titles/body fallbacks (`unknown violations`, `0 test(s) failed`) by using failing-step/failing-command/static-analysis context when structured evidence is partial | `v0.6.0` | minor | High | In Progress |
 | `BL-058` | PipelineHealer-generated issue lifecycle hygiene: validate, link, and auto-close active review issues from human fix PRs, and close stale/superseded generated issues with audit comments | `v0.6.0` | patch/minor | Medium | In Progress |
+| `BL-059` | Verification workspace UX: first-class in-product operator submission flow for `identification`, `diagnosis`, `remediation`, and `guidance_effectiveness`, including visible affected learning candidates and prior verification history | `v0.6.0` | minor | High | Planned |
+| `BL-060` | Activity Detail incident-record redesign: strengthen primary incident narrative, collapse secondary/raw evidence, and surface policy/runtime/learning provenance in a clearer hierarchy | `v0.6.0` | minor | High | Planned |
+| `BL-061` | Control Center learning explainability upgrade: make readiness reasons, candidate provenance, supporting incidents, and guidance helped/hurt trends operator-readable | `v0.6.0` | minor | High | Planned |
+| `BL-062` | Review queue / trust-ops surface: dedicated operator inbox for review-only outputs, skipped artifacts, low-confidence diagnoses, and harmful-guidance follow-up | `v0.6.0` | minor | Medium | Planned |
+| `BL-063` | Trust reporting dashboard: compact operator-facing metrics for diagnosis accuracy, remediation usefulness, guidance helped-rate, and noisy failure classes | `v0.6.0` | minor | Medium | Planned |
 
 ## Definition of Done (Per Version)
 
