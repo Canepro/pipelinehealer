@@ -426,12 +426,23 @@ Be specific about:
                     if "docker" in normalized_description or "manifest" in normalized_description
                     else "generic"
                 )
+                manifest_file = self._infer_dependency_manifest_file(package_manager, error_text)
+                resolution_kind = self._classify_dependency_resolution_kind(
+                    description=description,
+                    package_manager=package_manager,
+                    error_text=error_text,
+                )
+                is_auto_fixable = package_manager in {"npm", "pip"} and resolution_kind in {
+                    "missing",
+                    "version_conflict",
+                }
 
                 return Diagnosis(
                     failure_type=FailureType.DEPENDENCY,
                     confidence=0.85,
                     root_cause=description,
-                    is_auto_fixable=True,
+                    affected_files=[manifest_file] if manifest_file else [],
+                    is_auto_fixable=is_auto_fixable,
                     suggested_fix=self._build_dependency_suggested_fix(
                         package_manager=package_manager,
                         package_name=package_name,
@@ -445,6 +456,8 @@ Be specific about:
                         details={
                             "package_name": package_name,
                             "package_manager": package_manager,
+                            "manifest_file": manifest_file,
+                            "resolution_kind": resolution_kind,
                         },
                     ),
                 )
@@ -520,7 +533,7 @@ Be specific about:
                             "is_flaky": True,
                             "test_framework": framework,
                             "failed_tests": failed_tests,
-                            "test_errors": {},
+                            "test_errors": self._extract_test_errors(error_text, failed_tests),
                             "failure_scope": "suite",
                             "suspected_files": self._suspected_files_from_tests(failed_tests),
                         },
@@ -573,7 +586,7 @@ Be specific about:
                             "is_flaky": is_flaky,
                             "test_framework": framework,
                             "failed_tests": failed_tests,
-                            "test_errors": {},
+                            "test_errors": self._extract_test_errors(error_text, failed_tests),
                             "failure_scope": failure_scope,
                             "suspected_files": self._suspected_files_from_tests(failed_tests),
                         },
@@ -593,6 +606,7 @@ Be specific about:
             if re.search(pattern, error_text, re.IGNORECASE):
                 timeout_minutes = self._extract_timeout_minutes(error_text)
                 timed_out_job = str(log_analyses[0].job_name or "Unknown").strip() if log_analyses else "Unknown"
+                timed_out_step = self._extract_timed_out_step(error_text)
                 resource_signal = self._detect_timeout_resource_signal(error_text)
                 likely_fix_kind = self._detect_timeout_fix_kind(description, resource_signal)
                 suggested_timeout = (
@@ -616,7 +630,7 @@ Be specific about:
                         signal=description,
                         details={
                             "timed_out_job": timed_out_job,
-                            "timed_out_step": "",
+                            "timed_out_step": timed_out_step,
                             "timeout_minutes": timeout_minutes,
                             "suggested_timeout": suggested_timeout,
                             "resource_signal": resource_signal,
@@ -669,6 +683,7 @@ Be specific about:
         config_patterns = [
             (r"env.*not.*set", "Environment variable not set"),
             (r"secret.*not.*found", "Secret not configured"),
+            (r"secret.*not.*configured", "Secret not configured"),
             (r"none of the following secrets?\s+are\s+set", "Secret not configured"),
             (r"requires?.*secret.*configured", "Secret not configured"),
             (r"permission.*denied", "Permission denied"),
@@ -727,7 +742,7 @@ Be specific about:
                         details={
                             "missing_env_vars": missing_vars,
                             "misconfiguration_kind": misconfiguration_kind,
-                            "config_file": "",
+                            "config_file": self._extract_config_file(error_text),
                             "config_error": description,
                         },
                     ),
@@ -813,6 +828,35 @@ Be specific about:
         payload["classification_pattern"] = pattern
         return payload
 
+    @staticmethod
+    def _infer_dependency_manifest_file(package_manager: str, error_text: str) -> str:
+        normalized_manager = package_manager.strip().lower()
+        lowered = error_text.lower()
+        if normalized_manager == "npm":
+            return "package.json"
+        if normalized_manager == "pip":
+            return "requirements.txt" if "requirements.txt" in lowered else "pyproject.toml"
+        if normalized_manager == "uv":
+            return "pyproject.toml"
+        return ""
+
+    @staticmethod
+    def _classify_dependency_resolution_kind(
+        *,
+        description: str,
+        package_manager: str,
+        error_text: str,
+    ) -> str:
+        lowered_description = description.lower()
+        lowered_error = error_text.lower()
+        if any(marker in lowered_description for marker in ("conflict", "resolution", "resolve")):
+            return "version_conflict"
+        if package_manager == "docker":
+            if "pull access denied" in lowered_error or "repository does not exist" in lowered_error:
+                return "image_pull"
+            return "registry_access"
+        return "missing"
+
     def _build_lint_suggested_fix(
         self,
         *,
@@ -849,6 +893,27 @@ Be specific about:
                 files.append(candidate)
         return files
 
+    @staticmethod
+    def _extract_test_errors(error_text: str, failed_tests: list[str]) -> dict[str, str]:
+        lines = [line.strip() for line in error_text.splitlines() if line.strip()]
+        interesting = [
+            line
+            for line in lines
+            if "assertionerror" in line.lower()
+            or line.startswith("E ")
+            or "expected" in line.lower()
+            or "traceback" in line.lower()
+        ]
+        if not interesting:
+            interesting = lines[:1]
+        if not interesting:
+            return {}
+
+        summary = interesting[0][:240]
+        if not failed_tests:
+            return {"summary": summary}
+        return {test_name: summary for test_name in failed_tests[:5]}
+
     def _build_test_suggested_fix(
         self,
         *,
@@ -884,6 +949,19 @@ Be specific about:
                 except (TypeError, ValueError):
                     return 0
         return 0
+
+    @staticmethod
+    def _extract_timed_out_step(error_text: str) -> str:
+        patterns = [
+            r"step ['\"]([^'\"]+)['\"]",
+            r"Step:\s*([^\n]+)",
+            r"during (?:the )?step ['\"]?([^\n'\":]+)",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, error_text, flags=re.IGNORECASE)
+            if match:
+                return str(match.group(1)).strip().rstrip(".,:")
+        return ""
 
     def _detect_timeout_resource_signal(self, error_text: str) -> str:
         text = error_text.lower()
@@ -944,6 +1022,13 @@ Be specific about:
         if "runner" in lowered:
             return "runner_env"
         return "env_var"
+
+    def _extract_config_file(self, error_text: str) -> str:
+        for ref in self._extract_file_references(error_text):
+            if ref.startswith(".github/workflows/"):
+                return ref
+        refs = self._extract_file_references(error_text)
+        return refs[0] if refs else ""
 
     def _build_build_config_suggested_fix(
         self,

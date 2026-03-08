@@ -1,4 +1,4 @@
-<!-- LAST_VERIFIED: c8df35f -->
+<!-- LAST_VERIFIED: b5bb08d -->
 
 # Diagnosis and Remediation Architecture Plan
 
@@ -9,7 +9,7 @@ Tracking:
 - Target version: `v0.6.0`
 - Change type: `minor`
 - Changelog section: `Changed`
-- Status: planned
+- Status: in progress
 
 It exists to keep the implementation:
 
@@ -405,9 +405,9 @@ Use this checklist for the `v0.6.0` workstream.
 
 ### Evaluation and rollout
 
-- [ ] incident fixture set created for dependency, lint, test, timeout, and build-config cases
-- [ ] eval metrics recorded for classification accuracy, field completeness, action correctness, and validation pass rate
-- [ ] rollout gates defined for schema changes and model-role changes
+- [x] incident fixture set created for dependency, lint, test, timeout, and build-config cases
+- [x] eval metrics recorded for classification accuracy, field completeness, action correctness, and validation pass rate
+- [x] rollout gates defined for schema changes and model-role changes
 
 ## Suggested PR Slices
 

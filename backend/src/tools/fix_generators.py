@@ -436,7 +436,7 @@ class FixGenerators:
         package_name = error_details.get("package_name", "")
         current_version = error_details.get("current_version", "")
         required_version = error_details.get("required_version", "")
-        package_manager = error_details.get("package_manager", "npm")
+        package_manager = str(error_details.get("package_manager", "npm")).strip().lower()
 
         # Best-effort extraction when the diagnosis came from an LLM and didn't include `package_name`.
         # This supports demo scenarios like: "Cannot find module 'left-pad'".
@@ -445,7 +445,7 @@ class FixGenerators:
             m = re.search(r"Cannot find module ['\"]([^'\"]+)['\"]", additional, flags=re.IGNORECASE)
             if m:
                 package_name = m.group(1)
-                package_manager = error_details.get("package_manager", "npm")
+                package_manager = str(error_details.get("package_manager", "npm")).strip().lower()
 
         if not package_name:
             return self._generate_issue_only(diagnosis, repository_info)
@@ -477,6 +477,13 @@ class FixGenerators:
             logger.warning(
                 "UV package manager remediation not yet supported; "
                 "falling back to issue-only remediation plan."
+            )
+            return self._generate_issue_only(diagnosis, repository_info)
+        else:
+            logger.info(
+                "Dependency remediation for package manager '%s' is not bounded; "
+                "falling back to issue-only remediation plan.",
+                package_manager,
             )
             return self._generate_issue_only(diagnosis, repository_info)
 
