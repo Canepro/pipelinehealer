@@ -97,7 +97,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - Warning-debt fast follow progress (2026-02-19):
   - frontend chunk split policy added in `frontend/vite.config.ts`; local production build no longer emits the `>500kB` warning
   - auth SDK compatibility aligned for React 18 by pinning `@azure/msal-react=3.0.26` and `@azure/msal-browser=4.28.2`; local `bun install --frozen-lockfile` no peer warning
-  - backend `agent-framework-core[all]` warning remains tracked as index/upstream constrained (`BL-011`) after validation attempt; issue opened for closure tracking: [#17](https://github.com/Canepro/pipelinehealer/issues/17)
+  - backend Agent Framework install path is resolved by explicitly declaring `azure-ai-projects==2.0.0b4` alongside `agent-framework-core>=1.0.0rc3`, which allows `uv pip install --system .` to resolve the required transitive prerelease cleanly for [#17](https://github.com/Canepro/pipelinehealer/issues/17)
 - QA/readability refinement pass (2026-02-19):
   - control center summary panels moved toward structured key/value rows to reduce sentence-heavy scan load
   - learning queue metadata is now compact-badge based (`runs`, `success`, `action`) for faster triage
