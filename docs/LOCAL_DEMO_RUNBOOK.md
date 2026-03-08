@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: c961266 -->
+<!-- LAST_VERIFIED: 8e79a7e -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -111,7 +111,7 @@ In the Azure Portal, open your OpenAI resource page → **Keys and Endpoint**:
 - **Endpoint**: for example `https://your-resource.openai.azure.com/`
 - **API Key**: copy Key 1 or Key 2
 
-> **Note:** If your endpoint uses the `cognitiveservices.azure.com` domain, that works too. PipelineHealer auto-detects the endpoint style.
+> **Note:** If your endpoint uses the `cognitiveservices.azure.com` domain, that works too. PipelineHealer prefers the Azure Responses API first and falls back to Chat only when a deployment rejects Responses.
 
 ### Option B: OpenAI-compatible provider (portable path)
 
@@ -447,15 +447,47 @@ If you are using Docker Compose (no local venv), run:
 bash scripts/ph.sh aoai:check
 ```
 
+If you are targeting a local or non-Azure-hosted backend API with `settings:*` commands, set:
+
+```bash
+export PH_BACKEND_URL=http://127.0.0.1:8000
+```
+
+Without `PH_BACKEND_URL`, `settings:*` defaults back to the Azure-managed backend target.
+
 If `aoai:check` cannot run in your environment, use this direct container check:
 
 ```bash
-docker compose --env-file backend/.env exec backend python3 -c "import os; from openai import AzureOpenAI; c=AzureOpenAI(api_key=os.environ['AZURE_OPENAI_API_KEY'], api_version=os.environ.get('AZURE_OPENAI_CHAT_API_VERSION','2024-12-01-preview'), azure_endpoint=os.environ['AZURE_OPENAI_ENDPOINT']); r=c.chat.completions.create(model=os.environ['AZURE_OPENAI_DEPLOYMENT_NAME'], messages=[{'role':'user','content':'Reply with OK'}], max_tokens=8); print('model connectivity OK.'); print(r.choices[0].message.content)"
+docker compose --env-file backend/.env exec -T backend python3 - <<'PY'
+import os
+import httpx
+
+url = f'{os.environ["AZURE_OPENAI_ENDPOINT"].rstrip("/")}/openai/responses?api-version={os.environ.get("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")}'
+resp = httpx.post(
+    url,
+    headers={
+        "api-key": os.environ["AZURE_OPENAI_API_KEY"],
+        "Content-Type": "application/json",
+    },
+    json={
+        "model": os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"],
+        "input": "Reply with exactly: OK",
+    },
+    timeout=60.0,
+)
+print(resp.status_code)
+print(resp.text)
+PY
 ```
 
-**What success looks like:** Output ends with `model connectivity OK.`
+**What success looks like:** `aoai:check` ends with `model connectivity OK (Responses API).` or `model connectivity OK (Chat API fallback).`
 
-**If it fails:** Double-check `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT_NAME`, and `AZURE_OPENAI_API_KEY` in your `backend/.env`. The endpoint should be the base URL only (no extra path segments).
+**If it fails:** Double-check `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT_NAME`, and `AZURE_OPENAI_API_KEY` in your `backend/.env`. The endpoint should be the base URL only (no extra path segments). If `GET /api/settings/llm/provider-health` says `available=true` but the live call still fails, you have a model/operation compatibility issue rather than a missing-config issue.
+
+Important Azure endpoint formatting rule:
+- `AZURE_OPENAI_ENDPOINT` must be only the base resource URL
+- correct: `https://<resource>.cognitiveservices.azure.com/`
+- incorrect: `https://<resource>.cognitiveservices.azure.com/openai/responses?api-version=...`
 
 ---
 
@@ -472,7 +504,13 @@ PipelineHealer listens for GitHub webhook events to know when a workflow fails. 
 bunx smee-client --url https://smee.io/<your-channel> --target http://127.0.0.1:8000/webhook/github
 ```
 
+Replace `<your-channel>` with the actual channel ID. Do not include angle brackets in the real command.
+
 **What success looks like:** It prints `Connected` and stays running.
+
+If your backend is running on a remote VM or cluster and `127.0.0.1:8000` only exists there:
+- run `smee-client` on your local machine, not on the VM
+- tunnel the remote backend first with SSH (`ssh -L 8000:127.0.0.1:8000 ...`) or point `smee-client` at another reachable relay target
 
 3. Now configure a webhook on your demo GitHub repo:
    - Go to your repo → **Settings** → **Webhooks** → **Add webhook**
@@ -722,6 +760,7 @@ gh api repos/$REPO/hooks --jq '.[] | {id,active,url:.config.url,events,last_resp
 
 - **Webhook not reaching backend**: Check the smee terminal for `POST` events arriving.
 - **Signature mismatch**: If `GITHUB_WEBHOOK_SECRET` is set in `backend/.env`, it must match the secret configured in the GitHub webhook. For local dev, you can leave both empty.
+- **No activities after `backfill`**: `backfill` does not discover new workflow failures. It only enriches activities that already exist with delayed external diagnostics. Use real webhook delivery for first-ingest validation.
 
 ### Azure OpenAI errors
 

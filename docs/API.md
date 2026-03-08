@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 86c6c55 -->
+<!-- LAST_VERIFIED: 8e79a7e -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -87,7 +87,7 @@ Unauthenticated health check.
 ```json
 {
   "service": "PipelineHealer",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "status": "healthy",
   "environment": "production",
   "storage_backend": "cosmos_db"
@@ -839,6 +839,13 @@ Example when using `llm_provider=openai_compatible` with missing config:
   "message": "OPENAI_COMPATIBLE_BASE_URL is not configured."
 }
 ```
+
+Important:
+
+- This endpoint validates provider configuration shape and adapter readiness.
+- It does **not** execute a live completion/request against the configured model.
+- `available=true` means PipelineHealer has enough configuration to attempt LLM calls, not that every model/operation combination is guaranteed to succeed.
+- For Azure deployments, verify live model compatibility separately with `bash scripts/ph.sh aoai:check` or a direct provider smoke test.
 
 OpenAI-compatible `reason` codes:
 

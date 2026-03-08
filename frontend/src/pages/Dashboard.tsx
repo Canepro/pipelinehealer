@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { api } from "../api/client";
 import type { Activity as ActivityItem } from "../api/client";
 import { EMPTY_STATES } from "../constants/emptyStates";
+import { copyToClipboard } from "../utils/copyToClipboard";
 import StatsCard from "../components/StatsCard";
 import ActivityTable from "../components/ActivityTable";
 import { Button } from "@/components/ui/button";
@@ -721,7 +722,7 @@ export default function Dashboard() {
                     onClick={async () => {
                       const traceId = selectedActivity?.id || "";
                       try {
-                        await navigator.clipboard.writeText(traceId);
+                        await copyToClipboard(traceId);
                         toast.success("Activity ID copied");
                       } catch {
                         toast.error("Copy failed");

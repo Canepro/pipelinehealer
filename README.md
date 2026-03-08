@@ -1,12 +1,12 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 8300890 -->
+<!-- LAST_VERIFIED: 8e79a7e -->
 
 > OSS-first, policy-aware pipeline remediation platform with GitHub Actions and Jenkins bridge support today.
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Try_It-brightgreen)](https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io)
 [![Azure](https://img.shields.io/badge/Azure-Deployed-blue)](https://azure.microsoft.com)
-[![Release](https://img.shields.io/badge/Release-v0.5.5-blue)](https://github.com/Canepro/pipelinehealer/releases/tag/v0.5.5)
+[![Release](https://img.shields.io/badge/Release-v0.5.6-blue)](https://github.com/Canepro/pipelinehealer/releases/tag/v0.5.6)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 PipelineHealer ingests failed pipeline executions, diagnoses root causes, and applies controlled remediation:
@@ -23,8 +23,8 @@ Current provider coverage is GitHub Actions plus a signed Jenkins bridge path. T
 
 - Public repository: `https://github.com/Canepro/pipelinehealer`
 - Live reference deployment: Azure Container Apps (backend + frontend)
-- Current release baseline: [`v0.5.5`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.5.5)
-- Current forward track: post-`v0.5.5` continuity and follow-on release planning
+- Current release baseline: [`v0.5.6`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.5.6)
+- Current forward track: post-`v0.5.6` continuity and follow-on release planning
 - `v0.3.2` required freeze scope shipped: `#36` (Jenkins bridge), `#42` (Assign-to-Agent), `#57` (storage posture hardening)
 - OSS-friendly durable storage is available: PostgreSQL adapter (`#58`) alongside Cosmos DB and in-memory development mode
 - Demo runbook: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
@@ -122,6 +122,11 @@ kubectl -n pipelinehealer rollout status deploy/pipelinehealer-backend
 kubectl -n pipelinehealer rollout status deploy/pipelinehealer-frontend
 ```
 
+Practical first-run note:
+- the chart defaults to `ClusterIP` Services
+- for a remote VM or single-node `k3s` lab, keep that default and use `kubectl port-forward` plus SSH `-L` tunnels for browser access before introducing ingress or public Service types
+- use real webhook delivery for end-to-end validation; `backfill` does not create new activities from GitHub runs
+
 3. Local containers (Docker/Podman)
 
 ```bash
@@ -138,6 +143,10 @@ Detailed docs:
 - Azure + local operations: [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md)
 - Kubernetes/Helm: [docs/KUBERNETES_HELM_RUNBOOK.md](docs/KUBERNETES_HELM_RUNBOOK.md)
 - Full CLI command reference: [docs/CLI.md](docs/CLI.md)
+
+Azure model-path note:
+- when using `cognitiveservices.azure.com`, set `AZURE_OPENAI_ENDPOINT` to the base resource URL only
+- some models support Azure Responses API but reject Chat Completions; if you test with a Responses-only model, validate with `bash scripts/ph.sh aoai:check` against the target release
 
 Persistence guardrail for non-development deployments:
 - Use a durable backend: `STORAGE_MODE=cosmos` (`COSMOS_DB_ENDPOINT`) or `STORAGE_MODE=postgres` (`POSTGRES_DSN`).
@@ -163,6 +172,10 @@ Pipeline failures create repetitive triage work and slow delivery. PipelineHeale
 - Operator clarity: the app shell can surface the running UI/API release version so deployed state is visible without external tooling.
 
 ## Recent Releases
+
+### v0.5.6
+
+- Azure compatibility and deployment hardening release: `cognitiveservices.azure.com` deployments now follow the observed `Responses`-first path for `gpt-5.1-codex-mini`, operator copy actions degrade cleanly outside secure browser contexts, and the Docker/Helm runbooks now reflect the tested remote-VM deployment flow.
 
 ### v0.5.5
 
@@ -223,11 +236,11 @@ Pipeline failures create repetitive triage work and slow delivery. PipelineHeale
 - No-rebuild config updates through runtime env sync paths (ACA/Helm/compose).
 - Release workflow/frontend image decoupled from auth build-arg coupling.
 
-Release notes: [CHANGELOG.md](CHANGELOG.md), [v0.5.5 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.5.5), [v0.5.4 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.5.4), and [v0.5.3 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.5.3)
+Release notes: [CHANGELOG.md](CHANGELOG.md), [v0.5.6 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.5.6), [v0.5.5 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.5.5), and [v0.5.4 release](https://github.com/Canepro/pipelinehealer/releases/tag/v0.5.4)
 
 ## Kubernetes Portability Status
 
-As of March 7, 2026 (`v0.5.5`), random-user image pullability regressions are gated in release automation.
+As of March 8, 2026 (`v0.5.6`), random-user image pullability regressions are gated in release automation.
 
 - previous portability gap issue [#37](https://github.com/Canepro/pipelinehealer/issues/37) is closed
 - Helm success output alone is still not sufficient proof; verify rollout and image pulls on clean clusters

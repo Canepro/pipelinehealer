@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 6aa92ea -->
+<!-- LAST_VERIFIED: 8e79a7e -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -269,6 +269,12 @@ bash scripts/ph.sh aoai:check
 ```
 
 `settings:check` now exposes per-field provenance metadata from the backend API, including startup-managed vs runtime override state, restart requirements, and presence-only sensitive signals for hidden startup configuration.
+
+`aoai:check` is a local-container smoke, not a remote backend probe:
+- it runs inside the local backend container via compose
+- it uses non-interactive `exec -T`, so it works over SSH and in CI-style shells
+- it tries the Azure Responses API first, then falls back to Chat only for known compatibility errors
+- for remote backends, use platform-native logs plus `GET /api/settings/llm/provider-health`
 
 #### `settings:persist`
 

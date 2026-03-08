@@ -1,6 +1,6 @@
 # Kubernetes Helm Runbook
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: 8e79a7e -->
 
 This runbook adds Kubernetes as a secondary deployment target while keeping Azure Container Apps as the current reference managed path.
 
@@ -107,6 +107,36 @@ kubectl -n pipelinehealer rollout status deploy/pipelinehealer-frontend
 kubectl -n pipelinehealer port-forward svc/pipelinehealer-backend 8000:8000
 curl -sS http://127.0.0.1:8000/health
 ```
+
+## Tested Single-Node VM Path
+
+This is the fastest operator path we validated on a disposable Ubuntu VM with `k3s`.
+
+1. Keep chart Services as `ClusterIP` for the first install.
+2. Port-forward backend and frontend from the VM:
+
+```bash
+kubectl -n pipelinehealer port-forward svc/pipelinehealer-backend 8000:8000
+kubectl -n pipelinehealer port-forward svc/pipelinehealer-frontend 3000:3000
+```
+
+3. If the cluster is remote, create SSH tunnels from your workstation so the browser uses `localhost`:
+
+```bash
+ssh -i /path/to/key.pem \
+  -L 3000:127.0.0.1:3000 \
+  -L 8000:127.0.0.1:8000 \
+  <user>@<vm-ip>
+```
+
+4. Open:
+   - `http://127.0.0.1:3000`
+   - `http://127.0.0.1:8000/health`
+
+Why this path is recommended for first validation:
+- it avoids changing chart Service types before the app is proven healthy
+- it avoids cloud-load-balancer setup for a first smoke
+- browser access through `localhost` avoids Clipboard API restrictions commonly seen on raw `http://<ip>` origins
 
 ## Minimal Production Override Example
 
@@ -271,6 +301,60 @@ kubectl -n pipelinehealer port-forward svc/pipelinehealer-frontend 3000:3000
 kubectl -n pipelinehealer port-forward svc/pipelinehealer-backend 8000:8000
 curl http://127.0.0.1:8000/health
 ```
+
+For a remote VM, run the `kubectl port-forward` commands on the VM and use SSH `-L` tunnels from your local machine to browse the forwarded ports.
+
+## Webhook Validation On ClusterIP Installs
+
+For first-run Helm validation, do not assume `backfill` will discover new failed workflow runs. It does not.
+
+- `POST /api/backfill-diagnostics` only enriches activities that already exist and are missing external diagnostics.
+- To create new activities on a `ClusterIP` install, deliver real webhook events to `/webhook/github`.
+
+Validated operator path:
+
+1. Keep backend `kubectl port-forward` running on the VM:
+
+```bash
+kubectl -n pipelinehealer port-forward svc/pipelinehealer-backend 8000:8000
+```
+
+2. Keep an SSH tunnel open from your workstation:
+
+```bash
+ssh -i /path/to/key.pem -L 8000:127.0.0.1:8000 <user>@<vm-ip>
+```
+
+3. Run `smee-client` on your workstation, targeting the tunneled backend:
+
+```bash
+bunx smee-client --url https://smee.io/<real-channel-id> --target http://127.0.0.1:8000/webhook/github
+```
+
+4. Point the GitHub repo webhook at that same `smee.io` channel URL.
+
+5. Trigger one failed workflow and watch the backend logs:
+
+```bash
+gh workflow run ci.yml -R <owner>/<repo> -f failure_type=lint
+kubectl -n pipelinehealer logs -f deploy/pipelinehealer-backend
+```
+
+Success signal:
+- `GET /api/activities` is no longer empty
+- the backend logs show `Processing failed workflow run`
+
+## Azure OpenAI Compatibility Note
+
+Azure endpoint formatting:
+- `AZURE_OPENAI_ENDPOINT` must be the base service URL only
+- correct: `https://<resource>.cognitiveservices.azure.com/`
+- incorrect: `https://<resource>.cognitiveservices.azure.com/openai/responses?api-version=...`
+
+Model compatibility note:
+- `cognitiveservices.azure.com` deployments may support the Azure Responses API while rejecting Chat Completions for the same model
+- if you use a Responses-only model such as `gpt-5.1-codex-mini`, validate the live model path with `bash scripts/ph.sh aoai:check`
+- on older releases that still force `chat/completions` for this endpoint family, deployment/webhook/remediation can still work while LLM diagnosis falls back to low-confidence issue creation
 
 ## Operational Notes
 

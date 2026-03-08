@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../api/client";
+import { copyToClipboard } from "../utils/copyToClipboard";
 import type {
   AppSettingMetadata,
   LearningQueueItem,
@@ -687,7 +688,7 @@ export default function ControlCenterPage() {
 
   const copyCommand = async (command: string) => {
     try {
-      await navigator.clipboard.writeText(command);
+      await copyToClipboard(command);
       toast.success("Command copied");
     } catch {
       toast.error("Copy failed");

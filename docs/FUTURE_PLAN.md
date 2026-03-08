@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 692605f -->
+<!-- LAST_VERIFIED: 8e79a7e -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -47,26 +47,29 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.5.3` | Released | Demo-day frontend corrections, docs refresh, and final release-gate cleanup |
 | `v0.5.4` | Released | `asyncpg` import hardening + frontend Dockerfile workflow-warning cleanup + operator-surface panel polish |
 | `v0.5.5` | Released | Final summary-panel separation cleanup + release/doc alignment carry-forward |
+| `v0.5.6` | Released | Azure `Responses`-first compatibility fix + clipboard hardening + deployment runbook lessons |
 
-## Released Target: `v0.5.5` (Patch)
+## Released Target: `v0.5.6` (Patch)
 
-Theme: final operator-surface cleanup and release-line documentation alignment after the `v0.5.4` follow-up.
+Theme: Azure compatibility hardening plus deployment-operator lessons after the `v0.5.5` visual cleanup follow-up.
 
 ### Delivered Scope
 
-1. Summary-panel structure cleanup
-   - Removed the remaining nested inner-box treatment from Settings and Control Center summary panels.
-   - Switched narrow side-column summary rows to calmer label/value separation so dark-mode cards stay readable at constrained widths.
-2. Release/documentation carry-forward
-   - Promoted `v0.5.5` across release manifests, README, API docs, demo defaults, and roadmap/history references.
-3. Review follow-up alignment
-   - Cleared the final release PR review drift with no runtime-behavior change beyond the shipped UI polish.
+1. Azure model-path hardening
+   - Switched `cognitiveservices.azure.com` handling to a `Responses`-first execution path for codex-style deployments, with chat fallback only for explicit compatibility cases.
+   - Brought the local `aoai:check` smoke command in line with non-interactive container use.
+2. Operator UX hardening
+   - Added a clipboard fallback so copy actions continue to work outside secure browser contexts during remote VM and tunnel-based operation.
+3. Deployment/documentation carry-forward
+   - Promoted `v0.5.6` across release manifests, README, API docs, demo defaults, and roadmap/history references.
+   - Captured the tested Docker and single-node Helm remote-VM workflow, including webhook relay and `backfill` limitations.
 
 ### Exit Criteria
 
-1. Summary panels no longer present a bright wireframe or collapsed value wrapping in narrow dark-mode layouts.
-2. Release manifests and current-release docs all agree on `v0.5.5`.
-3. Demo/operator docs point at the active tagged release rather than the prior patch baseline.
+1. `cognitiveservices.azure.com` codex-style deployments no longer fail solely because the app insists on chat-completions first.
+2. Copy actions remain usable in tunneled or otherwise insecure browser contexts.
+3. Release manifests and current-release docs all agree on `v0.5.6`.
+4. Demo/operator docs point at the active tagged release rather than the prior patch baseline.
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 

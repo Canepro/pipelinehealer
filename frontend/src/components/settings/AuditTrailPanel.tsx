@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import type { AdminSettingsAuditEntry } from '../../api/client'
 import { EMPTY_STATES } from '../../constants/emptyStates'
 import { formatActorLabel, formatAuditTimestampUtc, getEffectiveAuditChanges } from './types'
+import { copyToClipboard } from '@/utils/copyToClipboard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -66,7 +67,7 @@ export default function AuditTrailPanel({
     ].join('\n')
 
     try {
-      await navigator.clipboard.writeText(tracePayload)
+      await copyToClipboard(tracePayload)
       toast.success('Trace copied')
     } catch {
       toast.error('Unable to copy trace')
