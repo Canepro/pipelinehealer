@@ -214,23 +214,25 @@ class FixGenerators:
     def _build_validation_steps(self, diagnosis: Diagnosis) -> str:
         """Build concise verification steps for manual review path."""
         details = diagnosis.error_details or {}
-        lines = [
-            "1. Apply the proposed change in a branch.",
-            "2. Re-run the failing GitHub Actions workflow.",
-            "3. Confirm the original failing step now passes and no new failures are introduced.",
-        ]
+        lines = ["1. Apply the proposed change in a branch."]
         if diagnosis.failure_type == FailureType.TEST:
             framework = str(details.get("test_framework") or "test")
-            lines.insert(2, f"3. Run the related {framework} tests locally before pushing.")
-            lines[3] = "4. Re-run the failing GitHub Actions workflow."
-            lines.append("5. Confirm the original failing step now passes and no new failures are introduced.")
-        if diagnosis.failure_type == FailureType.TIMEOUT:
+            lines.append(f"2. Run the related {framework} tests locally before pushing.")
+            lines.append("3. Re-run the failing GitHub Actions workflow.")
+            lines.append("4. Confirm the original failing step now passes and no new failures are introduced.")
+        elif diagnosis.failure_type == FailureType.TIMEOUT:
             resource_signal = str(details.get("resource_signal") or "").strip().lower()
             if resource_signal in {"disk", "memory"}:
-                lines.insert(2, "3. Verify the runner has enough capacity for the retried workflow.")
-                lines[3] = "4. Re-run the failing GitHub Actions workflow."
-                lines.append("5. Confirm the capacity-related failure does not recur.")
-        return "\n".join(lines)
+                lines.append("2. Verify the runner has enough capacity for the retried workflow.")
+                lines.append("3. Re-run the failing GitHub Actions workflow.")
+                lines.append("4. Confirm the capacity-related failure does not recur.")
+            else:
+                lines.append("2. Re-run the failing GitHub Actions workflow.")
+                lines.append("3. Confirm the original failing step now passes and no new failures are introduced.")
+        else:
+            lines.append("2. Re-run the failing GitHub Actions workflow.")
+            lines.append("3. Confirm the original failing step now passes and no new failures are introduced.")
+        return "\n".join(f"{idx}. {line.split('. ', 1)[1] if '. ' in line else line}" for idx, line in enumerate(lines, start=1))
 
     @staticmethod
     def _render_bullet_list(items: list[str], fallback: str) -> str:
@@ -311,7 +313,10 @@ class FixGenerators:
         if diagnosis.failure_type == FailureType.LINT:
             linter = str(details.get("linter") or "").strip().lower()
             missing_file = str(details.get("missing_file") or "").strip()
-            autofix_command = str(details.get("autofix_command") or "").strip()
+            autofix_command = self._resolve_lint_fix_command(
+                linter,
+                str(details.get("autofix_command") or "").strip(),
+            )
             if linter == "eslint" and missing_file.startswith("eslint.config"):
                 return (
                     f"{missing_file}\n"
@@ -722,7 +727,7 @@ The following test(s) appear to be flaky (intermittent failures):
 
 ### Failed Tests
 {self._render_bullet_list(failed_tests[:10], "- None explicitly captured")}
-{"\n... and more" if len(failed_tests) > 10 else ""}
+{("... and more" if len(failed_tests) > 10 else "")}
 
 ### Error Details
 {error_details_str or "No detailed errors captured"}
@@ -855,6 +860,7 @@ The following test(s) appear to be flaky (intermittent failures):
         if missing_vars:
             # Create issue about missing environment variables
             vars_list = "\n".join(f"- `{v}`" for v in missing_vars)
+            section_title = "Missing Secrets" if misconfiguration_kind == "secret" else "Missing Environment Variables"
             title = (
                 "[PipelineHealer] Missing secrets in CI"
                 if misconfiguration_kind == "secret"
@@ -871,7 +877,7 @@ The following test(s) appear to be flaky (intermittent failures):
                 description="Create issue for missing environment variables",
                 issue_title=title,
                 issue_body=self._append_review_only_proposal(
-                    f"""## Missing Environment Variables
+                    f"""## {section_title}
 
 {intro}
 
@@ -997,6 +1003,18 @@ The following test(s) appear to be flaky (intermittent failures):
                 ),
             )
 
+        heading = (
+            "## Runner Capacity Exhaustion"
+            if resource_signal in {"disk", "memory"}
+            else "## Workflow Timeout"
+        )
+        intro = (
+            "The CI workflow failed because the runner ran out of disk capacity."
+            if resource_signal == "disk"
+            else "The CI workflow failed because the runner likely ran out of memory or was force-killed."
+            if resource_signal == "memory"
+            else "The CI workflow timed out during execution."
+        )
         issue_title = (
             "[PipelineHealer] Runner disk space exhausted"
             if resource_signal == "disk"
@@ -1011,15 +1029,31 @@ The following test(s) appear to be flaky (intermittent failures):
             if resource_signal == "memory"
             else "Increase the timeout if the step is legitimately slow, or optimize the step."
         )
+        timeout_instructions = (
+            ""
+            if resource_signal in {"disk", "memory"}
+            else f"""
+### How to Increase Timeout
+Add `timeout-minutes` to the step or job in your workflow:
+```yaml
+jobs:
+  {timed_out_job or "build"}:
+    timeout-minutes: {suggested_timeout}
+    steps:
+      - name: {timed_out_step}
+        timeout-minutes: {suggested_timeout}
+```
+"""
+        )
 
         return RemediationPlan(
             action=RemediationAction.CREATE_ISSUE,
             description="Create issue for timeout investigation",
             issue_title=issue_title,
             issue_body=self._append_review_only_proposal(
-                f"""## Workflow Timeout
+                f"""{heading}
 
-The CI workflow timed out during execution.
+{intro}
 
 ### Details
 - **Job:** {timed_out_job}
@@ -1037,16 +1071,7 @@ The CI workflow timed out during execution.
    - Use faster runners
 3. **Split**: Consider splitting the job into smaller jobs
 
-### How to Increase Timeout
-Add `timeout-minutes` to the step or job in your workflow:
-```yaml
-jobs:
-  {timed_out_job or "build"}:
-    timeout-minutes: {suggested_timeout}
-    steps:
-      - name: {timed_out_step}
-        timeout-minutes: {suggested_timeout}
-```
+{timeout_instructions}
 
 ### Root Cause
 {diagnosis.root_cause}
