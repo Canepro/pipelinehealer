@@ -1,6 +1,6 @@
 # Learning System Plan
 
-<!-- LAST_VERIFIED: 747334d -->
+<!-- LAST_VERIFIED: 60e2c27 -->
 
 This document explains the learning/governance subsystem, how to use it today, and what is planned next.
 
@@ -111,6 +111,47 @@ Quick verification checklist:
 5. Evaluation:
    - track learning impact metrics (reuse rate, false-positive rate, manual override rate).
 
+## Structured Retrieval Injection Contract
+
+The next learning step is not "let the queue influence the model somehow." It is a
+bounded retrieval contract.
+
+When active learning artifacts are injected into diagnosis/remediation, the runtime
+should pass structured records, not freeform prompt stuffing.
+
+Recommended injected fields per matched artifact:
+- `candidate_id`
+- `title`
+- `reason_code`
+- `suggested_playbook`
+- `applicability_notes`
+- `risk_notes`
+- `evidence_summary`
+- `verification_summary`
+- `match_basis`
+
+Recommended runtime rules:
+- inject only `active` artifacts
+- keep retrieval read-only; no activation or mutation in the diagnosis/remediation path
+- inject a bounded number of matches with explicit ranking metadata
+- preserve deterministic evidence as the primary source of truth
+- treat learning context as advisory unless a later contract explicitly promotes it to a governed action path
+
+Recommended operator-facing behavior:
+- activities should be able to show when learning context was injected
+- operators should be able to see which artifact matched and why
+- learning context should never silently override explicit failure evidence from logs, MCP, or deterministic extractors
+
+Recommended failure behavior:
+- if retrieval is unavailable, diagnosis/remediation continues without learning context
+- if retrieved artifacts are stale, low-confidence, or in conflict with current evidence, the runtime should ignore them and record why in trace metadata
+
+This keeps the learning system aligned with the rest of `v0.6.0`:
+- deterministic-first
+- schema-driven
+- operator-auditable
+- provider-agnostic
+
 ## Rework Direction
 
 The learning system should evolve from "repeat incidents become candidates" into an LLM-assisted, operator-governed remediation memory.
@@ -123,6 +164,7 @@ Target improvements:
    - generate a first-pass title, playbook summary, applicability notes, and risk notes from the underlying incident evidence
 3. Retrieval quality before action
    - use active candidates as structured context for diagnosis/remediation rather than as passive queue records only
+   - keep the injected context typed, bounded, and traceable at the activity level
 4. Evaluation and retirement loop
    - measure whether learned guidance improved remediation quality, and retire candidates that create noise or drift
 5. Stronger operator trust model

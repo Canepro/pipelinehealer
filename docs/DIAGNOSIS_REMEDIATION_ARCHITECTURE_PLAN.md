@@ -386,7 +386,7 @@ Use this checklist for the `v0.6.0` workstream.
 
 - [x] API and activity payload contract updated for new typed diagnosis fields
 - [x] runtime docs updated to explain deterministic-first extraction plus bounded patch drafting
-- [ ] learning-system docs updated to describe structured retrieval injection
+- [x] learning-system docs updated to describe structured retrieval injection
 
 ### Diagnosis layer
 
