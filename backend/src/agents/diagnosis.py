@@ -229,14 +229,7 @@ Provide your diagnosis in the following JSON format:
     "affected_files": ["list", "of", "files"],
     "is_auto_fixable": true/false,
     "suggested_fix": "High-level suggestion",
-    "error_details": {{
-        "additional": "context-specific details",
-        "package_name": "for dependency failures when known",
-        "missing_file": "for lint/config failures when known",
-        "failed_tests": ["for test failures when known"],
-        "timeout_minutes": 0,
-        "missing_env_vars": ["for build config failures when known"]
-    }}
+    "error_details": {{ "see failure-type-specific schema below" }}
 }}
 
 Return exactly one JSON object with no markdown fences and no extra commentary.
@@ -1567,6 +1560,20 @@ Be specific about:
 
         return True, ""
 
+    @staticmethod
+    def _record_llm_payload_rejection(
+        diagnosis: Diagnosis,
+        *,
+        reason: str,
+        candidate_count: int,
+    ) -> Diagnosis:
+        """Annotate a fallback diagnosis with LLM payload rejection context."""
+        details = dict(diagnosis.error_details or {})
+        details["llm_payload_rejected"] = True
+        details["llm_payload_rejection_reason"] = reason
+        details["llm_payload_candidate_count"] = candidate_count
+        return diagnosis.model_copy(update={"error_details": details})
+
     def _parse_diagnosis_response(
         self,
         response_text: str,
@@ -1592,8 +1599,10 @@ Be specific about:
         # Strip markdown code fences that some LLMs wrap around JSON.
         cleaned = re.sub(r"```(?:json)?\s*", "", response_text)
         cleaned = re.sub(r"```\s*$", "", cleaned, flags=re.MULTILINE)
+        candidates = self._extract_json_candidates(cleaned)
+        rejection_reasons: list[str] = []
 
-        for candidate in self._extract_json_candidates(cleaned):
+        for candidate in candidates:
             try:
                 data = json.loads(candidate)
             except (json.JSONDecodeError, ValueError):
@@ -1612,6 +1621,7 @@ Be specific about:
                     failure_type.value,
                     reason,
                 )
+                rejection_reasons.append(f"{failure_type.value}: {reason}")
                 continue
 
             return Diagnosis(
@@ -1629,17 +1639,30 @@ Be specific about:
             "Failed to extract valid diagnosis JSON from agent response (len=%d)",
             len(response_text),
         )
+        rejection_reason = (
+            rejection_reasons[0]
+            if rejection_reasons
+            else "No valid structured diagnosis JSON candidate was found"
+        )
 
         # Return fallback or create unknown diagnosis
         if fallback:
-            return fallback
+            return self._record_llm_payload_rejection(
+                fallback,
+                reason=rejection_reason,
+                candidate_count=len(candidates),
+            )
 
-        return Diagnosis(
+        return self._record_llm_payload_rejection(
+            Diagnosis(
             failure_type=FailureType.UNKNOWN,
             confidence=0.3,
             root_cause="Could not determine root cause",
             is_auto_fixable=False,
             diagnosis_source=DiagnosisSource.LLM,
+            ),
+            reason=rejection_reason,
+            candidate_count=len(candidates),
         )
 
     @staticmethod
