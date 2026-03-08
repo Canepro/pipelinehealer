@@ -479,6 +479,13 @@ class FixGenerators:
                 "falling back to issue-only remediation plan."
             )
             return self._generate_issue_only(diagnosis, repository_info)
+        else:
+            logger.info(
+                "Dependency remediation for package manager '%s' is not bounded; "
+                "falling back to issue-only remediation plan.",
+                package_manager,
+            )
+            return self._generate_issue_only(diagnosis, repository_info)
 
         version_info = f" to {required_version}" if required_version else ""
 

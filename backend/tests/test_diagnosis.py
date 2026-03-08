@@ -52,6 +52,8 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.failure_type == FailureType.DEPENDENCY
         assert diagnosis.error_details.get("package_name") == "requests"
         assert diagnosis.error_details.get("package_manager") == "pip"
+        assert diagnosis.error_details.get("manifest_file") == "pyproject.toml"
+        assert diagnosis.error_details.get("resolution_kind") == "missing"
         assert diagnosis.suggested_fix == (
             "Add Python dependency `requests` in pyproject.toml or requirements.txt "
             "and reinstall dependencies."
@@ -93,6 +95,8 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.failure_type == FailureType.DEPENDENCY
         assert diagnosis.error_details.get("package_name") == "left-pad"
         assert diagnosis.error_details.get("package_manager") == "npm"
+        assert diagnosis.error_details.get("manifest_file") == "package.json"
+        assert diagnosis.error_details.get("resolution_kind") == "missing"
         assert diagnosis.suggested_fix == (
             "Add `left-pad` to package.json and refresh the lockfile."
         )
@@ -226,6 +230,9 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.error_details.get("test_framework") == "pytest"
         assert diagnosis.error_details.get("classification_signal") == "pytest test failed"
         assert diagnosis.error_details.get("failed_tests") == ["test_example.py::test_something"]
+        assert diagnosis.error_details.get("test_errors") == {
+            "test_example.py::test_something": "pytest FAILED test_example.py::test_something"
+        }
         assert diagnosis.error_details.get("failure_scope") == "test_case"
         assert diagnosis.error_details.get("suspected_files") == ["test_example.py"]
         assert diagnosis.suggested_fix == (
@@ -285,8 +292,8 @@ class TestPatternBasedDiagnosis:
         log_analysis = LogAnalysis(
             job_id=1,
             job_name="build",
-            raw_logs="Error: exceeded time limit of 30 minutes",
-            error_lines=["Error: exceeded time limit of 30 minutes"],
+            raw_logs="Error: step 'Install dependencies' exceeded time limit of 30 minutes",
+            error_lines=["Error: step 'Install dependencies' exceeded time limit of 30 minutes"],
             summary="Time limit exceeded",
         )
 
@@ -296,6 +303,7 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.failure_type == FailureType.TIMEOUT
         assert diagnosis.error_details.get("timeout_minutes") == 30
         assert diagnosis.error_details.get("suggested_timeout") == 60
+        assert diagnosis.error_details.get("timed_out_step") == "Install dependencies"
         assert diagnosis.error_details.get("likely_fix_kind") == "increase_timeout"
         assert diagnosis.suggested_fix == (
             "Increase `timeout-minutes` above 30 minutes (for example `60`) or optimize "
@@ -437,6 +445,22 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.suggested_fix == (
             "Configure the missing repository or environment secret(s): `COPILOT_GITHUB_TOKEN`."
         )
+
+    def test_detect_build_config_extracts_config_file(self) -> None:
+        """Build-config failures should capture referenced workflow/config files."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="ci",
+            raw_logs="Secret not configured in .github/workflows/ci.yml",
+            error_lines=["Secret not configured in .github/workflows/ci.yml"],
+            summary="missing secret",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.BUILD_CONFIG
+        assert diagnosis.error_details.get("config_file") == ".github/workflows/ci.yml"
 
     def test_detect_workflow_permission_error(self) -> None:
         """Test detection of GitHub token permission errors."""

@@ -289,6 +289,29 @@ async def test_build_config_secret_issue_uses_secret_header() -> None:
     assert "## Missing Secrets" in plan.issue_body
 
 
+@pytest.mark.asyncio
+async def test_dependency_with_unsupported_package_manager_falls_back_to_issue() -> None:
+    gen = FixGenerators(heal_mode="safe")
+    plan = await gen.generate_fix(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.DEPENDENCY,
+            confidence=0.95,
+            root_cause="System package missing",
+            is_auto_fixable=True,
+            error_details={
+                "package_name": "libpq-dev",
+                "package_manager": "generic",
+                "resolution_kind": "missing",
+            },
+            suggested_fix="Install or restore the missing package/resource `libpq-dev` and re-run the workflow.",
+        ),
+        repository_info={},
+    )
+    assert plan.action == RemediationAction.CREATE_ISSUE
+    assert plan.issue_title is not None
+    assert "dependency" in plan.issue_title.lower()
+
+
 def test_validation_steps_do_not_duplicate_rerun_step() -> None:
     gen = FixGenerators(heal_mode="safe")
     diagnosis = Diagnosis(

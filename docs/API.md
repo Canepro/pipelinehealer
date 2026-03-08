@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 18c11bd -->
+<!-- LAST_VERIFIED: 5f257aa -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -1252,11 +1252,11 @@ When `diagnosis_source=pattern`, `error_details` may include classification tran
 Pattern and LLM diagnoses may also include failure-type-specific structured fields in `error_details`.
 
 Common examples:
-- `dependency`: `package_name`, `package_manager`, `manifest_file`, `required_version`
+- `dependency`: `package_name`, `package_manager`, `manifest_file`, `required_version`, `resolution_kind`
 - `lint`: `linter`, `missing_file`, `config_file`, `autofix_command`, `violations`
 - `test`: `test_framework`, `failed_tests`, `test_errors`, `failure_scope`, `suspected_files`
 - `timeout`: `timed_out_job`, `timed_out_step`, `timeout_minutes`, `suggested_timeout`, `resource_signal`, `likely_fix_kind`
-- `build_config`: `missing_env_vars`, `workflow_permissions_fix`, `permissions`, `misconfiguration_kind`, `config_file`
+- `build_config`: `missing_env_vars`, `workflow_permissions_fix`, `permissions`, `misconfiguration_kind`, `config_file`, `config_error`
 
 ### FailureContext (object)
 
