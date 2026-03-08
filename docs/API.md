@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: aec8f84 -->
+<!-- LAST_VERIFIED: d82efee -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -1253,8 +1253,8 @@ Pattern and LLM diagnoses may also include failure-type-specific structured fiel
 
 Common examples:
 - `dependency`: `package_name`, `package_manager`, `manifest_file`, `required_version`, `resolution_kind`
-- `lint`: `linter`, `missing_file`, `config_file`, `autofix_command`, `violations`
-- `test`: `test_framework`, `failed_tests`, `test_errors`, `failure_scope`, `suspected_files`
+- `lint`: `linter`, `missing_file`, `config_file`, `autofix_command`, `violations`, `rule_ids`
+- `test`: `test_framework`, `failed_tests`, `test_errors`, `failure_scope` (`test_case`, `suite`, `collection`, `workflow_step`), `suspected_files`
 - `timeout`: `timed_out_job`, `timed_out_step`, `timeout_minutes`, `suggested_timeout`, `resource_signal`, `likely_fix_kind`
 - `build_config`: `missing_env_vars`, `workflow_permissions_fix`, `permissions`, `misconfiguration_kind`, `config_file`, `config_error`
 

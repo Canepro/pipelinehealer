@@ -292,6 +292,35 @@ async def test_lint_autofix_workflow_ignores_untrusted_command_override() -> Non
 
 
 @pytest.mark.asyncio
+async def test_lint_issue_uses_static_analysis_title_when_no_violation_list() -> None:
+    gen = FixGenerators(heal_mode="safe")
+    plan = await gen.generate_fix(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.LINT,
+            confidence=0.95,
+            root_cause="Mypy type-check failure",
+            is_auto_fixable=False,
+            affected_files=["backend/src/agents/remediation.py"],
+            error_details={
+                "linter": "mypy",
+                "autofix_command": "",
+                "violations": [],
+                "rule_ids": ["assignment"],
+            },
+            suggested_fix="Ensure the assigned expression is always a dict or relax the annotation if None is valid.",
+        ),
+        repository_info={},
+    )
+    assert plan.action == RemediationAction.CREATE_ISSUE
+    assert plan.issue_title == "[PipelineHealer] Mypy type-check failure"
+    assert plan.issue_body is not None
+    assert "## Static Analysis Failure" in plan.issue_body
+    assert "Fix unknown violations" not in plan.issue_body
+    assert "Run `mypy --fix` locally" not in plan.issue_body
+    assert "Ensure the assigned expression is always a dict" in plan.issue_body
+
+
+@pytest.mark.asyncio
 async def test_build_config_secret_issue_uses_secret_header() -> None:
     gen = FixGenerators(heal_mode="safe")
     plan = await gen.generate_fix(
@@ -335,6 +364,41 @@ async def test_dependency_with_unsupported_package_manager_falls_back_to_issue()
     assert plan.action == RemediationAction.CREATE_ISSUE
     assert plan.issue_title is not None
     assert "dependency" in plan.issue_title.lower()
+
+
+@pytest.mark.asyncio
+async def test_test_collection_failure_issue_avoids_zero_count_title() -> None:
+    gen = FixGenerators(heal_mode="safe")
+    plan = await gen.generate_fix(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.TEST,
+            confidence=0.9,
+            root_cause="Pytest test collection failed",
+            is_auto_fixable=False,
+            affected_files=["backend/tests/test_agent_factory.py"],
+            error_details={
+                "failed_tests": [],
+                "test_framework": "pytest",
+                "test_errors": {
+                    "summary": "SyntaxError: f-string expression part cannot include a backslash"
+                },
+                "failure_scope": "collection",
+                "suspected_files": ["backend/tests/test_agent_factory.py"],
+            },
+            suggested_fix=(
+                "Fix the import or syntax error blocking pytest collection for "
+                "`backend/tests/test_agent_factory.py`, then re-run the workflow."
+            ),
+        ),
+        repository_info={},
+    )
+    assert plan.action == RemediationAction.CREATE_ISSUE
+    assert plan.issue_title == "[PipelineHealer] Test collection/import failure"
+    assert plan.issue_body is not None
+    assert "## Test Collection Failure" in plan.issue_body
+    assert "0 test(s) failed" not in plan.issue_body
+    assert "Collection blocked" in plan.issue_body
+    assert "`backend/tests/test_agent_factory.py`" in plan.issue_body
 
 
 @pytest.mark.asyncio

@@ -69,6 +69,21 @@ def builtin_eval_fixtures() -> tuple[EvalFixture, ...]:
     """Return the built-in deterministic fixture corpus for v0.6.0."""
     return (
         EvalFixture(
+            fixture_id="dependency_missing_python_module",
+            failure_type=FailureType.DEPENDENCY,
+            job_name="test",
+            summary="Pytest import failed due to missing Python dependency",
+            error_lines=("ModuleNotFoundError: No module named 'requests'",),
+            expected_action=RemediationAction.CREATE_PR,
+            required_error_details=("package_name", "package_manager", "manifest_file", "resolution_kind"),
+            expected_error_details={
+                "package_name": "requests",
+                "package_manager": "pip",
+                "manifest_file": "pyproject.toml",
+                "resolution_kind": "missing",
+            },
+        ),
+        EvalFixture(
             fixture_id="dependency_missing_node_module",
             failure_type=FailureType.DEPENDENCY,
             job_name="build",
@@ -98,6 +113,22 @@ def builtin_eval_fixtures() -> tuple[EvalFixture, ...]:
             },
         ),
         EvalFixture(
+            fixture_id="lint_mypy_assignment_type_error",
+            failure_type=FailureType.LINT,
+            job_name="types",
+            summary="Mypy rejected an Optional-to-dict assignment",
+            error_lines=(
+                'backend/src/agents/remediation.py:734: error: Incompatible types in assignment '
+                '(expression has type "dict[str, Any] | None", variable has type "dict[str, Any]")  [assignment]',
+            ),
+            expected_action=RemediationAction.CREATE_ISSUE,
+            required_error_details=("linter", "rule_ids", "classification_signal"),
+            expected_error_details={
+                "linter": "mypy",
+                "classification_signal": "Mypy type-check failure",
+            },
+        ),
+        EvalFixture(
             fixture_id="test_pytest_assertion_failure",
             failure_type=FailureType.TEST,
             job_name="test",
@@ -111,6 +142,22 @@ def builtin_eval_fixtures() -> tuple[EvalFixture, ...]:
             expected_error_details={
                 "test_framework": "pytest",
                 "failure_scope": "test_case",
+            },
+        ),
+        EvalFixture(
+            fixture_id="test_pytest_collection_syntax_failure",
+            failure_type=FailureType.TEST,
+            job_name="test",
+            summary="Pytest could not collect the test module",
+            error_lines=(
+                "ERROR collecting backend/tests/test_agent_factory.py",
+                "SyntaxError: f-string expression part cannot include a backslash",
+            ),
+            expected_action=RemediationAction.CREATE_ISSUE,
+            required_error_details=("test_framework", "test_errors", "failure_scope", "suspected_files"),
+            expected_error_details={
+                "test_framework": "pytest",
+                "failure_scope": "collection",
             },
         ),
         EvalFixture(

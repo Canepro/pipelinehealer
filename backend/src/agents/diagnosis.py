@@ -472,16 +472,24 @@ Be specific about:
             (r"black.*would reformat", "black", "Black formatting required", False),
             (r"ruff.*error", "ruff", "Ruff linting error", False),
             (r"flake8.*error", "flake8", "Flake8 violation", False),
+            (
+                r"(?:[A-Za-z0-9_./-]+\.py:\d+:\s*error:.*\[[a-z0-9-]+\])|(?:mypy.*error)",
+                "mypy",
+                "Mypy type-check failure",
+                False,
+            ),
         ]
 
         for pattern, linter, description, is_missing_config in lint_patterns:
             if re.search(pattern, error_text, re.IGNORECASE):
                 autofix_command = lint_autofix_command(linter)
                 is_auto_fixable = is_missing_config or bool(autofix_command)
+                affected_files = self._extract_file_references(error_text)[:20]
                 return Diagnosis(
                     failure_type=FailureType.LINT,
                     confidence=0.9,
                     root_cause=description,
+                    affected_files=affected_files,
                     is_auto_fixable=is_auto_fixable,
                     suggested_fix=self._build_lint_suggested_fix(
                         linter=linter,
@@ -499,7 +507,7 @@ Be specific about:
                             "config_file": "eslint.config.js" if is_missing_config else "",
                             "autofix_command": autofix_command,
                             "violations": [],
-                            "rule_ids": [],
+                            "rule_ids": self._extract_lint_rule_ids(error_text, linter),
                         },
                     ),
                 )
@@ -541,6 +549,7 @@ Be specific about:
                 )
 
         test_patterns = [
+            (r"ERROR collecting\s+[^\n]+", "Pytest test collection failed", False),
             (r"FAIL\s+.*\.test\.", "Test suite failed", False),
             (r"AssertionError", "Assertion failed in test", False),
             (r"pytest.*FAILED", "pytest test failed", False),
@@ -564,18 +573,33 @@ Be specific about:
                 # Check if it might be flaky
                 is_flaky = "timeout" in error_text.lower() or "intermittent" in error_text.lower()
                 framework = self._detect_test_framework(error_text)
+                if framework == "unknown" and "error collecting" in error_text.lower():
+                    framework = "pytest"
                 failed_tests = self._extract_failed_tests(error_text)
-                failure_scope = "test_case" if failed_tests else "suite"
+                collection_targets = self._extract_collection_targets(error_text)
+                suspected_files = (
+                    collection_targets if collection_targets else self._suspected_files_from_tests(failed_tests)
+                )
+                failure_scope = (
+                    "collection"
+                    if collection_targets
+                    else "test_case"
+                    if failed_tests
+                    else "suite"
+                )
 
                 return Diagnosis(
                     failure_type=FailureType.TEST,
                     confidence=0.85,
                     root_cause=description,
+                    affected_files=suspected_files[:20],
                     is_auto_fixable=False,
                     suggested_fix=self._build_test_suggested_fix(
                         framework=framework,
                         failed_tests=failed_tests,
                         is_flaky=is_flaky,
+                        failure_scope=failure_scope,
+                        suspected_files=suspected_files,
                     ),
                     diagnosis_source=DiagnosisSource.PATTERN,
                     error_details=self._build_classification_details(
@@ -588,7 +612,7 @@ Be specific about:
                             "failed_tests": failed_tests,
                             "test_errors": self._extract_test_errors(error_text, failed_tests),
                             "failure_scope": failure_scope,
-                            "suspected_files": self._suspected_files_from_tests(failed_tests),
+                            "suspected_files": suspected_files,
                         },
                     ),
                 )
@@ -871,6 +895,17 @@ Be specific about:
             return f"Run `{autofix_command}` locally and commit the resulting lint fixes."
         return f"Fix the reported {linter} violations and re-run the workflow."
 
+    @staticmethod
+    def _extract_lint_rule_ids(error_text: str, linter: str) -> list[str]:
+        if linter != "mypy":
+            return []
+        rule_ids: list[str] = []
+        for match in re.findall(r"\[([a-z0-9-]+)\]", error_text, flags=re.IGNORECASE):
+            value = str(match).strip().lower()
+            if value and value not in rule_ids:
+                rule_ids.append(value)
+        return rule_ids
+
     def _extract_failed_tests(self, error_text: str) -> list[str]:
         matches: list[str] = []
         patterns = [
@@ -884,6 +919,14 @@ Be specific about:
                 if value and value not in matches:
                     matches.append(value)
         return matches
+
+    def _extract_collection_targets(self, error_text: str) -> list[str]:
+        targets: list[str] = []
+        for match in re.findall(r"ERROR collecting\s+([^\s:]+)", error_text, flags=re.IGNORECASE):
+            value = str(match).strip().rstrip(".,:")
+            if value and value not in targets:
+                targets.append(value)
+        return targets
 
     def _suspected_files_from_tests(self, failed_tests: list[str]) -> list[str]:
         files: list[str] = []
@@ -902,6 +945,10 @@ Be specific about:
             if "assertionerror" in line.lower()
             or line.startswith("E ")
             or "expected" in line.lower()
+            or "syntaxerror" in line.lower()
+            or "importerror" in line.lower()
+            or "modulenotfounderror" in line.lower()
+            or "error collecting" in line.lower()
             or "traceback" in line.lower()
         ]
         if not interesting:
@@ -920,6 +967,8 @@ Be specific about:
         framework: str,
         failed_tests: list[str],
         is_flaky: bool,
+        failure_scope: str = "",
+        suspected_files: list[str] | None = None,
     ) -> str:
         if is_flaky:
             if failed_tests:
@@ -928,6 +977,17 @@ Be specific about:
                     "and remove timing or order dependence before re-running the workflow."
                 )
             return "Stabilize the flaky test path and remove timing or order dependence before re-running the workflow."
+        if failure_scope == "collection":
+            file_refs = [str(item).strip() for item in (suspected_files or []) if str(item).strip()]
+            if file_refs:
+                rendered = ", ".join(f"`{name}`" for name in file_refs[:3])
+                return (
+                    f"Fix the import or syntax error blocking {framework} collection for {rendered}, "
+                    "then re-run the workflow."
+                )
+            return (
+                f"Fix the import or syntax error blocking {framework} test collection and re-run the workflow."
+            )
         if failed_tests:
             return (
                 f"Run {framework} locally for {', '.join(f'`{name}`' for name in failed_tests[:3])}, "
@@ -1089,6 +1149,7 @@ Be specific about:
             "mocha",
             "rspec",
             "unittest",
+            "error collecting",
             "assertionerror",
             "test suite",
             "tests failed",

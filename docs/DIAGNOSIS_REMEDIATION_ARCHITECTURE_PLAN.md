@@ -414,8 +414,8 @@ Use this checklist for the `v0.6.0` workstream.
 - [x] incident fixture set created for dependency, lint, test, timeout, and build-config cases
 - [x] eval metrics recorded for classification accuracy, field completeness, action correctness, and validation pass rate
 - [x] rollout gates defined for schema changes and model-role changes
-- [ ] live incident regressions from generated issues are added to the eval corpus before release closeout
-- [ ] generated issue quality avoids generic empty-count titles and bodies for static-analysis/import-blocking failures
+- [x] live incident regressions from generated issues are added to the eval corpus before release closeout
+- [x] generated issue quality avoids generic empty-count titles and bodies for static-analysis/import-blocking failures
 - [ ] generated review issues can be linked to active human fix PRs with auto-close semantics and stale-issue cleanup guidance
 
 ## Suggested PR Slices
