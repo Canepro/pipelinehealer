@@ -23,6 +23,63 @@ from .base import create_cloud_agent, get_agent_prompt
 logger = logging.getLogger(__name__)
 
 
+LLM_REQUIRED_TOP_LEVEL_FIELDS = (
+    "failure_type",
+    "confidence",
+    "root_cause",
+    "affected_files",
+    "is_auto_fixable",
+    "suggested_fix",
+    "error_details",
+)
+
+LLM_ERROR_DETAILS_SCHEMA: dict[FailureType, dict[str, Any]] = {
+    FailureType.DEPENDENCY: {
+        "package_name": "",
+        "package_manager": "",
+        "manifest_file": "",
+        "current_version": "",
+        "required_version": "",
+        "resolution_kind": "",
+    },
+    FailureType.LINT: {
+        "linter": "",
+        "missing_file": "",
+        "config_file": "",
+        "autofix_command": "",
+        "violations": [],
+        "rule_ids": [],
+    },
+    FailureType.TEST: {
+        "test_framework": "",
+        "failed_tests": [],
+        "test_errors": {},
+        "is_flaky": False,
+        "failure_scope": "",
+        "suspected_files": [],
+    },
+    FailureType.TIMEOUT: {
+        "timed_out_job": "",
+        "timed_out_step": "",
+        "timeout_minutes": 0,
+        "suggested_timeout": 0,
+        "resource_signal": "",
+        "likely_fix_kind": "",
+    },
+    FailureType.BUILD_CONFIG: {
+        "config_file": "",
+        "config_error": "",
+        "missing_env_vars": [],
+        "workflow_permissions_fix": False,
+        "permissions": {},
+        "misconfiguration_kind": "",
+    },
+    FailureType.UNKNOWN: {
+        "additional": "",
+    },
+}
+
+
 class DiagnosisAgent:
     """Agent for diagnosing the root cause of CI/CD failures.
 
@@ -63,6 +120,21 @@ class DiagnosisAgent:
         """Refresh mutable settings and rebuild cloud client on next call."""
         self._settings = get_settings()
         self._agent = None
+
+    def _build_llm_error_details_schema_text(self) -> str:
+        """Render the failure-type-specific error_details contract for the diagnosis prompt."""
+        schema_lines = []
+        for failure_type in (
+            FailureType.DEPENDENCY,
+            FailureType.LINT,
+            FailureType.TEST,
+            FailureType.TIMEOUT,
+            FailureType.BUILD_CONFIG,
+            FailureType.UNKNOWN,
+        ):
+            template = json.dumps(LLM_ERROR_DETAILS_SCHEMA[failure_type], ensure_ascii=True)
+            schema_lines.append(f'- `{failure_type.value}`: {template}')
+        return "\n".join(schema_lines)
 
     async def diagnose(
         self,
@@ -139,6 +211,7 @@ class DiagnosisAgent:
             similar_issues=similar_issues,
         )
         external_summary = self._prepare_external_diagnostics_summary(external_diagnostics)
+        error_details_schema_text = self._build_llm_error_details_schema_text()
 
         prompt = f"""Analyze the following CI/CD failure and provide a diagnosis.
 
@@ -165,6 +238,13 @@ Provide your diagnosis in the following JSON format:
         "missing_env_vars": ["for build config failures when known"]
     }}
 }}
+
+Return exactly one JSON object with no markdown fences and no extra commentary.
+For the chosen `failure_type`, `error_details` must include every key from the matching schema below.
+Use empty strings, empty arrays/objects, `false`, or `0` when a field is unknown, but do not omit keys.
+
+Failure-type-specific `error_details` schemas:
+{error_details_schema_text}
 
 Be specific about:
 1. The exact failure type category
@@ -1437,6 +1517,56 @@ Be specific about:
         candidates.sort(key=len, reverse=True)
         return candidates
 
+    @staticmethod
+    def _required_llm_error_details_keys(failure_type: FailureType) -> tuple[str, ...]:
+        template = LLM_ERROR_DETAILS_SCHEMA.get(failure_type, LLM_ERROR_DETAILS_SCHEMA[FailureType.UNKNOWN])
+        return tuple(template.keys())
+
+    def _validate_llm_diagnosis_payload(
+        self,
+        data: dict[str, Any],
+        failure_type: FailureType,
+    ) -> tuple[bool, str]:
+        """Validate that an LLM diagnosis payload matches the structured contract."""
+        missing_top_level = [field for field in LLM_REQUIRED_TOP_LEVEL_FIELDS if field not in data]
+        if missing_top_level:
+            return False, f"missing top-level field(s): {', '.join(missing_top_level)}"
+
+        confidence_raw = data.get("confidence")
+        if confidence_raw is None:
+            return False, "confidence is missing"
+        try:
+            confidence = float(confidence_raw)
+        except (TypeError, ValueError):
+            return False, "confidence is not numeric"
+        if not 0.0 <= confidence <= 1.0:
+            return False, "confidence is outside 0.0-1.0"
+
+        if not isinstance(data.get("root_cause"), str) or not str(data.get("root_cause")).strip():
+            return False, "root_cause must be a non-empty string"
+        if not isinstance(data.get("suggested_fix"), str):
+            return False, "suggested_fix must be a string"
+        if not isinstance(data.get("is_auto_fixable"), bool):
+            return False, "is_auto_fixable must be a boolean"
+
+        affected_files = data.get("affected_files")
+        if not isinstance(affected_files, list) or any(not isinstance(item, str) for item in affected_files):
+            return False, "affected_files must be a list of strings"
+
+        error_details = data.get("error_details")
+        if not isinstance(error_details, dict):
+            return False, "error_details must be an object"
+
+        missing_error_detail_keys = [
+            key
+            for key in self._required_llm_error_details_keys(failure_type)
+            if key not in error_details
+        ]
+        if missing_error_detail_keys:
+            return False, f"missing error_details field(s): {', '.join(missing_error_detail_keys)}"
+
+        return True, ""
+
     def _parse_diagnosis_response(
         self,
         response_text: str,
@@ -1475,6 +1605,14 @@ Be specific about:
 
             failure_type_str = str(data.get("failure_type", "unknown")).lower()
             failure_type = failure_type_map.get(failure_type_str, FailureType.UNKNOWN)
+            is_valid, reason = self._validate_llm_diagnosis_payload(data, failure_type)
+            if not is_valid:
+                logger.warning(
+                    "Rejected LLM diagnosis payload for %s: %s",
+                    failure_type.value,
+                    reason,
+                )
+                continue
 
             return Diagnosis(
                 failure_type=failure_type,
@@ -1503,6 +1641,7 @@ Be specific about:
             is_auto_fixable=False,
             diagnosis_source=DiagnosisSource.LLM,
         )
+
     @staticmethod
     def _with_source(diagnosis: Diagnosis, source: DiagnosisSource) -> Diagnosis:
         """Ensure diagnosis source is set for observability/UI trust surface."""

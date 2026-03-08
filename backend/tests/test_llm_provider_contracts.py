@@ -18,14 +18,18 @@ from src.models import DiagnosisSource, FailureType, LogAnalysis
             "azure_openai",
             '{"failure_type":"build_config","confidence":0.81,"root_cause":"missing env var",'
             '"affected_files":[".github/workflows/ci.yml"],"is_auto_fixable":true,'
-            '"suggested_fix":"add required env var","error_details":{"source":"azure"}}',
+            '"suggested_fix":"add required env var","error_details":{"config_file":".github/workflows/ci.yml",'
+            '"config_error":"missing env var","missing_env_vars":["API_TOKEN"],'
+            '"workflow_permissions_fix":false,"permissions":{},"misconfiguration_kind":"env_var"}}',
         ),
         (
             "openai_compatible",
             "Here is the diagnosis:\n```json\n"
             '{"failure_type":"build_config","confidence":0.81,"root_cause":"missing env var",'
             '"affected_files":[".github/workflows/ci.yml"],"is_auto_fixable":true,'
-            '"suggested_fix":"add required env var","error_details":{"source":"openai_compatible"}}'
+            '"suggested_fix":"add required env var","error_details":{"config_file":".github/workflows/ci.yml",'
+            '"config_error":"missing env var","missing_env_vars":["API_TOKEN"],'
+            '"workflow_permissions_fix":false,"permissions":{},"misconfiguration_kind":"env_var"}}'
             "\n```",
         ),
     ],
