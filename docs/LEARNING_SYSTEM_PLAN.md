@@ -1,6 +1,6 @@
 # Learning System Plan
 
-<!-- LAST_VERIFIED: 3480bec -->
+<!-- LAST_VERIFIED: 40a2683 -->
 
 This document explains the learning/governance subsystem, how to use it today, and what is planned next.
 
@@ -56,6 +56,7 @@ Observability and audit:
 - per-candidate `promotion_readiness` payload
 - decision audit metadata includes readiness before/after
 - forced activation metadata includes actor, reasons, and request id
+- activity-level learning context trace showing which active artifacts were injected into diagnosis/remediation
 
 ## What Learning Does Not Do (Yet)
 
@@ -99,7 +100,8 @@ Quick verification checklist:
 ## Immediate Next (Planned)
 
 1. Retrieval-before-diagnosis/remediation:
-   - fetch matching active candidates and inject as structured context.
+   - initial runtime retrieval trace is now implemented for active artifacts.
+   - next step is to deepen how that structured context influences diagnosis/remediation quality, scoring, and evaluation.
 2. Operator field editing:
    - safe `PATCH` endpoint + audited edits for candidate text fields.
 3. Promotion execution preview:

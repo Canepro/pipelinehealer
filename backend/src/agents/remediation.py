@@ -14,6 +14,7 @@ from azure.identity import DefaultAzureCredential
 from ..config import get_settings
 from ..models import (
     Diagnosis,
+    LearningContextMatch,
     RemediationAction,
     RemediationPlan,
     RemediationResult,
@@ -234,6 +235,7 @@ class RemediationAgent:
         repository_info: dict[str, Any],
         workflow_run_id: int,
         dry_run: bool = False,
+        learning_context: list[LearningContextMatch] | None = None,
     ) -> RemediationResult:
         """Generate and apply remediation for a diagnosed failure.
 
@@ -288,6 +290,9 @@ class RemediationAgent:
                 action_taken=RemediationAction.SKIP,
                 error_message=f"Failed to generate fix plan: {e}",
             )
+
+        if learning_context:
+            plan = self._augment_plan_with_learning_context(plan, learning_context)
 
         if plan.action == RemediationAction.CREATE_PR and self._is_jenkins_bridge_issue_only(
             repository_info
@@ -395,6 +400,45 @@ class RemediationAgent:
                 action_taken=RemediationAction.SKIP,
                 error_message=f"Unknown action: {plan.action}",
             )
+
+    @staticmethod
+    def _render_learning_context_section(matches: list[LearningContextMatch]) -> str:
+        """Render a compact advisory section for related active learning artifacts."""
+        if not matches:
+            return ""
+        lines = ["## Related Active Playbooks", ""]
+        for match in matches[:3]:
+            basis = ", ".join(match.match_basis[:4]) if match.match_basis else "ranked retrieval"
+            headline = (
+                f"- `{match.id}` {match.title} "
+                f"(score {match.match_score:.2f}, rank {match.match_rank})"
+            )
+            lines.append(headline)
+            if match.reason_code:
+                lines.append(f"  Reason code: `{match.reason_code}`")
+            lines.append(f"  Match basis: {basis}")
+            if match.suggested_playbook:
+                lines.append(f"  Suggested playbook: {match.suggested_playbook}")
+        return "\n".join(lines)
+
+    def _augment_plan_with_learning_context(
+        self,
+        plan: RemediationPlan,
+        learning_context: list[LearningContextMatch],
+    ) -> RemediationPlan:
+        """Append related active playbooks to operator-facing remediation artifacts."""
+        rendered = self._render_learning_context_section(learning_context)
+        if not rendered:
+            return plan
+
+        updates: dict[str, Any] = {}
+        if plan.pr_body:
+            updates["pr_body"] = f"{plan.pr_body.rstrip()}\n\n{rendered}\n"
+        if plan.issue_body:
+            updates["issue_body"] = f"{plan.issue_body.rstrip()}\n\n{rendered}\n"
+        if not updates:
+            return plan
+        return plan.model_copy(update=updates)
 
     def _branch_name_for_run(self, base_branch_name: str, workflow_run_id: int) -> str:
         """Return a stable unique branch name for a workflow run to avoid ref collisions."""

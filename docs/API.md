@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: e008e2a -->
+<!-- LAST_VERIFIED: 40a2683 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -302,6 +302,26 @@ Returns activity records with optional filtering and pagination.
       "failing_step": "Run npm run build",
       "failing_command": "npm run build",
       "signal": "poll_window_exhausted"
+    },
+    "learning_context_trace": {
+      "diagnosis_injected": true,
+      "remediation_injected": true,
+      "diagnosis_matches": [
+        {
+          "id": "learning-f6f9f8a2f30ebf72a81a",
+          "title": "Dependency: missing left-pad",
+          "failure_type": "dependency",
+          "reason_code": "missing_node_module",
+          "suggested_playbook": "Add left-pad to package.json and refresh the lockfile.",
+          "repositories": ["Canepro/pipelinehealer-demo"],
+          "verification_pass_rate": 1.0,
+          "occurrence_count": 3,
+          "match_basis": ["failure_type exact", "repository exact"],
+          "match_rank": 1,
+          "match_score": 0.84
+        }
+      ],
+      "remediation_matches": []
     },
     "llm_model_path": {
       "provider": "azure_openai",
@@ -1278,6 +1298,35 @@ Normalized failure context extracted from diagnosis details, log signals, and ex
 | `failing_step` | string \| null | Best-effort failing step label |
 | `failing_command` | string \| null | Best-effort failing command extracted from step/log lines |
 | `signal` | string \| null | Structured signal code (for example `poll_window_exhausted`, signature, trigger, reason code) |
+
+### LearningContextTrace (object)
+
+Read-only trace of active learning artifacts injected into runtime diagnosis/remediation context.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `diagnosis_injected` | bool | Whether learning context was injected into diagnosis |
+| `remediation_injected` | bool | Whether learning context was injected into remediation |
+| `diagnosis_matches` | LearningContextMatch[] | Ranked matches retrieved before diagnosis |
+| `remediation_matches` | LearningContextMatch[] | Ranked matches retrieved before remediation |
+
+### LearningContextMatch (object)
+
+One ranked active learning artifact injected into runtime context.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Learning queue identifier (`LearningQueueItem.id`) |
+| `title` | string | Candidate/playbook title |
+| `failure_type` | FailureType \| null | Candidate failure class |
+| `reason_code` | string \| null | Candidate reason code used for matching |
+| `suggested_playbook` | string | Operator-facing playbook text |
+| `repositories` | string[] | Repositories where this learning artifact has observed support |
+| `verification_pass_rate` | float | Verification pass rate from governed learning feedback |
+| `occurrence_count` | int | Number of recurring successful activities backing the artifact |
+| `match_basis` | string[] | Human-readable factors that contributed to ranking |
+| `match_rank` | int | Rank among injected matches (`1` is strongest) |
+| `match_score` | float | Deterministic retrieval score used for ordering |
 
 ### LLMModelPath (object)
 

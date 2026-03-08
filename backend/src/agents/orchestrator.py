@@ -30,6 +30,8 @@ from ..models import (
     ExternalDiagnosticStatus,
     FailureContext,
     JenkinsBridgePayload,
+    LearningContextMatch,
+    LearningContextTrace,
     LogAnalysis,
     MCPActionAuditEntry,
     MCPModelPath,
@@ -38,6 +40,7 @@ from ..models import (
 )
 from ..storage import ActivityStorage
 from ..tools.gh_aw_adapter import DiagnosticSourceConfig, GHAWAdapter, create_gh_aw_adapter
+from ..tools.learning_context import LearningContextRetriever, extract_learning_reason_code
 from ..tools.github_tools import GitHubTools
 from ..tools.mcp_provider import get_mcp_provider
 from .base import create_cloud_agent, get_agent_prompt
@@ -228,6 +231,7 @@ class OrchestratorAgent:
         self._credential = azure_credential or DefaultAzureCredential()
         self._settings = get_settings()
         self._gh_aw_adapter: GHAWAdapter = create_gh_aw_adapter(github_tools=github_tools)
+        self._learning_context_retriever = LearningContextRetriever(storage)
 
         # Initialize sub-agents
         self._log_analyzer = LogAnalyzerAgent(github_tools, azure_credential)
@@ -260,6 +264,24 @@ class OrchestratorAgent:
         self._diagnosis_agent.refresh_runtime_settings()
         self._remediation_agent.refresh_runtime_settings()
         self._agent = None
+
+    @staticmethod
+    def _merge_learning_context_trace(
+        activity: ActivityRecord,
+        *,
+        diagnosis_matches: list[LearningContextMatch] | None = None,
+        remediation_matches: list[LearningContextMatch] | None = None,
+    ) -> None:
+        """Merge newly retrieved learning matches into the activity trace."""
+        trace = activity.learning_context_trace or LearningContextTrace()
+        if diagnosis_matches is not None:
+            trace.diagnosis_matches = diagnosis_matches
+            trace.diagnosis_injected = bool(diagnosis_matches)
+        if remediation_matches is not None:
+            trace.remediation_matches = remediation_matches
+            trace.remediation_injected = bool(remediation_matches)
+        if trace.diagnosis_matches or trace.remediation_matches:
+            activity.learning_context_trace = trace
 
     @staticmethod
     def _normalize_failure_context_key(key: str) -> str:
@@ -1631,6 +1653,22 @@ class OrchestratorAgent:
                 activity.mcp_model_path.error_count = _count_error_diagnostics(
                     external_diagnostics
                 )
+            preview_diagnosis = self._diagnosis_agent.preview_pattern_diagnosis(log_analyses)
+            diagnosis_learning_context = await self._learning_context_retriever.retrieve(
+                repository_name=event.repository.full_name,
+                failure_type=(
+                    preview_diagnosis.failure_type.value
+                    if preview_diagnosis and preview_diagnosis.failure_type
+                    else None
+                ),
+                reason_code=extract_learning_reason_code(preview_diagnosis),
+            )
+            self._merge_learning_context_trace(
+                activity,
+                diagnosis_matches=diagnosis_learning_context,
+            )
+            if activity.learning_context_trace is not None:
+                await self._storage.update_activity(activity)
 
             with tracer.start_as_current_span("pipeline.step.diagnose") as span:
                 t1 = time.monotonic()
@@ -1640,6 +1678,8 @@ class OrchestratorAgent:
                         log_analyses,
                         workflow_info,
                         external_diagnostics=external_diagnostics,
+                        learning_context=diagnosis_learning_context,
+                        pattern_diagnosis_hint=preview_diagnosis,
                     ),
                 )
                 elapsed = time.monotonic() - t1
@@ -1673,6 +1713,17 @@ class OrchestratorAgent:
             logger.info("Step 3: Generating remediation...")
             activity.status = RemediationStatus.REMEDIATING
             await self._storage.update_activity(activity)
+            remediation_learning_context = await self._learning_context_retriever.retrieve(
+                repository_name=event.repository.full_name,
+                failure_type=diagnosis.failure_type.value,
+                reason_code=extract_learning_reason_code(diagnosis, activity.failure_context),
+            )
+            self._merge_learning_context_trace(
+                activity,
+                remediation_matches=remediation_learning_context,
+            )
+            if activity.learning_context_trace is not None:
+                await self._storage.update_activity(activity)
 
             repository_info = {
                 "id": event.repository.id,
@@ -1694,6 +1745,7 @@ class OrchestratorAgent:
                         repository_info=repository_info,
                         workflow_run_id=run_id,
                         dry_run=dry_run,
+                        learning_context=remediation_learning_context,
                     ),
                 )
                 elapsed = time.monotonic() - t2
@@ -1853,12 +1905,30 @@ class OrchestratorAgent:
                 "jenkins_job_url": payload.job.url,
                 "jenkins_delivery_id": payload.delivery_id,
             }
+            preview_diagnosis = self._diagnosis_agent.preview_pattern_diagnosis(log_analyses)
+            diagnosis_learning_context = await self._learning_context_retriever.retrieve(
+                repository_name=repository_full_name,
+                failure_type=(
+                    preview_diagnosis.failure_type.value
+                    if preview_diagnosis and preview_diagnosis.failure_type
+                    else None
+                ),
+                reason_code=extract_learning_reason_code(preview_diagnosis),
+            )
+            self._merge_learning_context_trace(
+                activity,
+                diagnosis_matches=diagnosis_learning_context,
+            )
+            if activity.learning_context_trace is not None:
+                await self._storage.update_activity(activity)
             diagnosis = await self._run_with_timeout(
                 step_name="Diagnose",
                 coro=self._diagnosis_agent.diagnose(
                     log_analyses,
                     workflow_info=workflow_info,
                     external_diagnostics=activity.external_diagnostics,
+                    learning_context=diagnosis_learning_context,
+                    pattern_diagnosis_hint=preview_diagnosis,
                 ),
             )
             diagnosis_details = dict(diagnosis.error_details or {})
@@ -1877,6 +1947,17 @@ class OrchestratorAgent:
 
             activity.status = RemediationStatus.REMEDIATING
             await self._storage.update_activity(activity)
+            remediation_learning_context = await self._learning_context_retriever.retrieve(
+                repository_name=repository_full_name,
+                failure_type=diagnosis.failure_type.value,
+                reason_code=extract_learning_reason_code(diagnosis, activity.failure_context),
+            )
+            self._merge_learning_context_trace(
+                activity,
+                remediation_matches=remediation_learning_context,
+            )
+            if activity.learning_context_trace is not None:
+                await self._storage.update_activity(activity)
 
             repository_info = {
                 "id": 0,
@@ -1894,6 +1975,7 @@ class OrchestratorAgent:
                     repository_info=repository_info,
                     workflow_run_id=synthetic_run_id,
                     dry_run=dry_run,
+                    learning_context=remediation_learning_context,
                 ),
             )
             activity.remediation_result = result
