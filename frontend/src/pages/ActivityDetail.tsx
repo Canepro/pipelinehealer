@@ -36,6 +36,9 @@ const STRUCTURED_EVIDENCE_OMIT_KEYS = new Set([
   "additional",
   "message",
   "raw_logs",
+  "llm_payload_rejected",
+  "llm_payload_rejection_reason",
+  "llm_payload_candidate_count",
 ]);
 
 function formatSourceSelectionPath(path: string): string {
@@ -488,6 +491,15 @@ function buildActivityContext(activity: Activity): string {
       }
     } else {
       lines.push("  - none");
+    }
+    if (activity.diagnosis.llm_rejection?.rejected) {
+      lines.push(`- llm_diagnosis_discarded: yes`);
+      lines.push(
+        `- llm_discard_reason: ${clampText(activity.diagnosis.llm_rejection.reason || "unknown")}`,
+      );
+      lines.push(
+        `- llm_candidate_count: ${activity.diagnosis.llm_rejection.candidate_count}`,
+      );
     }
   } else {
     lines.push("- diagnosis: N/A");
@@ -949,6 +961,7 @@ export default function ActivityDetail() {
   const externalSignalSources = parseExternalSignalSources(
     diagnosisDetails?.external_signal_sources,
   );
+  const llmRejection = activity.diagnosis?.llm_rejection;
   const mcpPath = activity.mcp_model_path;
   const mcpSourceAttribution = Object.entries(
     mcpPath?.source_attribution ?? {},
@@ -1219,6 +1232,25 @@ export default function ActivityDetail() {
                     )}
                   </span>
                 </div>
+                {llmRejection?.rejected && (
+                  <div className="mt-4 rounded-md border border-[var(--ph-warning)]/25 bg-[var(--ph-warning-bg)] px-3 py-3">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ph-warning)]" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[var(--ph-text)]">
+                          LLM diagnosis discarded
+                        </p>
+                        <p className="mt-1 text-sm text-[var(--ph-text)] break-words">
+                          {llmRejection.reason || "The model response did not satisfy the diagnosis contract."}
+                        </p>
+                        <p className="mt-1 text-xs text-[var(--ph-muted)]">
+                          Deterministic fallback was used. JSON candidates checked:{" "}
+                          {llmRejection.candidate_count}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1503,6 +1535,30 @@ export default function ActivityDetail() {
                     rule: {classificationPattern}
                   </p>
                 )}
+              </div>
+            )}
+            {llmRejection?.rejected && (
+              <div className="rounded-lg border border-[var(--ph-warning)]/25 bg-[var(--ph-warning-bg)] p-4">
+                <p className="text-sm font-medium text-[var(--ph-text)]">
+                  LLM Rejection Telemetry
+                </p>
+                <div className="mt-2 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+                  <div>
+                    <p className="text-[var(--ph-muted)]">Discard Reason</p>
+                    <p className="text-[var(--ph-text)] break-words">
+                      {llmRejection.reason || "Unknown"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[var(--ph-muted)]">JSON Candidates Checked</p>
+                    <p className="text-[var(--ph-text)]">
+                      {llmRejection.candidate_count}
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs text-[var(--ph-muted)]">
+                  PipelineHealer rejected the LLM payload and kept the deterministic diagnosis path for this activity.
+                </p>
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

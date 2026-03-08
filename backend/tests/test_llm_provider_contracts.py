@@ -87,9 +87,11 @@ async def test_diagnosis_contract_shape_is_consistent_across_provider_outputs(
         "suggested_fix",
         "is_auto_fixable",
         "diagnosis_source",
+        "llm_rejection",
     }
     assert isinstance(payload["affected_files"], list)
     assert isinstance(payload["error_details"], dict)
+    assert payload["llm_rejection"] is None
 
 
 @pytest.mark.asyncio

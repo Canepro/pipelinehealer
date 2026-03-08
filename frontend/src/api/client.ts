@@ -45,6 +45,11 @@ export interface Diagnosis {
   is_auto_fixable: boolean
   suggested_fix: string
   error_details: Record<string, unknown>
+  llm_rejection?: {
+    rejected: boolean
+    reason: string
+    candidate_count: number
+  } | null
 }
 
 export interface RemediationResult {

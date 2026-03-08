@@ -14,6 +14,7 @@ from ..models import (
     ExternalDiagnostic,
     ExternalDiagnosticStatus,
     FailureType,
+    LLMDiagnosisRejection,
     LogAnalysis,
 )
 from ..tools.github_tools import GitHubTools
@@ -1572,7 +1573,16 @@ Be specific about:
         details["llm_payload_rejected"] = True
         details["llm_payload_rejection_reason"] = reason
         details["llm_payload_candidate_count"] = candidate_count
-        return diagnosis.model_copy(update={"error_details": details})
+        return diagnosis.model_copy(
+            update={
+                "error_details": details,
+                "llm_rejection": LLMDiagnosisRejection(
+                    rejected=True,
+                    reason=reason,
+                    candidate_count=candidate_count,
+                ),
+            }
+        )
 
     def _parse_diagnosis_response(
         self,
