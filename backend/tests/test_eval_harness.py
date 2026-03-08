@@ -1,9 +1,14 @@
 """Tests for the built-in diagnosis/remediation eval harness."""
 
+from dataclasses import replace
+
 import pytest
 
+import src.evals.diagnosis_remediation as diagnosis_eval
+from src.agents.diagnosis import DiagnosisAgent
 from src.evals.diagnosis_remediation import (
     EvalGateThresholds,
+    _is_present,
     builtin_eval_fixtures,
     evaluate_builtin_fixture_set,
 )
@@ -19,6 +24,7 @@ async def test_builtin_eval_fixture_set_passes_rollout_gate() -> None:
     assert result.action_correctness == 1.0
     assert result.validation_pass_rate == 1.0
     assert result.field_completeness == 1.0
+    assert result.expected_detail_accuracy == 1.0
 
 
 def test_builtin_eval_fixtures_cover_all_supported_failure_types() -> None:
@@ -46,3 +52,42 @@ async def test_eval_gate_fails_when_threshold_exceeds_metric() -> None:
     )
 
     assert result.gate_passed is False
+
+
+@pytest.mark.asyncio
+async def test_eval_harness_stays_on_deterministic_pattern_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fail_if_called(*args, **kwargs):
+        raise AssertionError("evaluate_builtin_fixture_set should not call DiagnosisAgent.diagnose")
+
+    monkeypatch.setattr(DiagnosisAgent, "diagnose", _fail_if_called)
+
+    result = await evaluate_builtin_fixture_set()
+
+    assert result.gate_passed is True
+
+
+@pytest.mark.asyncio
+async def test_eval_gate_fails_when_expected_detail_values_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixtures = list(builtin_eval_fixtures())
+    fixtures[0] = replace(
+        fixtures[0],
+        expected_error_details={
+            **fixtures[0].expected_error_details,
+            "manifest_file": "wrong.json",
+        },
+    )
+    monkeypatch.setattr(diagnosis_eval, "builtin_eval_fixtures", lambda: tuple(fixtures))
+
+    result = await evaluate_builtin_fixture_set()
+
+    assert result.expected_detail_accuracy < 1.0
+    assert result.gate_passed is False
+
+
+def test_is_present_treats_zero_and_nan_as_missing() -> None:
+    assert _is_present(0) is False
+    assert _is_present(0.0) is False
+    assert _is_present(float("nan")) is False
+    assert _is_present(15) is True

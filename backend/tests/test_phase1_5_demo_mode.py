@@ -312,6 +312,29 @@ async def test_dependency_with_unsupported_package_manager_falls_back_to_issue()
     assert "dependency" in plan.issue_title.lower()
 
 
+@pytest.mark.asyncio
+async def test_dependency_package_manager_matching_is_normalized() -> None:
+    gen = FixGenerators(heal_mode="safe")
+    plan = await gen.generate_fix(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.DEPENDENCY,
+            confidence=0.95,
+            root_cause="Node dependency missing",
+            is_auto_fixable=True,
+            error_details={
+                "package_name": "left-pad",
+                "package_manager": " NPM ",
+                "resolution_kind": "missing",
+            },
+            suggested_fix="Add `left-pad` to package.json and refresh the lockfile.",
+        ),
+        repository_info={},
+    )
+    assert plan.action == RemediationAction.CREATE_PR
+    assert plan.file_changes
+    assert plan.file_changes[0]["file"] == "package.json"
+
+
 def test_validation_steps_do_not_duplicate_rerun_step() -> None:
     gen = FixGenerators(heal_mode="safe")
     diagnosis = Diagnosis(

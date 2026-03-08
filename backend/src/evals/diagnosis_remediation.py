@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -30,6 +31,7 @@ class EvalGateThresholds:
 
     classification_accuracy_min: float = 1.0
     field_completeness_min: float = 0.95
+    expected_detail_accuracy_min: float = 1.0
     action_correctness_min: float = 1.0
     validation_pass_rate_min: float = 1.0
 
@@ -56,6 +58,7 @@ class EvalSuiteResult:
     fixtures: tuple[EvalFixtureResult, ...]
     classification_accuracy: float
     field_completeness: float
+    expected_detail_accuracy: float
     action_correctness: float
     validation_pass_rate: float
     gate_passed: bool
@@ -163,28 +166,35 @@ async def evaluate_builtin_fixture_set(
     gate_thresholds = thresholds or EvalGateThresholds()
 
     for fixture in builtin_eval_fixtures():
-        diagnosis = await diagnosis_agent.diagnose(
-            [
-                LogAnalysis(
-                    job_id=1,
-                    job_name=fixture.job_name,
-                    raw_logs="\n".join(fixture.error_lines),
-                    error_lines=list(fixture.error_lines),
-                    summary=fixture.summary,
-                )
-            ]
-        )
+        log_analyses = [
+            LogAnalysis(
+                job_id=1,
+                job_name=fixture.job_name,
+                raw_logs="\n".join(fixture.error_lines),
+                error_lines=list(fixture.error_lines),
+                summary=fixture.summary,
+            )
+        ]
+        diagnosis = diagnosis_agent._pattern_based_diagnosis(log_analyses)
+        if diagnosis is None:
+            raise ValueError(
+                f"Built-in eval fixture '{fixture.fixture_id}' did not match the deterministic diagnosis path."
+            )
         plan = await fix_generators.generate_fix(diagnosis, repository_info={})
         fixture_results.append(_evaluate_fixture(fixture, diagnosis, plan))
 
     count = len(fixture_results)
     classification_accuracy = sum(result.classification_correct for result in fixture_results) / count
     field_completeness = sum(result.field_completeness for result in fixture_results) / count
+    expected_detail_accuracy = (
+        sum(not result.mismatched_error_details for result in fixture_results) / count
+    )
     action_correctness = sum(result.action_correct for result in fixture_results) / count
     validation_pass_rate = sum(result.validation_passed for result in fixture_results) / count
     gate_passed = (
         classification_accuracy >= gate_thresholds.classification_accuracy_min
         and field_completeness >= gate_thresholds.field_completeness_min
+        and expected_detail_accuracy >= gate_thresholds.expected_detail_accuracy_min
         and action_correctness >= gate_thresholds.action_correctness_min
         and validation_pass_rate >= gate_thresholds.validation_pass_rate_min
     )
@@ -193,6 +203,7 @@ async def evaluate_builtin_fixture_set(
         fixtures=tuple(fixture_results),
         classification_accuracy=classification_accuracy,
         field_completeness=field_completeness,
+        expected_detail_accuracy=expected_detail_accuracy,
         action_correctness=action_correctness,
         validation_pass_rate=validation_pass_rate,
         gate_passed=gate_passed,
@@ -238,10 +249,16 @@ def _evaluate_fixture(
 def _is_present(value: Any) -> bool:
     if value is None:
         return False
+    if isinstance(value, bool):
+        return value
     if isinstance(value, str):
         return bool(value.strip())
     if isinstance(value, (list, tuple, set, dict)):
         return len(value) > 0
+    if isinstance(value, (int, float)):
+        if isinstance(value, float) and math.isnan(value):
+            return False
+        return value != 0
     return True
 
 
