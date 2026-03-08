@@ -1,4 +1,4 @@
-<!-- LAST_VERIFIED: 803e871 -->
+<!-- LAST_VERIFIED: 3480bec -->
 
 # Diagnosis and Remediation Architecture Plan
 
@@ -319,7 +319,7 @@ Active learning artifacts should inject structured context before diagnosis or r
 
 Recommended integration:
 
-1. retrieve matching approved or active playbooks
+1. retrieve matching active playbooks only (`approved` remains a governance state, not a runtime retrieval source)
 2. map them into structured context fields
 3. allow diagnosis/remediation to reference them explicitly
 4. record whether the playbook improved or degraded the outcome

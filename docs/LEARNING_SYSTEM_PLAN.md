@@ -1,6 +1,6 @@
 # Learning System Plan
 
-<!-- LAST_VERIFIED: 60e2c27 -->
+<!-- LAST_VERIFIED: 3480bec -->
 
 This document explains the learning/governance subsystem, how to use it today, and what is planned next.
 
@@ -120,20 +120,23 @@ When active learning artifacts are injected into diagnosis/remediation, the runt
 should pass structured records, not freeform prompt stuffing.
 
 Recommended injected fields per matched artifact:
-- `candidate_id`
+- `id` (matching `LearningQueueItem.id`; a runtime adapter may alias this as `candidate_id` externally)
 - `title`
 - `reason_code`
 - `suggested_playbook`
-- `applicability_notes`
-- `risk_notes`
-- `evidence_summary`
-- `verification_summary`
+- `applicability_notes` (planned governed or derived notes about when the playbook applies)
+- `risk_notes` (planned governed or derived notes about residual or introduced risk)
+- `evidence_summary` (planned derived summary of the key evidence that led to this candidate)
+- `verification_summary` (planned derived summary of verification outcomes and operator feedback)
 - `match_basis`
+- `match_rank`
+- `match_score`
 
 Recommended runtime rules:
 - inject only `active` artifacts
+- `approved` artifacts remain pre-activation governance records and are not injected into live diagnosis/remediation
 - keep retrieval read-only; no activation or mutation in the diagnosis/remediation path
-- inject a bounded number of matches with explicit ranking metadata
+- inject a bounded number of matches with explicit ranking metadata (`match_rank`, `match_score`, and `match_basis`)
 - preserve deterministic evidence as the primary source of truth
 - treat learning context as advisory unless a later contract explicitly promotes it to a governed action path
 
