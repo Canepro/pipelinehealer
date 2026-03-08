@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 
 
-def _load_receiver_shared_module() -> Any:
+def _load_receiver_shared_module(monkeypatch: pytest.MonkeyPatch) -> Any:
     module_name = "pipelinehealer_agent_handoff_shared_test"
     module_path = (
         Path(__file__).resolve().parents[2]
@@ -29,13 +29,13 @@ def _load_receiver_shared_module() -> Any:
 
     functions_module.HttpResponse = _HttpResponse
     azure_module.functions = functions_module
-    sys.modules["azure"] = azure_module
-    sys.modules["azure.functions"] = functions_module
+    monkeypatch.setitem(sys.modules, "azure", azure_module)
+    monkeypatch.setitem(sys.modules, "azure.functions", functions_module)
 
     spec = importlib.util.spec_from_file_location(module_name, module_path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
+    monkeypatch.setitem(sys.modules, module_name, module)
     spec.loader.exec_module(module)
     return module
 
@@ -53,7 +53,7 @@ def receiver_shared(monkeypatch: pytest.MonkeyPatch) -> Any:
         "NOTIFY_EMAIL_FROM_ADDRESS",
     ]:
         monkeypatch.delenv(key, raising=False)
-    return _load_receiver_shared_module()
+    return _load_receiver_shared_module(monkeypatch)
 
 
 def test_notification_target_health_reports_missing_email_transport(
