@@ -50,6 +50,32 @@ class TestPatternBasedDiagnosis:
 
         assert diagnosis is not None
         assert diagnosis.failure_type == FailureType.DEPENDENCY
+        assert diagnosis.error_details.get("package_name") == "requests"
+        assert diagnosis.error_details.get("package_manager") == "pip"
+        assert diagnosis.suggested_fix == (
+            "Add Python dependency `requests` in pyproject.toml or requirements.txt "
+            "and reinstall dependencies."
+        )
+
+    def test_detect_node_missing_module_suggests_manifest_update(self) -> None:
+        """Test that missing Node modules get a package.json-specific suggestion."""
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="build",
+            raw_logs="Error: Cannot find module 'left-pad'",
+            error_lines=["Error: Cannot find module 'left-pad'"],
+            summary="Build failed",
+        )
+
+        diagnosis = self.agent._pattern_based_diagnosis([log_analysis])
+
+        assert diagnosis is not None
+        assert diagnosis.failure_type == FailureType.DEPENDENCY
+        assert diagnosis.error_details.get("package_name") == "left-pad"
+        assert diagnosis.error_details.get("package_manager") == "npm"
+        assert diagnosis.suggested_fix == (
+            "Add `left-pad` to package.json and refresh the lockfile."
+        )
 
     def test_detect_eslint_error(self) -> None:
         """Test detection of ESLint errors."""

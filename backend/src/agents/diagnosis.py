@@ -370,13 +370,22 @@ Be specific about:
                 # Extract package name if possible
                 # Allow scoped names and path segments (e.g. "@scope/pkg", "lodash/fp").
                 package_name = ""
-                package_match = re.search(
-                    r"(?:module|package)[:\s]+['\"]?([@a-zA-Z0-9_./-]+)",
+                python_missing_match = re.search(
+                    r"No module named ['\"]([^'\"]+)['\"]",
                     error_text,
                     flags=re.IGNORECASE,
                 )
-                if package_match:
-                    package_name = package_match.group(1)
+                if python_missing_match:
+                    package_name = python_missing_match.group(1)
+
+                if not package_name:
+                    package_match = re.search(
+                        r"(?:module|package)[:\s]+['\"]?([@a-zA-Z0-9_./-]+)",
+                        error_text,
+                        flags=re.IGNORECASE,
+                    )
+                    if package_match:
+                        package_name = package_match.group(1)
 
                 # Common Node-style message: "Cannot find module 'left-pad'".
                 if not package_name:
@@ -402,7 +411,11 @@ Be specific about:
                     confidence=0.85,
                     root_cause=description,
                     is_auto_fixable=True,
-                    suggested_fix="Update or install the missing dependency",
+                    suggested_fix=self._build_dependency_suggested_fix(
+                        package_manager=package_manager,
+                        package_name=package_name,
+                        description=description,
+                    ),
                     diagnosis_source=DiagnosisSource.PATTERN,
                     error_details=self._build_classification_details(
                         family=FailureType.DEPENDENCY,
@@ -635,6 +648,43 @@ Be specific about:
                 )
 
         return None
+
+    def _build_dependency_suggested_fix(
+        self,
+        *,
+        package_manager: str,
+        package_name: str,
+        description: str,
+    ) -> str:
+        """Build a dependency fix suggestion from the matched package context."""
+        normalized_manager = package_manager.strip().lower()
+        normalized_package = package_name.strip()
+        is_version_conflict = "conflict" in description.lower() or "resolve" in description.lower()
+
+        if normalized_manager == "npm":
+            if normalized_package:
+                if is_version_conflict:
+                    return (
+                        f"Update `{normalized_package}` in package.json to a compatible version and "
+                        "refresh the lockfile."
+                    )
+                return f"Add `{normalized_package}` to package.json and refresh the lockfile."
+            return "Update package.json dependencies and refresh the lockfile."
+
+        if normalized_package:
+            if is_version_conflict:
+                return (
+                    f"Update Python dependency `{normalized_package}` in pyproject.toml or "
+                    "requirements.txt to a compatible version and reinstall dependencies."
+                )
+            return (
+                f"Add Python dependency `{normalized_package}` in pyproject.toml or "
+                "requirements.txt and reinstall dependencies."
+            )
+
+        if is_version_conflict:
+            return "Update the dependency version constraint to a compatible release and reinstall."
+        return "Add the missing dependency to the project manifest and reinstall dependencies."
 
     def _build_classification_details(
         self,
