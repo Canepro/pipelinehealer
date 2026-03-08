@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
@@ -12,6 +13,8 @@ from ..models import (
     LearningQueueItem,
 )
 from ..storage import ActivityStorage
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize_reason_code(value: Any) -> str | None:
@@ -67,7 +70,12 @@ class LearningContextRetriever:
         for row in rows:
             try:
                 candidate = LearningQueueItem(**row)
-            except Exception:
+            except Exception as exc:
+                logger.warning(
+                    "Skipping invalid learning queue item during runtime retrieval: id=%s error=%s",
+                    row.get("id", "unknown"),
+                    type(exc).__name__,
+                )
                 continue
 
             candidate_failure_type = (

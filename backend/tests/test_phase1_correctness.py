@@ -519,8 +519,14 @@ async def test_orchestrator_uses_existing_activity_id() -> None:
             )
         ]
 
-    async def fake_diagnose(log_analyses, workflow_info=None, external_diagnostics=None):
-        _ = external_diagnostics
+    async def fake_diagnose(
+        log_analyses,
+        workflow_info=None,
+        external_diagnostics=None,
+        learning_context=None,
+        pattern_diagnosis_hint=None,
+    ):
+        _ = external_diagnostics, learning_context, pattern_diagnosis_hint
         return Diagnosis(
             failure_type=FailureType.TEST,
             confidence=0.9,
@@ -528,7 +534,10 @@ async def test_orchestrator_uses_existing_activity_id() -> None:
             is_auto_fixable=False,
         )
 
-    async def fake_remediate(diagnosis, repository_info, workflow_run_id, dry_run=False):
+    async def fake_remediate(
+        diagnosis, repository_info, workflow_run_id, dry_run=False, learning_context=None
+    ):
+        _ = diagnosis, repository_info, workflow_run_id, dry_run, learning_context
         return RemediationResult(success=True, action_taken=RemediationAction.CREATE_ISSUE)
 
     orchestrator._log_analyzer.analyze = fake_analyze  # type: ignore[method-assign]
@@ -568,8 +577,14 @@ async def test_orchestrator_dry_run_is_controlled_by_auto_apply_remediation(
             )
         ]
 
-    async def fake_diagnose(log_analyses, workflow_info=None, external_diagnostics=None):
-        _ = log_analyses, workflow_info, external_diagnostics
+    async def fake_diagnose(
+        log_analyses,
+        workflow_info=None,
+        external_diagnostics=None,
+        learning_context=None,
+        pattern_diagnosis_hint=None,
+    ):
+        _ = log_analyses, workflow_info, external_diagnostics, learning_context, pattern_diagnosis_hint
         return Diagnosis(
             failure_type=FailureType.TEST,
             confidence=0.9,
@@ -579,8 +594,10 @@ async def test_orchestrator_dry_run_is_controlled_by_auto_apply_remediation(
 
     seen: dict[str, bool] = {}
 
-    async def fake_remediate(diagnosis, repository_info, workflow_run_id, dry_run=False):
-        _ = diagnosis, repository_info, workflow_run_id
+    async def fake_remediate(
+        diagnosis, repository_info, workflow_run_id, dry_run=False, learning_context=None
+    ):
+        _ = diagnosis, repository_info, workflow_run_id, learning_context
         seen["dry_run"] = dry_run
         return RemediationResult(success=True, action_taken=RemediationAction.CREATE_ISSUE)
 
@@ -617,8 +634,14 @@ async def test_orchestrator_records_mcp_model_path_and_source_attribution(monkey
             )
         ]
 
-    async def fake_diagnose(log_analyses, workflow_info=None, external_diagnostics=None):
-        _ = log_analyses, workflow_info, external_diagnostics
+    async def fake_diagnose(
+        log_analyses,
+        workflow_info=None,
+        external_diagnostics=None,
+        learning_context=None,
+        pattern_diagnosis_hint=None,
+    ):
+        _ = log_analyses, workflow_info, external_diagnostics, learning_context, pattern_diagnosis_hint
         return Diagnosis(
             failure_type=FailureType.TEST,
             confidence=0.9,
@@ -626,8 +649,10 @@ async def test_orchestrator_records_mcp_model_path_and_source_attribution(monkey
             is_auto_fixable=False,
         )
 
-    async def fake_remediate(diagnosis, repository_info, workflow_run_id, dry_run=False):
-        _ = diagnosis, repository_info, workflow_run_id, dry_run
+    async def fake_remediate(
+        diagnosis, repository_info, workflow_run_id, dry_run=False, learning_context=None
+    ):
+        _ = diagnosis, repository_info, workflow_run_id, dry_run, learning_context
         return RemediationResult(success=True, action_taken=RemediationAction.CREATE_ISSUE)
 
     async def fake_collect_external(owner: str, repo: str, event: WorkflowRunEvent, activity: ActivityRecord):
@@ -689,8 +714,14 @@ async def test_orchestrator_records_mcp_tool_invocation_without_gh_aw(monkeypatc
             )
         ]
 
-    async def fake_diagnose(log_analyses, workflow_info=None, external_diagnostics=None):
-        _ = log_analyses, workflow_info, external_diagnostics
+    async def fake_diagnose(
+        log_analyses,
+        workflow_info=None,
+        external_diagnostics=None,
+        learning_context=None,
+        pattern_diagnosis_hint=None,
+    ):
+        _ = log_analyses, workflow_info, external_diagnostics, learning_context, pattern_diagnosis_hint
         return Diagnosis(
             failure_type=FailureType.TEST,
             confidence=0.9,
@@ -698,8 +729,10 @@ async def test_orchestrator_records_mcp_tool_invocation_without_gh_aw(monkeypatc
             is_auto_fixable=False,
         )
 
-    async def fake_remediate(diagnosis, repository_info, workflow_run_id, dry_run=False):
-        _ = diagnosis, repository_info, workflow_run_id, dry_run
+    async def fake_remediate(
+        diagnosis, repository_info, workflow_run_id, dry_run=False, learning_context=None
+    ):
+        _ = diagnosis, repository_info, workflow_run_id, dry_run, learning_context
         return RemediationResult(success=True, action_taken=RemediationAction.CREATE_ISSUE)
 
     orchestrator._log_analyzer.analyze = fake_analyze  # type: ignore[method-assign]
@@ -758,8 +791,14 @@ async def test_orchestrator_collects_runbook_context_from_github_mcp(monkeypatch
             )
         ]
 
-    async def fake_diagnose(log_analyses, workflow_info=None, external_diagnostics=None):
-        _ = log_analyses, workflow_info, external_diagnostics
+    async def fake_diagnose(
+        log_analyses,
+        workflow_info=None,
+        external_diagnostics=None,
+        learning_context=None,
+        pattern_diagnosis_hint=None,
+    ):
+        _ = log_analyses, workflow_info, external_diagnostics, learning_context, pattern_diagnosis_hint
         return Diagnosis(
             failure_type=FailureType.LINT,
             confidence=0.9,
@@ -767,8 +806,10 @@ async def test_orchestrator_collects_runbook_context_from_github_mcp(monkeypatch
             is_auto_fixable=False,
         )
 
-    async def fake_remediate(diagnosis, repository_info, workflow_run_id, dry_run=False):
-        _ = diagnosis, repository_info, workflow_run_id, dry_run
+    async def fake_remediate(
+        diagnosis, repository_info, workflow_run_id, dry_run=False, learning_context=None
+    ):
+        _ = diagnosis, repository_info, workflow_run_id, dry_run, learning_context
         return RemediationResult(success=True, action_taken=RemediationAction.CREATE_ISSUE)
 
     orchestrator._log_analyzer.analyze = fake_analyze  # type: ignore[method-assign]
@@ -808,8 +849,14 @@ async def test_orchestrator_populates_failure_context_from_diagnosis_details() -
             )
         ]
 
-    async def fake_diagnose(log_analyses, workflow_info=None, external_diagnostics=None):
-        _ = log_analyses, workflow_info, external_diagnostics
+    async def fake_diagnose(
+        log_analyses,
+        workflow_info=None,
+        external_diagnostics=None,
+        learning_context=None,
+        pattern_diagnosis_hint=None,
+    ):
+        _ = log_analyses, workflow_info, external_diagnostics, learning_context, pattern_diagnosis_hint
         return Diagnosis(
             failure_type=FailureType.TEST,
             confidence=0.9,
@@ -822,8 +869,10 @@ async def test_orchestrator_populates_failure_context_from_diagnosis_details() -
             },
         )
 
-    async def fake_remediate(diagnosis, repository_info, workflow_run_id, dry_run=False):
-        _ = diagnosis, repository_info, workflow_run_id, dry_run
+    async def fake_remediate(
+        diagnosis, repository_info, workflow_run_id, dry_run=False, learning_context=None
+    ):
+        _ = diagnosis, repository_info, workflow_run_id, dry_run, learning_context
         return RemediationResult(success=True, action_taken=RemediationAction.CREATE_ISSUE)
 
     orchestrator._log_analyzer.analyze = fake_analyze  # type: ignore[method-assign]
@@ -856,8 +905,14 @@ async def test_orchestrator_populates_failure_context_signal_from_external_reaso
             )
         ]
 
-    async def fake_diagnose(log_analyses, workflow_info=None, external_diagnostics=None):
-        _ = log_analyses, workflow_info, external_diagnostics
+    async def fake_diagnose(
+        log_analyses,
+        workflow_info=None,
+        external_diagnostics=None,
+        learning_context=None,
+        pattern_diagnosis_hint=None,
+    ):
+        _ = log_analyses, workflow_info, external_diagnostics, learning_context, pattern_diagnosis_hint
         return Diagnosis(
             failure_type=FailureType.BUILD_CONFIG,
             confidence=0.85,
@@ -866,8 +921,10 @@ async def test_orchestrator_populates_failure_context_signal_from_external_reaso
             error_details={},
         )
 
-    async def fake_remediate(diagnosis, repository_info, workflow_run_id, dry_run=False):
-        _ = diagnosis, repository_info, workflow_run_id, dry_run
+    async def fake_remediate(
+        diagnosis, repository_info, workflow_run_id, dry_run=False, learning_context=None
+    ):
+        _ = diagnosis, repository_info, workflow_run_id, dry_run, learning_context
         return RemediationResult(success=True, action_taken=RemediationAction.CREATE_ISSUE)
 
     async def fake_collect_external(owner: str, repo: str, event: WorkflowRunEvent, activity: ActivityRecord):

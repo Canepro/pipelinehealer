@@ -1674,19 +1674,12 @@ class OrchestratorAgent:
                 t1 = time.monotonic()
                 diagnosis = await self._run_with_timeout(
                     step_name="Diagnose",
-                    coro=(
-                        self._diagnosis_agent.diagnose(
-                            log_analyses,
-                            workflow_info,
-                            external_diagnostics=external_diagnostics,
-                            learning_context=diagnosis_learning_context,
-                        )
-                        if diagnosis_learning_context
-                        else self._diagnosis_agent.diagnose(
-                            log_analyses,
-                            workflow_info,
-                            external_diagnostics=external_diagnostics,
-                        )
+                    coro=self._diagnosis_agent.diagnose(
+                        log_analyses,
+                        workflow_info,
+                        external_diagnostics=external_diagnostics,
+                        learning_context=diagnosis_learning_context,
+                        pattern_diagnosis_hint=preview_diagnosis,
                     ),
                 )
                 elapsed = time.monotonic() - t1
@@ -1747,21 +1740,12 @@ class OrchestratorAgent:
                 t2 = time.monotonic()
                 result = await self._run_with_timeout(
                     step_name="Remediate",
-                    coro=(
-                        self._remediation_agent.remediate(
-                            diagnosis=diagnosis,
-                            repository_info=repository_info,
-                            workflow_run_id=run_id,
-                            dry_run=dry_run,
-                            learning_context=remediation_learning_context,
-                        )
-                        if remediation_learning_context
-                        else self._remediation_agent.remediate(
-                            diagnosis=diagnosis,
-                            repository_info=repository_info,
-                            workflow_run_id=run_id,
-                            dry_run=dry_run,
-                        )
+                    coro=self._remediation_agent.remediate(
+                        diagnosis=diagnosis,
+                        repository_info=repository_info,
+                        workflow_run_id=run_id,
+                        dry_run=dry_run,
+                        learning_context=remediation_learning_context,
                     ),
                 )
                 elapsed = time.monotonic() - t2
@@ -1939,19 +1923,12 @@ class OrchestratorAgent:
                 await self._storage.update_activity(activity)
             diagnosis = await self._run_with_timeout(
                 step_name="Diagnose",
-                coro=(
-                    self._diagnosis_agent.diagnose(
-                        log_analyses,
-                        workflow_info=workflow_info,
-                        external_diagnostics=activity.external_diagnostics,
-                        learning_context=diagnosis_learning_context,
-                    )
-                    if diagnosis_learning_context
-                    else self._diagnosis_agent.diagnose(
-                        log_analyses,
-                        workflow_info=workflow_info,
-                        external_diagnostics=activity.external_diagnostics,
-                    )
+                coro=self._diagnosis_agent.diagnose(
+                    log_analyses,
+                    workflow_info=workflow_info,
+                    external_diagnostics=activity.external_diagnostics,
+                    learning_context=diagnosis_learning_context,
+                    pattern_diagnosis_hint=preview_diagnosis,
                 ),
             )
             diagnosis_details = dict(diagnosis.error_details or {})
@@ -1993,21 +1970,12 @@ class OrchestratorAgent:
             dry_run = not self._settings.auto_apply_remediation
             result = await self._run_with_timeout(
                 step_name="Remediate",
-                coro=(
-                    self._remediation_agent.remediate(
-                        diagnosis=diagnosis,
-                        repository_info=repository_info,
-                        workflow_run_id=synthetic_run_id,
-                        dry_run=dry_run,
-                        learning_context=remediation_learning_context,
-                    )
-                    if remediation_learning_context
-                    else self._remediation_agent.remediate(
-                        diagnosis=diagnosis,
-                        repository_info=repository_info,
-                        workflow_run_id=synthetic_run_id,
-                        dry_run=dry_run,
-                    )
+                coro=self._remediation_agent.remediate(
+                    diagnosis=diagnosis,
+                    repository_info=repository_info,
+                    workflow_run_id=synthetic_run_id,
+                    dry_run=dry_run,
+                    learning_context=remediation_learning_context,
                 ),
             )
             activity.remediation_result = result

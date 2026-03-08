@@ -173,6 +173,7 @@ class DiagnosisAgent:
         workflow_info: dict[str, Any] | None = None,
         external_diagnostics: list[ExternalDiagnostic] | None = None,
         learning_context: list[LearningContextMatch] | None = None,
+        pattern_diagnosis_hint: Diagnosis | None = None,
     ) -> Diagnosis:
         """Diagnose the root cause of a failure based on log analyses.
 
@@ -198,7 +199,7 @@ class DiagnosisAgent:
             )
 
         # First, try pattern-based detection for common cases
-        pattern_diagnosis = self._pattern_based_diagnosis(log_analyses)
+        pattern_diagnosis = pattern_diagnosis_hint or self._pattern_based_diagnosis(log_analyses)
         pattern_diagnosis = self._apply_changed_file_correlation(
             pattern_diagnosis,
             log_analyses,

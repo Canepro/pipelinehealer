@@ -122,6 +122,30 @@ async def test_learning_context_retriever_prefers_active_repo_and_reason_matches
 
 
 @pytest.mark.asyncio
+async def test_learning_context_retriever_logs_invalid_rows(caplog: pytest.LogCaptureFixture) -> None:
+    storage = InMemoryStorage()
+    await storage.initialize()
+    await storage.upsert_learning_queue_item(
+        {
+            "id": "invalid-item",
+            "status": "active",
+            "title": "invalid payload",
+        }
+    )
+
+    retriever = LearningContextRetriever(storage)
+    with caplog.at_level("WARNING"):
+        matches = await retriever.retrieve(
+            repository_name="octo/demo",
+            failure_type="dependency",
+        )
+
+    assert matches == []
+    assert "Skipping invalid learning queue item during runtime retrieval" in caplog.text
+    assert "invalid-item" in caplog.text
+
+
+@pytest.mark.asyncio
 async def test_diagnosis_prompt_includes_learning_context(monkeypatch: pytest.MonkeyPatch) -> None:
     agent = DiagnosisAgent()
     log_analysis = LogAnalysis(
@@ -167,6 +191,47 @@ async def test_diagnosis_prompt_includes_learning_context(monkeypatch: pytest.Mo
     assert "Learning context:" in captured_prompt["value"]
     assert "learning-best" in captured_prompt["value"]
     assert "Add requests to pyproject.toml." in captured_prompt["value"]
+
+
+@pytest.mark.asyncio
+async def test_diagnose_reuses_pattern_hint(monkeypatch: pytest.MonkeyPatch) -> None:
+    agent = DiagnosisAgent()
+    hinted = Diagnosis(
+        failure_type=FailureType.DEPENDENCY,
+        confidence=0.85,
+        root_cause="missing requests dependency",
+        is_auto_fixable=True,
+        suggested_fix="Add requests to pyproject.toml.",
+        diagnosis_source=DiagnosisSource.PATTERN,
+    )
+
+    def _unexpected_pattern_pass(log_analyses):
+        _ = log_analyses
+        raise AssertionError("pattern pass should be reused from hint")
+
+    async def _fake_search_similar_issues(log_analyses, workflow_info):
+        _ = log_analyses, workflow_info
+        return []
+
+    monkeypatch.setattr(agent, "_pattern_based_diagnosis", _unexpected_pattern_pass)
+    monkeypatch.setattr(agent, "_search_similar_issues", _fake_search_similar_issues)
+
+    diagnosis = await agent.diagnose(
+        [
+            LogAnalysis(
+                job_id=1,
+                job_name="ci",
+                raw_logs="ModuleNotFoundError: No module named 'requests'",
+                error_lines=["ModuleNotFoundError: No module named 'requests'"],
+                summary="Import failed",
+            )
+        ],
+        pattern_diagnosis_hint=hinted,
+    )
+
+    assert diagnosis.failure_type == FailureType.DEPENDENCY
+    assert diagnosis.diagnosis_source == DiagnosisSource.PATTERN
+    assert diagnosis.root_cause == "missing requests dependency"
 
 
 @pytest.mark.asyncio
@@ -218,9 +283,11 @@ async def test_orchestrator_persists_learning_context_trace_and_passes_matches()
         workflow_info=None,
         external_diagnostics=None,
         learning_context=None,
+        pattern_diagnosis_hint=None,
     ):
         _ = log_analyses, workflow_info, external_diagnostics
         captured["diagnosis"] = list(learning_context or [])
+        captured["pattern_hint"] = [pattern_diagnosis_hint] if pattern_diagnosis_hint else []
         return Diagnosis(
             failure_type=FailureType.DEPENDENCY,
             confidence=0.9,
@@ -266,6 +333,7 @@ async def test_orchestrator_persists_learning_context_trace_and_passes_matches()
     assert captured["remediation"]
     assert captured["diagnosis"][0].id == "learning-dependency"
     assert captured["remediation"][0].id == "learning-dependency"
+    assert captured["pattern_hint"][0].failure_type == FailureType.DEPENDENCY
     assert activity.learning_context_trace is not None
     assert activity.learning_context_trace.diagnosis_injected is True
     assert activity.learning_context_trace.remediation_injected is True
