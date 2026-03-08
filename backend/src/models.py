@@ -30,6 +30,18 @@ class DiagnosisSource(StrEnum):
     LLM = "llm"
 
 
+class LLMCapabilityState(StrEnum):
+    """Operator-facing maturity states for the active LLM runtime."""
+
+    NOT_CONFIGURED = "not_configured"
+    CONFIGURED = "configured"
+    PROVIDER_READY = "provider_ready"
+    OPERATION_COMPATIBLE = "operation_compatible"
+    FULL_CAPABILITY = "full_capability"
+    DEGRADED = "degraded"
+    NOT_IMPLEMENTED = "not_implemented"
+
+
 class RemediationStatus(StrEnum):
     """Status of a remediation attempt."""
 
@@ -250,6 +262,22 @@ class LLMModelPath(BaseModel):
     call_count: int = 0
     total_latency_ms: float = 0.0
     error_count: int = 0
+
+
+class LLMCapabilityEvidenceView(BaseModel):
+    """Recent activity evidence used to classify current LLM capability."""
+
+    activity_id: str
+    workflow_run_id: int
+    observed_at: datetime
+    model: str
+    fallback_used: bool = False
+    error_count: int = 0
+    failure_type: str | None = None
+    diagnosis_source: str | None = None
+    diagnosis_confidence: float | None = None
+    remediation_action: str | None = None
+    remediation_success: bool | None = None
 
 
 class MCPActionAuditEntry(BaseModel):
@@ -484,12 +512,20 @@ class LLMProviderHealthView(BaseModel):
 
     provider: str
     implemented: bool
+    configured: bool = False
     available: bool
+    provider_ready: bool = False
+    operation_compatible: bool = False
+    full_capability: bool = False
+    capability_state: LLMCapabilityState = LLMCapabilityState.NOT_CONFIGURED
+    capability_summary: str = ""
     reason: str
     message: str
     endpoint: str | None = None
     deployment_name: str | None = None
     api_version: str | None = None
+    last_validated_at: datetime | None = None
+    last_validation: LLMCapabilityEvidenceView | None = None
 
 
 class MCPProviderHealthView(BaseModel):

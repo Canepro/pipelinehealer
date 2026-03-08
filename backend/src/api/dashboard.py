@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
 from ..config import get_settings, load_settings_snapshot
 from ..llm.adapters import get_llm_provider_adapter
+from ..llm.capability import build_llm_capability_snapshot
 from ..models import (
     ActivityRecord,
     AdminSettingsAuditEntry,
@@ -1746,11 +1747,19 @@ async def update_app_settings(
     response_model=LLMProviderHealthView,
     dependencies=[Depends(require_admin_key)],
 )
-async def get_llm_provider_health() -> LLMProviderHealthView:
+async def get_llm_provider_health(
+    storage: ActivityStorage = Depends(get_storage),
+) -> LLMProviderHealthView:
     """Get health/status for the configured LLM provider adapter."""
     settings = get_settings()
     adapter = get_llm_provider_adapter(settings)
-    return LLMProviderHealthView(**adapter.health(settings))
+    base_health = adapter.health(settings)
+    capability = await build_llm_capability_snapshot(
+        settings=settings,
+        storage=storage,
+        provider_health=base_health,
+    )
+    return LLMProviderHealthView(**base_health, **capability)
 
 
 @router.get(

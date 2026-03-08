@@ -10,6 +10,16 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - _No unreleased entries yet._
 
+## [v0.5.8] - 2026-03-08
+
+### Changed
+
+- Surfaced first-class LLM capability states in the backend settings API and operator UI so Control Center and Settings now distinguish configured, provider-ready, operation-compatible, full-capability, degraded, and scaffolded runtime states.
+
+### Fixed
+
+- Replaced the old LLM provider-readiness blind spot with recent live validation evidence, including the last matching canary activity, model, error count, and remediation outcome, so operators no longer need backend logs to tell whether the current routing is fully working.
+
 ## [v0.5.7] - 2026-03-08
 
 ### Changed
