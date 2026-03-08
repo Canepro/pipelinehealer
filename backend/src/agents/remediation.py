@@ -291,6 +291,23 @@ class RemediationAgent:
                 error_message=f"Failed to generate fix plan: {e}",
             )
 
+        if plan.action == RemediationAction.CREATE_PR and self._is_jenkins_bridge_issue_only(
+            repository_info
+        ):
+            logger.info(
+                "Converting Jenkins bridge PR remediation to review issue "
+                "(requires AUTO_CREATE_PR=true and JENKINS_BRIDGE_ALLOW_PR=true)"
+            )
+            plan = self._fix_generators.generate_review_issue(
+                diagnosis=diagnosis,
+                repository_info=repository_info,
+                not_auto_reason=(
+                    "Jenkins bridge PR publishing requires both AUTO_CREATE_PR=true and "
+                    "JENKINS_BRIDGE_ALLOW_PR=true."
+                ),
+                reason_code=NotAutoApplyReason.SAFETY_BOUND,
+            )
+
         applied_learning_match = self._select_applied_learning_match(
             diagnosis,
             plan,
@@ -312,26 +329,9 @@ class RemediationAgent:
                 "application_mode": "guidance_section",
                 "action_changed": False,
             }
-            if applied_learning_match is not None
+            if applied_learning_match is not None and self._plan_contains_applied_learning_guidance(plan)
             else None
         )
-
-        if plan.action == RemediationAction.CREATE_PR and self._is_jenkins_bridge_issue_only(
-            repository_info
-        ):
-            logger.info(
-                "Converting Jenkins bridge PR remediation to review issue "
-                "(requires AUTO_CREATE_PR=true and JENKINS_BRIDGE_ALLOW_PR=true)"
-            )
-            plan = self._fix_generators.generate_review_issue(
-                diagnosis=diagnosis,
-                repository_info=repository_info,
-                not_auto_reason=(
-                    "Jenkins bridge PR publishing requires both AUTO_CREATE_PR=true and "
-                    "JENKINS_BRIDGE_ALLOW_PR=true."
-                ),
-                reason_code=NotAutoApplyReason.SAFETY_BOUND,
-            )
 
         logger.info(f"Generated remediation plan: {plan.action.value} - {plan.description}")
 
@@ -355,7 +355,10 @@ class RemediationAgent:
                 repository_info,
                 workflow_run_id,
             )
-            if applied_learning_details is not None:
+            if (
+                applied_learning_details is not None
+                and self._result_published_applied_learning_guidance(result)
+            ):
                 result.details["applied_learning_context"] = applied_learning_details
             return result
         except Exception as e:
@@ -571,6 +574,23 @@ class RemediationAgent:
         if not updates:
             return plan
         return plan.model_copy(update=updates)
+
+    @staticmethod
+    def _plan_contains_applied_learning_guidance(plan: RemediationPlan) -> bool:
+        """Return whether the rendered plan body includes applied learning guidance."""
+        marker = "## Applied Learning Guidance"
+        return marker in str(plan.pr_body or "") or marker in str(plan.issue_body or "")
+
+    @staticmethod
+    def _result_published_applied_learning_guidance(result: RemediationResult) -> bool:
+        """Return whether the final remediation result published a fresh guided artifact."""
+        if not result.success:
+            return False
+        if result.action_taken == RemediationAction.CREATE_PR:
+            return result.details.get("reused_existing_pr") is False
+        if result.action_taken in {RemediationAction.CREATE_ISSUE, RemediationAction.NOTIFY}:
+            return result.details.get("reused_existing_issue") is False
+        return False
 
     def _branch_name_for_run(self, base_branch_name: str, workflow_run_id: int) -> str:
         """Return a stable unique branch name for a workflow run to avoid ref collisions."""

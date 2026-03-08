@@ -1314,6 +1314,115 @@ async def test_remediation_leaves_conflicting_learning_match_advisory_only() -> 
 
 
 @pytest.mark.asyncio
+async def test_remediation_jenkins_issue_first_keeps_applied_learning_guidance() -> None:
+    gh = FakeGitHubTools()
+    agent = RemediationAgent(github_tools=gh)
+
+    result = await agent.remediate(
+        diagnosis=Diagnosis(
+            failure_type=FailureType.DEPENDENCY,
+            confidence=0.92,
+            root_cause="Package `left-pad` is missing from dependencies.",
+            is_auto_fixable=True,
+            suggested_fix="Add the missing dependency.",
+            error_details={
+                "package_name": "left-pad",
+                "package_manager": "npm",
+                "required_version": "^1.3.0",
+                "current_version": "",
+                "manifest_file": "package.json",
+                "resolution_kind": "missing",
+                "reason_code": "missing_node_module",
+            },
+        ),
+        repository_info={
+            "owner": {"login": "octo"},
+            "name": "demo",
+            "default_branch": "main",
+            "source_selection_path": "jenkins_bridge",
+        },
+        workflow_run_id=125,
+        dry_run=True,
+        learning_context=[
+            LearningContextMatch(
+                id="playbook-node-dep",
+                title="Restore missing npm dependency",
+                failure_type=FailureType.DEPENDENCY,
+                reason_code="missing_node_module",
+                suggested_playbook="Add the missing package to package.json and rerun install before retrying CI.",
+                match_basis=["failure_type exact", "reason_code exact", "repository exact"],
+                match_rank=1,
+                match_score=0.94,
+                verification_pass_rate=1.0,
+                occurrence_count=4,
+            )
+        ],
+    )
+
+    assert result.success is True
+    assert result.action_taken == RemediationAction.CREATE_ISSUE
+    applied = result.details.get("applied_learning_context")
+    assert isinstance(applied, dict)
+    plan = result.details.get("plan")
+    assert isinstance(plan, dict)
+    assert "## Applied Learning Guidance" in str(plan.get("issue_body"))
+    assert "## Related Active Playbooks" in str(plan.get("issue_body"))
+
+
+@pytest.mark.asyncio
+async def test_remediation_skip_does_not_claim_applied_learning_guidance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AUTO_CREATE_PR", "false")
+    reset_settings()
+    gh = FakeGitHubTools()
+    agent = RemediationAgent(github_tools=gh)
+
+    try:
+        result = await agent.remediate(
+            diagnosis=Diagnosis(
+                failure_type=FailureType.DEPENDENCY,
+                confidence=0.92,
+                root_cause="Package `left-pad` is missing from dependencies.",
+                is_auto_fixable=True,
+                suggested_fix="Add the missing dependency.",
+                error_details={
+                    "package_name": "left-pad",
+                    "package_manager": "npm",
+                    "required_version": "^1.3.0",
+                    "current_version": "",
+                    "manifest_file": "package.json",
+                    "resolution_kind": "missing",
+                    "reason_code": "missing_node_module",
+                },
+            ),
+            repository_info={"owner": {"login": "octo"}, "name": "demo", "default_branch": "main"},
+            workflow_run_id=126,
+            dry_run=False,
+            learning_context=[
+                LearningContextMatch(
+                    id="playbook-node-dep",
+                    title="Restore missing npm dependency",
+                    failure_type=FailureType.DEPENDENCY,
+                    reason_code="missing_node_module",
+                    suggested_playbook="Add the missing package to package.json and rerun install before retrying CI.",
+                    match_basis=["failure_type exact", "reason_code exact", "repository exact"],
+                    match_rank=1,
+                    match_score=0.94,
+                    verification_pass_rate=1.0,
+                    occurrence_count=4,
+                )
+            ],
+        )
+    finally:
+        reset_settings()
+
+    assert result.success is True
+    assert result.action_taken == RemediationAction.SKIP
+    assert result.details.get("applied_learning_context") is None
+
+
+@pytest.mark.asyncio
 async def test_remediation_jenkins_bridge_defaults_to_issue_first(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -1374,10 +1374,14 @@ export default function ActivityDetail() {
                         Active playbook applied:{" "}
                         <span className="font-medium">
                           {remediationMeta.appliedLearningTitle || remediationMeta.appliedLearningId}
-                        </span>{" "}
-                        <span className="text-[var(--ph-muted)]">
-                          ({remediationMeta.appliedLearningId})
                         </span>
+                        {remediationMeta.appliedLearningTitle &&
+                          remediationMeta.appliedLearningTitle !== remediationMeta.appliedLearningId && (
+                            <span className="text-[var(--ph-muted)]">
+                              {" "}
+                              ({remediationMeta.appliedLearningId})
+                            </span>
+                          )}
                       </p>
                     )}
                   </div>
