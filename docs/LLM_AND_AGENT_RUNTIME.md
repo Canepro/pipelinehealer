@@ -1,6 +1,6 @@
 # LLM and Agent Runtime
 
-<!-- LAST_VERIFIED: 588a33d -->
+<!-- LAST_VERIFIED: aec8f84 -->
 
 This document is the operator-facing contract for how PipelineHealer uses LLMs and agents at runtime.
 
@@ -17,6 +17,7 @@ PipelineHealer has multiple agent responsibilities:
 - log analysis
 - diagnosis
 - remediation
+- bounded patch drafting
 - orchestration
 
 Today, one LLM provider is active per runtime:
@@ -28,6 +29,10 @@ Task-level routing is supported inside that active provider:
 - `LLM_MODEL_ANALYSIS`
 - `LLM_MODEL_DIAGNOSIS`
 - `LLM_MODEL_REMEDIATION`
+
+Internal role note:
+- `patch_drafting` is now a distinct internal role for bounded single-file drafts
+- today it reuses the remediation model override/path unless a dedicated override is added later
 
 Current limitation:
 - you cannot use Azure for analysis and `openai_compatible` for diagnosis/remediation in the same run
@@ -51,6 +56,7 @@ There are four different states operators need to distinguish.
 4. Full-capability
 - analysis and diagnosis succeed
 - remediation can produce a high-confidence PR path
+- bounded patch drafting validations pass when that path is invoked
 - `llm_model_path.error_count` stays at `0` for a healthy canary
 
 Important:
@@ -104,10 +110,30 @@ Current recommended Azure setup:
 - analysis: `gpt-5-mini`
 - diagnosis: `gpt-5.1-codex-mini`
 - remediation: `gpt-5.1-codex-mini`
+- patch_drafting: `gpt-5.1-codex-mini` (currently via the remediation override/path)
 
 Reasoning:
 - analysis is the best place to save latency/cost
 - diagnosis and remediation benefit most from the stronger reasoning/coding model
+- bounded patch drafting is the narrowest place to spend stronger coding-model budget
+
+## Bounded Patch Drafting
+
+PipelineHealer now supports a bounded patch drafting path for safe, known edit classes.
+
+Current rules:
+- deterministic extraction and remediation planning still happen first
+- bounded drafting is only used for tightly-scoped single-file edits
+- draft output is validated before write/apply
+- if the draft is invalid, PipelineHealer falls back to deterministic content when available
+- if no safe fallback exists, the PR path falls back to issue-only instead of applying a weak patch
+
+Current shipped edit class:
+- minimal ESLint flat-config creation for missing `eslint.config.*`
+
+Traceability:
+- activities may include `remediation_result.details.patch_drafting_trace`
+- this records when bounded drafting ran and whether the final content came from a validated draft or deterministic fallback
 
 ## Capability Verification Checklist
 

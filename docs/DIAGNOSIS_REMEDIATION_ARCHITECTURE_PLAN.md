@@ -1,4 +1,4 @@
-<!-- LAST_VERIFIED: b5bb08d -->
+<!-- LAST_VERIFIED: aec8f84 -->
 
 # Diagnosis and Remediation Architecture Plan
 
@@ -379,7 +379,7 @@ Use this checklist for the `v0.6.0` workstream.
 ### Docs and contract
 
 - [ ] API and activity payload contract updated for new typed diagnosis fields
-- [ ] runtime docs updated to explain deterministic-first extraction plus bounded patch drafting
+- [x] runtime docs updated to explain deterministic-first extraction plus bounded patch drafting
 - [ ] learning-system docs updated to describe structured retrieval injection
 
 ### Diagnosis layer
@@ -394,14 +394,14 @@ Use this checklist for the `v0.6.0` workstream.
 
 - [ ] diagnosis prompt updated to require failure-type-specific structured JSON
 - [ ] parser rejects incomplete or malformed structured payloads cleanly
-- [ ] role mapping documented for `analysis`, `diagnosis_refinement`, `patch_drafting`, and `operator_summary`
+- [x] role mapping documented for `analysis`, `diagnosis_refinement`, `patch_drafting`, and `operator_summary`
 
 ### Remediation layer
 
 - [ ] generators consume typed fields instead of generic `suggested_fix` prose
 - [ ] issue templates render typed evidence blocks
-- [ ] bounded patch drafting path introduced only for safe, known edit classes
-- [ ] validation and fallback-to-issue behavior implemented for bounded patches
+- [x] bounded patch drafting path introduced only for safe, known edit classes
+- [x] validation and fallback-to-issue behavior implemented for bounded patches
 
 ### Evaluation and rollout
 

@@ -540,7 +540,24 @@ PipelineHealer automated analysis
                 file_changes=[
                     {
                         "file": config_filename,
-                        "content": config_content,
+                        "type": "bounded_patch",
+                        "draft_kind": "eslint_flat_config",
+                        "instructions": (
+                            "Draft a minimal ESLint flat config for a JavaScript/ESM repository. "
+                            "Use `export default` with a single config array entry, target "
+                            "`**/*.{js,mjs,cjs}`, set `ecmaVersion` to `latest`, set `sourceType` "
+                            "to `module`, and keep `rules` empty."
+                        ),
+                        "fallback_content": config_content,
+                        "validation": {
+                            "must_contain": [
+                                "export default",
+                                "files:",
+                                "**/*.{js,mjs,cjs}",
+                                "rules: {}",
+                            ],
+                            "max_bytes": 1200,
+                        },
                     }
                 ],
                 branch_name="fix/lint-eslint-config",

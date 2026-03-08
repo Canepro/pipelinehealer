@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 5f257aa -->
+<!-- LAST_VERIFIED: aec8f84 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -1371,6 +1371,12 @@ When `action_taken` is `skip`, the `remediation_result.details` object may inclu
 | `reason_detail` | Human-readable explanation of why the artifact could not be created |
 
 This occurs when diagnosis succeeded but the target repository constraints prevented artifact publication (issues disabled, repo archived, insufficient permissions). The activity still completes as `completed` — not `failed` — because the diagnosis and remediation logic ran successfully.
+
+When `action_taken` is `create_pr`, the `remediation_result.details` object may also include:
+
+| Field | Description |
+|-------|-------------|
+| `patch_drafting_trace` | Optional list of bounded patch drafting trace records (`file`, `task`, `draft_kind`, `outcome`, `used_fallback`, `validation`, and optional `draft_error`) for safe AI-assisted single-file edits |
 
 ---
 
