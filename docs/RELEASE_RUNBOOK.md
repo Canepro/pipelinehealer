@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: 5423515 -->
+<!-- LAST_VERIFIED: ec7e28f -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -179,12 +179,14 @@ Recommended sequence when branch protection is active:
 
 1. Push the branch first.
 2. Open the PR and wait for the repository's attached review agents/bots to publish their review comments.
-3. Address review comments and resolve review threads before merge.
-4. If you need deployment before PR merge, push the release tag from the release-branch commit to `origin` (for example: `git push origin vX.Y.Z`) and continue with release verification + Azure promotion.
-5. Merge the PR after checks are green, then delete the branch and sync local `main`.
+3. Do not tag yet. Wait until attached review agents/bots appear to be finished commenting, then address review comments, resolve review threads, and re-run the relevant checks.
+4. Confirm the release-branch HEAD is the reviewed commit you actually want to ship. The tag must point at this post-review commit, not at an earlier pre-review candidate.
+5. If you need deployment before PR merge, push the release tag from that reviewed release-branch commit to `origin` (for example: `git push origin vX.Y.Z`) and continue with release verification + Azure promotion.
+6. Merge the PR after checks are green, then delete the branch and sync local `main`.
 
 Practical note:
 - GitHub can briefly report "base branch policy prohibits the merge" or block admin merge while review threads remain unresolved. Treat that as expected policy lag, not as a signal to bypass review discipline.
+- If comments land after a tag is already published and they require code changes, do not reuse the existing tag. Cut a new patch release from the corrected commit instead.
 
 ## 6) Verify Published Release
 

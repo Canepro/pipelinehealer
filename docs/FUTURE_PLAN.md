@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 8e79a7e -->
+<!-- LAST_VERIFIED: ec7e28f -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -48,28 +48,29 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.5.4` | Released | `asyncpg` import hardening + frontend Dockerfile workflow-warning cleanup + operator-surface panel polish |
 | `v0.5.5` | Released | Final summary-panel separation cleanup + release/doc alignment carry-forward |
 | `v0.5.6` | Released | Azure `Responses`-first compatibility fix + clipboard hardening + deployment runbook lessons |
+| `v0.5.7` | Released | Post-review release-discipline patch + CLI smoke-check hardening |
 
-## Released Target: `v0.5.6` (Patch)
+## Released Target: `v0.5.7` (Patch)
 
-Theme: Azure compatibility hardening plus deployment-operator lessons after the `v0.5.5` visual cleanup follow-up.
+Theme: release-discipline hardening after the `v0.5.6` post-review gap.
 
 ### Delivered Scope
 
-1. Azure model-path hardening
-   - Switched `cognitiveservices.azure.com` handling to a `Responses`-first execution path for codex-style deployments, with chat fallback only for explicit compatibility cases.
-   - Brought the local `aoai:check` smoke command in line with non-interactive container use.
-2. Operator UX hardening
-   - Added a clipboard fallback so copy actions continue to work outside secure browser contexts during remote VM and tunnel-based operation.
-3. Deployment/documentation carry-forward
-   - Promoted `v0.5.6` across release manifests, README, API docs, demo defaults, and roadmap/history references.
-   - Captured the tested Docker and single-node Helm remote-VM workflow, including webhook relay and `backfill` limitations.
+1. Release-process hardening
+   - Made the protected-branch runbook explicit that release tags must wait for attached review agents/bots to finish and must point at the post-review branch commit.
+2. CLI smoke-check hardening
+   - Fixed `demo:proof --repo` so missing-value typos do not consume the next flag or abort the script.
+   - Wrapped the `aoai:check` Responses probe so request and JSON failures produce concise operator-facing errors instead of raw tracebacks.
+3. Release/documentation carry-forward
+   - Promoted `v0.5.7` across release manifests, README, API docs, demo defaults, and roadmap/history references.
 
 ### Exit Criteria
 
-1. `cognitiveservices.azure.com` codex-style deployments no longer fail solely because the app insists on chat-completions first.
-2. Copy actions remain usable in tunneled or otherwise insecure browser contexts.
-3. Release manifests and current-release docs all agree on `v0.5.6`.
-4. Demo/operator docs point at the active tagged release rather than the prior patch baseline.
+1. Attached review comments are resolved before the release tag is cut.
+2. `demo:proof --repo` handles missing-value typos without swallowing subsequent flags.
+3. `aoai:check` request/JSON failures degrade to concise operator-facing errors.
+4. Release manifests and current-release docs all agree on `v0.5.7`.
+5. Demo/operator docs point at the active tagged release rather than the prior patch baseline.
 
 ## Released Target: `v0.2.6` (Verification Learning + Diagnostics Signal Clarity)
 

@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 8e79a7e -->
+<!-- LAST_VERIFIED: ec7e28f -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -87,7 +87,7 @@ Unauthenticated health check.
 ```json
 {
   "service": "PipelineHealer",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "status": "healthy",
   "environment": "production",
   "storage_backend": "cosmos_db"

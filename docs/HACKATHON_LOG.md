@@ -1,6 +1,8 @@
 # PipelineHealer Hackathon Log
 
-**Last updated:** March 7, 2026
+<!-- LAST_VERIFIED: ec7e28f -->
+
+**Last updated:** March 8, 2026
 
 This is the long-form project tracker for hackathon execution status, submission readiness, and milestone history.
 
@@ -34,12 +36,12 @@ This is the long-form project tracker for hackathon execution status, submission
   - required scope locked to `#36/#42/#57` for submission reliability
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
   - storage extensibility remained adapter-scoped (no core workflow rewrites during freeze)
-- Release `v0.5.6` is the current public baseline.
-- `v0.5.6` shipped:
-  - Azure `cognitiveservices.azure.com` execution now follows the tested `Responses`-first path for `gpt-5.1-codex-mini`, with chat fallback only for compatibility cases
-  - clipboard-dependent operator actions now degrade cleanly in insecure or API-restricted browser contexts
-  - deployment docs now reflect the tested Docker and single-node Helm remote-VM workflow, including `smee`, SSH tunneling, and the `backfill` boundary
-- Post-`v0.5.6` follow-on work is continuity and release planning, not demo-scope product correction.
+- Release `v0.5.7` is the current public baseline.
+- `v0.5.7` shipped:
+  - `demo:proof` now preserves flag parsing when `--repo` is missing a value or is followed by another flag
+  - `aoai:check` now collapses Responses API request/JSON failures into concise operator-facing errors
+  - protected-branch release docs now make post-review tagging explicit so release tags track the reviewed branch commit rather than a pre-review candidate
+- Post-`v0.5.7` follow-on work is continuity and release planning, not demo-scope product correction.
 - Historical `v0.5.0` planning target is now shipped:
   - deployment-facing Assign-to-Agent receiver boundary
   - generic outbound event and notification routing
