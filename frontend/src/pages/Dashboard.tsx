@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   BarChart,
   Bar,
@@ -177,6 +177,7 @@ function shortActivityId(id: string): string {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const chartTheme = useChartTheme();
   const {
     data: stats,
@@ -213,6 +214,7 @@ export default function Dashboard() {
     ? Object.entries(stats.by_repository)
         .slice(0, 5)
         .map(([name, value]) => ({
+          fullName: name,
           name: name.split("/")[1] || name,
           count: value,
         }))
@@ -344,6 +346,10 @@ export default function Dashboard() {
     statsError && statsErrorValue instanceof Error
       ? statsErrorValue.message
       : "Stats temporarily unavailable";
+  const handleRepositoryBarClick = (repositoryName?: string) => {
+    if (!repositoryName) return;
+    navigate(`/app/activities?repository=${encodeURIComponent(repositoryName)}`);
+  };
 
   return (
     <div className="space-y-8">
@@ -605,6 +611,9 @@ export default function Dashboard() {
                 ({topRepository?.count || 0} runs)
               </span>
             </p>
+            <p className="text-sm text-[var(--ph-muted)]">
+              Click a bar to open Activities filtered to that repository.
+            </p>
           </CardHeader>
           <CardContent>
             {repoData.length > 0 ? (
@@ -647,7 +656,19 @@ export default function Dashboard() {
                     ]}
                     wrapperStyle={{ maxWidth: "min(90vw, 320px)" }}
                   />
-                  <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="count"
+                    fill="#3b82f6"
+                    radius={[4, 4, 0, 0]}
+                    cursor="pointer"
+                    onClick={(data: { payload?: { fullName?: string } } | undefined) =>
+                      handleRepositoryBarClick(
+                        typeof data?.payload?.fullName === "string"
+                          ? data.payload.fullName
+                          : undefined,
+                      )
+                    }
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (

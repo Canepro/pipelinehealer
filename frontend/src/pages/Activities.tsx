@@ -8,6 +8,7 @@ import ActivityTable from '../components/ActivityTable'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -37,11 +38,16 @@ const failureTypeOptions = [
 export default function Activities() {
   const [searchParams, setSearchParams] = useSearchParams()
   const focusedActivityId = searchParams.get('focus')
+  const repositoryParam = searchParams.get('repository') || ''
+  const statusParam = searchParams.get('status') || ''
+  const failureTypeParam = searchParams.get('failure_type') || ''
   const [filters, setFilters] = useState({
-    status: '',
-    failure_type: '',
+    repository: repositoryParam,
+    status: statusParam,
+    failure_type: failureTypeParam,
     limit: 50,
   })
+  const [repositoryDraft, setRepositoryDraft] = useState(repositoryParam)
   const [highlightedActivityId, setHighlightedActivityId] = useState<string | null>(null)
 
   const { data: activities, isLoading, refetch, isFetching } = useQuery({
@@ -52,6 +58,48 @@ export default function Activities() {
     () => !!focusedActivityId && !!activities?.some((activity) => activity.id === focusedActivityId),
     [activities, focusedActivityId]
   )
+
+  useEffect(() => {
+    setFilters((prev) => {
+      if (
+        prev.repository === repositoryParam &&
+        prev.status === statusParam &&
+        prev.failure_type === failureTypeParam
+      ) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        repository: repositoryParam,
+        status: statusParam,
+        failure_type: failureTypeParam,
+      }
+    })
+  }, [failureTypeParam, repositoryParam, statusParam])
+
+  useEffect(() => {
+    setRepositoryDraft(repositoryParam)
+  }, [repositoryParam])
+
+  useEffect(() => {
+    if (repositoryDraft === filters.repository) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setFilters((prev) => ({ ...prev, repository: repositoryDraft }))
+      const nextParams = new URLSearchParams(searchParams)
+      if (repositoryDraft) {
+        nextParams.set('repository', repositoryDraft)
+      } else {
+        nextParams.delete('repository')
+      }
+      setSearchParams(nextParams, { replace: true })
+    }, 300)
+
+    return () => window.clearTimeout(timer)
+  }, [filters.repository, repositoryDraft, searchParams, setSearchParams])
 
   useEffect(() => {
     if (!focusedActivityId || !activities || !hasFocusedActivity) return
@@ -76,6 +124,18 @@ export default function Activities() {
         description: err instanceof Error ? err.message : 'Unknown error',
       })
     }
+  }
+
+  const updateFilter = (key: 'status' | 'failure_type', value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }))
+
+    const nextParams = new URLSearchParams(searchParams)
+    if (value) {
+      nextParams.set(key, value)
+    } else {
+      nextParams.delete(key)
+    }
+    setSearchParams(nextParams, { replace: true })
   }
 
   return (
@@ -107,6 +167,7 @@ export default function Activities() {
               </Button>
             </>
           )}
+          {filters.repository && <Badge variant="outline">Repo: {filters.repository}</Badge>}
           <Button
             variant="secondary"
             onClick={() => void handleRefresh()}
@@ -126,11 +187,16 @@ export default function Activities() {
         <CardContent className="p-4 md:p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
             <Filter className="h-5 w-5 text-[var(--ph-muted)]" />
+            <Input
+              value={repositoryDraft}
+              onChange={(event) => setRepositoryDraft(event.target.value)}
+              className="lg:w-[22rem]"
+              placeholder="Filter by repository (owner/repo)"
+              aria-label="Filter by repository"
+            />
             <Select
               value={filters.status || '__all__'}
-              onValueChange={(value) =>
-                setFilters((prev) => ({ ...prev, status: value === '__all__' ? '' : value }))
-              }
+              onValueChange={(value) => updateFilter('status', value === '__all__' ? '' : value)}
             >
               <SelectTrigger className="lg:w-52" aria-label="Filter by status">
                 <SelectValue placeholder="All Statuses" />
@@ -146,7 +212,7 @@ export default function Activities() {
             <Select
               value={filters.failure_type || '__all__'}
               onValueChange={(value) =>
-                setFilters((prev) => ({ ...prev, failure_type: value === '__all__' ? '' : value }))
+                updateFilter('failure_type', value === '__all__' ? '' : value)
               }
             >
               <SelectTrigger className="lg:w-52" aria-label="Filter by failure type">
@@ -160,6 +226,11 @@ export default function Activities() {
                 ))}
               </SelectContent>
             </Select>
+            {filters.repository && (
+              <Button variant="ghost" size="sm" onClick={() => setRepositoryDraft('')}>
+                Clear repo
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
