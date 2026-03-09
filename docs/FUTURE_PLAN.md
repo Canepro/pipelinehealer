@@ -578,9 +578,9 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-058` | PipelineHealer-generated issue lifecycle hygiene: validate, link, and auto-close active review issues from human fix PRs, and close stale/superseded generated issues with audit comments | `v0.6.0` | patch/minor | Medium | In Progress |
 | `BL-059` | Verification workspace UX: first-class in-product operator submission flow for `identification`, `diagnosis`, `remediation`, and `guidance_effectiveness`, including visible affected learning candidates and prior verification history | `v0.6.0` | minor | High | Planned |
 | `BL-060` | Activity Detail incident-record redesign: strengthen primary incident narrative, collapse secondary/raw evidence, and surface policy/runtime/learning provenance in a clearer hierarchy | `v0.6.0` | minor | High | Planned |
-| `BL-061` | Control Center learning explainability upgrade: make readiness reasons, candidate provenance, supporting incidents, and guidance helped/hurt trends operator-readable | `v0.6.0` | minor | High | Planned |
-| `BL-062` | Review queue / trust-ops surface: dedicated operator inbox for review-only outputs, skipped artifacts, low-confidence diagnoses, and harmful-guidance follow-up | `v0.6.0` | minor | Medium | Planned |
-| `BL-063` | Trust reporting dashboard: compact operator-facing metrics for diagnosis accuracy, remediation usefulness, guidance helped-rate, and noisy failure classes | `v0.6.0` | minor | Medium | Planned |
+| `BL-061` | Control Center learning explainability upgrade: make readiness reasons, candidate provenance, supporting incidents, and guidance helped/hurt trends operator-readable | `v0.6.0` | minor | High | In Progress |
+| `BL-062` | Review queue / trust-ops surface: dedicated operator inbox for review-only outputs, skipped artifacts, low-confidence diagnoses, and harmful-guidance follow-up | `v0.6.0` | minor | Medium | In Progress |
+| `BL-063` | Trust reporting dashboard: compact operator-facing metrics for diagnosis accuracy, remediation usefulness, guidance helped-rate, and noisy failure classes | `v0.6.0` | minor | Medium | In Progress |
 
 ## Definition of Done (Per Version)
 
