@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 9c5cc40 -->
+<!-- LAST_VERIFIED: e1852d3 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -8,7 +8,22 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Added
+
+- In-product verification workspace on Activity Detail for identification, diagnosis, remediation, and guidance-effectiveness feedback.
+- Control Center trust-ops surfaces for learning explainability, review queue triage, and trust reporting.
+
+### Changed
+
+- Hardened diagnosis and remediation around typed failure-specific contracts, deterministic evidence extraction, bounded patch drafting, and eval-gated rollout checks.
+- Injected governed learning context back into diagnosis and remediation flows, with operator-visible traceability and applied-guidance audit details.
+- Upgraded Activity Detail into an incident-record view and refreshed the public docs, demo runbooks, and architecture diagrams to match the current operator workflow.
+
+### Fixed
+
+- Replaced generic dependency, test, timeout, and build-config suggestions with more specific deterministic guidance and issue wording.
+- Linked generated review issues to active human fix PRs and closed superseded PipelineHealer issues more reliably.
+- Tightened diagnosis payload rejection handling, mypy/static-analysis reporting, and retrieval/runtime validation gaps surfaced by live CI incidents.
 
 ## [v0.5.9] - 2026-03-08
 

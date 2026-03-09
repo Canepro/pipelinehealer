@@ -49,6 +49,8 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.5.5` | Released | Final summary-panel separation cleanup + release/doc alignment carry-forward |
 | `v0.5.6` | Released | Azure `Responses`-first compatibility fix + clipboard hardening + deployment runbook lessons |
 | `v0.5.7` | Released | Post-review release-discipline patch + CLI smoke-check hardening |
+| `v0.5.8` | Released | LLM capability transparency in backend settings and operator UI |
+| `v0.5.9` | Released | Capability-validation evidence freshness and paging hardening |
 
 ## Released Target: `v0.5.7` (Patch)
 
