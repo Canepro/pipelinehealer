@@ -2,7 +2,7 @@
 
 <!-- LAST_VERIFIED: ec7e28f -->
 
-**Last updated:** March 8, 2026
+**Last updated:** March 9, 2026
 
 This is the long-form project tracker for hackathon execution status, submission readiness, and milestone history.
 
@@ -36,14 +36,18 @@ This is the long-form project tracker for hackathon execution status, submission
   - required scope locked to `#36/#42/#57` for submission reliability
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
   - storage extensibility remained adapter-scoped (no core workflow rewrites during freeze)
-- Release `v0.5.9` is the current public baseline.
+- Release `v0.6.0` is the current public baseline.
 - `v0.5.8` shipped:
   - Settings and Control Center now distinguish configured, provider-ready, operation-compatible, full-capability, degraded, and scaffolded runtime states
 - `v0.5.9` shipped:
   - capability validation now scans recent evidence via paging instead of truncating at the first 100 activities
   - latest matching validation is selected by freshest evidence rather than assuming creation order
   - runtime semantics stay aligned across backend capability summaries and frontend surfaces
-- Post-`v0.5.9` follow-on work is continuity and release planning, not demo-scope product correction.
+- `v0.6.0` shipped:
+  - diagnosis/remediation now use typed contracts, eval-gated rollout checks, and bounded patch drafting for safer AI-assisted changes
+  - retrieval-backed learning context and applied guidance are visible in operator workflows
+  - Activity Detail and Control Center now support verification feedback, trust-ops review, and guidance-effectiveness reporting
+- Post-`v0.6.0` follow-on work is continuity and release planning, not demo-scope product correction.
 - Historical `v0.5.0` planning target is now shipped:
   - deployment-facing Assign-to-Agent receiver boundary
   - generic outbound event and notification routing

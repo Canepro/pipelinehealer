@@ -25,6 +25,8 @@ def build_pipeline_healer_architecture_dot() -> str:
         "EXT": "External diagnostics\\ncontext",
         "BF": "Backfill Sweep\\nevery 10 min",
         "ST": "Cosmos DB / PostgreSQL /\\nIn-Memory Storage",
+        "EX": "Explainability Trace /\\nActivity Metadata",
+        "LRN": "Learning Queue / Retrieval\\nVerification Feedback / Trust Ops",
         "UI": "Dashboard / Activities /\\nActivity Detail / Control Center / Settings",
         "API": "/api/settings* +\\n/api/settings/learning/*",
     }
@@ -49,10 +51,15 @@ def build_pipeline_healer_architecture_dot() -> str:
         ("HO", "GW"),
         ("GW", "NT"),
         ("OR", "ST"),
+        ("OR", "EX"),
+        ("OR", "LRN"),
+        ("LRN", "DG"),
+        ("LRN", "RM"),
         ("BF", "ADP"),
         ("BF", "ST"),
         ("UI", "API"),
         ("API", "OR"),
+        ("API", "LRN"),
         ("API", "ST"),
     ]
 

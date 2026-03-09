@@ -51,6 +51,7 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.5.7` | Released | Post-review release-discipline patch + CLI smoke-check hardening |
 | `v0.5.8` | Released | LLM capability transparency in backend settings and operator UI |
 | `v0.5.9` | Released | Capability-validation evidence freshness and paging hardening |
+| `v0.6.0` | Released | Diagnosis/remediation hardening + learning-ops rework + operator workflow maturity |
 
 ## Released Target: `v0.5.7` (Patch)
 
@@ -74,7 +75,7 @@ Theme: release-discipline hardening after the `v0.5.6` post-review gap.
 4. Release manifests and current-release docs all agree on `v0.5.7`.
 5. Demo/operator docs point at the active tagged release rather than the prior patch baseline.
 
-## Planned Target: `v0.6.0` (Minor)
+## Released Target: `v0.6.0` (Minor)
 
 Theme: LLM capability contract hardening + learning-ops rework.
 
@@ -144,7 +145,7 @@ Recommended implementation shape: a small number of focused PRs, not one monolit
 1. Combined PR: verification workspace + feedback UX + Activity Detail incident-record upgrade
 2. Follow-on PR(s): Control Center explainability/trust surface, review queue, and operator trust reporting, if the remaining scope still warrants separate changes after the combined PR lands
 
-Because `v0.6.0` has not been cut yet, this slice remains in the active `v0.6.0` release scope rather than rolling forward to a new target version.
+This slice shipped in `v0.6.0` and now serves as release history rather than active scope.
 
 Direct pushes are not recommended for this slice. The work changes multiple operator-facing surfaces and trust contracts, so protected-branch review is part of the quality bar, not just process overhead.
 
