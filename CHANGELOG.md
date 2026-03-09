@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: e1852d3 -->
+<!-- LAST_VERIFIED: 2500d2b -->
 
 All notable changes to this project will be documented in this file.
 
@@ -8,22 +8,26 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
+- _No unreleased entries yet._
+
+## [v0.6.0] - 2026-03-09
+
 ### Added
 
-- In-product verification workspace on Activity Detail for identification, diagnosis, remediation, and guidance-effectiveness feedback.
-- Control Center trust-ops surfaces for learning explainability, review queue triage, and trust reporting.
+- In-product verification workspace on Activity Detail for identification, diagnosis, remediation, and guidance-effectiveness feedback. (`c9f507b`, `e1852d3`)
+- Control Center trust-ops surfaces for learning explainability, review queue triage, trust reporting, and operator-rated guidance effectiveness. (`fff8352`, `85beac6`, `51d0763`, `40a2683`, `3480bec`)
 
 ### Changed
 
-- Hardened diagnosis and remediation around typed failure-specific contracts, deterministic evidence extraction, bounded patch drafting, and eval-gated rollout checks.
-- Injected governed learning context back into diagnosis and remediation flows, with operator-visible traceability and applied-guidance audit details.
-- Upgraded Activity Detail into an incident-record view and refreshed the public docs, demo runbooks, and architecture diagrams to match the current operator workflow.
+- Hardened diagnosis and remediation around typed failure-specific contracts, deterministic evidence extraction, bounded patch drafting, and eval-gated rollout checks. (`1bee670`, `e008e2a`, `60e2c27`, `d82efee`, `aec8f84`, `5f257aa`, `471b2fd`, `25dda03`, `54db2f7`)
+- Injected governed learning context back into diagnosis and remediation flows, with operator-visible traceability, applied-guidance audit details, and lifecycle hygiene for generated review issues. (`803e871`, `049aecb`)
+- Upgraded Activity Detail into an incident-record view and refreshed the public docs, demo runbooks, architecture diagrams, and current release baseline tracking to match the current operator workflow. (`2500d2b`)
 
 ### Fixed
 
-- Replaced generic dependency, test, timeout, and build-config suggestions with more specific deterministic guidance and issue wording.
-- Linked generated review issues to active human fix PRs and closed superseded PipelineHealer issues more reliably.
-- Tightened diagnosis payload rejection handling, mypy/static-analysis reporting, and retrieval/runtime validation gaps surfaced by live CI incidents.
+- Replaced generic dependency, test, timeout, and build-config suggestions with more specific deterministic guidance and issue wording. (`1a70063`)
+- Linked generated review issues to active human fix PRs and closed superseded PipelineHealer issues more reliably. (`803e871`)
+- Tightened diagnosis payload rejection handling, mypy/static-analysis reporting, retrieval/runtime validation gaps, and sparse-evidence issue quality based on live CI incidents. (`e008e2a`, `60e2c27`, `049aecb`)
 
 ## [v0.5.9] - 2026-03-08
 
