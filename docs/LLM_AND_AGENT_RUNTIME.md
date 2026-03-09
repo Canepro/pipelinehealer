@@ -1,6 +1,6 @@
 # LLM and Agent Runtime
 
-<!-- LAST_VERIFIED: e1852d3 -->
+<!-- LAST_VERIFIED: d4b972c -->
 
 This document is the operator-facing contract for how PipelineHealer uses LLMs and agents at runtime.
 
@@ -106,7 +106,7 @@ Practical interpretation:
 
 ## Validated Azure Behavior
 
-Validated on `v0.5.9`:
+Validated on `v0.6.0`:
 
 1. `https://<resource>.cognitiveservices.azure.com/`
 - `gpt-5.1-codex-mini`

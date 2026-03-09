@@ -23,6 +23,8 @@ digraph PipelineHealerWorkflow {
   EXT [label="External diagnostics\ncontext" shape="box"];
   BF [label="Backfill Sweep\nevery 10 min" shape="box"];
   ST [label="Cosmos DB / PostgreSQL /\nIn-Memory Storage" shape="cylinder"];
+  EX [label="Explainability Trace /\nActivity Metadata" shape="box"];
+  LRN [label="Learning Queue / Retrieval\nVerification Feedback / Trust Ops" shape="box"];
   UI [label="Dashboard / Activities /\nActivity Detail / Control Center / Settings" shape="box"];
   API [label="/api/settings* +\n/api/settings/learning/*" shape="box"];
   GH -> WH;
@@ -44,9 +46,14 @@ digraph PipelineHealerWorkflow {
   HO -> GW;
   GW -> NT;
   OR -> ST;
+  OR -> EX;
+  OR -> LRN;
+  LRN -> DG;
+  LRN -> RM;
   BF -> ADP;
   BF -> ST;
   UI -> API;
   API -> OR;
+  API -> LRN;
   API -> ST;
 }
