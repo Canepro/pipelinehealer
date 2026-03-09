@@ -25,8 +25,8 @@ def build_pipeline_healer_architecture_dot() -> str:
         "EXT": "External diagnostics\\ncontext",
         "BF": "Backfill Sweep\\nevery 10 min",
         "ST": "Cosmos DB / PostgreSQL /\\nIn-Memory Storage",
-        "UI": "Settings + Control Center",
-        "API": "/api/settings*",
+        "UI": "Dashboard / Activities /\\nActivity Detail / Control Center / Settings",
+        "API": "/api/settings* +\\n/api/settings/learning/*",
     }
 
     edges = [

@@ -309,10 +309,10 @@ flowchart TB
   end
 
   subgraph GOV["Policy and Operator Surface"]
-    UI["Dashboard / Activities / Control Center / Settings"]
+    UI["Dashboard / Activities / Activity Detail / Control Center / Settings"]
     API["Settings API<br/>/api/settings*"]
     AUD["Audit Trail"]
-    LRN["Learning Queue + Promotion Gates"]
+    LRN["Learning Queue + Verification Feedback + Promotion Gates"]
   end
 
   subgraph DATA["State and Evidence"]

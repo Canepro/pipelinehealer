@@ -23,8 +23,8 @@ digraph PipelineHealerWorkflow {
   EXT [label="External diagnostics\ncontext" shape="box"];
   BF [label="Backfill Sweep\nevery 10 min" shape="box"];
   ST [label="Cosmos DB / PostgreSQL /\nIn-Memory Storage" shape="cylinder"];
-  UI [label="Settings + Control Center" shape="box"];
-  API [label="/api/settings*" shape="box"];
+  UI [label="Dashboard / Activities /\nActivity Detail / Control Center / Settings" shape="box"];
+  API [label="/api/settings* +\n/api/settings/learning/*" shape="box"];
   GH -> WH;
   JN -> WH;
   WH -> WF;
