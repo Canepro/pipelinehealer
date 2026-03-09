@@ -154,7 +154,9 @@ export default function VerificationWorkspace({
             : undefined,
         notes: notes.trim() || undefined,
         issue_number:
-          parsedIssueNumber !== null && Number.isFinite(parsedIssueNumber)
+          parsedIssueNumber !== null &&
+          Number.isFinite(parsedIssueNumber) &&
+          parsedIssueNumber >= 1
             ? parsedIssueNumber
             : undefined,
         issue_url: issueUrl.trim() || undefined,

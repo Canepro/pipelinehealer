@@ -137,11 +137,10 @@ Theme: operator workflow maturity and trust-first incident operations.
 
 ### Delivery Shape
 
-Recommended implementation split: `2-3` PRs, not one monolith and not many small PRs.
+Recommended implementation shape: a small number of focused PRs, not one monolith and not many tiny PRs.
 
-1. PR 1: verification workspace + feedback UX
-2. PR 2: Activity Detail + Control Center explainability/trust-surface redesign
-3. PR 3: review queue + trust reporting, if scope still warrants it after PR 1/2 land
+1. Combined PR: verification workspace + feedback UX + Activity Detail incident-record upgrade
+2. Follow-on PR(s): Control Center explainability/trust surface, review queue, and operator trust reporting, if the remaining scope still warrants separate changes after the combined PR lands
 
 Because `v0.6.0` has not been cut yet, this slice remains in the active `v0.6.0` release scope rather than rolling forward to a new target version.
 

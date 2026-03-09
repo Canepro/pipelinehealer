@@ -1084,7 +1084,7 @@ export default function ActivityDetail() {
       ]
         .filter(Boolean)
         .join(" • ")
-    : "Failure context was captured from the pipeline run and stored with this activity.";
+    : "Failure context was not captured for this pipeline run.";
   const remediationOutcomeSummary = activity.remediation_result
     ? `${formatActionTaken(activity.remediation_result.action_taken)} ${activity.remediation_result.success ? "completed successfully" : "did not complete successfully"}.`
     : "No remediation artifact was published for this activity.";

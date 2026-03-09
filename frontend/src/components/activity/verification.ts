@@ -77,8 +77,10 @@ export function getVerificationHistory(
     .map((entry) => parseVerificationEntry(entry))
     .filter((entry): entry is VerificationEntry => entry !== null)
     .sort((a, b) => {
-      const left = a.recordedAt ? Date.parse(a.recordedAt) : 0;
-      const right = b.recordedAt ? Date.parse(b.recordedAt) : 0;
+      const leftParsed = a.recordedAt ? Date.parse(a.recordedAt) : 0;
+      const rightParsed = b.recordedAt ? Date.parse(b.recordedAt) : 0;
+      const left = Number.isFinite(leftParsed) ? leftParsed : 0;
+      const right = Number.isFinite(rightParsed) ? rightParsed : 0;
       return right - left;
     });
 }
