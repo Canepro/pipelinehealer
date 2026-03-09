@@ -36,12 +36,14 @@ This is the long-form project tracker for hackathon execution status, submission
   - required scope locked to `#36/#42/#57` for submission reliability
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
   - storage extensibility remained adapter-scoped (no core workflow rewrites during freeze)
-- Release `v0.5.7` is the current public baseline.
-- `v0.5.7` shipped:
-  - `demo:proof` now preserves flag parsing when `--repo` is missing a value or is followed by another flag
-  - `aoai:check` now collapses Responses API request/JSON failures into concise operator-facing errors
-  - protected-branch release docs now make post-review tagging explicit so release tags track the reviewed branch commit rather than a pre-review candidate
-- Post-`v0.5.7` follow-on work is continuity and release planning, not demo-scope product correction.
+- Release `v0.5.9` is the current public baseline.
+- `v0.5.8` shipped:
+  - Settings and Control Center now distinguish configured, provider-ready, operation-compatible, full-capability, degraded, and scaffolded runtime states
+- `v0.5.9` shipped:
+  - capability validation now scans recent evidence via paging instead of truncating at the first 100 activities
+  - latest matching validation is selected by freshest evidence rather than assuming creation order
+  - runtime semantics stay aligned across backend capability summaries and frontend surfaces
+- Post-`v0.5.9` follow-on work is continuity and release planning, not demo-scope product correction.
 - Historical `v0.5.0` planning target is now shipped:
   - deployment-facing Assign-to-Agent receiver boundary
   - generic outbound event and notification routing
