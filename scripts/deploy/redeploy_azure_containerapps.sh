@@ -568,6 +568,12 @@ detect_engine() {
   return 1
 }
 
+podman_compose_uses_windows_provider() {
+  local version_output
+  version_output="$(podman compose version 2>&1 || true)"
+  [[ "$version_output" == *".exe"* || "$version_output" =~ [A-Za-z]:\\\\ ]]
+}
+
 prune_local_repo_tags() {
   local engine="$1"
   local repo="$2"
@@ -792,8 +798,8 @@ if [[ "$MODE" == "full" ]]; then
 
   COMPOSE_ENV_FILE="$ENV_FILE"
   if [[ "$CONTAINER_ENGINE" == "podman" ]] && command -v wslpath >/dev/null 2>&1; then
-    # podman compose may invoke docker-compose.exe on Windows; it needs a Windows path.
-    if [[ "$ENV_FILE" == /mnt/* ]]; then
+    # Only translate when podman is delegating to a Windows compose provider.
+    if [[ "$ENV_FILE" == /mnt/* ]] && podman_compose_uses_windows_provider; then
       COMPOSE_ENV_FILE="$(wslpath -w "$ENV_FILE")"
     fi
   fi
