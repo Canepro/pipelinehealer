@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: c9f507b -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -14,7 +14,7 @@ This guide explains runtime controls, persistence behavior, and governance guard
 - Guardrails for repos, retries, and MCP tool policy
 - Task-level model routing overrides (`analysis`, `diagnosis`, `remediation`)
 - Control Center learning queue governance (`candidate -> approved -> active` lifecycle)
-- Control Center sectioned operator views (`Governance Overview`, `Learning & Ops`, `Audit & Trace`)
+- Control Center sectioned operator views (`Governance Overview`, `Learning & Ops`, `Trust Ops`, `Audit & Trace`)
 
 ## Quick Start
 
@@ -28,7 +28,8 @@ This guide explains runtime controls, persistence behavior, and governance guard
 5. Re-open Control Center for read-only governance verification after each save.
 6. Use Control Center section tabs to reduce cognitive load while preserving full detail:
    - `Governance Overview`: posture, policy impact, model routing, MCP policy effect
-   - `Learning & Ops`: candidate lifecycle actions + logs/investigation commands
+   - `Learning & Ops`: candidate lifecycle actions, readiness evidence, guidance outcomes, and logs/investigation commands
+   - `Trust Ops`: recent human-review queue and compact trust reporting from activity feedback
    - `Audit & Trace`: collapsible audit timeline and request-trace review
 
 ## Startup-Managed Integration Setup
@@ -94,6 +95,11 @@ Learning queue posture:
 - **Approved**: human-reviewed and accepted for potential activation
 - **Active**: approved and enabled as a promoted operational pattern
 - **Rejected/Retired**: explicitly blocked from active use
+
+Control Center now exposes more than status alone for each candidate:
+- readiness reasons and whether force-activation would be required
+- sample activity links for provenance review
+- verification pass rate and guidance helped/hurt counts
 
 Promotion-readiness gates (for `activate`):
 - approval gate: candidate should be approved first

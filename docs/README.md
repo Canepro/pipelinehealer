@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: c8df35f -->
+<!-- LAST_VERIFIED: c9f507b -->
 
 Use this index to find the right doc quickly.
 
@@ -9,8 +9,8 @@ Use this index to find the right doc quickly.
 These stable screenshots reflect the current hosted operator experience and are safe to reuse in docs and demo prep:
 
 ![Dashboard — KPIs, safety framing, and explainability snapshot](screens/dashboard-current.png)
-![Activity Detail — diagnosis, remediation result, and external diagnostics](screens/activity-detail-current.png)
-![Control Center — governance posture, receiver health, and investigation shortcuts](screens/control-center-current.png)
+![Activity Detail — incident record, verification workspace, and remediation evidence](screens/activity-detail-current.png)
+![Control Center — governance posture, learning explainability, trust ops, and investigation shortcuts](screens/control-center-current.png)
 ![Settings — runtime policy, provider wiring, and Assign-to-Agent status](screens/settings-current.png)
 
 ### Tier 1 — User-Facing (update every feature PR)
@@ -40,7 +40,7 @@ These stable screenshots reflect the current hosted operator experience and are 
 ### Tier 3 — Internal/Transient (author discretion; archive post-submission)
 
 - `HACKATHON_LOG.md` — current phase status, submission checklist, milestone history, and freeze tracking notes
-- `FUTURE_PLAN.md` — version-targeted roadmap and release archaeology (released through `v0.5.5`)
+- `FUTURE_PLAN.md` — version-targeted roadmap and release archaeology
 - `DIAGNOSIS_REMEDIATION_ARCHITECTURE_PLAN.md` — implementation contract for schema-first diagnosis/remediation hardening and bounded patch drafting
 - `UI_PLAN.md` — UI maturity plan, principles, and weekly tracking through submission
 - `AGENT_HANDOFF_CONTEXT_MINISPEC.md` — draft design for Activity Detail `Copy Context` + optional `Assign to Agent` handoff integration

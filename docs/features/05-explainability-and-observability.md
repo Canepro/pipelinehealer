@@ -1,6 +1,6 @@
 # Feature: Explainability And Observability
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: c9f507b -->
 
 This guide explains where to see evidence, model path telemetry, and confidence attribution for each activity.
 
@@ -8,25 +8,30 @@ This guide explains where to see evidence, model path telemetry, and confidence 
 
 - Explainability snapshot on Dashboard
 - Activities table status tagging with row actions reachable without horizontal-rail dependency
-- Activity Detail information hierarchy (`PipelineHealer Decision` first, deep technical panels second)
+- Activity Detail incident-record hierarchy (`what happened`, `what PipelineHealer concluded`, `what it did`, `what still needs review`)
 - Activity Detail evidence layers
+- Activity Detail verification state and operator feedback history
 - Failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
 - LLM model-path telemetry
 - MCP observability and action audit
+- Control Center `Trust Ops` queue and compact trust metrics
 
 ## Quick Start
 
 1. Open Dashboard -> `Explainability Snapshot`.
 2. Pick a recent activity.
 3. Confirm:
-   - `PipelineHealer Decision` summary (root cause + remediation result)
+   - incident-record summary (what happened + diagnosis + remediation + verification state)
    - failure type
    - failure context
    - confidence
    - diagnosis source
-   - model path
-   - proposed action + reason code
+    - model path
+    - proposed action + reason code
 4. Click `View activity` for full detail.
+
+Trust-ops tip:
+- Open Control Center -> `Trust Ops` to review recent items that still need human follow-up, especially harmful guidance, low-confidence review-only runs, and incidents that used promoted guidance without operator verification.
 
 Activities list tip:
 - Desktop layout keeps row actions reachable while scanning long activity histories, so you can review older rows without horizontal-rail juggling.
@@ -70,8 +75,9 @@ PipelineHealer shows summary-first evidence with optional deep extracts.
 
 Recommended operator flow:
 1. start with confidence and reason code.
-2. review structured context.
-3. expand raw extracts only if needed.
+2. review incident-record status, including whether operator verification already exists.
+3. review structured context.
+4. expand raw extracts only if needed.
 
 ## Common Mistakes
 

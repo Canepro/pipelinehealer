@@ -1,6 +1,6 @@
 # Feature: External Diagnostics And MCP
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: c9f507b -->
 
 This guide explains how PipelineHealer ingests external findings and how GitHub MCP is selected, gated, and verified in real runs.
 
@@ -106,7 +106,7 @@ Write-capable policies (`write_with_approval` / `auto`):
   - source attribution
   - tool usage counts
   - action audit entries
-- Activity Detail starts with `PipelineHealer Decision`; deep MCP/evidence details are under `Technical Analysis & Enrichment`.
+- Activity Detail starts with an incident-record summary; deep MCP/evidence details remain under `Technical Analysis & Enrichment`.
 - Activity Detail -> External Diagnostics cards show source path selection metadata when available.
 
 ## Common Mistakes

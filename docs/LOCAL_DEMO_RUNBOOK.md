@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 747334d -->
+<!-- LAST_VERIFIED: c9f507b -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -578,8 +578,8 @@ If the workflow filename is not `ci.yml` in your repo, use the name returned by 
 Reference visuals:
 
 ![Dashboard — KPIs, safety framing, and explainability snapshot](screens/dashboard-current.png)
-![Activity Detail — diagnosis, remediation result, and external diagnostics](screens/activity-detail-current.png)
-![Control Center — governance posture and integration health](screens/control-center-current.png)
+![Activity Detail — incident record, verification workspace, and external diagnostics](screens/activity-detail-current.png)
+![Control Center — governance posture, trust ops, and integration health](screens/control-center-current.png)
 
 Top-level KPI chips now also include:
 
@@ -599,7 +599,7 @@ gh pr list -R <owner>/<repo>
 gh issue list -R <owner>/<repo> --state open
 ```
 
-To confirm whether AI inference was used for a specific activity, open Activity Detail and check `Diagnosis Source`:
+To confirm whether AI inference was used for a specific activity, open Activity Detail and check `Diagnosis Source` in the incident record / technical analysis sections:
 
 - `pattern` = deterministic rule-based diagnosis
 - `llm` = LLM-assisted diagnosis path
@@ -615,6 +615,10 @@ How to read this without guessing:
 - `MCP Tool Calls = 0` can still be healthy if `Source Attribution` shows passive `gh_aw` diagnostics.
 - In hybrid mode, one activity can include both GH-AW and MCP paths (`gh_aw_passive` + `github_mcp_direct` and/or `github_mcp_blocked`).
 - If MCP was expected but blocked, check `source_selection_path=github_mcp_blocked` and the reason code.
+
+Operator loop validation:
+- Activity Detail now includes a verification workspace for `identification`, `diagnosis`, `remediation`, and, when applicable, `guidance_effectiveness`.
+- Control Center now includes a `Trust Ops` tab so you can review harmful guidance, low-confidence review-only runs, and guided runs that still need operator verification.
 
 ### Idempotency Validation (Recommended for demos/reviews)
 

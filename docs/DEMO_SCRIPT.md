@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: ec7e28f -->
+<!-- LAST_VERIFIED: c9f507b -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -55,7 +55,7 @@ Core on-camera path:
 
 1. Dashboard story: show `Processed`, `Actioned`, `Safety Gated`, `Issue-Only`, plus header KPIs `MCP Runs (30d)` and `LLM Fallback (30d)`.
 2. Release trust signal: briefly show the shell footer `Release` status so the deployed UI/API version alignment is visible.
-3. Explainability drilldown: open one focused activity and show `PipelineHealer Decision`, `Failure Context`, and `Evidence Layers`.
+3. Explainability drilldown: open one focused activity and show the incident record (`what happened`, `what PipelineHealer concluded`, `what it did`, `what still needs review`), then `Failure Context` / `Evidence Layers`.
 4. External findings: expand `External Findings Details` to show ci-doctor's structured root cause, recommended actions, and doctor metadata.
 5. Safety boundary: point to `Why Safety Gated` on the dashboard and explain issue-first fallback for risky cases.
 6. Optional governance proof only if time remains: open `/settings`, show the section tabs (`Runtime Controls`, `AI & Integrations`, `Security & Advanced`), the Active Policy banner, and `Save & Persist`.
@@ -249,11 +249,11 @@ TELL: When a `workflow_run` fails, PipelineHealer analyzes the logs, diagnoses t
 
 ### 0:50-1:30
 
-SHOW: Activity detail `PipelineHealer Decision`, `Failure Context`, `Evidence Layers`, then expand `External Findings Details`.
+SHOW: Activity detail incident record, `Failure Context`, `Evidence Layers`, then expand `External Findings Details`.
 
-![Activity Detail — diagnosis, remediation result, and external diagnostics in one operator view](screens/activity-detail-current.png)
+![Activity Detail — incident record, verification workspace, and external diagnostics in one operator view](screens/activity-detail-current.png)
 
-TELL: Each activity keeps the diagnosis, suggested fix, remediation result, evidence layers, and external findings in one place. That makes the system explainable and auditable instead of acting like a black box.
+TELL: Each activity keeps the incident story, diagnosis, remediation result, verification state, evidence layers, and external findings in one place. That makes the system explainable and auditable instead of acting like a black box.
 
 ### 1:30-1:50
 

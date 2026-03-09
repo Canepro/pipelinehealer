@@ -1,4 +1,4 @@
-<!-- LAST_VERIFIED: 745988e -->
+<!-- LAST_VERIFIED: c9f507b -->
 
 # Operator Control Plane
 
@@ -175,6 +175,9 @@ Should answer:
 - Why is a tool/path allowed, approval-gated, blocked, or inactive?
 - What policy is configured?
 - What runtime condition is overriding it?
+- Which learning candidates are ready, blocked, or drifting, and why?
+- Which recent incidents need human trust review right now?
+- What do recent operator trust signals say about diagnosis quality, remediation usefulness, and guided-run outcomes?
 
 ### Activity Detail
 
@@ -186,6 +189,9 @@ Should answer:
 - why PipelineHealer chose that path
 - what external evidence/path was used
 - whether downstream actions were blocked by policy or missing dependency
+- whether promoted learning guidance influenced the outcome
+- whether an operator has verified identification, diagnosis, remediation, and guidance effectiveness yet
+- what still requires review before the incident can be considered trusted
 
 ## Historical `v0.4.0` Focus Areas
 

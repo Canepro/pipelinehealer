@@ -9,13 +9,16 @@ import {
   ScrollText,
   ShieldCheck,
   TerminalSquare,
+  TriangleAlert,
   Workflow,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../api/client";
 import { copyToClipboard } from "../utils/copyToClipboard";
 import type {
+  Activity,
   AppSettingMetadata,
+  DashboardStats,
   LearningQueueItem,
   LearningQueueStatus,
 } from "../api/client";
@@ -38,7 +41,11 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type ControlCenterSection = "overview" | "learning_ops" | "audit";
+type ControlCenterSection =
+  | "overview"
+  | "learning_ops"
+  | "trust_ops"
+  | "audit";
 type PostureItem = { label: string; value: string | number };
 type SummaryRow = {
   label: string;
@@ -46,6 +53,22 @@ type SummaryRow = {
   detail?: string;
   mono?: boolean;
   tone?: "default" | "ok" | "warn" | "bad" | "muted";
+};
+
+type TrustMetric = {
+  label: string;
+  value: string;
+  detail: string;
+  tone?: "default" | "ok" | "warn" | "bad" | "muted";
+};
+
+type ReviewQueueItem = {
+  activity: Activity;
+  title: string;
+  reason: string;
+  detail: string;
+  priority: "high" | "medium";
+  tone: "warn" | "bad" | "muted";
 };
 
 const LOGS_RUNBOOK_URL =
@@ -233,6 +256,302 @@ function learningReadinessLabel(item: LearningQueueItem): string {
   return "Not ready";
 }
 
+function normalizeVerificationOutcome(value: unknown): string | null {
+  return value === "pass" || value === "partial" || value === "fail"
+    ? value
+    : null;
+}
+
+function normalizeGuidanceEffectiveness(value: unknown): string | null {
+  return value === "helped" || value === "neutral" || value === "hurt"
+    ? value
+    : null;
+}
+
+function extractActivityVerification(
+  activity: Activity,
+): Record<string, unknown> | null {
+  const payload = activity.remediation_result?.details?.verification;
+  return payload && typeof payload === "object"
+    ? (payload as Record<string, unknown>)
+    : null;
+}
+
+function extractAppliedLearningContext(
+  activity: Activity,
+): Record<string, unknown> | null {
+  const payload = activity.remediation_result?.details?.applied_learning_context;
+  return payload && typeof payload === "object"
+    ? (payload as Record<string, unknown>)
+    : null;
+}
+
+function formatActionLabel(value: string | undefined): string {
+  if (!value) return "Unknown";
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .replace(/\bPr\b/, "PR");
+}
+
+function createReviewQueue(
+  activities: Activity[] | undefined,
+): ReviewQueueItem[] {
+  if (!activities) return [];
+  const queue: ReviewQueueItem[] = [];
+  for (const activity of activities) {
+    const verification = extractActivityVerification(activity);
+    const appliedLearning = extractAppliedLearningContext(activity);
+    const overall = normalizeVerificationOutcome(verification?.overall);
+    const guidanceEffectiveness = normalizeGuidanceEffectiveness(
+      verification?.guidance_effectiveness,
+    );
+    const confidence = activity.diagnosis?.confidence ?? 0;
+    const remediation = activity.remediation_result;
+
+    if (guidanceEffectiveness === "hurt") {
+      queue.push({
+        activity,
+        title: "Guidance was rated harmful",
+        reason: "Operator feedback says the promoted playbook created noise or regression risk.",
+        detail:
+          typeof verification?.notes === "string" && verification.notes.trim()
+            ? verification.notes
+            : "Review this incident and consider retiring or demoting the linked learning candidate.",
+        priority: "high",
+        tone: "bad",
+      });
+    }
+
+    if (
+      remediation &&
+      !remediation.success &&
+      remediation.action_taken !== "skip"
+    ) {
+      queue.push({
+        activity,
+        title: "Remediation publish failed",
+        reason: `${formatActionLabel(remediation.action_taken)} did not complete successfully.`,
+        detail:
+          remediation.error_message ||
+          "Inspect the remediation result and related artifact publication path.",
+        priority: "high",
+        tone: "bad",
+      });
+    }
+
+    if (remediation?.action_taken === "create_issue" && confidence < 0.85) {
+      queue.push({
+        activity,
+        title: "Issue-only low-confidence diagnosis",
+        reason: `Diagnosis confidence is ${Math.round(confidence * 100)}% and the run stayed review-only.`,
+        detail:
+          activity.diagnosis?.root_cause ||
+          "Review the underlying evidence before acting on this issue.",
+        priority: "medium",
+        tone: "warn",
+      });
+    }
+
+    if (appliedLearning && !overall) {
+      queue.push({
+        activity,
+        title: "Applied guidance still needs verification",
+        reason: "A promoted playbook influenced remediation, but no operator verification has been recorded yet.",
+        detail:
+          typeof appliedLearning.title === "string"
+            ? appliedLearning.title
+            : typeof appliedLearning.id === "string"
+              ? appliedLearning.id
+              : "Review this guided run and record whether the guidance helped.",
+        priority: "medium",
+        tone: "warn",
+      });
+    }
+
+    if (
+      activity.diagnosis &&
+      confidence < 0.7 &&
+      remediation &&
+      remediation.action_taken !== "create_issue" &&
+      remediation.action_taken !== "skip"
+    ) {
+      queue.push({
+        activity,
+        title: "Very low-confidence automated handling",
+        reason: `Diagnosis confidence is ${Math.round(confidence * 100)}%.`,
+        detail:
+          "This run crossed into automated handling despite a weak diagnosis. Check whether the artifact was appropriate.",
+        priority: "high",
+        tone: "bad",
+      });
+    }
+  }
+
+  return queue
+    .sort((a, b) => {
+      const priorityDelta =
+        (a.priority === "high" ? 0 : 1) - (b.priority === "high" ? 0 : 1);
+      if (priorityDelta !== 0) return priorityDelta;
+      return (
+        Date.parse(b.activity.updated_at) - Date.parse(a.activity.updated_at)
+      );
+    })
+    .slice(0, 10);
+}
+
+function buildTrustMetrics(
+  stats: DashboardStats | undefined,
+  activities: Activity[] | undefined,
+  learningQueue: LearningQueueItem[] | undefined,
+): TrustMetric[] {
+  const items = activities ?? [];
+  let identificationVerified = 0;
+  let identificationPass = 0;
+  let diagnosisVerified = 0;
+  let diagnosisPass = 0;
+  let remediationVerified = 0;
+  let remediationPass = 0;
+  let guidanceFeedbackCount = 0;
+  let guidanceHelpedCount = 0;
+  let guidanceHurtCount = 0;
+
+  for (const activity of items) {
+    const verification = extractActivityVerification(activity);
+    const identification = normalizeVerificationOutcome(
+      verification?.identification,
+    );
+    const diagnosis = normalizeVerificationOutcome(verification?.diagnosis);
+    const remediation = normalizeVerificationOutcome(verification?.remediation);
+    const guidance = normalizeGuidanceEffectiveness(
+      verification?.guidance_effectiveness,
+    );
+
+    if (identification) {
+      identificationVerified += 1;
+      if (identification === "pass") identificationPass += 1;
+    }
+    if (diagnosis) {
+      diagnosisVerified += 1;
+      if (diagnosis === "pass") diagnosisPass += 1;
+    }
+    if (remediation) {
+      remediationVerified += 1;
+      if (remediation === "pass") remediationPass += 1;
+    }
+    if (guidance) {
+      guidanceFeedbackCount += 1;
+      if (guidance === "helped") guidanceHelpedCount += 1;
+      if (guidance === "hurt") guidanceHurtCount += 1;
+    }
+  }
+
+  const activeCandidates = (learningQueue ?? []).filter(
+    (item) => item.status === "active",
+  );
+  const activeGuidanceApplications = activeCandidates.reduce(
+    (total, item) => total + item.guidance_application_count,
+    0,
+  );
+  const activeGuidanceFeedback = activeCandidates.reduce(
+    (total, item) => total + item.guidance_feedback_count,
+    0,
+  );
+
+  const topFailureType = stats
+    ? Object.entries(stats.by_failure_type ?? {}).sort((a, b) => b[1] - a[1])[0]
+    : null;
+
+  const pct = (pass: number, total: number): string =>
+    total > 0 ? `${Math.round((pass / total) * 100)}%` : "N/A";
+
+  return [
+    {
+      label: "Identification accuracy",
+      value: pct(identificationPass, identificationVerified),
+      detail:
+        identificationVerified > 0
+          ? `${identificationPass}/${identificationVerified} verified incidents marked identification as correct.`
+          : "No operator identification feedback recorded in the current activity window.",
+      tone:
+        identificationVerified === 0
+          ? "muted"
+          : identificationPass / identificationVerified >= 0.8
+            ? "ok"
+            : "warn",
+    },
+    {
+      label: "Diagnosis accuracy",
+      value: pct(diagnosisPass, diagnosisVerified),
+      detail:
+        diagnosisVerified > 0
+          ? `${diagnosisPass}/${diagnosisVerified} verified incidents marked diagnosis as correct.`
+          : "No diagnosis verification data is available yet.",
+      tone:
+        diagnosisVerified === 0
+          ? "muted"
+          : diagnosisPass / diagnosisVerified >= 0.75
+            ? "ok"
+            : "warn",
+    },
+    {
+      label: "Remediation usefulness",
+      value: pct(remediationPass, remediationVerified),
+      detail:
+        remediationVerified > 0
+          ? `${remediationPass}/${remediationVerified} verified incidents rated the remediation outcome as correct.`
+          : "No remediation verification data is available yet.",
+      tone:
+        remediationVerified === 0
+          ? "muted"
+          : remediationPass / remediationVerified >= 0.7
+            ? "ok"
+            : "warn",
+    },
+    {
+      label: "Guidance help rate",
+      value:
+        guidanceFeedbackCount > 0
+          ? `${Math.round((guidanceHelpedCount / guidanceFeedbackCount) * 100)}%`
+          : "N/A",
+      detail:
+        guidanceFeedbackCount > 0
+          ? `${guidanceHelpedCount} helped, ${guidanceHurtCount} hurt, across ${guidanceFeedbackCount} operator-rated guided runs.`
+          : "No operator guidance feedback has been recorded yet.",
+      tone:
+        guidanceFeedbackCount === 0
+          ? "muted"
+          : guidanceHurtCount > guidanceHelpedCount
+            ? "bad"
+            : "ok",
+    },
+    {
+      label: "Guided run coverage",
+      value: `${activeGuidanceFeedback}/${activeGuidanceApplications}`,
+      detail:
+        activeGuidanceApplications > 0
+          ? `${activeGuidanceFeedback} of ${activeGuidanceApplications} active-playbook runs have explicit operator guidance feedback.`
+          : "No active playbook guidance applications have been recorded yet.",
+      tone:
+        activeGuidanceApplications === 0
+          ? "muted"
+          : activeGuidanceFeedback / activeGuidanceApplications >= 0.6
+            ? "ok"
+            : "warn",
+    },
+    {
+      label: "Noisiest failure class",
+      value: topFailureType
+        ? `${topFailureType[0]} (${topFailureType[1]})`
+        : "N/A",
+      detail: topFailureType
+        ? "Use this to decide which failure class needs better heuristics, guidance, or operator runbooks next."
+        : "No failure breakdown is available.",
+      tone: topFailureType ? "default" : "muted",
+    },
+  ];
+}
+
 function formatMetadataSummary(metadata?: AppSettingMetadata): string {
   if (!metadata) return "No provenance metadata";
   const parts: string[] = [formatSettingSource(metadata.source)];
@@ -347,8 +666,8 @@ export default function ControlCenterPage() {
   });
 
   const { data: recentActivities, isLoading: activitiesLoading } = useQuery({
-    queryKey: ["activities", { limit: 8 }],
-    queryFn: () => api.getActivities({ limit: 8 }),
+    queryKey: ["activities", { limit: 40 }],
+    queryFn: () => api.getActivities({ limit: 40 }),
   });
 
   const {
@@ -397,7 +716,7 @@ export default function ControlCenterPage() {
     error: learningErrorDetail,
   } = useQuery({
     queryKey: ["control-center-learning-queue", adminKey, useSessionAuth],
-    queryFn: () => api.getLearningQueue(effectiveAdminKey, { limit: 20 }),
+    queryFn: () => api.getLearningQueue(effectiveAdminKey, { limit: 40 }),
     enabled: hasAuthAttempt,
     retry: false,
   });
@@ -545,6 +864,16 @@ export default function ControlCenterPage() {
     }
     return counts;
   }, [learningQueue]);
+
+  const reviewQueue = useMemo(
+    () => createReviewQueue(recentActivities),
+    [recentActivities],
+  );
+
+  const trustMetrics = useMemo(
+    () => buildTrustMetrics(stats, recentActivities, learningQueue),
+    [learningQueue, recentActivities, stats],
+  );
 
   const writeToolRows = mcpToolRows.filter((row) => row.write);
   const mcpWriteAutoCount = writeToolRows.filter(
@@ -856,7 +1185,7 @@ export default function ControlCenterPage() {
                 }
                 className="w-full"
               >
-                <TabsList className="grid h-auto w-full grid-cols-1 gap-4 sm:grid-cols-3">
+                <TabsList className="grid h-auto w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   <TabsTrigger
                     value="overview"
                     className="py-3 text-sm font-semibold"
@@ -870,6 +1199,12 @@ export default function ControlCenterPage() {
                     Learning & Ops
                   </TabsTrigger>
                   <TabsTrigger
+                    value="trust_ops"
+                    className="py-3 text-sm font-semibold"
+                  >
+                    Trust Ops
+                  </TabsTrigger>
+                  <TabsTrigger
                     value="audit"
                     className="py-3 text-sm font-semibold"
                   >
@@ -881,7 +1216,9 @@ export default function ControlCenterPage() {
                 {activeSection === "overview" &&
                   "Overview: runtime posture, policy impact, model routing, and MCP policy effect."}
                 {activeSection === "learning_ops" &&
-                  "Learning & Ops: candidate governance actions and investigation command runbooks."}
+                  "Learning & Ops: candidate governance actions, readiness evidence, and investigation runbooks."}
+                {activeSection === "trust_ops" &&
+                  "Trust Ops: operator review queue and compact trust metrics derived from recent activity and guided runs."}
                 {activeSection === "audit" &&
                   "Audit & Trace: recent settings changes with actor and request-id traceability."}
               </p>
@@ -1233,6 +1570,45 @@ export default function ControlCenterPage() {
                     <Badge variant="outline">
                       Ready: {learningQueueSummary.ready}
                     </Badge>
+                    <Badge variant="outline">
+                      Rejected: {learningQueueSummary.rejected}
+                    </Badge>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-[var(--ph-muted)]">
+                        Active playbooks
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-[var(--ph-text)]">
+                        {learningQueueSummary.active}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--ph-muted)]">
+                        Candidate guidance currently eligible for live injection.
+                      </p>
+                    </div>
+                    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-[var(--ph-muted)]">
+                        Promotion ready
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-[var(--ph-text)]">
+                        {learningQueueSummary.ready}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--ph-muted)]">
+                        Candidates already meeting activation gates.
+                      </p>
+                    </div>
+                    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-[var(--ph-muted)]">
+                        Pending review
+                      </p>
+                      <p className="mt-2 text-2xl font-semibold text-[var(--ph-text)]">
+                        {learningQueueSummary.candidate + learningQueueSummary.approved}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--ph-muted)]">
+                        Candidate and approved items still needing explicit operator governance action.
+                      </p>
+                    </div>
                   </div>
 
                   {learningLoading && <p>Loading learning queue...</p>}
@@ -1257,7 +1633,7 @@ export default function ControlCenterPage() {
                     )}
 
                   <div className="space-y-3">
-                    {(learningQueue ?? []).slice(0, 8).map((item) => (
+                    {(learningQueue ?? []).slice(0, 10).map((item) => (
                       <LearningQueueItemRow
                         key={item.id}
                         item={item}
@@ -1304,6 +1680,39 @@ export default function ControlCenterPage() {
               </Card>
 
               <div className="space-y-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">
+                      Learning queue explainability
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
+                    <SummaryRows
+                      compact
+                      rows={[
+                        {
+                          label: "Activation rule",
+                          value: "Status + readiness gates",
+                          detail:
+                            "Candidates become safely activatable only after status approval and readiness thresholds for recurrence, success, and verification evidence.",
+                        },
+                        {
+                          label: "Verification signal",
+                          value: "Operator feedback weighted",
+                          detail:
+                            "Verification pass rate and guidance helped/hurt counts are treated as operator-trust signals, not just activity counters.",
+                        },
+                        {
+                          label: "Sample provenance",
+                          value: "Recent incident IDs attached",
+                          detail:
+                            "Each candidate carries sample activity IDs so you can inspect the incidents behind the proposed playbook before approving or activating it.",
+                        },
+                      ]}
+                    />
+                  </CardContent>
+                </Card>
+
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base">
@@ -1405,6 +1814,195 @@ export default function ControlCenterPage() {
                       Commands stay grouped by execution scope so operators can
                       avoid Azure-only paths during local troubleshooting.
                     </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {activeSection === "trust_ops" && (
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_420px]">
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <TriangleAlert className="h-4 w-4 text-[var(--ph-accent)]" />
+                      Review queue
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm text-[var(--ph-muted)]">
+                    <p>
+                      Items that need human follow-up now: harmful guidance, failed remediation publication, review-only low-confidence runs, or guided runs that still lack verification.
+                    </p>
+                    {activitiesLoading ? <p>Loading recent activity window...</p> : null}
+                    {!activitiesLoading && reviewQueue.length === 0 ? (
+                      <p>
+                        No urgent trust-ops items in the current activity window.
+                      </p>
+                    ) : null}
+                    <div className="space-y-3">
+                      {reviewQueue.map((item) => (
+                        <div
+                          key={`${item.activity.id}-${item.title}`}
+                          className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-[var(--ph-text)]">
+                                {item.title}
+                              </p>
+                              <p className="mt-1 text-sm text-[var(--ph-muted)]">
+                                {item.reason}
+                              </p>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={toneClass(
+                                item.tone === "bad" ? "bad" : "warn",
+                              )}
+                            >
+                              {item.priority === "high" ? "High Priority" : "Review"}
+                            </Badge>
+                          </div>
+                          <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+                            <div className="space-y-1">
+                              <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">
+                                Incident
+                              </p>
+                              <p className="text-sm text-[var(--ph-text)]">
+                                {item.activity.repository_name} · {item.activity.workflow_name}
+                              </p>
+                              <p className="text-xs text-[var(--ph-muted)]">
+                                {item.detail}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2 md:justify-end">
+                              <Button asChild size="sm" variant="secondary">
+                                <Link to={`/app/activities/${item.activity.id}`}>
+                                  Open Activity
+                                </Link>
+                              </Button>
+                              <Button asChild size="sm" variant="ghost">
+                                <Link
+                                  to={`/app/activities?repository=${encodeURIComponent(
+                                    item.activity.repository_name,
+                                  )}`}
+                                >
+                                  View Repo Runs
+                                </Link>
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">
+                      Trust reporting
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {trustMetrics.map((metric) => (
+                      <div
+                        key={metric.label}
+                        className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4"
+                      >
+                        <p className="text-xs font-medium uppercase tracking-wide text-[var(--ph-muted)]">
+                          {metric.label}
+                        </p>
+                        <p
+                          className={`mt-2 text-2xl font-semibold ${
+                            metric.tone === "ok"
+                              ? "text-[var(--ph-success)]"
+                              : metric.tone === "warn"
+                                ? "text-[var(--ph-warning)]"
+                                : metric.tone === "bad"
+                                  ? "text-[var(--ph-danger)]"
+                                  : metric.tone === "muted"
+                                    ? "text-[var(--ph-muted)]"
+                                    : "text-[var(--ph-text)]"
+                          }`}
+                        >
+                          {metric.value}
+                        </p>
+                        <p className="mt-2 text-xs leading-5 text-[var(--ph-muted)]">
+                          {metric.detail}
+                        </p>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">
+                      Top noisy failure classes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {Object.entries(stats?.by_failure_type ?? {})
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 6)
+                      .map(([failureType, count]) => (
+                        <div
+                          key={failureType}
+                          className="flex items-center justify-between rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 px-3 py-3"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-[var(--ph-text)]">
+                              {failureType}
+                            </p>
+                            <p className="text-xs text-[var(--ph-muted)]">
+                              Most frequent failure classes in the current stats window.
+                            </p>
+                          </div>
+                          <Badge variant="outline">{count}</Badge>
+                        </div>
+                      ))}
+                    {stats && Object.keys(stats.by_failure_type ?? {}).length === 0 ? (
+                      <p className="text-sm text-[var(--ph-muted)]">
+                        No failure-class counts are available yet.
+                      </p>
+                    ) : null}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">
+                      Trust-ops guidance
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm text-[var(--ph-muted)]">
+                    <SummaryRows
+                      compact
+                      rows={[
+                        {
+                          label: "First check",
+                          value: "High-priority queue items",
+                          detail:
+                            "Start with harmful guidance and failed publication paths before reviewing lower-risk queue items.",
+                        },
+                        {
+                          label: "Then verify",
+                          value: "Guided runs without feedback",
+                          detail:
+                            "Closing the feedback loop is what improves learning readiness and trust reporting quality.",
+                        },
+                        {
+                          label: "Escalate when",
+                          value: "A failure class stays noisy",
+                          detail:
+                            "Use the noisy-failure list to decide where heuristics, runbooks, or better bounded remediation need attention next.",
+                        },
+                      ]}
+                    />
                   </CardContent>
                 </Card>
               </div>
@@ -1539,6 +2137,12 @@ function LearningQueueItemRow({
             {item.title}
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
+            {item.failure_type ? (
+              <Badge variant="outline">Failure: {item.failure_type}</Badge>
+            ) : null}
+            {item.reason_code ? (
+              <Badge variant="outline">Reason: {item.reason_code}</Badge>
+            ) : null}
             <Badge variant="outline">Runs: {item.occurrence_count}</Badge>
             <Badge variant="outline">
               Success: {item.success_count}/{item.occurrence_count}
@@ -1562,7 +2166,20 @@ function LearningQueueItemRow({
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px]">
         <div className="space-y-2 text-xs text-[var(--ph-muted)]">
-          <p className="break-words">{item.suggested_playbook}</p>
+          <p className="break-words text-sm text-[var(--ph-text)]">
+            {item.suggested_playbook}
+          </p>
+          {item.repositories.length > 0 && (
+            <p>
+              Repositories:{" "}
+              <span className="break-words">
+                {item.repositories.slice(0, 3).join(", ")}
+                {item.repositories.length > 3
+                  ? ` +${item.repositories.length - 3} more`
+                  : ""}
+              </span>
+            </p>
+          )}
           {item.promotion_readiness && (
             <>
               <p>
@@ -1580,6 +2197,13 @@ function LearningQueueItemRow({
                     .join(" · ")}
                 </p>
               )}
+              <p>
+                Verification: {item.verification_pass_count}/
+                {item.verification_sample_count} pass
+                {item.verification_sample_count > 0 && (
+                  <> · {(item.verification_pass_rate * 100).toFixed(0)}% pass rate</>
+                )}
+              </p>
             </>
           )}
           {item.guidance_application_count > 0 && (
@@ -1595,6 +2219,19 @@ function LearningQueueItemRow({
                 </>
               )}
             </p>
+          )}
+          {item.sample_activity_ids.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {item.sample_activity_ids.slice(0, 4).map((activityId) => (
+                <Link
+                  key={activityId}
+                  to={`/app/activities/${activityId}`}
+                  className="inline-flex items-center rounded-md border border-[var(--ph-border)] px-2 py-1 text-[11px] text-[var(--ph-accent)] hover:opacity-80"
+                >
+                  Sample {activityId.slice(0, 8)}
+                </Link>
+              ))}
+            </div>
           )}
         </div>
 
