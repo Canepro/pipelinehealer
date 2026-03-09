@@ -159,7 +159,8 @@ This is the long-form project tracker for hackathon execution status, submission
 - [x] Working project deployed to Azure (`azd up` equivalent infra + app deployment validated)
 - [x] Public GitHub repository
 - [x] Project description (features/problem/technologies) in `README.md`
-- [ ] Demo video (2 min max)
+- [x] Demo video (2 min max)
+  - Published: `https://youtu.be/9iv5ZMKYzts`
 - [x] Architecture diagram (Mermaid in `README.md`)
 - [x] Microsoft Learn profile URL(s) captured for all participants:
   - Vincent Mogah: `https://learn.microsoft.com/en-us/users/canepro0084/`
@@ -613,11 +614,12 @@ This plan is the source of truth for controlled polish work without drift.
 - [x] Freeze feature changes; only bugfix/doc updates.
 - [x] Refresh proof artifacts and links in `README`.
 - [ ] Final demo rehearsal using `docs/DEMO_SCRIPT.md`.
-- [ ] Produce final 2-minute video and submission package.
+- [x] Produce final 2-minute video.
+  - Published: `https://youtu.be/9iv5ZMKYzts`
+- [ ] Finish submission package.
 
 ## Known Risks / Follow-Ups
 
-- Demo video is still open.
 - Agentic workflow parent/no-op tracker issues (`#18`, `#24`) are automation-managed and may remain open without affecting submission quality.
 - Auto-fix branch collision risk is mitigated by per-run branch naming (`...-run-<workflow_run_id>`); monitor for edge-case Git ref conflicts.
 - Dependency remediations currently focus on manifest changes and may not update lockfiles in all package-manager variants.
