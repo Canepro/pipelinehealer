@@ -326,7 +326,7 @@ function createReviewQueue(
     if (
       remediation &&
       !remediation.success &&
-      remediation.action_taken !== "none"
+      remediation.action_taken !== "skip"
     ) {
       queue.push({
         activity,
@@ -372,7 +372,9 @@ function createReviewQueue(
     if (
       activity.diagnosis &&
       confidence < 0.7 &&
-      remediation?.action_taken !== "create_issue"
+      remediation &&
+      remediation.action_taken !== "create_issue" &&
+      remediation.action_taken !== "skip"
     ) {
       queue.push({
         activity,
@@ -1841,7 +1843,7 @@ export default function ControlCenterPage() {
                     <div className="space-y-3">
                       {reviewQueue.map((item) => (
                         <div
-                          key={item.activity.id}
+                          key={`${item.activity.id}-${item.title}`}
                           className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4"
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
