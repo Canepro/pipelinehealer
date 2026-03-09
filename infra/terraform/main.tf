@@ -12,9 +12,9 @@ locals {
   frontend_image     = "${var.acr_name}.azurecr.io/${var.frontend_image_name}:${var.image_tag}"
   key_vault_name     = substr("${var.base_name}kv${local.unique_suffix}", 0, 24)
 
-  acr_pull_role_definition_id        = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/7f951dda-4ed3-4680-a7ca-43fe172d538d"
-  key_vault_secrets_user_role_id     = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6"
-  cognitive_services_openai_user_id  = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/5e0bd9bd-7b93-4f28-af87-19fc36ad61bd"
+  acr_pull_role_definition_id       = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/7f951dda-4ed3-4680-a7ca-43fe172d538d"
+  key_vault_secrets_user_role_id    = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6"
+  cognitive_services_openai_user_id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/5e0bd9bd-7b93-4f28-af87-19fc36ad61bd"
 }
 
 resource "azapi_resource" "openai_account" {
@@ -191,12 +191,12 @@ resource "azapi_resource" "app_insights" {
   name      = "${local.resource_base_name}-insights-${local.unique_suffix}"
   parent_id = data.azurerm_resource_group.target.id
   location  = local.location
-  kind      = "web"
   tags      = var.tags
 
   body = {
+    kind = "web"
     properties = {
-      Application_Type   = "web"
+      Application_Type    = "web"
       WorkspaceResourceId = azapi_resource.log_analytics_workspace.id
     }
   }
@@ -320,7 +320,7 @@ resource "azapi_resource" "backend_app" {
   tags      = var.tags
 
   identity {
-    type         = "SystemAssigned,UserAssigned"
+    type         = "SystemAssigned, UserAssigned"
     identity_ids = [azapi_resource.acr_pull_identity.id]
   }
 
@@ -419,7 +419,7 @@ resource "azapi_resource" "frontend_app" {
   tags      = var.tags
 
   identity {
-    type         = "SystemAssigned,UserAssigned"
+    type         = "SystemAssigned, UserAssigned"
     identity_ids = [azapi_resource.acr_pull_identity.id]
   }
 
