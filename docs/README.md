@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: c9f507b -->
+<!-- LAST_VERIFIED: e2b5f2c -->
 
 Use this index to find the right doc quickly.
 
@@ -36,6 +36,7 @@ These stable screenshots reflect the current hosted operator experience and are 
 - `KUBERNETES_HELM_RUNBOOK.md` — Helm-based Kubernetes deployment target (secondary to Azure)
 - `RELEASE_RUNBOOK.md` — release prep, semver bump, tag/publish verification, and rollback guidance
 - `PREDEPLOY_PLACEHOLDER_AUDIT.md` — pre-deploy stop-ship checklist
+- `../infra/terraform/README.md` — manual Terraform equivalent of the Azure reference Bicep stack
 
 ### Tier 3 — Internal/Transient (author discretion; archive post-submission)
 
