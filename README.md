@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 588a33d -->
+<!-- LAST_VERIFIED: c9f507b -->
 
 > OSS-first, policy-aware pipeline remediation platform with GitHub Actions and Jenkins bridge support today.
 
@@ -19,12 +19,17 @@ Current provider coverage is GitHub Actions plus a signed Jenkins bridge path. T
 ![Landing page — policy-aware remediation overview and operational snapshot](docs/screens/landing-current.png)
 ![Dashboard — processed count, safety gating ratios, failure type breakdown, and explainability snapshot](docs/screens/dashboard-current.png)
 
+Current operator surfaces on `main`:
+- Activity Detail reads as an incident record and now includes an in-product verification workspace for identification, diagnosis, remediation, and guidance-effectiveness feedback.
+- Control Center now spans four operator views: `Governance Overview`, `Learning & Ops`, `Trust Ops`, and `Audit & Trace`.
+
 ## Project Snapshot
 
 - Public repository: `https://github.com/Canepro/pipelinehealer`
 - Live reference deployment: Azure Container Apps (backend + frontend)
 - Current release baseline: [`v0.5.7`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.5.7)
 - Current forward track: post-`v0.5.7` continuity and follow-on release planning
+- Current `main` branch focus: unreleased `v0.6.0` hardening and operator workflow maturity, including verification feedback and trust-ops surfaces
 - `v0.3.2` required freeze scope shipped: `#36` (Jenkins bridge), `#42` (Assign-to-Agent), `#57` (storage posture hardening)
 - OSS-friendly durable storage is available: PostgreSQL adapter (`#58`) alongside Cosmos DB and in-memory development mode
 - Demo runbook: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
@@ -171,6 +176,7 @@ Pipeline failures create repetitive triage work and slow delivery. PipelineHeale
 - explainability fields (`diagnosis_source`, reason codes, source attribution)
 - universal failure context (`failing_job`, `failing_step`, `failing_command`, `signal`)
 - idempotent artifacts (find-or-create PR/issue reuse)
+- operator feedback loop (`verification` and `guidance_effectiveness`) captured directly from the product UI
 
 ## LLM Capability Contract
 
@@ -193,6 +199,7 @@ Treat live LLM compatibility as a release gate for demos and production posture,
 - Faster triage: failure context is normalized into consistent signals and evidence.
 - Safer automation: deterministic fixes can be auto-proposed while risky paths stay review-first.
 - Operational traceability: every action links to run evidence, reason codes, and policy state.
+- Closed operator loop: Activity Detail supports direct verification feedback, and Control Center now highlights review queue and trust signals instead of keeping them API-only.
 - Deployment flexibility: same control model across Azure, Kubernetes, and local container paths.
 - Platform extensibility: provider-specific adapters can expand beyond GitHub-centric CI into broader delivery and operations pipelines.
 - Operator clarity: the app shell can surface the running UI/API release version so deployed state is visible without external tooling.
