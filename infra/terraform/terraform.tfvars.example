@@ -1,4 +1,4 @@
-resource_group_name = "rg-canepro-ph-dev-eus"
+resource_group_name = "rg-canepro-ph-dev-eus2"
 location            = "eastus2"
 
 environment_name                = "dev"

@@ -35,7 +35,9 @@ resource "azapi_resource" "openai_account" {
     }
   }
 
-  response_export_values    = ["*"]
+  # These API versions are ahead of what azapi can fully validate reliably, so
+  # keep schema validation disabled but export only the fields this stack reads.
+  response_export_values    = ["properties.endpoint"]
   schema_validation_enabled = false
 }
 
@@ -58,7 +60,6 @@ resource "azapi_resource" "gpt4o_deployment" {
     }
   }
 
-  response_export_values    = ["*"]
   schema_validation_enabled = false
 }
 
@@ -91,7 +92,7 @@ resource "azapi_resource" "cosmos_account" {
     }
   }
 
-  response_export_values    = ["*"]
+  response_export_values    = ["properties.documentEndpoint"]
   schema_validation_enabled = false
 }
 
@@ -108,7 +109,6 @@ resource "azapi_resource" "cosmos_database" {
     }
   }
 
-  response_export_values    = ["*"]
   schema_validation_enabled = false
 }
 
@@ -133,7 +133,6 @@ resource "azapi_resource" "activities_container" {
     }
   }
 
-  response_export_values    = ["*"]
   schema_validation_enabled = false
 }
 
@@ -154,7 +153,6 @@ resource "azapi_resource" "workflow_runs_container" {
     }
   }
 
-  response_export_values    = ["*"]
   schema_validation_enabled = false
 }
 
@@ -174,7 +172,7 @@ resource "azapi_resource" "log_analytics_workspace" {
     }
   }
 
-  response_export_values    = ["*"]
+  response_export_values    = ["properties.customerId"]
   schema_validation_enabled = false
 }
 
@@ -183,7 +181,7 @@ data "azapi_resource_action" "log_analytics_shared_keys" {
   resource_id            = azapi_resource.log_analytics_workspace.id
   action                 = "sharedKeys"
   method                 = "POST"
-  response_export_values = ["*"]
+  response_export_values = ["primarySharedKey"]
 }
 
 resource "azapi_resource" "app_insights" {
@@ -201,7 +199,7 @@ resource "azapi_resource" "app_insights" {
     }
   }
 
-  response_export_values    = ["*"]
+  response_export_values    = ["properties.ConnectionString"]
   schema_validation_enabled = false
 }
 
@@ -225,7 +223,7 @@ resource "azapi_resource" "key_vault" {
     }
   }
 
-  response_export_values    = ["*"]
+  response_export_values    = ["properties.vaultUri"]
   schema_validation_enabled = false
 }
 
@@ -246,7 +244,7 @@ resource "azapi_resource" "container_registry" {
     }
   }
 
-  response_export_values    = ["*"]
+  response_export_values    = ["properties.loginServer"]
   schema_validation_enabled = false
 }
 
@@ -257,7 +255,7 @@ resource "azapi_resource" "acr_pull_identity" {
   location  = local.location
   tags      = var.tags
 
-  response_export_values    = ["*"]
+  response_export_values    = ["properties.principalId"]
   schema_validation_enabled = false
 }
 
@@ -285,7 +283,6 @@ resource "azapi_resource" "acr_pull_role_assignment" {
     }
   }
 
-  response_export_values    = ["*"]
   schema_validation_enabled = false
 }
 
@@ -308,7 +305,6 @@ resource "azapi_resource" "container_app_environment" {
     }
   }
 
-  response_export_values    = ["*"]
   schema_validation_enabled = false
 }
 
@@ -407,7 +403,10 @@ resource "azapi_resource" "backend_app" {
 
   depends_on = [azapi_resource.acr_pull_role_assignment]
 
-  response_export_values    = ["*"]
+  response_export_values = [
+    "identity.principalId",
+    "properties.configuration.ingress.fqdn",
+  ]
   schema_validation_enabled = false
 }
 
@@ -470,7 +469,7 @@ resource "azapi_resource" "frontend_app" {
 
   depends_on = [azapi_resource.acr_pull_role_assignment]
 
-  response_export_values    = ["*"]
+  response_export_values    = ["properties.configuration.ingress.fqdn"]
   schema_validation_enabled = false
 }
 
@@ -516,7 +515,6 @@ resource "azapi_resource" "backend_cosmos_role_assignment" {
 
   depends_on = [azapi_resource.backend_app]
 
-  response_export_values    = ["*"]
   schema_validation_enabled = false
 }
 
@@ -535,7 +533,6 @@ resource "azapi_resource" "backend_key_vault_role_assignment" {
 
   depends_on = [azapi_resource.backend_app]
 
-  response_export_values    = ["*"]
   schema_validation_enabled = false
 }
 
@@ -554,6 +551,5 @@ resource "azapi_resource" "backend_openai_role_assignment" {
 
   depends_on = [azapi_resource.backend_app]
 
-  response_export_values    = ["*"]
   schema_validation_enabled = false
 }
