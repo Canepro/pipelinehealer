@@ -71,9 +71,13 @@ cp backend/.env.example backend/.env
 
 ```bash
 cd backend
+uv venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 uv pip install -e ".[dev]"
 uvicorn src.main:app --reload --port 8000
 ```
+
+If `uv` is not installed yet, see the installation guide at <https://docs.astral.sh/uv/getting-started/installation/>.
 
 4. Start the frontend:
 
