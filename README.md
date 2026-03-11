@@ -115,6 +115,8 @@ bash scripts/ph.sh status
 
 Use `deploy:release` when promoting a published release. Use full `deploy` only when rebuilding from local source is intentional.
 
+A manual Terraform equivalent of the Azure Bicep stack is available at [infra/terraform/README.md](infra/terraform/README.md). The current `scripts/ph.sh` and `azd` flows still provision from `infra/main.bicep`.
+
 ### Kubernetes / Helm
 
 ```bash

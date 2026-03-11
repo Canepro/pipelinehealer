@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: d4b972c -->
+<!-- LAST_VERIFIED: e2b5f2c -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -58,6 +58,10 @@ Pick one profile before running commands:
 | Local-only dev (no Azure infra) | fast iteration, local testing | host-native/Docker steps + `PH_BACKEND_URL=http://127.0.0.1:8000` API commands |
 | Azure managed (reference demo path) | demo + managed deployment | `bash scripts/ph.sh deploy:release --release-version vX.Y.Z`, `status`, `warm`, `lowcost` |
 | Other cloud backend (AWS/GCP/DO/K8s/etc.) | non-Azure production path | deploy containers with your platform, then use `PH_BACKEND_URL=https://<your-backend>` for API commands |
+
+Terraform note:
+- a manual Terraform equivalent of `infra/main.bicep` lives in `infra/terraform/`
+- current `scripts/ph.sh` and `azd` automation still target the Bicep path
 
 Important command scope rule:
 
