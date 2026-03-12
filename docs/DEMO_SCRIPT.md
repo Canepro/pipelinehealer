@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: d4b972c -->
+<!-- LAST_VERIFIED: 6ed6cee -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -36,11 +36,11 @@ Remaining submission item this doc drives: demo video length must be 2:00 max.
 Default values used in this runbook:
 
 ```bash
-export RELEASE_TAG="${RELEASE_TAG:-v0.6.1}"
+export RELEASE_TAG="${RELEASE_TAG:-$(git describe --tags --abbrev=0 2>/dev/null || echo v0.6.0)}"
 export DEMO_REPO="${DEMO_REPO:-Canepro/pipelinehealer-demo}"
 ```
 
-Keep `RELEASE_TAG` pinned to the latest published tag for recording. Do not point the demo flow at an untagged local branch or unreleased commit.
+Keep `RELEASE_TAG` pinned to the latest published tag for recording. The default above resolves to the latest local tag when available and falls back to `v0.6.0` if tags have not been fetched yet. Do not point the demo flow at an untagged local branch or unreleased commit.
 If `DEMO_REPO` is not exported in your shell, either run the export block above first or omit `--repo` and let `bash scripts/ph.sh demo:proof` fall back to the default demo repo.
 
 ## Recording Plan (2 Minutes Max)
