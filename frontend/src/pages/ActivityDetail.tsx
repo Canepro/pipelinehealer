@@ -66,10 +66,22 @@ function formatSourceSelectionPath(path: string): string {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function getExternalDiagnosticStatusMeta(status: string): {
+function getExternalDiagnosticStatusMeta(
+  status: string,
+  metadata?: Record<string, unknown>,
+): {
   label: string;
   className: string;
 } {
+  const displayState =
+    typeof metadata?.display_state === "string" ? metadata.display_state : "";
+  if (displayState === "context_only") {
+    return {
+      label: "Context only",
+      className:
+        "inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]",
+    };
+  }
   switch (status) {
     case "available":
       return {
@@ -111,6 +123,44 @@ function formatConfidenceDelta(delta: number): string {
   const sign = delta > 0 ? "+" : "-";
   const pct = Math.round(Math.abs(delta) * 100);
   return `${sign}${pct}% confidence`;
+}
+
+function formatDiagnosticConfidenceLabel(
+  delta: number,
+  metadata?: Record<string, unknown>,
+): string {
+  const displayState =
+    typeof metadata?.display_state === "string" ? metadata.display_state : "";
+  if (displayState === "context_only") {
+    return "Unscored context";
+  }
+  return formatConfidenceDelta(delta);
+}
+
+function formatFailureTypeHeadline(failureType?: string | null): string {
+  const normalized = (failureType || "").trim().toLowerCase();
+  if (!normalized) return "Pipeline incident";
+  if (normalized === "unknown") return "Unclassified incident";
+  return normalized
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase()) + " incident";
+}
+
+function formatSourceRunResultLabel(result: string): string {
+  const normalized = result.trim().toLowerCase();
+  if (!normalized) return "Unknown";
+  switch (normalized) {
+    case "failure":
+      return "Failed";
+    case "success":
+      return "Succeeded";
+    case "unstable":
+      return "Unstable";
+    case "aborted":
+      return "Aborted";
+    default:
+      return normalized.replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+  }
 }
 
 function formatActionTaken(actionTaken: string): string {
@@ -1012,6 +1062,10 @@ export default function ActivityDetail() {
     aggregateConfidenceBySource(externalDiagnostics);
   const structuredEvidence = collectStructuredEvidence(diagnosisDetails);
   const rawEvidenceLines = collectRawEvidenceLines(diagnosisDetails);
+  const sourceMetadata =
+    activity.source_metadata && typeof activity.source_metadata === "object"
+      ? (activity.source_metadata as Record<string, unknown>)
+      : {};
   const classificationSignal =
     typeof diagnosisDetails?.classification_signal === "string"
       ? diagnosisDetails.classification_signal.trim()
@@ -1063,6 +1117,35 @@ export default function ActivityDetail() {
   const mcpReasonCode = (mcpPath?.reason || "").trim();
   const mcpReasonLabel = formatMcpReason(mcpReasonCode);
   const failureContext = activity.failure_context;
+  const isJenkinsBridge =
+    activity.source_selection_path === "jenkins_bridge" ||
+    typeof sourceMetadata.provider === "string" &&
+      sourceMetadata.provider.trim().toLowerCase() === "jenkins";
+  const bridgeEvidenceQuality =
+    typeof diagnosisDetails?.bridge_evidence_quality === "string"
+      ? diagnosisDetails.bridge_evidence_quality
+      : typeof sourceMetadata.evidence_quality === "string"
+        ? sourceMetadata.evidence_quality
+        : "";
+  const bridgeClassificationReason =
+    typeof diagnosisDetails?.classification_reason === "string"
+      ? diagnosisDetails.classification_reason.trim()
+      : "";
+  const lowEvidenceBridge =
+    isJenkinsBridge &&
+    (bridgeEvidenceQuality === "summary_only" ||
+      typeof diagnosisDetails?.classification_state === "string");
+  const sourceRunResultRaw =
+    typeof sourceMetadata.job_result === "string"
+      ? sourceMetadata.job_result
+      : typeof diagnosisDetails?.bridge_run_result === "string"
+        ? diagnosisDetails.bridge_run_result
+        : "";
+  const sourceRunResult = sourceRunResultRaw.trim();
+  const sourceRunTrigger =
+    typeof sourceMetadata.triggered_by === "string"
+      ? sourceMetadata.triggered_by.trim()
+      : "";
   const hasFailureContext = Boolean(
     failureContext?.failing_job ||
     failureContext?.failing_step ||
@@ -1070,7 +1153,7 @@ export default function ActivityDetail() {
     failureContext?.signal,
   );
   const summaryLine = [
-    activity.failure_type ? `${activity.failure_type} incident` : "Pipeline incident",
+    formatFailureTypeHeadline(activity.failure_type),
     activity.repository_name,
     activity.workflow_name,
   ]
@@ -1233,6 +1316,11 @@ export default function ActivityDetail() {
             </div>
             <div className="flex flex-wrap gap-2">
               <StatusBadge status={activity.status} />
+              {isJenkinsBridge && sourceRunResult ? (
+                <Badge variant="outline">
+                  Jenkins {formatSourceRunResultLabel(sourceRunResult)}
+                </Badge>
+              ) : null}
               {activity.failure_type ? (
                 <FailureTypeBadge type={activity.failure_type} />
               ) : (
@@ -1360,6 +1448,21 @@ export default function ActivityDetail() {
                   {externalDiagnostics.length === 1 ? "" : "s"}
                 </p>
               </div>
+              {isJenkinsBridge && sourceRunResult ? (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">
+                    Source Run
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--ph-text)]">
+                    Jenkins {formatSourceRunResultLabel(sourceRunResult)}
+                  </p>
+                  {sourceRunTrigger ? (
+                    <p className="mt-1 text-xs text-[var(--ph-muted)]">
+                      Trigger: {sourceRunTrigger}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </IncidentRecordPanel>
 
@@ -1385,11 +1488,24 @@ export default function ActivityDetail() {
                   <Badge variant="outline">
                     Source {(activity.diagnosis.diagnosis_source || "unknown").replace(/_/g, " ")}
                   </Badge>
+                  {lowEvidenceBridge ? (
+                    <Badge variant="outline">Low-evidence Jenkins payload</Badge>
+                  ) : null}
                 </div>
+                {bridgeClassificationReason ? (
+                  <div className="rounded-md border border-[var(--ph-warning)]/25 bg-[var(--ph-warning-bg)] px-3 py-3">
+                    <p className="text-sm font-medium text-[var(--ph-text)]">
+                      Evidence limitation
+                    </p>
+                    <p className="mt-1 text-sm text-[var(--ph-text)] break-words">
+                      {bridgeClassificationReason}
+                    </p>
+                  </div>
+                ) : null}
                 {activity.diagnosis.suggested_fix ? (
                   <div>
                     <p className="text-xs uppercase tracking-wide text-[var(--ph-muted)]">
-                      Suggested Fix
+                      {lowEvidenceBridge ? "Suggested Next Step" : "Suggested Fix"}
                     </p>
                     <p className="mt-1 text-sm text-[var(--ph-text)]">
                       {activity.diagnosis.suggested_fix}
@@ -1569,21 +1685,27 @@ export default function ActivityDetail() {
         ) : (
           <div className="space-y-4">
             {externalDiagnostics.map((diagnostic, index) => {
+              const metadata =
+                diagnostic.metadata && typeof diagnostic.metadata === "object"
+                  ? (diagnostic.metadata as Record<string, unknown>)
+                  : {};
               const statusMeta = getExternalDiagnosticStatusMeta(
                 diagnostic.status,
+                metadata,
               );
               const sourceSelectionPath =
-                typeof (diagnostic.metadata as Record<string, unknown>)
-                  ?.source_selection_path === "string"
-                  ? ((diagnostic.metadata as Record<string, unknown>)
-                      .source_selection_path as string)
+                typeof metadata?.source_selection_path === "string"
+                  ? (metadata.source_selection_path as string)
                   : "";
               const sourceSelectionReason =
-                typeof (diagnostic.metadata as Record<string, unknown>)
-                  ?.source_selection_reason === "string"
-                  ? ((diagnostic.metadata as Record<string, unknown>)
-                      .source_selection_reason as string)
+                typeof metadata?.source_selection_reason === "string"
+                  ? (metadata.source_selection_reason as string)
                   : "";
+              const openLinkLabel =
+                sourceSelectionPath === "jenkins_bridge" ||
+                diagnostic.source.trim().toLowerCase() === "jenkins-bridge"
+                  ? "Open Jenkins job"
+                  : "Open findings";
               return (
                 <div
                   key={`${diagnostic.source}-${diagnostic.collected_at}-${index}`}
@@ -1602,7 +1724,10 @@ export default function ActivityDetail() {
                       </span>
                     )}
                     <span className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]">
-                      {formatConfidenceDelta(diagnostic.confidence_delta)}
+                      {formatDiagnosticConfidenceLabel(
+                        diagnostic.confidence_delta,
+                        metadata,
+                      )}
                     </span>
                   </div>
 
@@ -1611,14 +1736,10 @@ export default function ActivityDetail() {
                       {diagnostic.summary}
                     </p>
                   )}
-                  {typeof (diagnostic.metadata as Record<string, unknown>)
-                    ?.confidence_reason === "string" && (
+                  {typeof metadata?.confidence_reason === "string" && (
                     <p className="mt-2 text-xs text-[var(--ph-muted)]">
                       Signal rationale:{" "}
-                      {
-                        (diagnostic.metadata as Record<string, unknown>)
-                          .confidence_reason as string
-                      }
+                      {metadata.confidence_reason as string}
                     </p>
                   )}
                   {sourceSelectionPath && (
@@ -1639,26 +1760,20 @@ export default function ActivityDetail() {
                         rel="noopener noreferrer"
                         className="inline-flex items-center text-sm text-[var(--ph-accent)] hover:opacity-80"
                       >
-                        Open findings
+                        {openLinkLabel}
                         <ExternalLink className="h-4 w-4 ml-1" />
                       </a>
                     )}
-                    {typeof (diagnostic.metadata as Record<string, unknown>)
-                      ?.details === "object" &&
-                      (diagnostic.metadata as Record<string, unknown>)
-                        .details !== null && (
+                    {typeof metadata?.details === "object" &&
+                      metadata.details !== null && (
                         <ExternalFindingsPanel
-                          details={
-                            (diagnostic.metadata as Record<string, unknown>)
-                              .details as Record<string, unknown>
-                          }
+                          details={metadata.details as Record<string, unknown>}
                           defaultOpen={diagnostic.status === "available"}
                         />
                       )}
                   </div>
                   {!diagnostic.url &&
-                    typeof (diagnostic.metadata as Record<string, unknown>)
-                      ?.details !== "object" && (
+                    typeof metadata?.details !== "object" && (
                       <p className="mt-3 text-xs text-[var(--ph-muted)]">
                         No findings link published by the external workflow.
                       </p>

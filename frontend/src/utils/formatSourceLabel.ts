@@ -3,6 +3,7 @@ const KNOWN_LABELS: Record<string, string> = {
   'external-diagnostics': 'External Diagnostics',
   'github-mcp': 'GitHub MCP',
   'knowledge-mcp': 'Knowledge MCP',
+  'jenkins-bridge': 'Jenkins Bridge',
   github: 'GitHub',
   gh_aw: 'GitHub Agentic Workflows',
   azure_monitor: 'Azure Monitor',
