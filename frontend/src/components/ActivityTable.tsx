@@ -4,6 +4,10 @@ import { ExternalLink, GitBranch } from 'lucide-react'
 import type { Activity } from '../api/client'
 import { EMPTY_STATES } from '../constants/emptyStates'
 import { formatSourceLabel } from '../utils/formatSourceLabel'
+import {
+  getRepresentativeExternalDiagnostic,
+  isContextOnlyExternalDiagnostic,
+} from '../utils/externalDiagnostics'
 import StatusBadge from './StatusBadge'
 import FailureTypeBadge from './FailureTypeBadge'
 import { Badge } from '@/components/ui/badge'
@@ -43,23 +47,22 @@ function getExternalDiagnosticsMeta(activity: Activity): {
   if (diagnostics.length === 0) {
     return null
   }
-
-  const nonNoopDiagnostics = diagnostics.filter((item) => {
-    const metadata = (item.metadata ?? {}) as Record<string, unknown>
-    return metadata.noop !== true
-  })
-
-  const representative =
-    nonNoopDiagnostics.find((item) => item.status === 'available') ??
-    nonNoopDiagnostics.find((item) => item.status === 'error') ??
-    nonNoopDiagnostics[0]
+  const representative = getRepresentativeExternalDiagnostic(activity)
 
   if (!representative) {
     return null
   }
 
   const source = formatSourceLabel(representative.source)
-  const findingsUrl = nonNoopDiagnostics.find((item) => item.url)?.url ?? null
+  const findingsUrl = diagnostics.find((item) => item.url)?.url ?? null
+
+  if (isContextOnlyExternalDiagnostic(representative)) {
+    return {
+      label: `${source} Context`,
+      variant: 'outline',
+      findingsUrl,
+    }
+  }
 
   if (representative.status === 'available') {
     return {

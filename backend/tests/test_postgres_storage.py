@@ -115,10 +115,14 @@ class _FakeConnection:
 
             idx = 0
             filtered = list(self._state.activities.values())
-            if "repository_name =" in normalized:
+            if "repository_name =" in normalized or "lower(repository_name) = lower(" in normalized:
                 repository_name = str(args[idx])
                 idx += 1
-                filtered = [row for row in filtered if row["repository_name"] == repository_name]
+                filtered = [
+                    row
+                    for row in filtered
+                    if row["repository_name"].strip().lower() == repository_name.strip().lower()
+                ]
             if "where status =" in normalized or " and status =" in normalized:
                 status = str(args[idx])
                 idx += 1
@@ -254,6 +258,23 @@ async def test_storage_contract_activity_roundtrip(kind: str) -> None:
     )
     assert len(activities) == 1
     assert activities[0].id == created_id
+    await storage.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["memory", "postgres"])
+async def test_storage_contract_repository_filter_is_case_insensitive(kind: str) -> None:
+    storage = await _create_storage_for_contract(kind)
+    activity = _sample_activity(activity_id=f"{kind}-case-filter")
+    await storage.create_activity(activity)
+
+    activities = await storage.get_activities(
+        repository="OWNER/REPO",
+        limit=10,
+    )
+
+    assert len(activities) == 1
+    assert activities[0].id == f"{kind}-case-filter"
     await storage.close()
 
 

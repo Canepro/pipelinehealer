@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 2500d2b -->
+<!-- LAST_VERIFIED: 6d2dd4e -->
 
 All notable changes to this project will be documented in this file.
 
@@ -8,7 +8,13 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Changed
+
+- Clarified Jenkins bridge Activity Detail rendering for low-evidence incidents so bridge-ingest context, Jenkins run outcome, and provider-specific links read honestly instead of appearing like strong scored diagnostics.
+
+### Fixed
+
+- Replaced vague low-confidence Jenkins bridge suggested-fix fallback text with deterministic uncertainty-aware guidance when the bridge payload only contains summary-level evidence.
 
 ## [v0.6.0] - 2026-03-09
 

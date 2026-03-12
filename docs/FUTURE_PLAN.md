@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: ec7e28f -->
+<!-- LAST_VERIFIED: 6d2dd4e -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -52,6 +52,34 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.5.8` | Released | LLM capability transparency in backend settings and operator UI |
 | `v0.5.9` | Released | Capability-validation evidence freshness and paging hardening |
 | `v0.6.0` | Released | Diagnosis/remediation hardening + learning-ops rework + operator workflow maturity |
+
+## Planned Target: `v0.6.1` (Patch)
+
+Theme: Jenkins bridge low-evidence trust hardening and operator-copy cleanup.
+
+### Must-Have Scope
+
+1. Jenkins bridge activity trust semantics
+   - stop presenting bridge-ingest context as a strong diagnostic when the payload only contributed `0.0` confidence delta
+   - make low-evidence bridge records read as context-ingested or unclassified rather than confidently diagnosed
+2. Activity Detail provider-specific clarity
+   - distinguish source-run outcome from PipelineHealer processing outcome for Jenkins-backed activities
+   - use provider-accurate labels for Jenkins links and status surfaces instead of GitHub-oriented fallback copy
+3. Low-evidence diagnosis fallback hygiene
+   - make weak-classification states explicit (`unclassified`, `failure type pending`, or equivalent) instead of surfacing `unknown incident`
+   - reduce vague suggested-fix wording when only bridge summary/context is available
+4. Scope boundary
+   - keep this patch focused on trust semantics, fallback wording, and bounded bridge-evidence handling
+   - do not expand into native Jenkins provider parity; deeper job/log/artifact retrieval remains tracked separately in `BL-035`
+
+### Exit Criteria
+
+1. Jenkins bridge records with `confidence_delta=0.0` no longer read as if a strong external diagnostic was found.
+2. Activity Detail clearly separates Jenkins run state from PipelineHealer processing state.
+3. Jenkins provider links and labels are accurate for bridge-backed activities.
+4. Low-evidence bridge runs use explicit unclassified/pending wording instead of `unknown incident`.
+5. Suggested-fix text for weak bridge evidence is either uncertainty-aware or replaced by deterministic operator guidance.
+6. The work lands as `v0.6.1`, `patch`, and `Fixed`/`Changed` scoped PRs rather than a broader native-provider milestone.
 
 ## Released Target: `v0.5.7` (Patch)
 
@@ -584,6 +612,7 @@ These items are researched and tracked; some have scoped phased rollout while ot
 | `BL-061` | Control Center learning explainability upgrade: make readiness reasons, candidate provenance, supporting incidents, and guidance helped/hurt trends operator-readable | `v0.6.0` | minor | High | In Progress |
 | `BL-062` | Review queue / trust-ops surface: dedicated operator inbox for review-only outputs, skipped artifacts, low-confidence diagnoses, and harmful-guidance follow-up | `v0.6.0` | minor | Medium | In Progress |
 | `BL-063` | Trust reporting dashboard: compact operator-facing metrics for diagnosis accuracy, remediation usefulness, guidance helped-rate, and noisy failure classes | `v0.6.0` | minor | Medium | In Progress |
+| `BL-064` | Jenkins bridge trust/UX hardening: low-evidence Activity Detail semantics, provider-accurate link/status copy, and uncertainty-aware suggested-fix fallback for bridge-ingested incidents ([#138](https://github.com/Canepro/pipelinehealer/issues/138)) | `v0.6.1` | patch | High | Planned |
 
 ## Definition of Done (Per Version)
 

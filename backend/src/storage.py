@@ -895,8 +895,8 @@ class PostgresStorage(ActivityStorage):
         conditions: list[str] = []
 
         if repository:
-            args.append(repository)
-            conditions.append(f"repository_name = ${len(args)}")
+            args.append(repository.strip())
+            conditions.append(f"LOWER(repository_name) = LOWER(${len(args)})")
         if status:
             args.append(status.value)
             conditions.append(f"status = ${len(args)}")
@@ -1252,7 +1252,10 @@ class InMemoryStorage(ActivityStorage):
         activities = list(self._activities.values())
 
         if repository:
-            activities = [a for a in activities if a.repository_name == repository]
+            repository_filter = repository.strip().lower()
+            activities = [
+                a for a in activities if a.repository_name.strip().lower() == repository_filter
+            ]
 
         if status:
             activities = [a for a in activities if a.status == status]

@@ -28,6 +28,7 @@ from ..models import (
     Diagnosis,
     ExternalDiagnostic,
     ExternalDiagnosticStatus,
+    FailureType,
     FailureContext,
     JenkinsBridgePayload,
     LearningContextMatch,
@@ -206,6 +207,11 @@ def _build_runbook_excerpt(content: str, workflow_name: str | None = None) -> st
     return excerpt
 
 
+def _jenkins_bridge_evidence_quality(payload: JenkinsBridgePayload) -> str:
+    """Classify how much direct failure evidence the bridge payload carried."""
+    return "log_excerpt" if payload.failure.log_excerpt.strip() else "summary_only"
+
+
 class OrchestratorAgent:
     """Agent for orchestrating the CI/CD healing pipeline.
 
@@ -287,6 +293,48 @@ class OrchestratorAgent:
     def _normalize_failure_context_key(key: str) -> str:
         """Normalize free-form context keys into stable lookup form."""
         return re.sub(r"[^a-z0-9]+", "_", key.strip().lower()).strip("_")
+
+    @staticmethod
+    def _normalize_bridge_diagnosis(
+        diagnosis: Diagnosis,
+        *,
+        payload: JenkinsBridgePayload,
+        evidence_quality: str,
+    ) -> Diagnosis:
+        """Stamp Jenkins bridge evidence metadata and correct low-evidence fallback copy."""
+        details = dict(diagnosis.error_details or {})
+        details.setdefault("source_selection_path", "jenkins_bridge")
+        details["bridge_evidence_quality"] = evidence_quality
+        details["bridge_run_result"] = payload.job.result.strip().lower() or "unknown"
+        details["bridge_classification_state"] = (
+            "summary_only_context"
+            if evidence_quality == "summary_only"
+            else "log_excerpt_available"
+        )
+
+        if (
+            evidence_quality == "summary_only"
+            and (diagnosis.failure_type == FailureType.UNKNOWN or float(diagnosis.confidence) < 0.5)
+        ):
+            diagnosis.failure_type = FailureType.UNKNOWN
+            details["classification_state"] = "insufficient_jenkins_evidence"
+            details["classification_reason"] = (
+                "Jenkins bridge payload included summary text only; no log excerpt or structured findings "
+                "were available for precise classification."
+            )
+            diagnosis.root_cause = (
+                "Jenkins reported a failed job, but the bridge payload did not include enough evidence "
+                "to classify the failure precisely."
+            )
+            diagnosis.suggested_fix = (
+                "Open the Jenkins job, capture the failing log excerpt or artifact output, and rerun "
+                "the job or resend the bridge event after the specific tool, credential, or "
+                "infrastructure error is visible."
+            )
+            diagnosis.is_auto_fixable = False
+
+        diagnosis.error_details = details
+        return diagnosis
 
     @classmethod
     def _normalize_failure_context_map(cls, details: dict[str, Any]) -> dict[str, str]:
@@ -1827,6 +1875,7 @@ class OrchestratorAgent:
         else:
             owner, repo = "", repository_full_name
         synthetic_run_id = int(payload.job.build_number)
+        evidence_quality = _jenkins_bridge_evidence_quality(payload)
         activity: ActivityRecord | None = None
         if activity_id:
             activity = await self._storage.get_activity(activity_id)
@@ -1844,12 +1893,32 @@ class OrchestratorAgent:
                     "provider": "jenkins",
                     "job_url": payload.job.url,
                     "build_number": payload.job.build_number,
+                    "job_result": payload.job.result,
                     "branch": payload.branch,
                     "commit_sha": payload.commit_sha,
+                    "evidence_quality": evidence_quality,
+                    "jenkins_instance": payload.metadata.get("jenkins_instance"),
+                    "triggered_by": payload.metadata.get("triggered_by"),
+                    "sent_at": payload.sent_at.isoformat(),
                 },
             )
             created = await self._storage.create_activity(activity)
             activity.id = created
+        else:
+            activity.source_metadata.update(
+                {
+                    "provider": "jenkins",
+                    "job_url": payload.job.url,
+                    "build_number": payload.job.build_number,
+                    "job_result": payload.job.result,
+                    "branch": payload.branch,
+                    "commit_sha": payload.commit_sha,
+                    "evidence_quality": evidence_quality,
+                    "jenkins_instance": payload.metadata.get("jenkins_instance"),
+                    "triggered_by": payload.metadata.get("triggered_by"),
+                    "sent_at": payload.sent_at.isoformat(),
+                }
+            )
 
         try:
             activity.status = RemediationStatus.ANALYZING
@@ -1888,6 +1957,14 @@ class OrchestratorAgent:
                     "source_selection_path": "jenkins_bridge",
                     "source_selection_reason": "jenkins_bridge_ingest",
                     "delivery_id": payload.delivery_id,
+                    "evidence_quality": evidence_quality,
+                    "display_state": "context_only" if evidence_quality == "summary_only" else "log_excerpt",
+                    "confidence_reason": (
+                        "Bridge payload provided summary context only; it did not contribute a scored "
+                        "external confidence signal."
+                        if evidence_quality == "summary_only"
+                        else "Bridge payload supplied direct failure context for diagnosis input."
+                    ),
                 },
             )
             activity.external_diagnostics = [bridge_diagnostic]
@@ -1931,8 +2008,12 @@ class OrchestratorAgent:
                     pattern_diagnosis_hint=preview_diagnosis,
                 ),
             )
+            diagnosis = self._normalize_bridge_diagnosis(
+                diagnosis,
+                payload=payload,
+                evidence_quality=evidence_quality,
+            )
             diagnosis_details = dict(diagnosis.error_details or {})
-            diagnosis_details.setdefault("source_selection_path", "jenkins_bridge")
             diagnosis_details.setdefault("jenkins_job_url", payload.job.url)
             diagnosis_details.setdefault("jenkins_delivery_id", payload.delivery_id)
             diagnosis.error_details = diagnosis_details
