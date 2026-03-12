@@ -8,13 +8,24 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
+- _No unreleased entries yet._
+
+## [v0.6.1] - 2026-03-12
+
+### Added
+
+- Added a Terraform-based Azure Bicep equivalent baseline so the platform deployment path can be managed through the same versioned infrastructure workflow. (`6d2dd4e`)
+
 ### Changed
 
-- Clarified Jenkins bridge Activity Detail rendering for low-evidence incidents so bridge-ingest context, Jenkins run outcome, and provider-specific links read honestly instead of appearing like strong scored diagnostics.
+- Clarified Jenkins bridge Activity Detail rendering for low-evidence incidents so bridge-ingest context, Jenkins run outcome, and provider-specific links read honestly instead of appearing like strong scored diagnostics. (`c6f33dd`)
+- Refreshed the README, architecture diagrams, and published demo references so the current platform/release story matches the shipped product surface. (`e2b5f2c`, `f27deda`)
+- Carried forward the `v0.6.0` release baseline on `main` so the patch cut starts from synchronized version metadata and audited changelog state. (`d4b972c`)
 
 ### Fixed
 
-- Replaced vague low-confidence Jenkins bridge suggested-fix fallback text with deterministic uncertainty-aware guidance when the bridge payload only contains summary-level evidence.
+- Replaced vague low-confidence Jenkins bridge suggested-fix fallback text with deterministic uncertainty-aware guidance when the bridge payload only contains summary-level evidence. (`c6f33dd`)
+- Restored dashboard drill-down behavior so repository bars and failure-type pie slices both navigate into Activities with the expected filters, including case-insensitive repository matching for newer repos. (`c6f33dd`)
 
 ## [v0.6.0] - 2026-03-09
 

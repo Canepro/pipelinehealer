@@ -36,7 +36,7 @@ Remaining submission item this doc drives: demo video length must be 2:00 max.
 Default values used in this runbook:
 
 ```bash
-export RELEASE_TAG="${RELEASE_TAG:-v0.6.0}"
+export RELEASE_TAG="${RELEASE_TAG:-v0.6.1}"
 export DEMO_REPO="${DEMO_REPO:-Canepro/pipelinehealer-demo}"
 ```
 
