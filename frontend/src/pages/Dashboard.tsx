@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { api } from "../api/client";
 import type { Activity as ActivityItem } from "../api/client";
 import { EMPTY_STATES } from "../constants/emptyStates";
+import { buildActivitiesDrilldownPath } from "../utils/activityFilters";
 import { copyToClipboard } from "../utils/copyToClipboard";
 import {
   getRepresentativeExternalDiagnostic,
@@ -208,7 +209,8 @@ export default function Dashboard() {
   // Transform failure breakdown for pie chart
   const pieData = failureBreakdown
     ? Object.entries(failureBreakdown).map(([name, value]) => ({
-        name: name.replace("_", " "),
+        failureType: name,
+        name: formatReasonLabel(name),
         value,
       }))
     : [];
@@ -348,9 +350,19 @@ export default function Dashboard() {
     statsError && statsErrorValue instanceof Error
       ? statsErrorValue.message
       : "Stats temporarily unavailable";
+  const handleActivitiesDrilldown = (filters: {
+    repository?: string;
+    failureType?: string;
+  }) => {
+    navigate(buildActivitiesDrilldownPath(filters));
+  };
   const handleRepositoryBarClick = (repositoryName?: string) => {
     if (!repositoryName) return;
-    navigate(`/app/activities?repository=${encodeURIComponent(repositoryName)}`);
+    handleActivitiesDrilldown({ repository: repositoryName });
+  };
+  const handleFailureTypeSliceClick = (failureType?: string) => {
+    if (!failureType) return;
+    handleActivitiesDrilldown({ failureType });
   };
 
   return (
@@ -537,6 +549,9 @@ export default function Dashboard() {
                 {totalFailures}
               </span>
             </p>
+            <p className="text-sm text-[var(--ph-muted)]">
+              Click a slice to open Activities filtered to that failure type.
+            </p>
           </CardHeader>
           <CardContent>
             {pieData.length > 0 ? (
@@ -551,11 +566,21 @@ export default function Dashboard() {
                     fill="#8884d8"
                     paddingAngle={2}
                     dataKey="value"
+                    cursor="pointer"
                     label={({ name, percent }) =>
                       `${name} ${(percent * 100).toFixed(0)}%`
                     }
                     labelLine={false}
                     fontSize={12}
+                    onClick={(
+                      data: { payload?: { failureType?: string } } | undefined,
+                    ) =>
+                      handleFailureTypeSliceClick(
+                        typeof data?.payload?.failureType === "string"
+                          ? data.payload.failureType
+                          : undefined,
+                      )
+                    }
                   >
                     {pieData.map((_, index) => (
                       <Cell
