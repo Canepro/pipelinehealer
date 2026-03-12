@@ -54,7 +54,7 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.6.0` | Released | Diagnosis/remediation hardening + learning-ops rework + operator workflow maturity |
 | `v0.6.1` | Released | Jenkins bridge low-evidence trust hardening + dashboard drill-down reliability |
 
-## Release Target: `v0.6.1` (Patch)
+## Released Target: `v0.6.1` (Patch)
 
 Theme: Jenkins bridge low-evidence trust hardening and operator-copy cleanup.
 
