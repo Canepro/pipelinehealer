@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 6ed6cee -->
+<!-- LAST_VERIFIED: d555eef -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -161,6 +161,11 @@ Receives GitHub `workflow_run` webhook events. This is the primary ingest point 
 #### `POST /webhook/jenkins`
 
 Receives signed Jenkins bridge payloads when `JENKINS_BRIDGE_ENABLED=true`.
+
+Supported sender assets for Jenkins-first repos are shipped in
+[`integrations/jenkins-bridge/`](../integrations/jenkins-bridge/README.md).
+The recommended repo-side capture path is plugin-free workspace excerpt capture,
+with `PH_LOG_EXCERPT_FILE` exported before invoking the bridge sender.
 
 Required headers:
 

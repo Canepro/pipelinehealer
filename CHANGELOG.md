@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 6ed6cee -->
+<!-- LAST_VERIFIED: d555eef -->
 
 All notable changes to this project will be documented in this file.
 
@@ -8,7 +8,13 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Added
+
+- Added a reusable Jenkins bridge integration kit under `integrations/jenkins-bridge`, including an install script, direct-excerpt capture helper, and Jenkinsfile example for Jenkins-first repos.
+
+### Changed
+
+- Standardized the recommended Jenkins evidence-capture pattern around plugin-free workspace excerpts and repo-local shell sender assets instead of script-approval-sensitive Groovy log access.
 
 ## [v0.6.1] - 2026-03-12
 

@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: e2b5f2c -->
+<!-- LAST_VERIFIED: d555eef -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -282,6 +282,7 @@ Enable Jenkins bridge only when you are receiving signed `POST /webhook/jenkins`
 - `JENKINS_BRIDGE_ALLOW_PR=false` is the default safe posture (bridge events stay issue-first).
 - To allow bridge-triggered PR output, set both `JENKINS_BRIDGE_ALLOW_PR=true` and `AUTO_CREATE_PR=true`.
 - The Settings page now includes a Jenkins Bridge setup assistant that generates a sample payload and a signed `curl` smoke test from an ephemeral bridge URL + shared secret input.
+- For repo-side sender assets and the supported evidence-capture pattern, use [integrations/jenkins-bridge/README.md](../integrations/jenkins-bridge/README.md).
 
 Optional external diagnostics fast-path tuning:
 

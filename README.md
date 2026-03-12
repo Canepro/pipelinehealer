@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 8ebafda -->
+<!-- LAST_VERIFIED: d555eef -->
 
 > OSS-first, policy-aware pipeline remediation platform for failed delivery workflows.
 
@@ -47,6 +47,26 @@ Pipeline failures create repetitive triage work and slow delivery. PipelineHeale
 - Demo video: [YouTube walkthrough](https://youtu.be/9iv5ZMKYzts)
 - Latest release: [`v0.6.1`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.6.1)
 - Detailed release history: [CHANGELOG.md](CHANGELOG.md)
+
+## Jenkins Integration Kit
+
+PipelineHealer now ships a reusable Jenkins integration kit for OSS and
+Jenkins-first environments under
+[integrations/jenkins-bridge/](integrations/jenkins-bridge/README.md).
+
+What it provides:
+
+- signed bridge sender assets you can drop into `.jenkins/scripts/`
+- a plugin-free shell capture helper for direct failure excerpts
+- a small install script for repeatable repo onboarding
+- a documented rollout path from repo-local scripts to a Shared Library model
+
+Recommended Jenkins baseline:
+
+- no extra plugin required for the supported shell-capture path
+- Shared Libraries if you want org-wide reuse
+- avoid `currentBuild.rawBuild` or other script-approval-heavy patterns for
+  routine bridge evidence capture
 
 Example remediation stories:
 

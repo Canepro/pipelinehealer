@@ -1,6 +1,6 @@
 # BL-034 Technical Design: Jenkins Bridge Ingestion
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: d555eef -->
 
 Status: Implemented (design + implementation reference)  
 Backlog: `BL-034`  
@@ -240,6 +240,37 @@ Phase 2:
 
 Phase 3:
 - evaluate native Jenkins adapter scope (`BL-035`)
+
+## Supported Jenkins Integration Pattern
+
+The supported Jenkins-side assets now live in
+`integrations/jenkins-bridge/`.
+
+Preferred rollout:
+
+1. repo-local `.jenkins/scripts/` drop-in for first adoption
+2. controller-level Shared Library standardization after the pattern is proven
+
+Preferred evidence path:
+
+- capture the failing shell block into a workspace file with a repo-local shell
+  wrapper
+- export `PH_LOG_EXCERPT_FILE` in `post { failure { ... } }`
+- invoke `send-pipelinehealer-bridge.sh` as the final notifier
+
+Why this is the supported pattern:
+
+- it avoids `currentBuild.rawBuild` and other script-approval-sensitive APIs
+- it works on locked-down controllers and OSS Jenkins setups
+- it produces direct, bounded excerpts instead of depending on `consoleText`
+  scraping
+
+Plugin guidance:
+
+- no extra plugin required for the supported path
+- optional: Shared Libraries for org-wide reuse
+- optional: `Pipeline Utility Steps` when teams want a local `tee` wrapper
+- not required: custom PipelineHealer Jenkins plugins
 
 ## Open Questions
 
