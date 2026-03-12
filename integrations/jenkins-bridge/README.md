@@ -1,6 +1,6 @@
 # Jenkins Bridge Integration Kit
 
-<!-- LAST_VERIFIED: d555eef -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 Reusable Jenkins-side assets for PipelineHealer's signed Jenkins bridge.
 
@@ -76,6 +76,16 @@ That creates:
    sender.
 3. Keep workspace cleanup in `post { cleanup { ... } }`, not before the bridge
    notifier runs.
+
+Important Groovy/Jenkinsfile note:
+
+- prefer `sh '''...'''` for these shell blocks so `${WORKSPACE}` and similar
+  env references are expanded by the shell, not by Groovy
+- if you intentionally use `sh """..."""`, escape Jenkins env references as
+  `\${WORKSPACE}`, `\${BUILD_URL}`, and similar, or use `${env.WORKSPACE}`
+  explicitly
+- this matters for excerpt paths and generated output filenames; unescaped
+  GString interpolation can fail before the bridge helper runs
 
 Example:
 
