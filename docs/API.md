@@ -87,7 +87,7 @@ Unauthenticated health check.
 ```json
 {
   "service": "PipelineHealer",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "status": "healthy",
   "environment": "production",
   "storage_backend": "cosmos_db"
