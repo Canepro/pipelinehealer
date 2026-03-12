@@ -36,7 +36,7 @@ This is the long-form project tracker for hackathon execution status, submission
   - required scope locked to `#36/#42/#57` for submission reliability
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
   - storage extensibility remained adapter-scoped (no core workflow rewrites during freeze)
-- Release `v0.6.1` is the current release candidate on this branch and becomes the public baseline once the tag is pushed.
+- Release `v0.6.1` is the current public baseline.
 - `v0.5.8` shipped:
   - Settings and Control Center now distinguish configured, provider-ready, operation-compatible, full-capability, degraded, and scaffolded runtime states
 - `v0.5.9` shipped:
