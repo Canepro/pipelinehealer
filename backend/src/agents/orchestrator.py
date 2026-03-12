@@ -316,6 +316,7 @@ class OrchestratorAgent:
             evidence_quality == "summary_only"
             and (diagnosis.failure_type == FailureType.UNKNOWN or float(diagnosis.confidence) < 0.5)
         ):
+            diagnosis.failure_type = FailureType.UNKNOWN
             details["classification_state"] = "insufficient_jenkins_evidence"
             details["classification_reason"] = (
                 "Jenkins bridge payload included summary text only; no log excerpt or structured findings "

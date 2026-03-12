@@ -162,3 +162,26 @@ async def test_process_bridge_failure_keeps_richer_bridge_diagnosis_intact() -> 
     assert activity.diagnosis.error_details["bridge_evidence_quality"] == "log_excerpt"
     assert "classification_state" not in activity.diagnosis.error_details
     assert activity.external_diagnostics[0].metadata["display_state"] == "log_excerpt"
+
+
+@pytest.mark.asyncio
+async def test_process_bridge_failure_resets_specific_low_confidence_type_to_unknown() -> None:
+    storage = InMemoryStorage()
+    orchestrator = OrchestratorAgent(github_tools=_DummyGitHubTools(), storage=storage)  # type: ignore[arg-type]
+    orchestrator._diagnosis_agent = _StaticDiagnosisAgent(  # type: ignore[assignment]
+        Diagnosis(
+            failure_type=FailureType.BUILD_CONFIG,
+            confidence=0.4,
+            root_cause="Potential configuration drift",
+            suggested_fix="Inspect the build settings.",
+            is_auto_fixable=False,
+        )
+    )
+    orchestrator._remediation_agent = _StaticRemediationAgent()  # type: ignore[assignment]
+    orchestrator._learning_context_retriever = _EmptyLearningContextRetriever()  # type: ignore[assignment]
+
+    activity = await orchestrator.process_bridge_failure(_payload(log_excerpt=""))
+
+    assert activity.diagnosis is not None
+    assert activity.diagnosis.failure_type == FailureType.UNKNOWN
+    assert activity.diagnosis.error_details["classification_state"] == "insufficient_jenkins_evidence"
