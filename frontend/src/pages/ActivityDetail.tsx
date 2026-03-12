@@ -1131,10 +1131,14 @@ export default function ActivityDetail() {
     typeof diagnosisDetails?.classification_reason === "string"
       ? diagnosisDetails.classification_reason.trim()
       : "";
+  const bridgeClassificationState =
+    typeof diagnosisDetails?.bridge_classification_state === "string"
+      ? diagnosisDetails.bridge_classification_state.trim()
+      : "";
   const lowEvidenceBridge =
     isJenkinsBridge &&
     (bridgeEvidenceQuality === "summary_only" ||
-      typeof diagnosisDetails?.classification_state === "string");
+      bridgeClassificationState === "summary_only_context");
   const sourceRunResultRaw =
     typeof sourceMetadata.job_result === "string"
       ? sourceMetadata.job_result

@@ -29,6 +29,11 @@ import { api } from "../api/client";
 import type { Activity as ActivityItem } from "../api/client";
 import { EMPTY_STATES } from "../constants/emptyStates";
 import { copyToClipboard } from "../utils/copyToClipboard";
+import {
+  getRepresentativeExternalDiagnostic,
+  hasStrongExternalDiagnostic,
+  isContextOnlyExternalDiagnostic,
+} from "../utils/externalDiagnostics";
 import StatsCard from "../components/StatsCard";
 import ActivityTable from "../components/ActivityTable";
 import { Button } from "@/components/ui/button";
@@ -149,11 +154,11 @@ function getEvidenceLines(activity: ActivityItem | null): string[] {
   }
   if (lines.length > 0) return lines.slice(0, 2);
 
-  const diagnostics = activity?.external_diagnostics ?? [];
-  const representative =
-    diagnostics.find((item) => item.status === "available") ??
-    diagnostics.find((item) => item.summary && item.summary.trim().length > 0);
+  const representative = activity
+    ? getRepresentativeExternalDiagnostic(activity)
+    : null;
   if (!representative) return [];
+  if (isContextOnlyExternalDiagnostic(representative)) return [];
   const meta = representative.metadata as Record<string, unknown>;
   const detailsBlock = meta.details as Record<string, unknown> | undefined;
   if (detailsBlock) {
@@ -330,11 +335,8 @@ export default function Dashboard() {
   }, [activities]);
   const externalSignalCount = useMemo(
     () =>
-      (activities || []).filter((activity) =>
-        (activity.external_diagnostics || []).some(
-          (item) => item.status === "available",
-        ),
-      ).length,
+      (activities || []).filter((activity) => hasStrongExternalDiagnostic(activity))
+        .length,
     [activities],
   );
   const lastUpdatedLabel = stats?.last_updated
