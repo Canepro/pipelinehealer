@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 6d2dd4e -->
+<!-- LAST_VERIFIED: d555eef -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -53,6 +53,33 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.5.9` | Released | Capability-validation evidence freshness and paging hardening |
 | `v0.6.0` | Released | Diagnosis/remediation hardening + learning-ops rework + operator workflow maturity |
 | `v0.6.1` | Released | Jenkins bridge low-evidence trust hardening + dashboard drill-down reliability |
+
+## Release Target: `v0.7.0` (Minor)
+
+Theme: reusable Jenkins integration kit and evidence-first bridge capture.
+
+### Must-Have Scope
+
+1. Reusable Jenkins integration assets
+   - publish a supported Jenkins bridge install kit inside the PipelineHealer repo
+   - include sender, tooling bootstrap, evidence helper, and Jenkinsfile example assets
+2. Repeatable onboarding pattern
+   - support repo-local adoption first, with a documented Shared Library rollout path for larger Jenkins estates
+   - keep the integration portable across OSS Jenkins, multibranch jobs, PR jobs, and scheduled jobs
+3. Evidence quality hardening
+   - standardize on direct workspace-captured excerpts using a plugin-free shell wrapper
+   - avoid script-approval-sensitive Groovy APIs as the primary guidance path
+4. Documentation and release clarity
+   - document the supported Jenkins plugin baseline and failure-path expectations
+   - keep this release scoped to bridge evidence quality and packaging, not native Jenkins provider parity
+
+### Exit Criteria
+
+1. The PipelineHealer repo ships a documented Jenkins integration kit under `integrations/jenkins-bridge`.
+2. Repo maintainers can install the bridge assets into a Jenkins repo with one command and a documented Jenkinsfile snippet.
+3. The recommended capture pattern produces `log_excerpt` bridge evidence on a real failing Jenkins build.
+4. Docs clearly distinguish the supported plugin-free capture pattern from non-portable script-approval-heavy alternatives.
+5. The work lands as `v0.7.0`, `minor`, and `Added`/`Changed` scoped PRs.
 
 ## Released Target: `v0.6.1` (Patch)
 

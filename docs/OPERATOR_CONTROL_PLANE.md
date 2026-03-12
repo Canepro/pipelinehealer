@@ -1,4 +1,4 @@
-<!-- LAST_VERIFIED: c9f507b -->
+<!-- LAST_VERIFIED: d555eef -->
 
 # Operator Control Plane
 
@@ -125,6 +125,12 @@ Examples:
 - provider credentials for third-party integrations
 
 These should expose both configuration state and dependency state.
+
+For Jenkins specifically, the supported sender path should stay portable:
+
+- repo-local or Shared Library managed bridge assets
+- plugin-free failure excerpt capture as the baseline path
+- no requirement for custom Jenkins plugins or controller-local script approvals
 
 ## Provenance Model
 
