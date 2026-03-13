@@ -10,8 +10,8 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ### Fixed
 
-- Reduced Jenkins-bridge Azure diagnosis failures by sanitizing prompt-shaped log content before LLM diagnosis, retrying once with an aggressive sanitized prompt on provider content-filter errors, and degrading to a structured fallback diagnosis instead of surfacing the raw Azure exception. (`ab7f344`)
-- Extended the Jenkins bridge contract with optional structured failure metadata (`result`, `tool`, `exit_code`, `error_lines`) so bridge-ingested incidents no longer depend only on raw excerpt re-parsing when richer CI context is available. (`ab7f344`)
+- Reduced Jenkins-bridge Azure diagnosis failures by sanitizing prompt-shaped log content before LLM diagnosis, retrying once with an aggressive sanitized prompt on provider content-filter errors, and degrading to a structured fallback diagnosis instead of surfacing the raw Azure exception. (`a9d7627`)
+- Extended the Jenkins bridge contract with optional structured failure metadata (`result`, `tool`, `exit_code`, `error_lines`) so bridge-ingested incidents no longer depend only on raw excerpt re-parsing when richer CI context is available. (`308a7ef`)
 
 ## [v0.7.0] - 2026-03-13
 
