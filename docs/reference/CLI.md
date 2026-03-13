@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 83805e7 -->
+<!-- LAST_VERIFIED: 97abf04 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -270,6 +270,10 @@ bash scripts/ph.sh aoai:check
 
 `settings:check` now exposes per-field provenance metadata from the backend API, including startup-managed vs runtime override state, restart requirements, setup checklist readiness, and presence-only sensitive signals for hidden startup configuration.
 
+Secret backend note:
+- runtime-secret portability does not depend on Azure; non-Azure deployments can keep `SETTINGS_SECRET_BACKEND=encrypted_db`
+- `settings:persist` does not provision or migrate secret backends; it remains the env-sync/compatibility layer around already-supported runtime settings flows
+
 `aoai:check` is a local-container smoke, not a remote backend probe:
 - it runs inside the local backend container via compose
 - it uses non-interactive `exec -T`, so it works over SSH and in CI-style shells
@@ -287,6 +291,7 @@ Behavior notes:
 - Command then calls `POST /api/settings/persist` only to record the deprecated compatibility audit event expected by older tooling.
 - Local `.env` write + optional `deploy:env` redeploy still run as before for startup-managed env sync.
 - If backend/API auth is unavailable, command falls back to local `.env` persistence only and prints an explicit unaudited warning.
+- This command does not replace the portable/default secret backend model; runtime-secret storage still depends on the backend process configuration (`SETTINGS_SECRET_BACKEND`).
 - Repo allowlist edits are safe by default:
   - `--repos-add` (or alias `--repos`) merges into existing `PH_ALLOWED_REPOS`
   - `--repos-remove` removes entries from existing `PH_ALLOWED_REPOS`
@@ -317,6 +322,10 @@ bash scripts/ph.sh settings:persist --llm-model-analysis gpt-5-mini-fast --llm-m
 bash scripts/ph.sh settings:persist --clear-repos
 bash scripts/ph.sh settings:persist --clear-mcp-repo-allowlist
 ```
+
+Recommended use:
+- use the Settings UI or direct API for normal runtime-safe operator changes
+- use `settings:persist` when you intentionally need local env sync, compatibility audit proof, or startup override redeploy behavior
 
 | Flag | Values | Description |
 |------|--------|-------------|

@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 83805e7 -->
+<!-- LAST_VERIFIED: 97abf04 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -877,6 +877,8 @@ Notes:
 - This endpoint never returns plaintext secret values.
 - `source=env` means startup-managed env currently overrides the runtime secret-store value.
 - Supported runtime-managed secret keys include provider API keys, GitHub auth secrets, Jenkins bridge shared secret, and the Assign-to-Agent destination URL.
+- `backend=encrypted_db` is the OSS-portable/default runtime secret backend for AWS/GCP/OCI/self-hosted deployments.
+- `backend=azure_key_vault` is an optional Azure-native backend, not a required product dependency.
 
 #### `PATCH /api/settings/secrets`
 
@@ -913,6 +915,10 @@ Rules:
 - Creates an admin audit entry with `set`, `rotated`, or `cleared` actions per secret key
 - Refreshes runtime services that depend on secret-backed settings
 - Persists the effective runtime secret to the configured secret backend immediately
+
+Backend notes:
+- `SETTINGS_SECRET_BACKEND=encrypted_db` keeps runtime-secret management portable across non-Azure deployments.
+- `SETTINGS_SECRET_BACKEND=azure_key_vault` is available when you intentionally want Azure Key Vault integration.
 
 #### `GET /api/settings/llm/provider-health`
 
