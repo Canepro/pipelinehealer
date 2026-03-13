@@ -1371,6 +1371,7 @@ async def test_env_overrides_win_over_persisted_runtime_settings_and_secrets(mon
     settings = get_settings()
     settings.heal_mode = "debug"
     settings.openai_compatible_api_key = ""
+    settings.settings_db_encryption_key = "0123456789abcdef0123456789abcdef"
 
     secret_patch = await _patch_secret_settings(
         {"secrets": {"openai_compatible_api_key": {"value": "ui-openai-key"}}},
@@ -1382,3 +1383,56 @@ async def test_env_overrides_win_over_persisted_runtime_settings_and_secrets(mon
 
     assert settings.heal_mode == "safe"
     assert settings.openai_compatible_api_key == "env-openai-key"
+
+
+@pytest.mark.asyncio
+async def test_default_env_file_wins_over_persisted_runtime_settings_and_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.delenv("PIPELINEHEALER_ENV_FILE_PATH", raising=False)
+    monkeypatch.delenv("HEAL_MODE", raising=False)
+    monkeypatch.delenv("OPENAI_COMPATIBLE_API_KEY", raising=False)
+    monkeypatch.delenv("SETTINGS_DB_ENCRYPTION_KEY", raising=False)
+    reset_settings()
+
+    env_file = tmp_path / "default-backend.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "HEAL_MODE=safe",
+                "OPENAI_COMPATIBLE_API_KEY=env-file-openai-key",
+                "SETTINGS_DB_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(dashboard, "_env_file_path", lambda: env_file)
+    monkeypatch.setattr(
+        dashboard,
+        "load_settings_snapshot",
+        lambda: Settings(_env_file=env_file),  # type: ignore[call-arg]
+    )
+
+    storage = InMemoryStorage()
+    await storage.upsert_runtime_settings({"heal_mode": "demo"})
+    app.state.storage = storage
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+    settings = get_settings()
+    settings.heal_mode = "debug"
+    settings.openai_compatible_api_key = ""
+    settings.settings_db_encryption_key = "0123456789abcdef0123456789abcdef"
+
+    secret_patch = await _patch_secret_settings(
+        {"secrets": {"openai_compatible_api_key": {"value": "ui-openai-key"}}},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert secret_patch.status_code == 200
+
+    await dashboard.apply_persisted_runtime_settings(storage, app.state.workflow)  # type: ignore[arg-type]
+
+    assert settings.heal_mode == "safe"
+    assert settings.openai_compatible_api_key == "env-file-openai-key"

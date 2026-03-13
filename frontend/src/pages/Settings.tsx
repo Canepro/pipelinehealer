@@ -274,8 +274,12 @@ export default function SettingsPage() {
         },
       });
     },
-    onSuccess: async () => {
-      setSecretDrafts((current) => ({ ...current }));
+    onSuccess: async (_data, variables) => {
+      setSecretDrafts((current) => {
+        const next = { ...current };
+        delete next[variables.key];
+        return next;
+      });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["secret-settings", adminKey, useSessionAuth] }),
         queryClient.invalidateQueries({ queryKey: ["app-settings", adminKey, useSessionAuth] }),

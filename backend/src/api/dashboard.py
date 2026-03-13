@@ -335,17 +335,15 @@ def _startup_configured_fields() -> set[str]:
         if os.getenv(spec.env_var) is not None:
             configured.add(key)
 
-    env_file_override = os.getenv("PIPELINEHEALER_ENV_FILE_PATH", "").strip()
-    if env_file_override:
-        env_path = Path(env_file_override)
-        if env_path.exists():
-            try:
-                values = dotenv_values(env_path)
-            except Exception:
-                values = {}
-            for key, spec in ALL_SETTING_SPECS_BY_KEY.items():
-                if spec.env_var in values:
-                    configured.add(key)
+    env_path = _env_file_path()
+    if env_path.exists():
+        try:
+            values = dotenv_values(env_path)
+        except Exception:
+            values = {}
+        for key, spec in ALL_SETTING_SPECS_BY_KEY.items():
+            if spec.env_var in values:
+                configured.add(key)
 
     return configured
 
