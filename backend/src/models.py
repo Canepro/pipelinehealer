@@ -158,8 +158,12 @@ class JenkinsBridgeFailure(BaseModel):
 
     stage: str = ""
     step: str = ""
+    result: str = ""
+    tool: str = ""
     command: str = ""
+    exit_code: int | None = None
     summary: str
+    error_lines: list[str] = Field(default_factory=list)
     log_excerpt: str = Field(default="", max_length=20000)
 
 

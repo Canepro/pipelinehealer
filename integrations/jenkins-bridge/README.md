@@ -77,6 +77,16 @@ That creates:
 3. Keep workspace cleanup in `post { cleanup { ... } }`, not before the bridge
    notifier runs.
 
+Optional structured bridge fields:
+
+- `PH_FAILURE_COMMAND` — explicit failing command
+- `PH_FAILURE_RESULT` — stage/step result when it differs from the overall job result
+- `PH_FAILURE_TOOL` — tool name (`terraform`, `checkov`, `trivy`, etc.)
+- `PH_FAILURE_EXIT_CODE` — numeric exit code
+- `PH_FAILURE_ERROR_LINES` — newline-delimited extracted error lines
+
+These are additive hints. The bridge remains backward-compatible when they are absent.
+
 Important Groovy/Jenkinsfile note:
 
 - prefer `sh '''...'''` for these shell blocks so `${WORKSPACE}` and similar

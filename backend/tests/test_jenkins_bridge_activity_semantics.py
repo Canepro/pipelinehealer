@@ -36,6 +36,25 @@ class _StaticDiagnosisAgent:
         return self._diagnosis.model_copy(deep=True)
 
 
+class _CapturingDiagnosisAgent:
+    def __init__(self, diagnosis: Diagnosis) -> None:
+        self._diagnosis = diagnosis
+        self.log_analyses = None
+        self.workflow_info = None
+
+    def refresh_runtime_settings(self) -> None:
+        return None
+
+    def preview_pattern_diagnosis(self, log_analyses):  # type: ignore[no-untyped-def]
+        _ = log_analyses
+        return None
+
+    async def diagnose(self, log_analyses, **kwargs) -> Diagnosis:  # type: ignore[no-untyped-def]
+        self.log_analyses = log_analyses
+        self.workflow_info = kwargs.get("workflow_info")
+        return self._diagnosis.model_copy(deep=True)
+
+
 class _StaticRemediationAgent:
     def refresh_runtime_settings(self) -> None:
         return None
@@ -75,8 +94,12 @@ def _payload(*, log_excerpt: str) -> JenkinsBridgePayload:
             "failure": {
                 "stage": "security-validation",
                 "step": "security-validation",
+                "result": "FAILURE",
+                "tool": "checkov",
                 "command": "",
+                "exit_code": 1,
                 "summary": "Scheduled Jenkins security validation failed",
+                "error_lines": [],
                 "log_excerpt": log_excerpt,
             },
             "artifacts": [],
@@ -185,3 +208,48 @@ async def test_process_bridge_failure_resets_specific_low_confidence_type_to_unk
     assert activity.diagnosis is not None
     assert activity.diagnosis.failure_type == FailureType.UNKNOWN
     assert activity.diagnosis.error_details["classification_state"] == "insufficient_jenkins_evidence"
+
+
+@pytest.mark.asyncio
+async def test_process_bridge_failure_prefers_structured_error_lines_and_metadata() -> None:
+    storage = InMemoryStorage()
+    orchestrator = OrchestratorAgent(github_tools=_DummyGitHubTools(), storage=storage)  # type: ignore[arg-type]
+    diagnosis_agent = _CapturingDiagnosisAgent(  # type: ignore[assignment]
+        Diagnosis(
+            failure_type=FailureType.BUILD_CONFIG,
+            confidence=0.8,
+            root_cause="Tool-reported validation failure",
+            suggested_fix="Inspect the structured failure metadata.",
+            is_auto_fixable=False,
+        )
+    )
+    orchestrator._diagnosis_agent = diagnosis_agent  # type: ignore[assignment]
+    orchestrator._remediation_agent = _StaticRemediationAgent()  # type: ignore[assignment]
+    orchestrator._learning_context_retriever = _EmptyLearningContextRetriever()  # type: ignore[assignment]
+
+    payload = _payload(log_excerpt="verbose log noise\nmore lines")
+    payload.failure.command = "checkov -d ."
+    payload.failure.tool = "checkov"
+    payload.failure.result = "FAILURE"
+    payload.failure.exit_code = 1
+    payload.failure.error_lines = [
+        "checkov -d .",
+        "Bridge reported structured error line",
+    ]
+
+    activity = await orchestrator.process_bridge_failure(payload)
+
+    assert diagnosis_agent.log_analyses is not None
+    assert diagnosis_agent.log_analyses[0].error_lines == [
+        "checkov -d .",
+        "Bridge reported structured error line",
+    ]
+    assert diagnosis_agent.workflow_info["jenkins_failure_tool"] == "checkov"
+    assert diagnosis_agent.workflow_info["jenkins_failure_exit_code"] == 1
+    assert diagnosis_agent.workflow_info["jenkins_failure_result"] == "FAILURE"
+    assert activity.failure_context is not None
+    assert activity.failure_context.failing_command == "checkov -d ."
+    assert activity.diagnosis is not None
+    assert activity.diagnosis.error_details["failing_tool"] == "checkov"
+    assert activity.diagnosis.error_details["exit_code"] == 1
+    assert activity.diagnosis.error_details["stage_result"] == "FAILURE"
