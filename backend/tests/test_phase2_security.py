@@ -431,6 +431,35 @@ async def test_settings_env_file_override_controls_startup_provenance(monkeypatc
     assert body["settings_metadata"]["heal_mode"]["source"] == "env"
 
 
+def test_startup_configured_fields_caches_env_file_until_file_changes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text("HEAL_MODE=freestyle\n", encoding="utf-8")
+    monkeypatch.setenv("PIPELINEHEALER_ENV_FILE_PATH", str(env_file))
+    dashboard.clear_settings_runtime_provenance()
+
+    call_count = 0
+    original_dotenv_values = dashboard.dotenv_values
+
+    def _counting_dotenv_values(path: Path):  # type: ignore[no-untyped-def]
+        nonlocal call_count
+        call_count += 1
+        return original_dotenv_values(path)
+
+    monkeypatch.setattr(dashboard, "dotenv_values", _counting_dotenv_values)
+
+    assert "heal_mode" in dashboard._startup_configured_fields()
+    assert "heal_mode" in dashboard._startup_configured_fields()
+    assert call_count == 1
+
+    env_file.write_text("HEAL_MODE=demo\n", encoding="utf-8")
+
+    assert "heal_mode" in dashboard._startup_configured_fields()
+    assert call_count == 2
+
+
 @pytest.mark.asyncio
 async def test_settings_distinguish_github_app_configuration_from_live_pat_runtime(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")

@@ -76,6 +76,8 @@ _HOSTNAME_RE = re.compile(r"^[a-z0-9.-]+$")
 _AGENT_HANDOFF_MAX_AUDIT_ENTRIES = 30
 _runtime_override_keys: set[str] = set()
 _persisted_runtime_override_keys: set[str] = set()
+_startup_configured_fields_cache_signature: tuple[Any, ...] | None = None
+_startup_configured_fields_cache_value: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -330,13 +332,41 @@ def _setting_source_for_attr(attr_name: str, startup_fields_set: set[str]) -> Ap
 
 def _startup_configured_fields() -> set[str]:
     """Return settings keys explicitly configured through env or the selected env file."""
-    configured: set[str] = set()
-    for key, spec in ALL_SETTING_SPECS_BY_KEY.items():
-        if os.getenv(spec.env_var) is not None:
-            configured.add(key)
-
     env_path = _env_file_path()
-    if env_path.exists():
+    try:
+        env_stat = env_path.stat()
+        env_file_marker: tuple[str, int | None, int | None] = (
+            str(env_path),
+            env_stat.st_mtime_ns,
+            env_stat.st_size,
+        )
+    except FileNotFoundError:
+        env_file_marker = (str(env_path), None, None)
+
+    explicit_env = tuple(
+        sorted(
+            (spec.env_var, value)
+            for spec in ALL_SETTING_SPECS_BY_KEY.values()
+            if (value := os.getenv(spec.env_var)) is not None
+        )
+    )
+    override_env = (
+        os.getenv("PIPELINEHEALER_ENV_FILE_PATH"),
+        os.getenv("PIPELINEHEALER_REPO_ROOT"),
+    )
+    signature = (override_env, env_file_marker, explicit_env)
+
+    global _startup_configured_fields_cache_signature, _startup_configured_fields_cache_value
+    if signature == _startup_configured_fields_cache_signature:
+        return set(_startup_configured_fields_cache_value)
+
+    configured = {
+        key
+        for key, spec in ALL_SETTING_SPECS_BY_KEY.items()
+        if os.getenv(spec.env_var) is not None
+    }
+
+    if env_file_marker[1] is not None:
         try:
             values = dotenv_values(env_path)
         except Exception:
@@ -345,6 +375,8 @@ def _startup_configured_fields() -> set[str]:
             if spec.env_var in values:
                 configured.add(key)
 
+    _startup_configured_fields_cache_signature = signature
+    _startup_configured_fields_cache_value = frozenset(configured)
     return configured
 
 
@@ -686,8 +718,11 @@ def clear_admin_settings_audit() -> None:
 
 def clear_settings_runtime_provenance() -> None:
     """Clear in-process runtime provenance markers (useful for tests)."""
+    global _startup_configured_fields_cache_signature, _startup_configured_fields_cache_value
     _runtime_override_keys.clear()
     _persisted_runtime_override_keys.clear()
+    _startup_configured_fields_cache_signature = None
+    _startup_configured_fields_cache_value = frozenset()
 
 
 def _build_admin_settings_actor_fingerprint(
