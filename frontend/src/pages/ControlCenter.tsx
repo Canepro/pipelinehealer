@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../api/client";
+import { getActivitySourceInfo } from "../utils/activitySource";
 import { copyToClipboard } from "../utils/copyToClipboard";
 import type {
   Activity,
@@ -830,10 +831,9 @@ export default function ControlCenterPage() {
   };
 
   const latestActivity = recentActivities?.[0];
-  const latestRunUrl =
-    latestActivity?.repository_name && latestActivity?.workflow_run_id
-      ? `https://github.com/${latestActivity.repository_name}/actions/runs/${latestActivity.workflow_run_id}`
-      : null;
+  const latestActivitySourceInfo = latestActivity
+    ? getActivitySourceInfo(latestActivity)
+    : null;
 
   const mcpToolRows = useMemo(() => {
     if (!settings) return [];
@@ -1784,14 +1784,14 @@ export default function ControlCenterPage() {
                           <ExternalLink className="ml-1 h-3.5 w-3.5" />
                         </a>
                       </Button>
-                      {latestRunUrl && (
+                      {latestActivitySourceInfo?.runUrl && (
                         <Button asChild size="sm" variant="ghost">
                           <a
-                            href={latestRunUrl}
+                            href={latestActivitySourceInfo.runUrl}
                             rel="noopener noreferrer"
                             target="_blank"
                           >
-                            Latest Workflow Run
+                            Latest {latestActivitySourceInfo.runLabel}
                             <ExternalLink className="ml-1 h-3.5 w-3.5" />
                           </a>
                         </Button>

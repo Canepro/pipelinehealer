@@ -3,6 +3,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { ExternalLink, GitBranch } from 'lucide-react'
 import type { Activity } from '../api/client'
 import { EMPTY_STATES } from '../constants/emptyStates'
+import { getActivitySourceInfo } from '../utils/activitySource'
 import { formatSourceLabel } from '../utils/formatSourceLabel'
 import {
   getRepresentativeExternalDiagnostic,
@@ -251,6 +252,7 @@ export default function ActivityTable({
           const statusTags = getStatusTags(activity)
           const visibleStatusTags = statusTags.slice(0, MAX_STATUS_TAGS)
           const hiddenStatusTagCount = Math.max(statusTags.length - visibleStatusTags.length, 0)
+          const sourceInfo = getActivitySourceInfo(activity)
           return (
             <div
               key={activity.id}
@@ -267,7 +269,9 @@ export default function ActivityTable({
                   >
                     {activity.repository_name}
                   </p>
-                  <p className="text-xs text-[var(--ph-muted)]">Run #{activity.workflow_run_id}</p>
+                  <p className="text-xs text-[var(--ph-muted)]">
+                    {sourceInfo.providerLabel} • {sourceInfo.runNumberLabel}
+                  </p>
                 </div>
                 <StatusBadge status={activity.status} size="sm" />
               </div>
@@ -379,6 +383,7 @@ export default function ActivityTable({
                 const visibleStatusTags = statusTags.slice(0, MAX_STATUS_TAGS)
                 const hiddenStatusTagCount = Math.max(statusTags.length - visibleStatusTags.length, 0)
                 const failureContext = getFailureContext(activity)
+                const sourceInfo = getActivitySourceInfo(activity)
                 return (
                   <tr
                     key={activity.id}
@@ -393,13 +398,15 @@ export default function ActivityTable({
                         <div>
                           <div
                             className="max-w-[180px] truncate text-sm font-medium text-[var(--ph-text)]"
-                            title={activity.repository_name.split('/')[1]}
+                            title={sourceInfo.repositoryPrimary}
                           >
-                            {activity.repository_name.split('/')[1]}
+                            {sourceInfo.repositoryPrimary}
                           </div>
-                          <div className="text-xs text-[var(--ph-muted)]">
-                            {activity.repository_name.split('/')[0]}
-                          </div>
+                          {sourceInfo.repositorySecondary && (
+                            <div className="text-xs text-[var(--ph-muted)]">
+                              {sourceInfo.repositorySecondary}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -411,7 +418,7 @@ export default function ActivityTable({
                         {activity.workflow_name}
                       </div>
                       <div className="text-xs text-[var(--ph-muted)]">
-                        Run #{activity.workflow_run_id}
+                        {sourceInfo.providerLabel} • {sourceInfo.runNumberLabel}
                       </div>
                     </td>
                     <td className="p-4 align-middle">

@@ -1,7 +1,7 @@
 export const EMPTY_STATES = {
   activities: {
     title: 'No activities yet',
-    body: 'When PipelineHealer processes a workflow run, it will appear here.',
+    body: 'When PipelineHealer processes a GitHub Actions run or Jenkins bridge activity, it will appear here.',
   },
   safetyGated: {
     title: 'No safety-gated cases',
@@ -12,4 +12,3 @@ export const EMPTY_STATES = {
     body: 'Load audit after making an admin change. Audit is intentionally not fetched automatically.',
   },
 } as const
-
