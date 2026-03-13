@@ -198,14 +198,20 @@ export interface AppSettings {
   log_prompt_tail_chars: number
   verify_webhook_signature: boolean
   verify_webhook_signature_in_development: boolean
+  settings_secret_backend: 'encrypted_db' | 'azure_key_vault'
   api_auth_enabled: boolean
   admin_api_auth_enabled: boolean
   auth_mode: string
   entra_auth_enabled: boolean
   entra_admin_roles: string[]
+  github_app_id: string
   github_pat_configured: boolean
   github_app_configured: boolean
   github_auth_mode: string
+  jenkins_bridge_enabled: boolean
+  jenkins_bridge_max_skew_seconds: number
+  jenkins_bridge_replay_ttl_seconds: number
+  jenkins_bridge_max_body_bytes: number
   gh_aw_tools_enabled: boolean
   gh_aw_ingestion_mode: string
   gh_aw_known_workflows: string[]
@@ -239,7 +245,23 @@ export interface AppSettings {
   azure_openai_deployment_name: string
   azure_openai_api_version: string
   azure_openai_chat_api_version: string
+  setup_status: SetupStatus
   settings_metadata: Record<string, AppSettingMetadata>
+}
+
+export interface SetupCheck {
+  ready: boolean
+  detail: string
+}
+
+export interface SetupStatus {
+  ready: boolean
+  storage_bootstrap: SetupCheck
+  auth_bootstrap: SetupCheck
+  secret_backend: SetupCheck
+  llm_runtime: SetupCheck
+  github_runtime: SetupCheck
+  webhook_secrets: SetupCheck
 }
 
 export type AppSettingSource =
@@ -256,6 +278,23 @@ export interface AppSettingMetadata {
   durable: boolean
   sensitive: boolean
   note: string
+}
+
+export interface SecretSetting {
+  key: string
+  configured: boolean
+  source: 'env' | 'secret_store' | 'missing'
+  backend: string
+  requires_restart: boolean
+  overridden_by_env: boolean
+  last_updated_at?: string | null
+  safe_hint?: string | null
+  note: string
+}
+
+export interface SecretWriteRequest {
+  value?: string | null
+  clear?: boolean
 }
 
 export interface LLMProviderHealth {
@@ -370,6 +409,7 @@ export interface AdminSettingsUpdate {
   auto_retry_workflow?: boolean
   auto_create_tracking_issue_for_prs?: boolean
   max_remediation_attempts?: number
+  verify_webhook_signature?: boolean
   verify_webhook_signature_in_development?: boolean
   pipeline_step_timeout_seconds?: number
   github_api_max_retries?: number
@@ -388,11 +428,15 @@ export interface AdminSettingsUpdate {
   agent_handoff_max_retries?: number
   ph_allowed_repos?: string[]
   llm_provider?: 'azure_openai' | 'openai_compatible' | 'custom'
+  azure_openai_endpoint?: string
+  azure_openai_api_version?: string
+  azure_openai_chat_api_version?: string
   openai_compatible_base_url?: string
   openai_compatible_model?: string
   llm_model_analysis?: string
   llm_model_diagnosis?: string
   llm_model_remediation?: string
+  github_app_id?: string
   mcp_enabled?: boolean
   mcp_provider?: 'disabled' | 'github' | 'azure_monitor' | 'custom'
   mcp_read_only?: boolean
@@ -400,6 +444,10 @@ export interface AdminSettingsUpdate {
   mcp_max_retries?: number
   mcp_tool_policies?: Record<string, 'disabled' | 'read_only' | 'write_with_approval' | 'auto'>
   mcp_repo_allowlist?: string[]
+  jenkins_bridge_enabled?: boolean
+  jenkins_bridge_max_skew_seconds?: number
+  jenkins_bridge_replay_ttl_seconds?: number
+  jenkins_bridge_max_body_bytes?: number
   azure_openai_deployment_name?: string
 }
 
@@ -409,6 +457,7 @@ export interface AdminSettingsPersistResponse {
   redeploy_attempted: boolean
   redeploy_started: boolean
   redeploy_message: string
+  deprecated: boolean
 }
 
 export type LearningQueueStatus = 'candidate' | 'approved' | 'rejected' | 'active' | 'retired'
@@ -586,6 +635,8 @@ export const api = {
   getStats: () => fetchJson<DashboardStats>('/api/stats'),
   getSettings: (adminKey?: string) =>
     fetchJson<AppSettings>('/api/settings', { adminKey }),
+  getSecretSettings: (adminKey?: string) =>
+    fetchJson<SecretSetting[]>('/api/settings/secrets', { adminKey }),
   // Intentionally not auto-loaded.
   // Admin audit access is gated and activated via explicit UI action.
   getSettingsAudit: (adminKey: string | undefined, limit = 50) =>
@@ -599,6 +650,15 @@ export const api = {
     fetchJson<MCPProviderHealth>('/api/settings/mcp/provider-health', { adminKey }),
   updateSettings: (adminKey: string | undefined, payload: AdminSettingsUpdate) =>
     fetchJson<AppSettings>('/api/settings', {
+      method: 'PATCH',
+      adminKey,
+      body: JSON.stringify(payload),
+    }),
+  updateSecretSettings: (
+    adminKey: string | undefined,
+    payload: { secrets: Record<string, SecretWriteRequest> }
+  ) =>
+    fetchJson<SecretSetting[]>('/api/settings/secrets', {
       method: 'PATCH',
       adminKey,
       body: JSON.stringify(payload),

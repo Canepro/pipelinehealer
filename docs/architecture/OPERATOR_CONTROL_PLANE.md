@@ -1,4 +1,4 @@
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 83805e7 -->
 
 # Operator Control Plane
 
@@ -64,6 +64,8 @@ Deployment-only wiring is acceptable for:
 
 But the normal operator flow should be available through the product surface whenever the feature is considered supported.
 
+When sensitive values are operator-managed, they should use a dedicated write-only secret surface rather than leaking into generic runtime settings payloads.
+
 ### 4. Configured vs effective must be explicit
 
 The UI must not blur:
@@ -113,6 +115,27 @@ Examples:
 - MCP tool policies
 - diagnostics mode and wait budgets
 - operator-facing capability gates
+- runtime-safe provider endpoints, model-routing fields, and non-secret integration wiring
+
+These settings should persist durably when changed through the supported product surface. Deployment env can still override the same logical keys at startup, and that precedence must remain visible to operators.
+
+### Runtime-managed secrets
+
+Sensitive values that are safe to manage from the operator surface, but should never be echoed back after write.
+
+Examples:
+
+- provider API keys
+- GitHub PAT and GitHub App private key material
+- Jenkins bridge shared secret
+- Assign-to-Agent webhook destination URL
+
+These should expose metadata, not plaintext:
+
+- configured vs missing
+- storage backend or external reference
+- environment override state
+- safe hints when appropriate
 
 ### External dependency settings
 
@@ -158,6 +181,14 @@ Recommended operator-visible fields:
 - mutable in UI (`true|false`)
 - sensitive / presence-only flag when applicable
 - blocked reason or missing dependency reason when applicable
+
+For write-only secrets, the operator-visible view should instead expose:
+
+- configured vs missing
+- source (`env`, secret store, or missing)
+- secret backend/reference metadata
+- override state
+- safe hints when appropriate
 
 ## Operator Surface Expectations
 
@@ -220,6 +251,7 @@ Tracked roadmap items:
 The `v0.4.0` control-plane rules still govern current work:
 
 - startup-managed secrets remain deployment-managed
+- runtime-managed secrets may be UI/API managed only through dedicated write-only flows
 - runtime-safe controls should be operator-visible in the product surface
 - configured policy and effective behavior must stay separate
 - outbound integrations should remain adapter-driven rather than product-hardcoded

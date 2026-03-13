@@ -145,6 +145,18 @@ class Settings(BaseSettings):
         default="",
         description="Azure Key Vault URL",
     )
+    settings_secret_backend: str = Field(
+        default="encrypted_db",
+        description="Secret backend for runtime-managed secrets: encrypted_db or azure_key_vault",
+    )
+    settings_db_encryption_key: str = Field(
+        default="",
+        description="Master key used for encrypted_db runtime secret storage",
+    )
+    settings_key_vault_prefix: str = Field(
+        default="pipelinehealer-",
+        description="Prefix used for logical runtime secrets stored in Azure Key Vault",
+    )
 
     # GitHub Configuration
     github_app_id: str = Field(
@@ -196,6 +208,10 @@ class Settings(BaseSettings):
     github_private_key_secret_name: str = Field(
         default="github-app-private-key",
         description="Name of the secret in Key Vault containing GitHub App private key",
+    )
+    github_app_private_key: str = Field(
+        default="",
+        description="Logical GitHub App private key secret value used by the UI-first runtime config layer",
     )
     gh_aw_tools_enabled: bool = Field(
         default=False,
@@ -623,6 +639,17 @@ class Settings(BaseSettings):
             return ""
         if normalized not in {"memory", "cosmos", "postgres"}:
             raise ValueError("STORAGE_MODE must be one of: memory, cosmos, postgres")
+        return normalized
+
+    @field_validator("settings_secret_backend")
+    @classmethod
+    def validate_settings_secret_backend(cls, value: str) -> str:
+        """Validate configured runtime secret backend selection."""
+        normalized = value.strip().lower()
+        if normalized not in {"encrypted_db", "azure_key_vault"}:
+            raise ValueError(
+                "SETTINGS_SECRET_BACKEND must be one of: encrypted_db, azure_key_vault"
+            )
         return normalized
 
     @field_validator("llm_provider")

@@ -214,7 +214,8 @@ export function describeAgentHandoffIntegrationStatus(
     case 'missing_configuration':
       return {
         summary: 'Missing receiver URL',
-        detail: 'Webhook mode is enabled, but no startup receiver URL is configured.',
+        detail:
+          'Webhook mode is enabled, but no Assign-to-Agent receiver URL secret is configured yet.',
         tone: 'warn',
       }
     case 'invalid_configuration':
@@ -227,7 +228,8 @@ export function describeAgentHandoffIntegrationStatus(
       }
       return {
         summary: 'Invalid receiver URL',
-        detail: 'The configured startup receiver URL is not a valid http(s) endpoint.',
+        detail:
+          'The configured Assign-to-Agent receiver URL secret is not a valid http(s) endpoint.',
         tone: 'bad',
       }
     case 'unreachable':

@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 22efa6e -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -56,10 +56,11 @@ Quick registration checklist (beginner):
 
 - If Bearer token is used for admin endpoints, role checks from `ENTRA_ADMIN_ROLES` apply.
 - If key headers are used, `X-API-Key` + `X-Admin-Key` behavior remains unchanged.
+- For admin endpoints in hybrid mode, an explicit non-empty `X-Admin-Key` can override a signed-in non-admin bearer session.
 
 ### Admin Key (`X-Admin-Key`) in key/hybrid mode
 
-Admin endpoints under `/api/settings*` (for example `/api/settings`, `/api/settings/audit`, `/api/settings/persist`, `/api/settings/learning/*`) require **both** `X-API-Key` and `X-Admin-Key` when using key-based authentication.
+Admin endpoints under `/api/settings*` (for example `/api/settings`, `/api/settings/secrets`, `/api/settings/audit`, `/api/settings/persist`, `/api/settings/learning/*`) require **both** `X-API-Key` and `X-Admin-Key` when using key-based authentication.
 
 ```bash
 curl -H "X-API-Key: $API_AUTH_KEY" -H "X-Admin-Key: $ADMIN_API_KEY" "$BACKEND_URL/api/settings"
@@ -721,7 +722,7 @@ configured value from effective provenance. Source values are portable, app-obse
       "requires_restart": true,
       "durable": true,
       "sensitive": false,
-      "note": "Derived from the startup-only Assign-to-Agent webhook URL; only the destination host is exposed."
+      "note": "Derived from the Assign-to-Agent webhook URL secret; only the destination host is exposed."
     },
     "agent_handoff_enabled": {
       "source": "runtime_override",
@@ -737,14 +738,19 @@ configured value from effective provenance. Source values are portable, app-obse
 
 Notes:
 - `settings_metadata.<field>.source=env` means startup-managed config. The app intentionally does not guess whether that startup value arrived via plain env, ACA `secretref`, Helm secret, or another deployment adapter.
-- `agent_handoff_webhook_host` exposes only the configured destination hostname; the full webhook URL remains startup-only configuration in this release.
+- `agent_handoff_webhook_host` exposes only the configured destination hostname; the full webhook URL remains hidden because it is stored as a write-only runtime secret.
 - `settings_metadata.<field>.sensitive=true` means the field is a presence-only or operator-safe projection of hidden sensitive startup configuration.
-- `settings_metadata.<field>.durable=false` means the current value only exists in this running process until `POST /api/settings/persist` is called.
+- `settings_metadata.<field>.durable=false` means the current value exists only as an in-process runtime override and is not represented in durable runtime storage.
 - `computed` fields are derived status/projection values, not directly mutable settings.
+- `setup_status` groups readiness checks for bootstrap storage/auth wiring, runtime secret backend readiness, current LLM runtime inputs, current GitHub runtime inputs, and webhook-secret dependencies.
+- Environment or env-file values remain the highest-precedence startup override for the same logical keys, even when durable runtime values also exist.
+- `github_auth_mode="app configured (inactive)"` means GitHub App inputs are present, but the current live GitHub API runtime still depends on a PAT.
 
 #### `PATCH /api/settings`
 
-Applies runtime overrides (immediate effect; persist durably via `POST /api/settings/persist`).
+Applies and durably persists runtime-safe non-secret settings.
+
+Changes take effect immediately. If the same logical key is also set through env or the selected env file, that startup-managed value still wins on the next process start and is surfaced as `source=env`.
 
 **Auth**: admin auth (`Authorization: Bearer <token>` with Entra admin role in `entra`/Bearer flow, or `X-API-Key` + `X-Admin-Key` in key-based flow)
 
@@ -831,6 +837,88 @@ Applies runtime overrides (immediate effect; persist durably via `POST /api/sett
 **Response** `422 Unprocessable Entity`: validation failure.
 
 **Side Effects**: Creates an audit entry (persisted to configured durable storage when available, in-memory fallback otherwise). Triggers agent cache invalidation when model-routing fields change (`azure_openai_deployment_name`, `llm_provider`, `openai_compatible_model`, `llm_model_analysis`, `llm_model_diagnosis`, `llm_model_remediation`) so new routing takes effect immediately.
+
+#### `GET /api/settings/secrets`
+
+Returns non-sensitive metadata for runtime-managed secrets.
+
+**Auth**: admin auth (`Authorization: Bearer <token>` with Entra admin role in `entra`/Bearer flow, or `X-API-Key` + `X-Admin-Key` in key-based flow)
+
+**Response** `200 OK` (`SecretSettingView[]`):
+
+```json
+[
+  {
+    "key": "github_personal_access_token",
+    "configured": true,
+    "source": "secret_store",
+    "backend": "encrypted_db",
+    "requires_restart": false,
+    "overridden_by_env": false,
+    "last_updated_at": "2026-03-13T10:15:30Z",
+    "safe_hint": "...7890",
+    "note": "Stored in encrypted_db."
+  },
+  {
+    "key": "agent_handoff_webhook_url",
+    "configured": true,
+    "source": "env",
+    "backend": "env",
+    "requires_restart": false,
+    "overridden_by_env": true,
+    "last_updated_at": null,
+    "safe_hint": "receiver.example.com",
+    "note": "This secret is currently overridden by environment configuration."
+  }
+]
+```
+
+Notes:
+- This endpoint never returns plaintext secret values.
+- `source=env` means startup-managed env currently overrides the runtime secret-store value.
+- Supported runtime-managed secret keys include provider API keys, GitHub auth secrets, Jenkins bridge shared secret, and the Assign-to-Agent destination URL.
+- `backend=encrypted_db` is the OSS-portable/default runtime secret backend for AWS/GCP/OCI/self-hosted deployments.
+- `backend=azure_key_vault` is an optional Azure-native backend, not a required product dependency.
+
+#### `PATCH /api/settings/secrets`
+
+Writes, rotates, or clears runtime-managed secrets without returning plaintext.
+
+**Auth**: admin auth (`Authorization: Bearer <token>` with Entra admin role in `entra`/Bearer flow, or `X-API-Key` + `X-Admin-Key` in key-based flow)
+
+**Request Body** (`AdminSecretsUpdateRequest`):
+
+```json
+{
+  "secrets": {
+    "github_personal_access_token": {
+      "value": "ghp_redacted"
+    },
+    "agent_handoff_webhook_url": {
+      "clear": true
+    }
+  }
+}
+```
+
+Rules:
+- use `value` to set or rotate a secret
+- use `clear=true` to delete it from the runtime secret store
+- empty secret values are rejected with `422`
+- unknown secret keys are rejected with `422`
+
+**Response** `200 OK`: updated `SecretSettingView[]`
+
+**Response** `503 Service Unavailable`: the configured runtime secret backend is not usable (for example missing `SETTINGS_DB_ENCRYPTION_KEY` or `KEY_VAULT_URL`)
+
+**Side Effects**:
+- Creates an admin audit entry with `set`, `rotated`, or `cleared` actions per secret key
+- Refreshes runtime services that depend on secret-backed settings
+- Persists the effective runtime secret to the configured secret backend immediately
+
+Backend notes:
+- `SETTINGS_SECRET_BACKEND=encrypted_db` keeps runtime-secret management portable across non-Azure deployments.
+- `SETTINGS_SECRET_BACKEND=azure_key_vault` is available when you intentionally want Azure Key Vault integration.
 
 #### `GET /api/settings/llm/provider-health`
 
@@ -925,7 +1013,9 @@ Returns health/status for the currently selected MCP provider adapter.
 
 #### `POST /api/settings/persist`
 
-Durably persists current mutable runtime settings so they survive backend restarts and redeployments.
+Compatibility endpoint retained for env-sync and legacy CLI/audit flows.
+
+This endpoint no longer performs the real durable persistence step. Runtime-safe settings already persist durably through `PATCH /api/settings`, and runtime-managed secrets already persist durably through `PATCH /api/settings/secrets`.
 
 **Auth**: admin auth (`Authorization: Bearer <token>` with Entra admin role in `entra`/Bearer flow, or `X-API-Key` + `X-Admin-Key` in key-based flow)
 
@@ -937,55 +1027,31 @@ Durably persists current mutable runtime settings so they survive backend restar
 }
 ```
 
-- `skip_redeploy` defaults to `false`.
-- When `true`, settings are persisted but env-only redeploy is skipped.
+- `skip_redeploy` is accepted for backward compatibility only.
 
 **Behavior**:
 
-- Writes all mutable settings to configured durable storage backend (`cosmos` or `postgres`).
-- Optionally writes to `backend/.env` when the file is accessible (local development).
-- On next startup, persisted settings are loaded and re-applied automatically.
-- Appends an admin audit record with `changed_keys=["persist_settings"]` (including `X-Request-Id` when provided).
+- Returns the currently persisted runtime-setting keys from storage.
+- Appends an admin audit record with `changed_keys=["persist_settings"]` so older CLI verification flows still have a stable compatibility signal.
+- Returns a deprecation message reminding operators to treat env as the bootstrap override path instead of the primary runtime persistence mechanism.
 
 **Response** `200 OK`:
 
 ```json
 {
   "env_file": "",
-  "persisted_keys": [
-    "HEAL_MODE",
-    "AUTO_APPLY_REMEDIATION",
-    "AUTO_CREATE_PR",
-    "JENKINS_BRIDGE_ALLOW_PR",
-    "AUTO_CREATE_ISSUE",
-    "AUTO_RETRY_WORKFLOW",
-    "MAX_REMEDIATION_ATTEMPTS",
-    "GH_AW_TOOLS_ENABLED",
-    "GH_AW_INGESTION_MODE",
-    "MCP_ENABLED",
-    "MCP_PROVIDER",
-    "MCP_READ_ONLY",
-    "MCP_TIMEOUT_SECONDS",
-    "MCP_MAX_RETRIES",
-    "MCP_TOOL_POLICIES",
-    "MCP_REPO_ALLOWLIST",
-    "EXTERNAL_DIAGNOSTICS_WAIT_SECONDS",
-    "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS",
-    "LLM_MODEL_ANALYSIS",
-    "LLM_MODEL_DIAGNOSIS",
-    "LLM_MODEL_REMEDIATION",
-    "AZURE_OPENAI_DEPLOYMENT_NAME"
-  ],
+  "persisted_keys": ["heal_mode", "auto_apply_remediation", "azure_openai_endpoint"],
   "redeploy_attempted": false,
   "redeploy_started": false,
-  "redeploy_message": "Persisted settings to durable storage. Local backend/.env not available in this runtime, so env-only redeploy was skipped."
+  "redeploy_message": "Deprecated: PATCH /api/settings and PATCH /api/settings/secrets already persist changes durably. Use environment variables only for bootstrap overrides.",
+  "deprecated": true
 }
 ```
 
 **Notes**:
 
 - In Azure Container Apps, `env_file` is usually empty (no writable local `backend/.env` in the running container).
-- Settings are always persisted to durable storage regardless of environment.
+- This endpoint is retained so existing CLI flows can still record a compatibility audit event, not as the primary runtime persistence mechanism.
 
 #### `GET /api/settings/learning/queue`
 

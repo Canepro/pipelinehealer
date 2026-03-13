@@ -29,7 +29,6 @@ from src.models import (
 from src.storage import InMemoryStorage
 from src.tools.fix_generators import NotAutoApplyReason
 
-
 ESLINT_FLAT_CONFIG = (
     "export default [\n"
     "  {\n"

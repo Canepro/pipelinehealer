@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 22efa6e -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -8,8 +8,8 @@ This guide explains runtime controls, persistence behavior, and governance guard
 
 - Settings page workflow (`/settings`)
 - Settings posture overview cards (runtime/scope/provider/security) for quick read before edits
-- Setup assistants for startup-managed integration boundaries (Assign-to-Agent receiver and notification targets)
-- Runtime vs persisted settings
+- Setup assistants for Assign-to-Agent receiver and notification targets
+- Runtime vs startup override behavior
 - Admin audit trail
 - Guardrails for repos, retries, and MCP tool policy
 - Task-level model routing overrides (`analysis`, `diagnosis`, `remediation`)
@@ -24,7 +24,7 @@ This guide explains runtime controls, persistence behavior, and governance guard
    - Entra mode: signed-in sessions auto-load Settings and Control Center
      - keep `X-Admin-Key` for fallback or troubleshooting overrides
 3. Change only one policy group at a time.
-4. Use **Save & Persist** to apply and persist in one action.
+4. Use **Save** once to apply and durably persist runtime-safe changes.
 5. Re-open Control Center for read-only governance verification after each save.
 6. Use Control Center section tabs to reduce cognitive load while preserving full detail:
    - `Governance Overview`: posture, policy impact, model routing, MCP policy effect
@@ -32,18 +32,18 @@ This guide explains runtime controls, persistence behavior, and governance guard
    - `Trust Ops`: recent human-review queue and compact trust reporting from activity feedback
    - `Audit & Trace`: collapsible audit timeline and request-trace review
 
-## Startup-Managed Integration Setup
+## Assign-to-Agent and Notification Setup
 
 - Settings manages runtime-safe controls directly:
   - Assign-to-Agent enablement
   - handoff mode
   - retry/timeout values
   - webhook allowlist hosts
-- Startup-only or secret-bearing integration values stay deployment-managed:
-  - receiver URL
-  - downstream notification webhook URLs
-  - provider/shared-secret material
-- To reduce operator friction without persisting secrets into generic runtime settings, Settings includes assistants that generate:
+- Secret-bearing integration values use dedicated write-only or deployment-managed paths:
+  - receiver URL in the runtime secrets panel
+  - downstream notification webhook URLs in the receiver deployment
+  - provider/shared-secret material in the secrets panel or deployment env
+- To reduce operator friction without echoing secrets back into generic runtime settings, Settings includes assistants that generate:
   - portable env blocks
   - sample payloads
   - smoke-test commands
@@ -51,13 +51,29 @@ This guide explains runtime controls, persistence behavior, and governance guard
 
 ## Runtime vs Durable
 
-- Settings UI `Save & Persist` updates runtime and then performs durable persistence.
+- Settings UI `Save` updates runtime-safe non-secret settings and persists them durably immediately.
+- Secret values are managed through the separate write-only secrets panel and never returned to the browser after write.
 - Runtime settings apply immediately.
-- Persisted settings survive restarts/redeploys.
-- Persistence uses the configured durable backend:
+- Persisted settings survive restarts/redeploys unless the same logical key is explicitly overridden by env or the selected env file.
+- Effective precedence is:
+  1. explicit env / deploy-time override
+  2. bootstrap env-file value
+  3. persisted runtime value
+- Durable runtime state uses the configured backend:
   - `cosmos` via `COSMOS_DB_ENDPOINT`
   - `postgres` via `POSTGRES_DSN`
   - with in-memory fallback only for explicit local/dev/demo paths
+- Runtime secret storage uses the configured secret backend:
+  - `encrypted_db` with `SETTINGS_DB_ENCRYPTION_KEY` as the OSS-portable default for AWS/GCP/OCI/self-hosted deployments
+  - `azure_key_vault` with `KEY_VAULT_URL` as an optional Azure-native integration
+- Setup checklist status reflects those same boundaries directly in the UI:
+  - `Ready` means the required bootstrap/runtime inputs are present
+  - `Missing` means the operator still needs env wiring, secret backend setup, or runtime inputs before the path is usable
+- GitHub App ID/private key fields can now be stored for configuration readiness, but the current live GitHub API runtime still authenticates with a PAT.
+
+Portability note:
+- choosing `azure_key_vault` does not define the product boundary
+- non-Azure deployments should use `encrypted_db` today unless and until a native cloud secret-manager backend is added for that platform
 
 API and CLI equivalents:
 ```bash
@@ -66,9 +82,15 @@ bash scripts/ph.sh settings:audit --limit 10
 bash scripts/ph.sh settings:persist --from-settings
 ```
 
-Backend API calls used by Save & Persist:
+Compatibility note:
+- `settings:persist` is now the env-sync and compatibility-audit path for older workflows.
+- It is no longer the primary way to make runtime-safe settings durable.
+
+Backend API calls used by Settings:
 - `PATCH /api/settings`
-- `POST /api/settings/persist`
+- `GET /api/settings/secrets`
+- `PATCH /api/settings/secrets`
+- `POST /api/settings/persist` (deprecated compatibility endpoint for CLI/env-sync audit flows)
 
 ## Runtime Action Control Model
 
@@ -180,8 +202,10 @@ curl -X PATCH \
   - harder to trace/rollback.
 - Leaving allowlists empty in production:
   - expands blast radius.
+- Assuming "GitHub App configured" means live App auth is active:
+  - today it only means readiness/configuration is captured; the live GitHub runtime path is still PAT-based.
 
 ## Related Docs
 
-- `../reference/API.md` (`GET/PATCH/POST /api/settings*`)
+- `../reference/API.md` (`GET/PATCH /api/settings*`, `GET/PATCH /api/settings/secrets`)
 - `../reference/CLI.md` (`settings:persist` flags)

@@ -56,36 +56,47 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 
 ## Release Target: `v0.7.0` (Minor)
 
-Theme: reusable Jenkins integration kit and evidence-first bridge capture.
+Theme: reusable Jenkins integration kit plus UI-first runtime configuration with env overrides.
 
 Carry-forward reliability scope already landed on `main` for inclusion in the `v0.7.0` release train:
 
 - settings persistence / env-only redeploy path resolution now correctly defaults to the backend checkout root without requiring explicit repo-root overrides
 - development startup now honors explicit durable `STORAGE_MODE` selection instead of always forcing in-memory storage
 - hybrid admin auth now allows a non-empty `X-Admin-Key` to override a signed-in non-admin bearer session while preserving bearer fallback for blank headers
+- live GitHub PAT rotation now refreshes the active GitHub API client instead of waiting for a process restart
+- GitHub auth status now distinguishes between active PAT runtime auth and GitHub App configuration-only presence
 
 ### Must-Have Scope
 
-1. Reusable Jenkins integration assets
+1. UI-first runtime configuration with env overrides
+   - runtime-safe non-secret settings save durably through `PATCH /api/settings` and the Settings UI
+   - runtime-managed secrets move to a separate write-only `GET/PATCH /api/settings/secrets` surface
+   - env and env-file values remain the highest-precedence startup override and must surface clearly in provenance metadata
+   - setup/readiness status must distinguish bootstrap gaps from runtime-manageable configuration gaps
+   - `POST /api/settings/persist` remains only as a compatibility audit/env-sync helper, not the primary persistence mechanism
+2. Reusable Jenkins integration assets
    - publish a supported Jenkins bridge install kit inside the PipelineHealer repo
    - include sender, tooling bootstrap, evidence helper, and Jenkinsfile example assets
-2. Repeatable onboarding pattern
+3. Repeatable onboarding pattern
    - support repo-local adoption first, with a documented Shared Library rollout path for larger Jenkins estates
    - keep the integration portable across OSS Jenkins, multibranch jobs, PR jobs, and scheduled jobs
-3. Evidence quality hardening
+4. Evidence quality hardening
    - standardize on direct workspace-captured excerpts using a plugin-free shell wrapper
    - avoid script-approval-sensitive Groovy APIs as the primary guidance path
-4. Documentation and release clarity
+5. Documentation and release clarity
    - document the supported Jenkins plugin baseline and failure-path expectations
-   - keep this release scoped to bridge evidence quality and packaging, not native Jenkins provider parity
+   - document the new runtime-settings/save semantics, secret-management boundary, and env override precedence clearly
+   - keep this release scoped to bridge evidence quality plus UI-first configuration coherence, not native Jenkins provider parity or full GitHub App runtime auth
 
 ### Exit Criteria
 
-1. The PipelineHealer repo ships a documented Jenkins integration kit under `integrations/jenkins-bridge`.
-2. Repo maintainers can install the bridge assets into a Jenkins repo with one command and a documented Jenkinsfile snippet.
-3. The recommended capture pattern produces `log_excerpt` bridge evidence on a real failing Jenkins build.
-4. Docs clearly distinguish the supported plugin-free capture pattern from non-portable script-approval-heavy alternatives.
-5. The work lands as `v0.7.0`, `minor`, and `Added`/`Changed` scoped PRs.
+1. Runtime-safe settings changed from the UI/API persist durably immediately, with startup env overrides still surfaced honestly as effective precedence.
+2. Runtime-managed secrets are handled through a separate write-only secret surface with encrypted DB and Azure Key Vault backend support.
+3. The PipelineHealer repo ships a documented Jenkins integration kit under `integrations/jenkins-bridge`.
+4. Repo maintainers can install the bridge assets into a Jenkins repo with one command and a documented Jenkinsfile snippet.
+5. The recommended capture pattern produces `log_excerpt` bridge evidence on a real failing Jenkins build.
+6. Docs clearly distinguish the supported plugin-free capture pattern from non-portable script-approval-heavy alternatives.
+7. The work lands as `v0.7.0`, `minor`, and `Added`/`Changed` scoped PRs.
 
 ## Released Target: `v0.6.1` (Patch)
 

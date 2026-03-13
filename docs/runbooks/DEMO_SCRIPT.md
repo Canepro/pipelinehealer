@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 83805e7 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -58,7 +58,7 @@ Core on-camera path:
 3. Explainability drilldown: open one focused activity and show the incident record (`what happened`, `what PipelineHealer concluded`, `what it did`, `what still needs review`), then `Failure Context` / `Evidence Layers`.
 4. External findings: expand `External Findings Details` to show ci-doctor's structured root cause, recommended actions, and doctor metadata.
 5. Safety boundary: point to `Why Safety Gated` on the dashboard and explain issue-first fallback for risky cases.
-6. Optional governance proof only if time remains: open `/settings`, show the section tabs (`Runtime Controls`, `AI & Integrations`, `Security & Advanced`), the Active Policy banner, and `Save & Persist`.
+6. Optional governance proof only if time remains: open `/settings`, show the section tabs (`Runtime Controls`, `AI & Integrations`, `Security & Advanced`), the Active Policy banner, the setup checklist, and the one-step `Save` flow for durable runtime settings.
 
 ## 1) Pre-Record Setup (5-10 minutes before)
 

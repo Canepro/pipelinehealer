@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 3f6e9b7 -->
 
 > OSS-first, policy-aware pipeline remediation platform for failed delivery workflows.
 
@@ -36,8 +36,11 @@ Pipeline failures create repetitive triage work and slow delivery. PipelineHeale
 - Deterministic-first diagnosis and remediation, with structured LLM fallback where needed.
 - Activity Detail as an incident workspace, including verification feedback for identification, diagnosis, remediation, and guidance effectiveness.
 - Control Center operator views for governance posture, learning explainability, trust ops, and audit/trace.
+- UI-first operator settings: runtime-safe controls save durably from Settings, secrets rotate through a separate write-only path, and setup checklists expose missing bootstrap wiring.
+- Honest runtime boundary reporting: env stays the bootstrap override path, and GitHub App inputs are stored for readiness only until live App auth ships.
 - Durable audit trails for settings changes and remediation decisions.
 - OSS-friendly storage options: PostgreSQL, Cosmos DB, or in-memory mode for local development.
+- Portable runtime secret baseline: `encrypted_db` works across cloud/self-hosted deployments; `azure_key_vault` is an optional Azure-native integration, not a required secret model.
 
 ## Current Scope
 
@@ -112,6 +115,9 @@ bun run dev
 5. Verify the app:
 - `curl -sS http://127.0.0.1:8000/health`
 - open `http://127.0.0.1:5173`
+- open `/app/settings` to confirm the setup checklist and manage runtime-safe settings or write-only secrets
+- use `Save` to persist runtime-safe non-secret changes immediately; environment values remain the startup override path for forced/bootstrap settings
+- treat GitHub App fields as readiness/configuration signals for now; the live GitHub API runtime still uses a personal access token
 
 Beginner-safe defaults already exist in `.env.example`:
 - `HEAL_MODE=safe`
@@ -193,7 +199,12 @@ The operator surface is intentionally split by job:
 - Activities: searchable run history
 - Activity Detail: incident record, evidence layers, remediation result, external diagnostics, and verification feedback
 - Control Center: governance overview, learning explainability, trust ops, and audit/trace
-- Settings: mutable runtime controls and integration wiring
+- Settings: immediate durable runtime controls, write-only secrets, and bootstrap wiring/readiness
+
+Settings intent:
+- normal operator changes belong in the product surface and persist immediately
+- env is reserved for bootstrap wiring, forced overrides, and deployment-managed secrets
+- `POST /api/settings/persist` remains only as a deprecated compatibility path for older CLI/env-sync flows
 
 ![Activity Detail — incident record, verification workspace, and external diagnostics](docs/screens/activity-detail-current.png)
 ![Control Center — governance posture, trust ops, and integration health](docs/screens/control-center-current.png)
@@ -248,14 +259,19 @@ flowchart TB
 
   subgraph GOV["Operator Surface"]
     UI["Dashboard / Activities / Activity Detail / Control Center / Settings"]
-    API["Settings API"]
+    API["Settings API / Secrets API"]
     AUD["Audit Trail"]
     LRN["Learning Queue / Retrieval<br/>Verification Feedback / Trust Ops"]
   end
 
   subgraph DATA["State and Evidence"]
-    DB[("Cosmos DB / PostgreSQL / InMemory")]
+    DB[("Activities + Runtime Settings<br/>Cosmos / PostgreSQL / InMemory")]
+    RS[("Runtime Secret Store<br/>encrypted_db / azure_key_vault")]
     EXP["Explainability Trace<br/>Activity Metadata"]
+  end
+
+  subgraph CFG["Bootstrap Sources"]
+    ENV["Env / .env / Secret Refs<br/>startup overrides"]
   end
 
   subgraph OUT["Outcome Paths"]
@@ -285,9 +301,14 @@ flowchart TB
   HO --> GW --> NT
   ORCH --> DB
   ORCH --> EXP
+  WF -. loads persisted runtime .-> DB
+  WF -. loads runtime secrets .-> RS
+  ENV -. startup override .-> WF
   UI --> API --> ORCH
   API --> LRN
   API --> AUD
+  API --> DB
+  API --> RS
   ORCH --> LRN
   LRN -. retrieval context .-> DIA
   LRN -. guidance .-> REM

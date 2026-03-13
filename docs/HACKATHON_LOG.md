@@ -111,7 +111,7 @@ This is the long-form project tracker for hackathon execution status, submission
 - QA/readability refinement pass (2026-02-19):
   - control center summary panels moved toward structured key/value rows to reduce sentence-heavy scan load
   - learning queue metadata is now compact-badge based (`runs`, `success`, `action`) for faster triage
-  - settings includes a concise 4-step operator workflow card (`Authenticate -> Edit -> Save & Persist -> Verify`)
+  - settings includes a concise 4-step operator workflow card (`Authenticate -> Edit -> Save -> Verify`)
 - Release hygiene automation:
   - semver sync guard added for `VERSION`, backend, and frontend manifests
   - tag-driven GitHub release workflow added (`vX.Y.Z` + changelog section validation)
@@ -563,7 +563,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 - Settings UX simplification:
   - Removed separate `Persist` button/banner from settings page.
-  - `Save & Persist` now performs runtime update and durable persistence in one action.
+  - `Save` now performs runtime update and durable persistence in one action.
   - Added explicit partial-success toasts when runtime save succeeds but persist/redeploy has issues.
 - Settings IA clarity:
   - Strengthened section tab visibility with active-state styling and icons.

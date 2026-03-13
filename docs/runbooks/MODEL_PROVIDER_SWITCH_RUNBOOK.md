@@ -1,6 +1,6 @@
 # Model Provider Switch Runbook
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 97abf04 -->
 
 This runbook covers safe switching between model providers and fast rollback.
 
@@ -41,11 +41,15 @@ curl -sS -X PATCH "$PH_BACKEND_URL/api/settings" \
   }'
 ```
 
-### 2) Persist to durable config and redeploy env
+### 2) Optional: sync to startup env if you want the provider choice to survive as an env override
 
 ```bash
 bash scripts/ph.sh settings:persist --from-settings
 ```
+
+Notes:
+- the `PATCH /api/settings` call above already applied the runtime change and persisted it durably
+- run `settings:persist --from-settings` only if you intentionally want local `backend/.env` sync and the deprecated compatibility audit/redeploy flow
 
 ### 3) Verify health + runtime
 
@@ -72,6 +76,10 @@ curl -sS -X PATCH "$PH_BACKEND_URL/api/settings" \
 bash scripts/ph.sh settings:persist --from-settings
 bash scripts/ph.sh settings:check | jq '.llm_provider,.azure_openai_deployment_name'
 ```
+
+Rollback note:
+- the rollback `PATCH` is already the real durable runtime change
+- re-running `settings:persist --from-settings` is optional and only needed when you also want startup env sync
 
 ## Failure Handling Playbook
 

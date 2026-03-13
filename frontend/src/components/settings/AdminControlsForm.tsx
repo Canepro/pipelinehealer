@@ -1462,8 +1462,8 @@ export default function AdminControlsForm({
               </div>
               <p className="text-sm text-[var(--ph-muted)]">
                 Configure the operator handoff path. Non-secret runtime controls
-                are editable here; the destination webhook URL remains
-                startup-only in this release.
+                are editable here; the destination webhook URL lives in the
+                separate write-only secrets panel.
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -2816,7 +2816,7 @@ export default function AdminControlsForm({
                   onClick={onSave}
                 >
                   <Save className="h-4 w-4" />
-                  {savePending ? "Saving..." : "Save & Persist"}
+                  {savePending ? "Saving..." : "Save"}
                 </Button>
               </div>
             </div>

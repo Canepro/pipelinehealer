@@ -176,6 +176,16 @@ export default function VerificationWorkspace({
     },
   });
 
+  const loadWithAdminKey = () => {
+    const trimmed = adminKeyInput.trim();
+    if (!trimmed) {
+      return;
+    }
+    setUseSessionAuth(false);
+    setAdminKey(trimmed);
+    setAdminKeyInput("");
+  };
+
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-[var(--ph-border)] bg-[color:var(--ph-surface)] p-4">
@@ -257,8 +267,7 @@ export default function VerificationWorkspace({
             onKeyDown={(e) => {
               if (e.key === "Enter" && adminKeyInput.trim()) {
                 e.preventDefault();
-                setUseSessionAuth(false);
-                setAdminKey(adminKeyInput.trim());
+                loadWithAdminKey();
               }
             }}
             placeholder="Enter admin key (X-Admin-Key)"
@@ -266,10 +275,7 @@ export default function VerificationWorkspace({
           />
           <Button
             variant="secondary"
-            onClick={() => {
-              setUseSessionAuth(false);
-              setAdminKey(adminKeyInput.trim());
-            }}
+            onClick={loadWithAdminKey}
             disabled={!adminKeyInput.trim() || feedbackMutation.isPending}
           >
             Load with Admin Key

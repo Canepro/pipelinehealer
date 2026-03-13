@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, type Activity } from "../api/client";
+import { getActivitySourceInfo } from "../utils/activitySource";
 import { copyToClipboard } from "../utils/copyToClipboard";
 import { formatSourceLabel } from "../utils/formatSourceLabel";
 import StatusBadge from "../components/StatusBadge";
@@ -1121,6 +1122,7 @@ export default function ActivityDetail() {
     activity.source_selection_path === "jenkins_bridge" ||
     typeof sourceMetadata.provider === "string" &&
       sourceMetadata.provider.trim().toLowerCase() === "jenkins";
+  const activitySourceInfo = getActivitySourceInfo(activity);
   const bridgeEvidenceQuality =
     typeof diagnosisDetails?.bridge_evidence_quality === "string"
       ? diagnosisDetails.bridge_evidence_quality
@@ -1192,7 +1194,7 @@ export default function ActivityDetail() {
     : !handoffConfig.enabled
       ? "Assign-to-Agent is disabled by runtime configuration."
       : handoffConfig.mode === "webhook" && !handoffConfig.webhook_configured
-        ? "Assign-to-Agent webhook mode is enabled, but no webhook URL is configured yet."
+        ? "Assign-to-Agent webhook mode is enabled, but no receiver URL secret is configured yet."
         : "Assign-to-Agent is unavailable.";
   const handleAssignToAgent = async () => {
     if (!handoffConfig) {
@@ -1347,15 +1349,21 @@ export default function ActivityDetail() {
             </p>
             <div className="mt-2 flex items-center">
               <GitBranch className="mr-2 h-4 w-4 text-[var(--ph-muted)]" />
-              <a
-                href={`https://github.com/${activity.repository_name}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-[var(--ph-accent)] hover:opacity-80"
-              >
-                {activity.repository_name}
-                <ExternalLink className="ml-1 inline h-3 w-3" />
-              </a>
+              {activitySourceInfo.repositoryUrl ? (
+                <a
+                  href={activitySourceInfo.repositoryUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-[var(--ph-accent)] hover:opacity-80"
+                >
+                  {activity.repository_name}
+                  <ExternalLink className="ml-1 inline h-3 w-3" />
+                </a>
+              ) : (
+                <span className="font-medium text-[var(--ph-text)]">
+                  {activity.repository_name}
+                </span>
+              )}
             </div>
             <p className="mt-3 text-[11px] text-[var(--ph-muted)]">
               Activity ID: {activity.id}
@@ -1363,14 +1371,25 @@ export default function ActivityDetail() {
           </div>
           <div className="bg-[var(--ph-surface)] px-6 py-5">
             <p className="text-[11px] uppercase tracking-wide text-[var(--ph-muted)]">
-              Workflow Run
+              {activitySourceInfo.runLabel}
             </p>
             <p className="mt-2 font-medium text-[var(--ph-text)]">
               {activity.workflow_name}
             </p>
             <p className="mt-1 text-sm text-[var(--ph-muted)]">
-              Run #{activity.workflow_run_id}
+              {activitySourceInfo.runNumberLabel}
             </p>
+            {activitySourceInfo.runUrl && (
+              <a
+                href={activitySourceInfo.runUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center text-xs font-medium text-[var(--ph-accent)] hover:opacity-80"
+              >
+                Open {activitySourceInfo.runLinkLabel}
+                <ExternalLink className="ml-1 h-3 w-3" />
+              </a>
+            )}
           </div>
           <div className="bg-[var(--ph-surface)] px-6 py-5">
             <p className="text-[11px] uppercase tracking-wide text-[var(--ph-muted)]">
@@ -1724,7 +1743,11 @@ export default function ActivityDetail() {
                     </span>
                     {typeof diagnostic.matched_run_id === "number" && (
                       <span className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]">
-                        Run #{diagnostic.matched_run_id}
+                        {sourceSelectionPath === "jenkins_bridge" ||
+                        diagnostic.source.trim().toLowerCase() ===
+                          "jenkins-bridge"
+                          ? `Build #${diagnostic.matched_run_id}`
+                          : `Run #${diagnostic.matched_run_id}`}
                       </span>
                     )}
                     <span className="inline-flex items-center rounded-md bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)]">

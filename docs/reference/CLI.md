@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 97abf04 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -255,8 +255,8 @@ bash scripts/ph.sh status
 |---------|-------------|
 | `settings:check` | GET `/api/settings` using keys from `backend/.env` |
 | `settings:audit` | GET `/api/settings/audit` (admin audit trail) |
-| `settings:persist` | Persist settings to `backend/.env`, API-audit when reachable, optionally redeploy |
-| `settings:persist:verify` | Run persist flow and verify audit entry via request ID (defaults to `--skip-redeploy`) |
+| `settings:persist` | Sync settings to local `backend/.env`, record compatibility audit when reachable, optionally redeploy |
+| `settings:persist:verify` | Run the compatibility persist flow and verify the audit entry via request ID (defaults to `--skip-redeploy`) |
 | `audit:proof` | Create two traceable audit entries and print latest records |
 | `aoai:check` | Verify Azure OpenAI connectivity from local backend container |
 
@@ -268,7 +268,11 @@ bash scripts/ph.sh audit:proof --limit 5
 bash scripts/ph.sh aoai:check
 ```
 
-`settings:check` now exposes per-field provenance metadata from the backend API, including startup-managed vs runtime override state, restart requirements, and presence-only sensitive signals for hidden startup configuration.
+`settings:check` now exposes per-field provenance metadata from the backend API, including startup-managed vs runtime override state, restart requirements, setup checklist readiness, and presence-only sensitive signals for hidden startup configuration.
+
+Secret backend note:
+- runtime-secret portability does not depend on Azure; non-Azure deployments can keep `SETTINGS_SECRET_BACKEND=encrypted_db`
+- `settings:persist` does not provision or migrate secret backends; it remains the env-sync/compatibility layer around already-supported runtime settings flows
 
 `aoai:check` is a local-container smoke, not a remote backend probe:
 - it runs inside the local backend container via compose
@@ -281,10 +285,13 @@ bash scripts/ph.sh aoai:check
 Two modes: pull from live backend, or set directly via flags.
 
 Behavior notes:
-- Direct flags are applied to runtime via `PATCH /api/settings` first when backend/API auth is reachable (creates admin audit entries).
-- Command then calls `POST /api/settings/persist` with `skip_redeploy=true` to record durable persistence in backend storage/audit.
-- Local `.env` write + optional `deploy:env` redeploy still run as before.
+- Runtime-safe settings already persist durably when changed through the UI or `PATCH /api/settings`.
+- Runtime-managed secrets already persist durably through `PATCH /api/settings/secrets`.
+- Direct flags are still applied to live runtime first via `PATCH /api/settings` when backend/API auth is reachable (creates admin audit entries).
+- Command then calls `POST /api/settings/persist` only to record the deprecated compatibility audit event expected by older tooling.
+- Local `.env` write + optional `deploy:env` redeploy still run as before for startup-managed env sync.
 - If backend/API auth is unavailable, command falls back to local `.env` persistence only and prints an explicit unaudited warning.
+- This command does not replace the portable/default secret backend model; runtime-secret storage still depends on the backend process configuration (`SETTINGS_SECRET_BACKEND`).
 - Repo allowlist edits are safe by default:
   - `--repos-add` (or alias `--repos`) merges into existing `PH_ALLOWED_REPOS`
   - `--repos-remove` removes entries from existing `PH_ALLOWED_REPOS`
@@ -315,6 +322,10 @@ bash scripts/ph.sh settings:persist --llm-model-analysis gpt-5-mini-fast --llm-m
 bash scripts/ph.sh settings:persist --clear-repos
 bash scripts/ph.sh settings:persist --clear-mcp-repo-allowlist
 ```
+
+Recommended use:
+- use the Settings UI or direct API for normal runtime-safe operator changes
+- use `settings:persist` when you intentionally need local env sync, compatibility audit proof, or startup override redeploy behavior
 
 | Flag | Values | Description |
 |------|--------|-------------|
@@ -356,12 +367,12 @@ Common MCP tools are `fetch_failure_context`, `fetch_runbook_context`, `publish_
 
 #### `settings:persist:verify`
 
-Runs `settings:persist`, extracts the persist request ID, and verifies a matching `persist_settings` record exists in `settings:audit`.
+Runs `settings:persist`, extracts the persist request ID, and verifies a matching deprecated compatibility `persist_settings` record exists in `settings:audit`.
 
 Behavior notes:
 - Defaults to `--skip-redeploy` when not specified (safer for verification-only runs).
 - Fails if persist succeeds but the expected audit entry is not found.
-- Useful before demos/releases to prove persistence was both applied and audited.
+- Useful before demos/releases to prove the env-sync compatibility flow was audited. Durable runtime persistence itself now happens earlier through `PATCH /api/settings` or `PATCH /api/settings/secrets`.
 
 Examples:
 
@@ -493,8 +504,8 @@ bash scripts/ph.sh settings:check
 |---------|---------------|
 | `settings:check` | Hits local backend API |
 | `settings:audit` | Hits local backend API |
-| `settings:persist --skip-redeploy` | Updates local `backend/.env` only |
-| `settings:persist:verify --skip-redeploy` | Persists locally and verifies `persist_settings` audit entry |
+| `settings:persist --skip-redeploy` | Updates local `backend/.env`; records deprecated compatibility audit when backend is reachable |
+| `settings:persist:verify --skip-redeploy` | Runs the local compatibility flow and verifies the `persist_settings` audit entry |
 | `audit:proof` | Creates audit entries on local backend |
 | `backfill` | Triggers backfill sweep on local backend |
 | `logs` | Uses `docker compose logs` (filtered) |
@@ -524,6 +535,7 @@ unset PH_BACKEND_URL
 
 - Without `--skip-redeploy`, `settings:persist` writes `backend/.env` and runs Azure env redeploy.
 - With `--skip-redeploy`, it updates only local `backend/.env` (useful for non-Azure or local workflows).
+- Runtime persistence in the backend already occurred earlier if the command could reach `PATCH /api/settings`; this command is primarily the env-sync and compatibility-audit layer now.
 
 ## Environment Overrides
 

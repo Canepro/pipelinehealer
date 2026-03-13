@@ -1,6 +1,6 @@
 # Contributing
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 97abf04 -->
 
 Thanks for your interest in improving PipelineHealer.
 
@@ -26,6 +26,8 @@ When changing operator surfaces, configuration, or provider boundaries:
   - effective runtime behavior
   - external dependency status
   - configuration source/provenance
+- For settings work, keep runtime-safe non-secret controls and write-only secret management on separate surfaces; environment config remains the bootstrap and forced-override path.
+- Keep the portable runtime secret baseline cloud-neutral (`encrypted_db`); cloud-native secret-manager integrations should remain optional adapters rather than the core product requirement.
 - Prefer one declared source-of-truth model over split-brain configuration flows.
 - If a capability is meant to be operator-managed, avoid requiring hidden deployment-only toggles for normal use.
 - Track serious behavior/surface changes against a version in `docs/FUTURE_PLAN.md` before implementation.

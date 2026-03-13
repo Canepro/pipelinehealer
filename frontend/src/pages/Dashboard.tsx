@@ -29,6 +29,7 @@ import { api } from "../api/client";
 import type { Activity as ActivityItem } from "../api/client";
 import { EMPTY_STATES } from "../constants/emptyStates";
 import { buildActivitiesDrilldownPath } from "../utils/activityFilters";
+import { getActivitySourceInfo } from "../utils/activitySource";
 import { copyToClipboard } from "../utils/copyToClipboard";
 import {
   getRepresentativeExternalDiagnostic,
@@ -312,10 +313,9 @@ export default function Dashboard() {
     selectedActivity?.remediation_result?.pr_url ||
     selectedActivity?.remediation_result?.issue_url ||
     null;
-  const selectedRunUrl =
-    selectedActivity?.repository_name && selectedActivity?.workflow_run_id
-      ? `https://github.com/${selectedActivity.repository_name}/actions/runs/${selectedActivity.workflow_run_id}`
-      : null;
+  const selectedSourceInfo = selectedActivity
+    ? getActivitySourceInfo(selectedActivity)
+    : null;
   const evidenceLines = useMemo(
     () => getEvidenceLines(selectedActivity),
     [selectedActivity],
@@ -737,12 +737,15 @@ export default function Dashboard() {
                     onChange={(e) => setSelectedActivityId(e.target.value)}
                     className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-3 py-2 text-sm text-[var(--ph-text)] focus:outline-none focus:ring-2 focus:ring-azure-500"
                   >
-                    {recentActivities.map((activity) => (
-                      <option key={activity.id} value={activity.id}>
-                        Run #{activity.workflow_run_id} ·{" "}
-                        {activity.failure_type || "unknown"}
-                      </option>
-                    ))}
+                    {recentActivities.map((activity) => {
+                      const sourceInfo = getActivitySourceInfo(activity);
+                      return (
+                        <option key={activity.id} value={activity.id}>
+                          {sourceInfo.providerLabel} • {sourceInfo.runNumberLabel}{" "}
+                          · {activity.failure_type || "unknown"}
+                        </option>
+                      );
+                    })}
                   </select>
                 </label>
                 <div className="flex flex-wrap items-end gap-2">
@@ -868,14 +871,14 @@ export default function Dashboard() {
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs text-[var(--ph-muted)]">Evidence</p>
                   <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-                    {selectedRunUrl && (
+                    {selectedSourceInfo?.runUrl && (
                       <Button asChild size="sm" variant="ghost">
                         <a
-                          href={selectedRunUrl}
+                          href={selectedSourceInfo.runUrl}
                           rel="noopener noreferrer"
                           target="_blank"
                         >
-                          Workflow run
+                          {selectedSourceInfo.runLinkLabel}
                           <ExternalLink className="ml-1 h-3.5 w-3.5" />
                         </a>
                       </Button>

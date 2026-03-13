@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 368dbf5 -->
 
 Use this index to find the canonical doc quickly. If a topic appears in both an active doc and `docs/archive/`, the active doc wins.
 
@@ -11,10 +11,14 @@ Use this index to find the canonical doc quickly. If a topic appears in both an 
 - `runbooks/LOCAL_DEMO_RUNBOOK.md` — full local and Azure evaluation path
 - `../integrations/jenkins-bridge/README.md` — Jenkins bridge install kit and supported rollout pattern
 
+If you are validating the runtime configuration model specifically, start with:
+- `architecture/OPERATOR_CONTROL_PLANE.md` — configured vs effective runtime behavior, provenance, and startup override boundaries
+- `features/03-settings-and-policy-controls.md` — Settings UI workflow, setup checklist, secret handling, and compatibility notes
+
 ## Reference
 
-- `reference/API.md` — backend API contracts, auth, and data models
-- `reference/CLI.md` — canonical `bash scripts/ph.sh` reference
+- `reference/API.md` — backend API contracts, auth, data models, runtime settings, and write-only secrets endpoints
+- `reference/CLI.md` — canonical `bash scripts/ph.sh` reference, including env-sync compatibility flows around deprecated `settings:persist`
 
 ## Runbooks
 
@@ -28,7 +32,7 @@ Use this index to find the canonical doc quickly. If a topic appears in both an 
 
 ## Architecture
 
-- `architecture/OPERATOR_CONTROL_PLANE.md` — product contract for configuration and provenance
+- `architecture/OPERATOR_CONTROL_PLANE.md` — product contract for configuration, provenance, runtime-save semantics, and startup override boundaries
 - `architecture/MODEL_PROVIDER_STRATEGY.md` — provider-portable model backend posture
 - `architecture/LLM_AND_AGENT_RUNTIME.md` — validated runtime and degraded-mode behavior
 - `architecture/LEARNING_SYSTEM_PLAN.md` — learning queue lifecycle and activation rules

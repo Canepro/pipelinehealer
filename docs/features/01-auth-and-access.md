@@ -1,6 +1,6 @@
 # Feature: Auth And Access
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 368dbf5 -->
 
 This guide explains how users authenticate to PipelineHealer and how admin-only actions are protected.
 
@@ -18,6 +18,7 @@ Short answer: no, not for baseline usage.
 - Baseline repo adoption can run with key auth (`api_key`) or migration-safe `hybrid`.
 - Entra is needed only if you want Microsoft sign-in session flows in the UI.
 - `hybrid` means both auth methods are valid at once (keys + Entra session), and is recommended during testing/migration.
+- In `hybrid`, a non-empty `X-Admin-Key` on admin routes can intentionally override a signed-in non-admin browser session; a blank header falls back to bearer/session auth.
 - Frontend `VITE_*` auth vars are runtime env values for container deployments (Helm/ACA/compose).
   - static-hosting fallback still exists (`import.meta.env`) for non-container builds.
 
@@ -42,12 +43,18 @@ Short answer: no, not for baseline usage.
    - Entra mode: sign in and open `/settings` or `/control-center`
      - admin pages now auto-use the current signed-in session
      - `X-Admin-Key` remains available as a manual fallback/override
+     - if `VITE_AUTH_MODE=none`, session login is intentionally disabled and admin routes require the header path
 
 ## Auth Modes
 
 - `api_key`: legacy header auth (`X-API-Key`, `X-Admin-Key`)
 - `entra`: bearer-token only (`Authorization: Bearer ...`)
 - `hybrid`: accepts bearer or key headers (recommended rollout mode)
+
+Admin-route behavior:
+- key-based admin routes still require both `X-API-Key` and `X-Admin-Key`
+- in `hybrid`, explicit admin-key use wins when the header is non-empty
+- empty or whitespace-only `X-Admin-Key` does not suppress bearer/session auth
 
 Recommended:
 - Use `hybrid` during rollout.
@@ -102,6 +109,8 @@ Frontend:
 - Settings or Control Center says invalid admin key while using session:
   - Session can be stale; re-login or clear site data.
   - Confirm frontend runtime still has `VITE_AUTH_MODE=entra`.
+- Settings says "missing credentials" after entering only an admin key:
+  - key-based admin routes still need the backend API key path (`X-API-Key`), which the frontend usually supplies through `VITE_API_AUTH_KEY` in key/hybrid setups.
 
 ## Verify With API
 

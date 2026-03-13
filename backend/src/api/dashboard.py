@@ -13,6 +13,7 @@ from urllib.parse import urlparse, urlunparse
 from uuid import uuid4
 
 import httpx
+from dotenv import dotenv_values
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
 from ..config import get_settings, load_settings_snapshot
@@ -20,6 +21,7 @@ from ..llm.adapters import get_llm_provider_adapter
 from ..llm.capability import build_llm_capability_snapshot
 from ..models import (
     ActivityRecord,
+    AdminSecretsUpdateRequest,
     AdminSettingsAuditEntry,
     AdminSettingsPersistRequest,
     AdminSettingsPersistResponse,
@@ -49,11 +51,21 @@ from ..models import (
     MCPProviderHealthView,
     NotificationTargetHealthView,
     RemediationStatus,
+    SecretSettingView,
+    SetupCheckView,
+    SetupStatusView,
     utcnow,
+)
+from ..secret_store import SecretStoreError, build_secret_store
+from ..settings_registry import (
+    ALL_SETTING_SPECS_BY_KEY,
+    RUNTIME_NON_SECRET_ENV_KEYS,
+    SECRET_SETTING_SPECS,
+    SECRET_SETTING_SPECS_BY_KEY,
 )
 from ..storage import ActivityStorage
 from ..tools.mcp_provider import get_mcp_provider
-from ..workflows.pipeline_healer import PipelineHealerWorkflow
+from ..workflows.pipeline_healer import PipelineHealerWorkflow, resolve_storage_mode
 from .deps import get_storage, get_workflow
 from .security import get_request_principal, require_admin_key, require_api_key
 
@@ -64,6 +76,8 @@ _HOSTNAME_RE = re.compile(r"^[a-z0-9.-]+$")
 _AGENT_HANDOFF_MAX_AUDIT_ENTRIES = 30
 _runtime_override_keys: set[str] = set()
 _persisted_runtime_override_keys: set[str] = set()
+_startup_configured_fields_cache_signature: tuple[Any, ...] | None = None
+_startup_configured_fields_cache_value: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -244,12 +258,18 @@ def _resolve_github_auth_mode() -> tuple[bool, bool, str]:
     """Return GitHub auth capabilities and active mode description."""
     settings = get_settings()
     has_pat = bool(settings.github_personal_access_token)
-    has_app = bool(settings.github_app_id and settings.key_vault_url)
+    has_app = bool(
+        settings.github_app_id
+        and (
+            settings.github_app_private_key
+            or (settings.key_vault_url and settings.github_private_key_secret_name)
+        )
+    )
 
     if has_pat and has_app:
-        mode = "pat+github_app"
+        mode = "pat (app configured)"
     elif has_app:
-        mode = "github_app"
+        mode = "app configured (inactive)"
     elif has_pat:
         mode = "pat"
     else:
@@ -265,26 +285,26 @@ _DERIVED_SETTINGS_METADATA: dict[str, _DerivedSettingMetadataSpec] = {
         note="Presence-only signal for startup-managed GitHub PAT wiring.",
     ),
     "github_app_configured": _DerivedSettingMetadataSpec(
-        source_fields=("github_app_id", "key_vault_url"),
-        note="Derived from startup-managed GitHub App wiring.",
+        source_fields=("github_app_id", "github_app_private_key", "key_vault_url"),
+        note="Derived from GitHub App ID plus either a runtime-managed private key or legacy Key Vault wiring. This is configuration presence, not proof of an active live auth path.",
     ),
     "github_auth_mode": _DerivedSettingMetadataSpec(
-        source_fields=("github_personal_access_token", "github_app_id", "key_vault_url"),
-        note="Derived from available startup GitHub auth wiring.",
+        source_fields=("github_personal_access_token", "github_app_id", "github_app_private_key", "key_vault_url"),
+        note="Derived from the active PAT runtime path plus any additional GitHub App configuration metadata.",
     ),
     "openai_compatible_api_key_configured": _DerivedSettingMetadataSpec(
         source_fields=("openai_compatible_api_key",),
         sensitive=True,
-        note="Presence-only signal for a startup-managed provider API key.",
+        note="Presence-only signal for a runtime-managed or env-overridden provider API key.",
     ),
     "agent_handoff_webhook_configured": _DerivedSettingMetadataSpec(
         source_fields=("agent_handoff_webhook_url",),
         sensitive=True,
-        note="Derived from the startup-only Assign-to-Agent webhook URL; the full URL is intentionally hidden.",
+        note="Derived from the Assign-to-Agent webhook URL secret; the full URL is intentionally hidden.",
     ),
     "agent_handoff_webhook_host": _DerivedSettingMetadataSpec(
         source_fields=("agent_handoff_webhook_url",),
-        note="Derived from the startup-only Assign-to-Agent webhook URL; only the destination host is exposed.",
+        note="Derived from the Assign-to-Agent webhook URL secret; only the destination host is exposed.",
     ),
 }
 
@@ -310,12 +330,66 @@ def _setting_source_for_attr(attr_name: str, startup_fields_set: set[str]) -> Ap
     return AppSettingSource.DEFAULT
 
 
+def _startup_configured_fields() -> set[str]:
+    """Return settings keys explicitly configured through env or the selected env file."""
+    env_path = _env_file_path()
+    try:
+        env_stat = env_path.stat()
+        env_file_marker: tuple[str, int | None, int | None] = (
+            str(env_path),
+            env_stat.st_mtime_ns,
+            env_stat.st_size,
+        )
+    except FileNotFoundError:
+        env_file_marker = (str(env_path), None, None)
+
+    explicit_env = tuple(
+        sorted(
+            (spec.env_var, value)
+            for spec in ALL_SETTING_SPECS_BY_KEY.values()
+            if (value := os.getenv(spec.env_var)) is not None
+        )
+    )
+    override_env = (
+        os.getenv("PIPELINEHEALER_ENV_FILE_PATH"),
+        os.getenv("PIPELINEHEALER_REPO_ROOT"),
+    )
+    signature = (override_env, env_file_marker, explicit_env)
+
+    global _startup_configured_fields_cache_signature, _startup_configured_fields_cache_value
+    if signature == _startup_configured_fields_cache_signature:
+        return set(_startup_configured_fields_cache_value)
+
+    configured = {
+        key
+        for key, spec in ALL_SETTING_SPECS_BY_KEY.items()
+        if os.getenv(spec.env_var) is not None
+    }
+
+    if env_file_marker[1] is not None:
+        try:
+            values = dotenv_values(env_path)
+        except Exception:
+            values = {}
+        for key, spec in ALL_SETTING_SPECS_BY_KEY.items():
+            if spec.env_var in values:
+                configured.add(key)
+
+    _startup_configured_fields_cache_signature = signature
+    _startup_configured_fields_cache_value = frozenset(configured)
+    return configured
+
+
 def _setting_source_for_derived_attr(
     source_fields: tuple[str, ...],
     startup_fields_set: set[str],
 ) -> AppSettingSource:
     """Resolve provenance for fields derived from hidden startup-only settings."""
     for source_field in source_fields:
+        if source_field in _runtime_override_keys:
+            return AppSettingSource.RUNTIME_OVERRIDE
+        if source_field in _persisted_runtime_override_keys:
+            return AppSettingSource.PERSISTED_RUNTIME_OVERRIDE
         if source_field in startup_fields_set:
             return AppSettingSource.ENV
     return AppSettingSource.DEFAULT
@@ -324,8 +398,7 @@ def _setting_source_for_derived_attr(
 def _build_settings_metadata() -> dict[str, AppSettingMetadataView]:
     """Build per-field provenance metadata for the admin settings view."""
     settings = get_settings()
-    startup_settings = load_settings_snapshot()
-    startup_fields_set = set(startup_settings.model_fields_set)
+    startup_fields_set = _startup_configured_fields()
     mutable_attr_names = {attr_name for attr_name, _ in _MUTABLE_SETTINGS_ENV_KEYS}
     metadata: dict[str, AppSettingMetadataView] = {}
 
@@ -377,6 +450,178 @@ def _build_settings_metadata() -> dict[str, AppSettingMetadataView]:
     return metadata
 
 
+def _build_setup_status(storage: ActivityStorage | None = None) -> SetupStatusView:
+    """Build setup-readiness summary for UI-first runtime configuration."""
+    settings = get_settings()
+
+    try:
+        resolve_storage_mode(settings)
+        storage_bootstrap = SetupCheckView(ready=True, detail="Bootstrap storage configuration is valid.")
+    except Exception as exc:
+        storage_bootstrap = SetupCheckView(ready=False, detail=str(exc))
+
+    auth_ready = True
+    auth_detail = f"Auth mode: {settings.auth_mode}."
+    if settings.auth_mode in {"entra", "hybrid"} and not (
+        settings.entra_tenant_id and settings.entra_client_id
+    ):
+        auth_ready = False
+        auth_detail = "ENTRA_TENANT_ID and ENTRA_CLIENT_ID are required for Entra-backed auth."
+    auth_bootstrap = SetupCheckView(ready=auth_ready, detail=auth_detail)
+
+    if settings.settings_secret_backend == "azure_key_vault":
+        secret_backend_ready = SetupCheckView(
+            ready=bool(settings.key_vault_url.strip()),
+            detail=(
+                "Azure Key Vault runtime secret backend is configured."
+                if settings.key_vault_url.strip()
+                else "KEY_VAULT_URL is required when SETTINGS_SECRET_BACKEND=azure_key_vault."
+            ),
+        )
+    else:
+        secret_backend_ready = SetupCheckView(
+            ready=bool(settings.settings_db_encryption_key.strip()),
+            detail=(
+                "Encrypted database secret backend is configured."
+                if settings.settings_db_encryption_key.strip()
+                else "SETTINGS_DB_ENCRYPTION_KEY is required to manage runtime secrets in encrypted_db mode."
+            ),
+        )
+
+    llm_ready = False
+    llm_detail = "Provider runtime configuration is incomplete."
+    if settings.llm_provider == "azure_openai":
+        llm_ready = bool(settings.azure_openai_endpoint and settings.azure_openai_deployment_name)
+        llm_detail = (
+            "Azure OpenAI endpoint and deployment are configured."
+            if llm_ready
+            else "Configure Azure OpenAI endpoint and deployment in Settings or via env override."
+        )
+    elif settings.llm_provider == "openai_compatible":
+        llm_ready = bool(
+            settings.openai_compatible_base_url
+            and settings.openai_compatible_model
+            and settings.openai_compatible_api_key
+        )
+        llm_detail = (
+            "OpenAI-compatible runtime and API key are configured."
+            if llm_ready
+            else "Configure the base URL, model, and API key for the OpenAI-compatible provider."
+        )
+    llm_runtime = SetupCheckView(ready=llm_ready, detail=llm_detail)
+
+    has_pat, has_app, _ = _resolve_github_auth_mode()
+    if has_pat:
+        github_runtime = SetupCheckView(
+            ready=True,
+            detail=(
+                "GitHub runtime auth is configured with a PAT."
+                if not has_app
+                else "GitHub runtime auth is configured with a PAT. GitHub App inputs are also present but are not the active live auth path."
+            ),
+        )
+    elif has_app:
+        github_runtime = SetupCheckView(
+            ready=False,
+            detail=(
+                "GitHub App inputs are configured, but the current live GitHub API runtime still requires a PAT."
+            ),
+        )
+    else:
+        github_runtime = SetupCheckView(
+            ready=False,
+            detail="Configure a GitHub PAT for the current live GitHub API runtime path.",
+        )
+
+    webhook_ready = True
+    webhook_messages: list[str] = []
+    if settings.verify_webhook_signature and not settings.github_webhook_secret:
+        webhook_ready = False
+        webhook_messages.append("GitHub webhook secret is required while signature verification is enabled.")
+    if settings.jenkins_bridge_enabled and not settings.jenkins_bridge_shared_secret:
+        webhook_ready = False
+        webhook_messages.append("Jenkins bridge shared secret is required while the bridge is enabled.")
+    if (
+        settings.agent_handoff_enabled
+        and settings.agent_handoff_mode == "webhook"
+        and not settings.agent_handoff_webhook_url
+    ):
+        webhook_ready = False
+        webhook_messages.append("Assign-to-Agent webhook mode requires a destination URL secret.")
+    if not webhook_messages:
+        webhook_messages.append("Webhook and handoff secret dependencies are satisfied.")
+    webhook_secrets = SetupCheckView(ready=webhook_ready, detail=" ".join(webhook_messages))
+
+    overall_ready = all(
+        check.ready
+        for check in (
+            storage_bootstrap,
+            auth_bootstrap,
+            secret_backend_ready,
+            llm_runtime,
+            github_runtime,
+            webhook_secrets,
+        )
+    )
+    return SetupStatusView(
+        ready=overall_ready,
+        storage_bootstrap=storage_bootstrap,
+        auth_bootstrap=auth_bootstrap,
+        secret_backend=secret_backend_ready,
+        llm_runtime=llm_runtime,
+        github_runtime=github_runtime,
+        webhook_secrets=webhook_secrets,
+    )
+
+
+async def _build_secret_settings_views(storage: ActivityStorage) -> list[SecretSettingView]:
+    """Build non-sensitive secret metadata views for the admin UI."""
+    settings = get_settings()
+    startup_fields_set = _startup_configured_fields()
+    store = build_secret_store(storage)
+    views: list[SecretSettingView] = []
+    try:
+        for spec in SECRET_SETTING_SPECS:
+            env_overridden = spec.key in startup_fields_set
+            current_value = str(getattr(settings, spec.key, "") or "")
+            if env_overridden:
+                views.append(
+                    SecretSettingView(
+                        key=spec.key,
+                        configured=bool(current_value.strip()),
+                        source="env",
+                        backend="env",
+                        requires_restart=spec.requires_restart,
+                        overridden_by_env=True,
+                        safe_hint=(urlparse(current_value).hostname or "") if spec.key == "agent_handoff_webhook_url" and current_value.strip() else None,
+                        note="This secret is currently overridden by environment configuration.",
+                    )
+                )
+                continue
+
+            metadata = await store.describe(spec.key)
+            views.append(
+                SecretSettingView(
+                    key=spec.key,
+                    configured=metadata.configured,
+                    source="secret_store" if metadata.configured else "missing",
+                    backend=metadata.backend,
+                    requires_restart=spec.requires_restart,
+                    overridden_by_env=False,
+                    last_updated_at=metadata.last_updated_at,
+                    safe_hint=metadata.safe_hint,
+                    note=(
+                        f"Stored in {metadata.backend}."
+                        if metadata.configured
+                        else "Not configured in the runtime secret store."
+                    ),
+                )
+            )
+    finally:
+        await store.close()
+    return views
+
+
 def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsView:
     """Build the API response for settings from current runtime configuration."""
     settings = get_settings()
@@ -404,14 +649,20 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         log_prompt_tail_chars=settings.log_prompt_tail_chars,
         verify_webhook_signature=settings.verify_webhook_signature,
         verify_webhook_signature_in_development=settings.verify_webhook_signature_in_development,
+        settings_secret_backend=settings.settings_secret_backend,
         api_auth_enabled=bool(settings.api_auth_key),
         admin_api_auth_enabled=bool(settings.admin_api_key),
         auth_mode=settings.auth_mode,
         entra_auth_enabled=bool(settings.entra_tenant_id and settings.entra_client_id),
         entra_admin_roles=[role for role in settings.entra_admin_roles if role],
+        github_app_id=settings.github_app_id,
         github_pat_configured=has_pat,
         github_app_configured=has_app,
         github_auth_mode=github_auth_mode,
+        jenkins_bridge_enabled=settings.jenkins_bridge_enabled,
+        jenkins_bridge_max_skew_seconds=settings.jenkins_bridge_max_skew_seconds,
+        jenkins_bridge_replay_ttl_seconds=settings.jenkins_bridge_replay_ttl_seconds,
+        jenkins_bridge_max_body_bytes=settings.jenkins_bridge_max_body_bytes,
         gh_aw_tools_enabled=settings.gh_aw_tools_enabled,
         gh_aw_ingestion_mode=settings.gh_aw_ingestion_mode,
         gh_aw_known_workflows=_normalize_workflow_names(settings.gh_aw_known_workflows),
@@ -449,6 +700,7 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         azure_openai_deployment_name=settings.azure_openai_deployment_name,
         azure_openai_api_version=settings.azure_openai_api_version,
         azure_openai_chat_api_version=settings.azure_openai_chat_api_version,
+        setup_status=_build_setup_status(storage),
         settings_metadata=_build_settings_metadata(),
     )
 
@@ -456,55 +708,7 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
 # Lightweight demo audit buffer (non-durable by design for hackathon runtime).
 _admin_settings_audit: list[AdminSettingsAuditEntry] = []
 _MAX_ADMIN_SETTINGS_AUDIT_ENTRIES = 200
-_MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = (
-    ("heal_mode", "HEAL_MODE"),
-    ("auto_apply_remediation", "AUTO_APPLY_REMEDIATION"),
-    ("auto_create_pr", "AUTO_CREATE_PR"),
-    ("jenkins_bridge_allow_pr", "JENKINS_BRIDGE_ALLOW_PR"),
-    ("auto_create_issue", "AUTO_CREATE_ISSUE"),
-    ("auto_retry_workflow", "AUTO_RETRY_WORKFLOW"),
-    ("auto_create_tracking_issue_for_prs", "AUTO_CREATE_TRACKING_ISSUE_FOR_PRS"),
-    ("max_remediation_attempts", "MAX_REMEDIATION_ATTEMPTS"),
-    (
-        "verify_webhook_signature_in_development",
-        "VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT",
-    ),
-    ("pipeline_step_timeout_seconds", "PIPELINE_STEP_TIMEOUT_SECONDS"),
-    ("github_api_max_retries", "GITHUB_API_MAX_RETRIES"),
-    ("github_api_retry_base_seconds", "GITHUB_API_RETRY_BASE_SECONDS"),
-    ("github_api_retry_max_seconds", "GITHUB_API_RETRY_MAX_SECONDS"),
-    ("log_prompt_max_chars", "LOG_PROMPT_MAX_CHARS"),
-    ("log_prompt_head_chars", "LOG_PROMPT_HEAD_CHARS"),
-    ("log_prompt_tail_chars", "LOG_PROMPT_TAIL_CHARS"),
-    ("gh_aw_tools_enabled", "GH_AW_TOOLS_ENABLED"),
-    ("gh_aw_ingestion_mode", "GH_AW_INGESTION_MODE"),
-    ("gh_aw_known_workflows", "GH_AW_KNOWN_WORKFLOWS"),
-    ("external_diagnostics_wait_seconds", "EXTERNAL_DIAGNOSTICS_WAIT_SECONDS"),
-    (
-        "external_diagnostics_poll_interval_seconds",
-        "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS",
-    ),
-    ("agent_handoff_enabled", "AGENT_HANDOFF_ENABLED"),
-    ("agent_handoff_mode", "AGENT_HANDOFF_MODE"),
-    ("agent_handoff_webhook_allowlist", "AGENT_HANDOFF_WEBHOOK_ALLOWLIST"),
-    ("agent_handoff_timeout_seconds", "AGENT_HANDOFF_TIMEOUT_SECONDS"),
-    ("agent_handoff_max_retries", "AGENT_HANDOFF_MAX_RETRIES"),
-    ("ph_allowed_repos", "PH_ALLOWED_REPOS"),
-    ("llm_provider", "LLM_PROVIDER"),
-    ("openai_compatible_base_url", "OPENAI_COMPATIBLE_BASE_URL"),
-    ("openai_compatible_model", "OPENAI_COMPATIBLE_MODEL"),
-    ("llm_model_analysis", "LLM_MODEL_ANALYSIS"),
-    ("llm_model_diagnosis", "LLM_MODEL_DIAGNOSIS"),
-    ("llm_model_remediation", "LLM_MODEL_REMEDIATION"),
-    ("mcp_enabled", "MCP_ENABLED"),
-    ("mcp_provider", "MCP_PROVIDER"),
-    ("mcp_read_only", "MCP_READ_ONLY"),
-    ("mcp_timeout_seconds", "MCP_TIMEOUT_SECONDS"),
-    ("mcp_max_retries", "MCP_MAX_RETRIES"),
-    ("mcp_tool_policies", "MCP_TOOL_POLICIES"),
-    ("mcp_repo_allowlist", "MCP_REPO_ALLOWLIST"),
-    ("azure_openai_deployment_name", "AZURE_OPENAI_DEPLOYMENT_NAME"),
-)
+_MUTABLE_SETTINGS_ENV_KEYS: tuple[tuple[str, str], ...] = RUNTIME_NON_SECRET_ENV_KEYS
 
 
 def clear_admin_settings_audit() -> None:
@@ -514,8 +718,11 @@ def clear_admin_settings_audit() -> None:
 
 def clear_settings_runtime_provenance() -> None:
     """Clear in-process runtime provenance markers (useful for tests)."""
+    global _startup_configured_fields_cache_signature, _startup_configured_fields_cache_value
     _runtime_override_keys.clear()
     _persisted_runtime_override_keys.clear()
+    _startup_configured_fields_cache_signature = None
+    _startup_configured_fields_cache_value = frozenset()
 
 
 def _build_admin_settings_actor_fingerprint(
@@ -1156,8 +1363,10 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         "auto_create_issue",
         "auto_retry_workflow",
         "auto_create_tracking_issue_for_prs",
+        "verify_webhook_signature",
         "verify_webhook_signature_in_development",
         "gh_aw_tools_enabled",
+        "jenkins_bridge_enabled",
         "agent_handoff_enabled",
         "mcp_enabled",
         "mcp_read_only",
@@ -1169,6 +1378,9 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         "log_prompt_max_chars",
         "log_prompt_head_chars",
         "log_prompt_tail_chars",
+        "jenkins_bridge_max_skew_seconds",
+        "jenkins_bridge_replay_ttl_seconds",
+        "jenkins_bridge_max_body_bytes",
         "agent_handoff_max_retries",
         "mcp_max_retries",
     }:
@@ -1222,13 +1434,15 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
             raise ValueError("invalid mcp_tool_policies")
         return _normalize_mcp_tool_policies(value)
     if attr_name == "azure_openai_deployment_name":
-        normalized = str(value).strip()
-        if not normalized:
-            raise ValueError("invalid azure_openai_deployment_name")
-        return normalized
-    if attr_name == "openai_compatible_base_url":
         return str(value).strip()
-    if attr_name == "openai_compatible_model":
+    if attr_name in {
+        "azure_openai_endpoint",
+        "azure_openai_api_version",
+        "azure_openai_chat_api_version",
+        "openai_compatible_base_url",
+        "openai_compatible_model",
+        "github_app_id",
+    }:
         return str(value).strip()
     if attr_name in {"llm_model_analysis", "llm_model_diagnosis", "llm_model_remediation"}:
         return str(value).strip()
@@ -1253,14 +1467,16 @@ async def apply_persisted_runtime_settings(
 
     Called during lifespan init with explicit storage/workflow references.
     """
-    persisted = await storage.get_runtime_settings()
-    if not persisted:
-        return
-
     settings = get_settings()
+    startup_snapshot = load_settings_snapshot()
+    startup_fields_set = _startup_configured_fields()
+    persisted = await storage.get_runtime_settings() or {}
     changed_keys: list[str] = []
     applied_keys: set[str] = set()
     for attr_name, _ in _MUTABLE_SETTINGS_ENV_KEYS:
+        if attr_name in startup_fields_set:
+            setattr(settings, attr_name, getattr(startup_snapshot, attr_name))
+            continue
         if attr_name not in persisted:
             continue
         try:
@@ -1274,6 +1490,28 @@ async def apply_persisted_runtime_settings(
         setattr(settings, attr_name, normalized)
         changed_keys.append(attr_name)
         applied_keys.add(attr_name)
+
+    secret_store = build_secret_store(storage)
+    try:
+        for spec in SECRET_SETTING_SPECS:
+            if spec.key in startup_fields_set:
+                setattr(settings, spec.key, getattr(startup_snapshot, spec.key))
+                continue
+            try:
+                record = await secret_store.get(spec.key)
+            except SecretStoreError as exc:
+                logger.warning("Runtime secret store unavailable for %s: %s", spec.key, exc)
+                continue
+            except Exception:
+                logger.exception("Failed to load persisted runtime secret: %s", spec.key)
+                continue
+            if record is None:
+                continue
+            setattr(settings, spec.key, record.value)
+            changed_keys.append(spec.key)
+            applied_keys.add(spec.key)
+    finally:
+        await secret_store.close()
 
     if (
         settings.external_diagnostics_wait_seconds > 0
@@ -1653,7 +1891,7 @@ async def update_app_settings(
     user_agent: str | None = Header(default=None, alias="User-Agent"),
     x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
 ) -> AppSettingsView:
-    """Apply admin runtime overrides (in-memory until backend restart)."""
+    """Apply and durably persist admin runtime configuration updates."""
     settings = get_settings()
     changes = update.model_dump(exclude_none=True)
 
@@ -1761,13 +1999,16 @@ async def update_app_settings(
         )
 
     if "azure_openai_deployment_name" in changes:
-        deployment_name = str(changes["azure_openai_deployment_name"]).strip()
-        if not deployment_name:
-            raise HTTPException(
-                status_code=422,
-                detail="azure_openai_deployment_name must be a non-empty string",
-            )
-        changes["azure_openai_deployment_name"] = deployment_name
+        changes["azure_openai_deployment_name"] = str(changes["azure_openai_deployment_name"]).strip()
+
+    if "azure_openai_endpoint" in changes:
+        changes["azure_openai_endpoint"] = str(changes["azure_openai_endpoint"]).strip()
+
+    if "azure_openai_api_version" in changes:
+        changes["azure_openai_api_version"] = str(changes["azure_openai_api_version"]).strip()
+
+    if "azure_openai_chat_api_version" in changes:
+        changes["azure_openai_chat_api_version"] = str(changes["azure_openai_chat_api_version"]).strip()
 
     if "llm_provider" in changes:
         llm_provider = str(changes["llm_provider"]).strip().lower()
@@ -1789,6 +2030,8 @@ async def update_app_settings(
         changes["llm_model_diagnosis"] = str(changes["llm_model_diagnosis"]).strip()
     if "llm_model_remediation" in changes:
         changes["llm_model_remediation"] = str(changes["llm_model_remediation"]).strip()
+    if "github_app_id" in changes:
+        changes["github_app_id"] = str(changes["github_app_id"]).strip()
 
     if "mcp_provider" in changes:
         mcp_provider = str(changes["mcp_provider"]).strip().lower()
@@ -1826,14 +2069,11 @@ async def update_app_settings(
             detail="log_prompt_head_chars + log_prompt_tail_chars must be <= log_prompt_max_chars",
         )
 
-    # Capture the pre-change snapshot so audit entries can store old -> new values.
     previous_values = {key: getattr(settings, key, None) for key in changes}
-    for key, value in changes.items():
-        setattr(settings, key, value)
-        _persisted_runtime_override_keys.discard(key)
-        _runtime_override_keys.add(key)
-
-    workflow.refresh_runtime_settings()
+    persisted_values = await storage.get_runtime_settings() or {}
+    persisted_values.update(changes)
+    await _persist_mutable_settings_to_storage(persisted_values, storage)
+    await apply_persisted_runtime_settings(storage, workflow)
 
     audit_entry = AdminSettingsAuditEntry(
         changed_keys=sorted(changes.keys()),
@@ -1858,6 +2098,86 @@ async def update_app_settings(
     logger.info("Admin runtime settings updated; changed_keys=%s", sorted(changes.keys()))
 
     return _build_settings_view(storage)
+
+
+@router.get(
+    "/settings/secrets",
+    response_model=list[SecretSettingView],
+    dependencies=[Depends(require_admin_key)],
+)
+async def get_secret_settings(
+    storage: ActivityStorage = Depends(get_storage),
+) -> list[SecretSettingView]:
+    """Return non-sensitive metadata for runtime-managed secrets."""
+    return await _build_secret_settings_views(storage)
+
+
+@router.patch(
+    "/settings/secrets",
+    response_model=list[SecretSettingView],
+    dependencies=[Depends(require_admin_key)],
+)
+async def update_secret_settings(
+    payload: AdminSecretsUpdateRequest,
+    request: Request,
+    storage: ActivityStorage = Depends(get_storage),
+    workflow: PipelineHealerWorkflow = Depends(get_workflow),
+    user_agent: str | None = Header(default=None, alias="User-Agent"),
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
+) -> list[SecretSettingView]:
+    """Write, rotate, or clear runtime-managed secrets without returning plaintext."""
+    if not payload.secrets:
+        return await _build_secret_settings_views(storage)
+
+    invalid_keys = sorted(set(payload.secrets) - set(SECRET_SETTING_SPECS_BY_KEY))
+    if invalid_keys:
+        raise HTTPException(status_code=422, detail=f"Unknown secret keys: {', '.join(invalid_keys)}")
+
+    store = build_secret_store(storage)
+    settings = get_settings()
+    startup_fields_set = _startup_configured_fields()
+    audit_changes: dict[str, dict[str, Any]] = {}
+    try:
+        for key, write in payload.secrets.items():
+            if write.clear:
+                await store.delete(key)
+                if key not in startup_fields_set:
+                    setattr(settings, key, "")
+                    _persisted_runtime_override_keys.discard(key)
+                audit_changes[key] = {"old": "configured", "new": {"action": "cleared", "backend": store.backend_name}}
+                continue
+
+            value = str(write.value or "").strip()
+            if not value:
+                raise HTTPException(status_code=422, detail=f"{key} requires a non-empty value or clear=true")
+            previous = getattr(settings, key, "")
+            await store.set(key, value, metadata={"request_id": getattr(request.state, "request_id", None)})
+            if key not in startup_fields_set:
+                setattr(settings, key, value)
+                _persisted_runtime_override_keys.add(key)
+            audit_changes[key] = {
+                "old": "configured" if previous else None,
+                "new": {
+                    "action": "rotated" if previous else "set",
+                    "backend": store.backend_name,
+                },
+            }
+    except SecretStoreError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    finally:
+        await store.close()
+
+    workflow.refresh_runtime_settings()
+    audit_entry = AdminSettingsAuditEntry(
+        changed_keys=sorted(audit_changes.keys()),
+        changes=audit_changes,
+        actor=_build_admin_settings_actor_fingerprint(request=request, x_admin_key=x_admin_key),
+        request_id=getattr(request.state, "request_id", None),
+        client_ip=request.client.host if request.client else None,
+        user_agent=user_agent,
+    )
+    await _append_admin_settings_audit_entry(storage=storage, entry=audit_entry)
+    return await _build_secret_settings_views(storage)
 
 
 @router.get(
@@ -1930,65 +2250,20 @@ async def persist_app_settings(
     user_agent: str | None = Header(default=None, alias="User-Agent"),
     x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
 ) -> AdminSettingsPersistResponse:
-    """Persist effective mutable runtime settings to durable storage and optionally redeploy."""
-    runtime_values = _mutable_runtime_settings_snapshot()
-    env_values = _runtime_settings_to_env_values(runtime_values)
-    persisted_keys = list(env_values.keys())
-
-    try:
-        await _persist_mutable_settings_to_storage(runtime_values, storage)
-    except Exception as exc:
-        logger.exception("Failed to persist mutable runtime settings to storage: %s", exc)
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to persist settings to durable storage",
-        ) from exc
-
-    persisted_attr_names = set(runtime_values.keys())
-    _runtime_override_keys.difference_update(persisted_attr_names)
-    _persisted_runtime_override_keys.update(persisted_attr_names)
-
-    env_file = _persist_mutable_settings_to_env_file(env_values)
-    if payload.skip_redeploy:
-        response = AdminSettingsPersistResponse(
-            env_file=env_file or "",
-            persisted_keys=persisted_keys,
-            redeploy_attempted=False,
-            redeploy_started=False,
-            redeploy_message=(
-                "Persisted settings to durable storage"
-                + (f" and {env_file}" if env_file else "")
-                + " (redeploy skipped by request)"
-            ),
-        )
-    elif env_file is None:
-        response = AdminSettingsPersistResponse(
-            env_file="",
-            persisted_keys=persisted_keys,
-            redeploy_attempted=False,
-            redeploy_started=False,
-            redeploy_message=(
-                "Persisted settings to durable storage. "
-                "Local backend/.env not available in this runtime, so env-only redeploy was skipped."
-            ),
-        )
-    else:
-        redeploy_started, redeploy_message = await _start_env_only_redeploy_background()
-        if not redeploy_started:
-            logger.warning(
-                "Admin settings persisted but env-only redeploy did not start: %s",
-                redeploy_message,
-            )
-        else:
-            logger.info("Admin settings persisted and env-only redeploy started")
-
-        response = AdminSettingsPersistResponse(
-            env_file=env_file,
-            persisted_keys=persisted_keys,
-            redeploy_attempted=True,
-            redeploy_started=redeploy_started,
-            redeploy_message=redeploy_message,
-        )
+    """Compatibility endpoint retained after the UI-first durable-save refactor."""
+    _ = payload
+    persisted_keys = sorted((await storage.get_runtime_settings() or {}).keys())
+    response = AdminSettingsPersistResponse(
+        env_file="",
+        persisted_keys=persisted_keys,
+        redeploy_attempted=False,
+        redeploy_started=False,
+        redeploy_message=(
+            "Deprecated: PATCH /api/settings and PATCH /api/settings/secrets already persist changes durably. "
+            "Use environment variables only for bootstrap overrides."
+        ),
+        deprecated=True,
+    )
 
     persist_audit_entry = AdminSettingsAuditEntry(
         changed_keys=["persist_settings"],
@@ -1998,9 +2273,7 @@ async def persist_app_settings(
                 "new": {
                     "skip_redeploy": payload.skip_redeploy,
                     "persisted_keys": persisted_keys,
-                    "env_file": response.env_file or None,
-                    "redeploy_attempted": response.redeploy_attempted,
-                    "redeploy_started": response.redeploy_started,
+                    "deprecated": True,
                 },
             }
         },

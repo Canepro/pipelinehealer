@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 22efa6e -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -67,6 +67,7 @@ Important command scope rule:
 
 - `deploy*`, `status`, `urls`, `warm`, `lowcost`, `webhook:*`, `rollout:canary`, `demo:e2e` are Azure-infra commands.
 - `settings:check`, `settings:audit`, `settings:persist`, `settings:persist:verify`, `audit:proof`, `backfill` work with any reachable backend URL via `PH_BACKEND_URL`.
+  - `settings:persist*` is now primarily the local env-sync and compatibility-audit layer; runtime persistence already happens through the backend settings APIs
 - `demo:proof` and `demo:reset` are GitHub-only (`gh`), backend independent.
 - For Kubernetes, use the Helm guide: `docs/runbooks/KUBERNETES_HELM_RUNBOOK.md`.
   - If Entra session login is required on Kubernetes, set frontend runtime env `VITE_AUTH_MODE=entra` plus required `VITE_ENTRA_*` values in Helm values.
@@ -203,7 +204,7 @@ Settings UI note:
 - It also generates a sample webhook event payload and a `curl` smoke test that use the same JSON schema as the real Assign-to-Agent webhook (including `activity.repository`, `activity.workflow_run_id`, and `activity.failure_type`) so you can validate the webhook target before changing deployment config.
 - The same area now includes a notification target setup assistant for the reference receiver. It generates a valid single-target `NOTIFY_TARGETS_JSON` example for `webhook`, `slack_webhook`, `teams_webhook`, `rocketchat_webhook`, or `email` without storing those sink URLs or SMTP credentials in runtime settings.
 - The sample payload intentionally omits deployment-only values and should be treated as the canonical expected JSON shape for receiver validation.
-- The actual webhook URL remains startup configuration; it is not returned by the API.
+- The actual webhook URL is stored as a write-only runtime secret and is never returned by the API.
 
 Reference visual:
 
@@ -656,7 +657,7 @@ bash scripts/ph.sh logs --tail 100            # view backend logs (docker compos
 bash scripts/ph.sh backfill                   # trigger diagnostics backfill
 ```
 
-**Works locally:** `settings:check`, `settings:audit`, `settings:persist` (`--skip-redeploy`), `settings:persist:verify` (`--skip-redeploy`), `audit:proof`, `backfill`, `logs`, `logs:raw`, `logs:grep`, `demo:proof`, `demo:reset`.
+**Works locally:** `settings:check`, `settings:audit`, `settings:persist` (`--skip-redeploy`, for env sync plus compatibility audit), `settings:persist:verify` (`--skip-redeploy`), `audit:proof`, `backfill`, `logs`, `logs:raw`, `logs:grep`, `demo:proof`, `demo:reset`.
 
 Repo allowlist safety note:
 - default to `--repos-add` / `--repos-remove` for routine changes

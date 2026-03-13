@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 8870fd4 -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -33,6 +33,10 @@ Deploy:
 
 Runtime/admin:
 - `settings:check`, `settings:audit`, `settings:persist`, `audit:proof`
+
+Interpretation:
+- `settings:check` and `settings:audit` reflect the current control-plane/runtime model.
+- `settings:persist` remains a compatibility/env-sync command, not the primary persistence path for runtime-safe settings.
 
 Diagnostics:
 - `logs`, `logs:raw`, `logs:grep`, `backfill`
@@ -75,8 +79,16 @@ PipelineHealer uses Azure as the current reference managed deployment, but it is
 - Storage:
   - local/dev fallback: in-memory
   - durable backends: Cosmos DB (`STORAGE_MODE=cosmos`) or PostgreSQL (`STORAGE_MODE=postgres`)
+- Runtime secret storage:
+  - portable default: `SETTINGS_SECRET_BACKEND=encrypted_db`
+  - optional Azure-native path: `SETTINGS_SECRET_BACKEND=azure_key_vault`
 - Auth:
   - `api_key`, `entra`, or `hybrid`
+
+Cloud portability note:
+- AWS, GCP, OCI, or self-hosted deployments are not forced onto Azure Key Vault
+- the current portable secret-management path is `encrypted_db`
+- first-class native secret-manager integrations for other clouds are follow-on work, not a prerequisite for running the product
 
 See:
 
@@ -94,9 +106,15 @@ Use `deploy:release` for Azure production/staging promotion:
 Use `deploy:env` when runtime env changed:
 - auth mode and Entra backend vars
 - frontend runtime vars (`VITE_*`)
-- policy values
+- bootstrap overrides for policy values or runtime-managed secrets
 - MCP/backend controls
 - use `deploy:env --secure-secrets` when rotating or hardening secrets
+
+Normal operator changes to runtime-safe settings now persist directly through the Settings UI or `PATCH /api/settings`. Use `deploy:env` when you are intentionally changing startup-managed env overrides.
+
+Current GitHub auth boundary:
+- runtime PAT changes can be applied live through the Settings surface
+- GitHub App values can be stored for readiness, but full live App-auth runtime wiring is not part of the current release
 
 Use full `deploy` for development/hotfix iterations when image contents changed:
 - frontend/backend source changes
