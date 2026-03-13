@@ -8,7 +8,9 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Changed
+
+- Prepared the `v0.7.2` recovery release cut after the failed `v0.7.1` tag attempt so version metadata and the matching release section are staged together before the next tag is pushed. (`c183a90`)
 
 ## [v0.7.2] - 2026-03-13
 
