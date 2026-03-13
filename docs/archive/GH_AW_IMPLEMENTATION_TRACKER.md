@@ -21,7 +21,7 @@ Primary source: [`Meet the Workflows: Fault Investigation`](https://github.githu
 
 - Use CI Doctor outputs as high-signal triage input before remediation planning.
 - Use Breaking Change Checker alerts as explicit human sign-off gates.
-- Use Schema Consistency Checker to keep `docs/API.md` and runtime behavior aligned.
+- Use Schema Consistency Checker to keep `docs/reference/API.md` and runtime behavior aligned.
 - Convert repeated findings into deterministic remediation templates and new fixtures.
 
 ## Scope
@@ -260,7 +260,7 @@ Acceptance:
 - Confirmed baseline repo CI at `.github/workflows/ci.yml`.
 - Removed invalid hand-written workflow markdown files from `.github/workflows/`.
 - Installed `gh aw` extension (`github/gh-aw v0.43.23`).
-- Updated strategy section in `docs/GH_AW_IMPLEMENTATION_TRACKER.md`.
+- Updated strategy section in `docs/archive/GH_AW_IMPLEMENTATION_TRACKER.md`.
 - Ran `gh aw init --no-mcp`.
 - Added and compiled:
   - `.github/workflows/ci-doctor.md`

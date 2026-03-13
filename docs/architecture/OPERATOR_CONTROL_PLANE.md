@@ -1,4 +1,4 @@
-<!-- LAST_VERIFIED: d555eef -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 # Operator Control Plane
 

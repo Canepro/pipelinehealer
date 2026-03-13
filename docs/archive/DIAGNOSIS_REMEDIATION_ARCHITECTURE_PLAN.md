@@ -37,9 +37,9 @@ The fix is architectural: tighten structured interfaces first, then use stronger
 This plan follows the standing product contract in:
 
 - `README.md`
-- `docs/OPERATOR_CONTROL_PLANE.md`
-- `docs/LLM_AND_AGENT_RUNTIME.md`
-- `docs/LEARNING_SYSTEM_PLAN.md`
+- `docs/architecture/OPERATOR_CONTROL_PLANE.md`
+- `docs/architecture/LLM_AND_AGENT_RUNTIME.md`
+- `docs/architecture/LEARNING_SYSTEM_PLAN.md`
 
 Key alignment rules:
 

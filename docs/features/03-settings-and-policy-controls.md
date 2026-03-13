@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: c9f507b -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -183,5 +183,5 @@ curl -X PATCH \
 
 ## Related Docs
 
-- `../API.md` (`GET/PATCH/POST /api/settings*`)
-- `../CLI.md` (`settings:persist` flags)
+- `../reference/API.md` (`GET/PATCH/POST /api/settings*`)
+- `../reference/CLI.md` (`settings:persist` flags)

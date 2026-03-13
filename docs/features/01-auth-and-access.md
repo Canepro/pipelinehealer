@@ -1,6 +1,6 @@
 # Feature: Auth And Access
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 This guide explains how users authenticate to PipelineHealer and how admin-only actions are protected.
 
@@ -122,5 +122,5 @@ curl -H "X-API-Key: $API_AUTH_KEY" -H "X-Admin-Key: $ADMIN_API_KEY" "$BACKEND_UR
 
 ## Related Docs
 
-- `../API.md` (`Authentication`, `/api/settings*`)
-- `../LOCAL_DEMO_RUNBOOK.md` (beginner portal steps + troubleshooting)
+- `../reference/API.md` (`Authentication`, `/api/settings*`)
+- `../runbooks/LOCAL_DEMO_RUNBOOK.md` (beginner portal steps + troubleshooting)

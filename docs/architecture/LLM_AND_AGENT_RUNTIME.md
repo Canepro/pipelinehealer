@@ -1,6 +1,6 @@
 # LLM and Agent Runtime
 
-<!-- LAST_VERIFIED: d4b972c -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 This document is the operator-facing contract for how PipelineHealer uses LLMs and agents at runtime.
 
@@ -225,7 +225,7 @@ Target shape:
 ## References
 
 - [README.md](/mnt/d/repos/pipelinehealer/README.md)
-- [docs/LOCAL_DEMO_RUNBOOK.md](/mnt/d/repos/pipelinehealer/docs/LOCAL_DEMO_RUNBOOK.md)
-- [docs/API.md](/mnt/d/repos/pipelinehealer/docs/API.md)
-- [docs/MODEL_PROVIDER_STRATEGY.md](/mnt/d/repos/pipelinehealer/docs/MODEL_PROVIDER_STRATEGY.md)
-- [docs/LEARNING_SYSTEM_PLAN.md](/mnt/d/repos/pipelinehealer/docs/LEARNING_SYSTEM_PLAN.md)
+- [docs/runbooks/LOCAL_DEMO_RUNBOOK.md](/mnt/d/repos/pipelinehealer/docs/runbooks/LOCAL_DEMO_RUNBOOK.md)
+- [docs/reference/API.md](/mnt/d/repos/pipelinehealer/docs/reference/API.md)
+- [docs/architecture/MODEL_PROVIDER_STRATEGY.md](/mnt/d/repos/pipelinehealer/docs/architecture/MODEL_PROVIDER_STRATEGY.md)
+- [docs/architecture/LEARNING_SYSTEM_PLAN.md](/mnt/d/repos/pipelinehealer/docs/architecture/LEARNING_SYSTEM_PLAN.md)

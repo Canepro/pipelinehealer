@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: d555eef -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 All notable changes to this project will be documented in this file.
 
@@ -15,6 +15,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ### Changed
 
 - Standardized the recommended Jenkins evidence-capture pattern around plugin-free workspace excerpts and repo-local shell sender assets instead of script-approval-sensitive Groovy log access.
+- Reorganized the docs into `docs/reference/`, `docs/runbooks/`, `docs/architecture/`, and `docs/archive/` so current operator guidance is easier to find and historical planning material no longer competes with the canonical docs.
 
 ## [v0.6.1] - 2026-03-12
 
@@ -220,7 +221,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - `eaa47f7`, `44effc3`, `a437be5` Aligned roadmap/log verification markers and `v0.3.0`/`v0.3.1` tracking scopes across release planning docs.
 - Hardened `.github/workflows/release.yml` to block GitHub release creation when anonymous GHCR pullability fails.
-- Updated release documentation/checklist surfaces (`README.md`, `docs/CLI.md`, `docs/RELEASE_RUNBOOK.md`, `scripts/release_checklist.sh`) to use the new preflight and post-release verification automation paths.
+- Updated release documentation/checklist surfaces (`README.md`, `docs/reference/CLI.md`, `docs/runbooks/RELEASE_RUNBOOK.md`, `scripts/release_checklist.sh`) to use the new preflight and post-release verification automation paths.
 - Qualified frontend Docker base images (`docker.io/oven/bun:1`, `docker.io/library/nginx:alpine`) to avoid short-name resolution failures in mixed Docker/Podman/WSL deploy environments.
 - Hardened Azure full deploy image retagging to auto-detect local compose build image names across dash/underscore and optional `localhost/` prefixes before pushing to ACR, and sanitized ACR prune digest parsing to avoid malformed delete refs.
 
@@ -244,8 +245,8 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ### Changed
 
 - Documented Kubernetes distribution risk for open-source adopters: Helm success alone is not sufficient when image pullability fails (`ErrImagePull` / `ImagePullBackOff`, registry token `401`/`403`).
-- Added explicit random-user pullability gate language to `README.md` and `docs/KUBERNETES_HELM_RUNBOOK.md`.
-- Added release verification guidance in `docs/RELEASE_RUNBOOK.md` to block portability claims when clean-cluster image pulls fail.
+- Added explicit random-user pullability gate language to `README.md` and `docs/runbooks/KUBERNETES_HELM_RUNBOOK.md`.
+- Added release verification guidance in `docs/runbooks/RELEASE_RUNBOOK.md` to block portability claims when clean-cluster image pulls fail.
 - Hardened `settings:persist` repo-scope behavior: `--repos` now aliases safe additive mode (`--repos-add`), with explicit `--repos-remove` and destructive `--repos-replace` modes.
 - Added backend URL validation in `scripts/ph.sh` settings persistence paths to avoid malformed API targets (for example `https:///api/...`) when Azure FQDN resolution fails.
 
@@ -276,12 +277,12 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ### Changed
 
-- `2882470` Clarified `docs/LEARNING_SYSTEM_PLAN.md` with plain-language behavior, explicit non-goals, and a quick verification checklist for first-time operators.
+- `2882470` Clarified `docs/architecture/LEARNING_SYSTEM_PLAN.md` with plain-language behavior, explicit non-goals, and a quick verification checklist for first-time operators.
 - `5ef9d80` Clarified learning-system behavior to explicitly note that GitHub issue comments are evidence but are not auto-ingested into feedback.
-- `f1bce38` Refreshed `docs/LEARNING_SYSTEM_PLAN.md` verification marker after learning-plan clarity update.
+- `f1bce38` Refreshed `docs/architecture/LEARNING_SYSTEM_PLAN.md` verification marker after learning-plan clarity update.
 - `b5cbb7e` Re-evaluated `v0.3.0` roadmap scope to add `BL-025` (structured GitHub issue accuracy comment ingestion into `learning/feedback`) and aligned learning plan immediate-next scope.
 - `8980118` Updated `demo-repo/README.md` for current demo timings/strict mode, clearer ci-doctor/MCP interpretation, and practical demo-artifact housekeeping commands.
-- `b715e90` Added beginner-friendly onboarding clarity and explicit platform support guidance in `README.md`, `docs/CLI.md`, and `docs/LOCAL_DEMO_RUNBOOK.md`.
+- `b715e90` Added beginner-friendly onboarding clarity and explicit platform support guidance in `README.md`, `docs/reference/CLI.md`, and `docs/runbooks/LOCAL_DEMO_RUNBOOK.md`.
 - `75ebffd` Tightened first-time operator onboarding flow with concrete verification steps and reduced command ambiguity.
 - `ca5b69c` Reordered README information architecture and expanded hackathon status/collaboration guidance for submission-phase readability.
 - `c07f9c3` Fixed Entra auth release drift by validating/injecting frontend `VITE_*` build args in release workflow, plus clearer UI/runbook guidance.
@@ -299,8 +300,8 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ### Changed
 
 - `75c3871` Updated operator docs/runbooks to recommend release-driven Azure deploys (`deploy:release --release-version vX.Y.Z`) as the default production path.
-- `4d801e0` Refreshed submission freeze tracking and the video demo runbook (`docs/HACKATHON_LOG.md`, `docs/DEMO_SCRIPT.md`) for the `v0.2.6` baseline, including release-driven pre-record deploy guidance.
-- `a80c271` Refreshed `docs/DEMO_SCRIPT.md` verification marker after submission-runbook updates.
+- `4d801e0` Refreshed submission freeze tracking and the video demo runbook (`docs/HACKATHON_LOG.md`, `docs/runbooks/DEMO_SCRIPT.md`) for the `v0.2.6` baseline, including release-driven pre-record deploy guidance.
+- `a80c271` Refreshed `docs/runbooks/DEMO_SCRIPT.md` verification marker after submission-runbook updates.
 - `308b862` Polished README submission-phase positioning, clarified remediation language, and added an explicit `v0.2.6` baseline section.
 - `9e74863` Updated README architecture Mermaid diagram to match current runtime behavior (background diagnostics backfill, GH-AW sources, optional MCP enrichment).
 - `695834f` Hardened `demo:e2e` verification with configurable CI-signal waits, optional strict gating, on-demand diagnostics backfill, and clearer passive-vs-direct MCP summary output.
@@ -394,7 +395,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ### Added
 
-- Release runbook (`docs/RELEASE_RUNBOOK.md`) with end-to-end prep, publish verification, and rollback guidance.
+- Release runbook (`docs/runbooks/RELEASE_RUNBOOK.md`) with end-to-end prep, publish verification, and rollback guidance.
 - Release checklist helper (`scripts/release_checklist.sh`) for copy-paste, ordered release execution.
 
 ### Changed

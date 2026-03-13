@@ -138,8 +138,8 @@ Benefits:
 - does not require Jenkins script approval exceptions or extra controller plugins
 - stays portable across multibranch, PR, and scheduled Jenkins jobs
 
-For the backend contract and rollout guidance, see
-[docs/JENKINS_BRIDGE_TECHNICAL_DESIGN.md](../../docs/JENKINS_BRIDGE_TECHNICAL_DESIGN.md).
+For the backend contract, see
+[docs/reference/API.md](../../docs/reference/API.md).
 
 For the minimal snippet, see
 [examples/Jenkinsfile.failure-snippet.groovy](examples/Jenkinsfile.failure-snippet.groovy).

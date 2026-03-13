@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: d555eef -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -68,7 +68,7 @@ Important command scope rule:
 - `deploy*`, `status`, `urls`, `warm`, `lowcost`, `webhook:*`, `rollout:canary`, `demo:e2e` are Azure-infra commands.
 - `settings:check`, `settings:audit`, `settings:persist`, `settings:persist:verify`, `audit:proof`, `backfill` work with any reachable backend URL via `PH_BACKEND_URL`.
 - `demo:proof` and `demo:reset` are GitHub-only (`gh`), backend independent.
-- For Kubernetes, use the Helm guide: `docs/KUBERNETES_HELM_RUNBOOK.md`.
+- For Kubernetes, use the Helm guide: `docs/runbooks/KUBERNETES_HELM_RUNBOOK.md`.
   - If Entra session login is required on Kubernetes, set frontend runtime env `VITE_AUTH_MODE=entra` plus required `VITE_ENTRA_*` values in Helm values.
 
 ### `ph.sh` Platform Clarification
@@ -78,11 +78,11 @@ Important command scope rule:
 - Works best on Linux/macOS and Windows via WSL2.
 - On Windows without bash (PowerShell-only), run either:
   - WSL2/Git Bash (recommended), or
-  - direct alternatives (`az`, `gh`, and REST API calls from `docs/API.md`).
+  - direct alternatives (`az`, `gh`, and REST API calls from `docs/reference/API.md`).
 
 When `ph.sh` command scope does not match your environment:
 - non-Azure backend: set `PH_BACKEND_URL` and use `settings:*`, `audit:proof`, `backfill`
-- Kubernetes deploys: use Helm directly (`docs/KUBERNETES_HELM_RUNBOOK.md`)
+- Kubernetes deploys: use Helm directly (`docs/runbooks/KUBERNETES_HELM_RUNBOOK.md`)
 - remote backend logs: use platform-native logs (Azure/Kubernetes/host logs), not local `logs*`
 
 Planned support (not yet shipped):
@@ -152,7 +152,7 @@ bash scripts/ph.sh settings:check | jq '.llm_provider,.openai_compatible_base_ur
 If you do not have `jq`, run `bash scripts/ph.sh settings:check` and inspect the raw JSON output.
 
 Reference:
-- detailed LLM/runtime behavior, degraded mode, and validated Azure combinations: `docs/LLM_AND_AGENT_RUNTIME.md`
+- detailed LLM/runtime behavior, degraded mode, and validated Azure combinations: `docs/architecture/LLM_AND_AGENT_RUNTIME.md`
 
 ---
 

@@ -72,7 +72,7 @@ type ReviewQueueItem = {
 };
 
 const LOGS_RUNBOOK_URL =
-  "https://github.com/Canepro/pipelinehealer/blob/main/docs/LOGS_AND_INVESTIGATION.md";
+  "https://github.com/Canepro/pipelinehealer/blob/main/docs/runbooks/LOGS_AND_INVESTIGATION.md";
 
 type InvestigationCommandScope = "Azure" | "Local/Docker";
 type InvestigationCommandItem = {

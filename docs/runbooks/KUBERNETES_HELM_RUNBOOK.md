@@ -1,6 +1,6 @@
 # Kubernetes Helm Runbook
 
-<!-- LAST_VERIFIED: 8e79a7e -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 This runbook adds Kubernetes as a secondary deployment target while keeping Azure Container Apps as the current reference managed path.
 
@@ -362,7 +362,7 @@ Model compatibility note:
 - For Entra session auth, set frontend runtime `VITE_*` values in Helm overrides; no image rebuild is required.
 - Keep `MCP_ENABLED=false` and `MCP_READ_ONLY=true` by default for first rollout.
 - Use repo allowlists (`PH_ALLOWED_REPOS`, `MCP_REPO_ALLOWLIST`) before enabling wider automation.
-- Use `docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md` for provider migration/rollback steps.
+- Use `docs/runbooks/MODEL_PROVIDER_SWITCH_RUNBOOK.md` for provider migration/rollback steps.
 
 ## Common Auth Pitfall
 

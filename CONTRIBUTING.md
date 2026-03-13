@@ -1,6 +1,6 @@
 # Contributing
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 Thanks for your interest in improving PipelineHealer.
 
@@ -74,14 +74,14 @@ Always execute scripts with `bash scripts/...`. Do not use `source` or `. script
 - Add/update `CHANGELOG.md` `## [Unreleased]` entries for user-visible changes and include short commit hash references.
 - For control-plane/configuration changes, update the governing docs before or alongside code:
   1. `README.md`
-  2. `docs/OPERATOR_CONTROL_PLANE.md`
-  3. `docs/API.md`
-  4. `docs/CLI.md`
+  2. `docs/architecture/OPERATOR_CONTROL_PLANE.md`
+  3. `docs/reference/API.md`
+  4. `docs/reference/CLI.md`
 - Update docs when behavior changes:
   1. `README.md`
-  2. `docs/API.md`
-  3. `docs/LOCAL_DEMO_RUNBOOK.md`
-  4. `docs/CLI.md`
+  2. `docs/reference/API.md`
+  3. `docs/runbooks/LOCAL_DEMO_RUNBOOK.md`
+  4. `docs/reference/CLI.md`
 
 ## Quality Gates
 

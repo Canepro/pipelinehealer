@@ -157,8 +157,8 @@ Theme: LLM capability contract hardening + learning-ops rework.
    - keep activation governance explicit and audit-first
 5. Research-backed alignment
    - keep the next phase anchored in official provider guidance instead of repo-local assumptions
-   - implementation framing recorded in `docs/LLM_PROVIDER_RESEARCH_AND_PLAN.md`
-   - diagnosis/remediation contract hardening recorded in `docs/DIAGNOSIS_REMEDIATION_ARCHITECTURE_PLAN.md`
+   - implementation framing recorded in `docs/archive/LLM_PROVIDER_RESEARCH_AND_PLAN.md`
+   - diagnosis/remediation contract hardening recorded in `docs/archive/DIAGNOSIS_REMEDIATION_ARCHITECTURE_PLAN.md`
    - implementation PRs for this workstream should declare `v0.6.0`, `minor`, and `Changed`
 6. Incident-driven diagnosis/remediation hardening
    - convert live PipelineHealer incidents into regression fixtures, not just synthetic examples
@@ -338,7 +338,7 @@ Theme: operator safety hardening for settings persistence and repo allowlist man
    - reject malformed backend URLs early
    - avoid accidental `curl https:///api/...` fallback behavior
 3. Docs/changelog/release notes sync
-   - update operator-facing examples and warnings in `README.md`, `docs/CLI.md`, and `docs/LOCAL_DEMO_RUNBOOK.md`
+   - update operator-facing examples and warnings in `README.md`, `docs/reference/CLI.md`, and `docs/runbooks/LOCAL_DEMO_RUNBOOK.md`
    - implementation tracked in `BL-037` / [#38](https://github.com/Canepro/pipelinehealer/issues/38) (closed)
 
 ### Exit Criteria
@@ -366,7 +366,7 @@ Theme: separate runtime execution controls cleanly for operators and close remai
    - portability risk tracked in issue [#37](https://github.com/Canepro/pipelinehealer/issues/37) (closed in `v0.3.0`)
 4. Regression protection + docs sync
    - add/update tests around settings persistence and orchestration dry-run gating
-   - update `README.md`, `docs/API.md`, `docs/CLI.md`, `docs/KUBERNETES_HELM_RUNBOOK.md`, and `docs/features/03-settings-and-policy-controls.md`
+   - update `README.md`, `docs/reference/API.md`, `docs/reference/CLI.md`, `docs/runbooks/KUBERNETES_HELM_RUNBOOK.md`, and `docs/features/03-settings-and-policy-controls.md`
 
 ### Exit Criteria
 
@@ -524,7 +524,7 @@ These items are researched and tracked; some have scoped phased rollout while ot
   - `v0.3.0`: discoverability UI (`Assign to Agent` shown as disabled `Coming Soon`)
   - `v0.3.2`: functional handoff integration (`copy_only`/`webhook`)
 - Draft mini-spec for scoped, non-breaking handoff UX:
-  - `docs/AGENT_HANDOFF_CONTEXT_MINISPEC.md`
+  - `docs/archive/AGENT_HANDOFF_CONTEXT_MINISPEC.md`
 - Why parked:
   - We need to preserve PipelineHealer as the policy/audit control plane.
   - Current MCP + GH-AW hybrid path already covers core diagnostics needs for submission.

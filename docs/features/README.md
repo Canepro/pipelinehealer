@@ -1,6 +1,6 @@
 # Feature Guides
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 These guides explain PipelineHealer by capability so beginners and experienced operators can quickly find what they need.
 
@@ -12,7 +12,7 @@ These guides explain PipelineHealer by capability so beginners and experienced o
 4. Runtime settings and policy: `03-settings-and-policy-controls.md`
 5. External diagnostics and MCP: `04-external-diagnostics-and-mcp.md`
 6. Explainability and telemetry: `05-explainability-and-observability.md`
-7. Learning queue and promotion governance: `../LEARNING_SYSTEM_PLAN.md`
+7. Learning queue and promotion governance: `../architecture/LEARNING_SYSTEM_PLAN.md`
 
 ## Audience Map
 
@@ -22,8 +22,8 @@ These guides explain PipelineHealer by capability so beginners and experienced o
 
 ## Related Core Docs
 
-- API reference: `../API.md`
-- CLI reference: `../CLI.md`
-- Logs and investigation: `../LOGS_AND_INVESTIGATION.md`
-- Local + Azure runbook: `../LOCAL_DEMO_RUNBOOK.md`
-- Demo script: `../DEMO_SCRIPT.md`
+- API reference: `../reference/API.md`
+- CLI reference: `../reference/CLI.md`
+- Logs and investigation: `../runbooks/LOGS_AND_INVESTIGATION.md`
+- Local + Azure runbook: `../runbooks/LOCAL_DEMO_RUNBOOK.md`
+- Demo script: `../runbooks/DEMO_SCRIPT.md`

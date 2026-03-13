@@ -1,6 +1,6 @@
 # Logs And Investigation Guide
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 Use this guide to debug PipelineHealer behavior quickly in local, Docker, and Azure runs.
 
@@ -204,7 +204,7 @@ For bug reports or review handoff, include:
 
 ## Related Docs
 
-- `API.md`
-- `CLI.md`
+- `../reference/API.md`
+- `../reference/CLI.md`
 - `LOCAL_DEMO_RUNBOOK.md`
-- `features/05-explainability-and-observability.md`
+- `../features/05-explainability-and-observability.md`

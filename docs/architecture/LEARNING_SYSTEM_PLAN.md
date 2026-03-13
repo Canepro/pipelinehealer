@@ -1,6 +1,6 @@
 # Learning System Plan
 
-<!-- LAST_VERIFIED: 85beac6 -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 This document explains the learning/governance subsystem, how to use it today, and what is planned next.
 
@@ -8,7 +8,7 @@ Honest status:
 - the current learning system is useful, but it is not yet the final shape we want
 - today it behaves more like a governed recurring-pattern queue than a strong LLM-assisted learning layer
 - the next phase should rework it around evidence quality, retrieval value, and operator trust
-- this direction is now also supported by external provider guidance collected in `docs/LLM_PROVIDER_RESEARCH_AND_PLAN.md`
+- this direction is now also supported by external provider guidance collected in `docs/archive/LLM_PROVIDER_RESEARCH_AND_PLAN.md`
 
 ## Purpose
 

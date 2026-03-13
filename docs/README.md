@@ -1,57 +1,52 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: d555eef -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
-Use this index to find the right doc quickly.
+Use this index to find the canonical doc quickly. If a topic appears in both an active doc and `docs/archive/`, the active doc wins.
 
-## Current UI Surfaces
+## Start Here
 
-These stable screenshots reflect the current hosted operator experience and are safe to reuse in docs and demo prep:
+- `../README.md` — product story, current scope, quick start, and deployment overview
+- `features/README.md` — feature-by-feature operator walkthroughs
+- `runbooks/LOCAL_DEMO_RUNBOOK.md` — full local and Azure evaluation path
+- `../integrations/jenkins-bridge/README.md` — Jenkins bridge install kit and supported rollout pattern
 
-![Dashboard — KPIs, safety framing, and explainability snapshot](screens/dashboard-current.png)
-![Activity Detail — incident record, verification workspace, and remediation evidence](screens/activity-detail-current.png)
-![Control Center — governance posture, learning explainability, trust ops, and investigation shortcuts](screens/control-center-current.png)
-![Settings — runtime policy, provider wiring, and Assign-to-Agent status](screens/settings-current.png)
+## Reference
 
-### Tier 1 — User-Facing (update every feature PR)
+- `reference/API.md` — backend API contracts, auth, and data models
+- `reference/CLI.md` — canonical `bash scripts/ph.sh` reference
 
-- `../README.md` — public-facing project overview, features, env vars, setup
-- `OPERATOR_CONTROL_PLANE.md` — product-level contract for configuration, provenance, and operator-surface design
-- `features/README.md` — dedicated feature-by-feature operator/user guides
-- `API.md` — full API reference: endpoints, authentication, data models, best practices
-- `../CONTRIBUTING.md` — contributor workflow, quality gates, and docs update policy
+## Runbooks
+
+- `runbooks/DEMO_SCRIPT.md` — concise recording and narration guide
+- `runbooks/LOCAL_DEMO_RUNBOOK.md` — end-to-end local and Azure operator runbook
+- `runbooks/LOGS_AND_INVESTIGATION.md` — troubleshooting and evidence collection guide
+- `runbooks/KUBERNETES_HELM_RUNBOOK.md` — secondary Helm/Kubernetes deployment path
+- `runbooks/RELEASE_RUNBOOK.md` — release prep, publish, verify, and rollback
+- `runbooks/MODEL_PROVIDER_SWITCH_RUNBOOK.md` — auditable provider switch and rollback flow
+- `runbooks/PREDEPLOY_PLACEHOLDER_AUDIT.md` — pre-deploy stop-ship checklist
+
+## Architecture
+
+- `architecture/OPERATOR_CONTROL_PLANE.md` — product contract for configuration and provenance
+- `architecture/MODEL_PROVIDER_STRATEGY.md` — provider-portable model backend posture
+- `architecture/LLM_AND_AGENT_RUNTIME.md` — validated runtime and degraded-mode behavior
+- `architecture/LEARNING_SYSTEM_PLAN.md` — learning queue lifecycle and activation rules
+
+## Story And Evidence
+
+- `case-studies/release-tag-mismatch-22163136636.md` — concrete incident write-up
+- `screens/` — current hosted UI screenshots and architecture assets
+- `../CHANGELOG.md` — shipped release history
+
+## Project Tracking
+
+- `HACKATHON_LOG.md` — active hackathon planning and execution log
+- `FUTURE_PLAN.md` — version-tracked roadmap and forward-looking work
+- `archive/README.md` — historical design notes and superseded implementation trackers
+
+## Repo Guidance
+
+- `../CONTRIBUTING.md` — contributor workflow and quality bar
+- `../AGENTS.md` — repo-specific operating rules for maintainers and agents
 - `../SECURITY.md` — vulnerability reporting and secret hygiene policy
-
-### Tier 2 — Operator (update on infra/config changes)
-
-- `CLI.md` — canonical `scripts/ph.sh` CLI reference: all commands, flags, error handling, env overrides
-- `LOGS_AND_INVESTIGATION.md` — dedicated troubleshooting guide for logs, activity correlation, and incident playbooks
-- `DEMO_SCRIPT.md` — single-file recording checklist and 2-minute narration script
-- `LOCAL_DEMO_RUNBOOK.md` — full local and Azure E2E operator runbook
-- `MODEL_PROVIDER_STRATEGY.md` — reference Azure path plus provider-portable model backend strategy
-- `LLM_AND_AGENT_RUNTIME.md` — validated LLM runtime behavior, degraded-mode contract, and Azure endpoint/model guidance
-- `LLM_PROVIDER_RESEARCH_AND_PLAN.md` — source-backed provider research and the resulting PipelineHealer implementation direction
-- `MODEL_PROVIDER_SWITCH_RUNBOOK.md` — auditable provider switching and rollback playbook
-- `LEARNING_SYSTEM_PLAN.md` — learning queue lifecycle, governance model, and activation safety rules
-- `KUBERNETES_HELM_RUNBOOK.md` — Helm-based Kubernetes deployment target (secondary to Azure)
-- `RELEASE_RUNBOOK.md` — release prep, semver bump, tag/publish verification, and rollback guidance
-- `PREDEPLOY_PLACEHOLDER_AUDIT.md` — pre-deploy stop-ship checklist
-- `../infra/terraform/README.md` — manual Terraform equivalent of the Azure reference Bicep stack
-- `../integrations/jenkins-bridge/README.md` — reusable Jenkins bridge install kit, supported rollout patterns, and failure-capture guidance
-
-### Tier 3 — Internal/Transient (author discretion; archive post-submission)
-
-- `HACKATHON_LOG.md` — current phase status, submission checklist, milestone history, and freeze tracking notes
-- `FUTURE_PLAN.md` — version-targeted roadmap and release archaeology
-- `DIAGNOSIS_REMEDIATION_ARCHITECTURE_PLAN.md` — implementation contract for schema-first diagnosis/remediation hardening and bounded patch drafting
-- `UI_PLAN.md` — UI maturity plan, principles, and weekly tracking through submission
-- `AGENT_HANDOFF_CONTEXT_MINISPEC.md` — draft design for Activity Detail `Copy Context` + optional `Assign to Agent` handoff integration
-- `GH_AW_IMPLEMENTATION_TRACKER.md` — gh-aw research summary, Layer 1/2 checklists, decision log, and evidence
-- `JENKINS_BRIDGE_TECHNICAL_DESIGN.md` — Jenkins bridge design and implementation-reference notes (`BL-034`)
-- `case-studies/` — real incident writeups showing detection, classification, and remediation outcomes
-  - `case-studies/release-tag-mismatch-22163136636.md` — release tag/version mismatch incident handled by PipelineHealer
-- `screens/` — versioned UI proof screenshots used by Week 2 and Week 3 evidence checkpoints
-
-### Repo-Level
-
-- `../AGENTS.md` — concise repo operating rules for agents and maintainers (includes doc update checklist)

@@ -110,7 +110,7 @@ export default function Landing() {
               </Button>
               <Button asChild variant="secondary">
                 <a
-                  href="https://github.com/Canepro/pipelinehealer/blob/main/docs/LOCAL_DEMO_RUNBOOK.md"
+                  href="https://github.com/Canepro/pipelinehealer/blob/main/docs/runbooks/LOCAL_DEMO_RUNBOOK.md"
                   rel="noreferrer"
                   target="_blank"
                 >

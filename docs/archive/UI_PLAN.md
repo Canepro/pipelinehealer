@@ -213,8 +213,8 @@ These are enforceable defaults for all primary product screens.
 
 - [ ] Freeze non-critical UI changes.
 - [ ] Refresh README/UI proof references.
-- [ ] Final capture run with `docs/DEMO_SCRIPT.md`.
-- [ ] Verify API doc (`docs/API.md`) matches runtime contracts.
+- [ ] Final capture run with `docs/runbooks/DEMO_SCRIPT.md`.
+- [ ] Verify API doc (`docs/reference/API.md`) matches runtime contracts.
 
 ### Week 4 Checkpoint (2026-02-18)
 
