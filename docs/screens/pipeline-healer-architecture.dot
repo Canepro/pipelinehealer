@@ -22,11 +22,13 @@ digraph PipelineHealerWorkflow {
   CD [label="ci-doctor\nissue/comment findings" shape="box"];
   EXT [label="External diagnostics\ncontext" shape="box"];
   BF [label="Backfill Sweep\nevery 10 min" shape="box"];
-  ST [label="Cosmos DB / PostgreSQL /\nIn-Memory Storage" shape="cylinder"];
+  ST [label="Activities + Runtime Settings\nCosmos / PostgreSQL / In-Memory" shape="cylinder"];
+  RS [label="Runtime Secret Store\nencrypted_db / azure_key_vault" shape="cylinder"];
+  ENV [label="Env / .env / Secret Refs\nstartup overrides" shape="box"];
   EX [label="Explainability Trace /\nActivity Metadata" shape="box"];
   LRN [label="Learning Queue / Retrieval\nVerification Feedback / Trust Ops" shape="box"];
   UI [label="Dashboard / Activities /\nActivity Detail / Control Center / Settings" shape="box"];
-  API [label="/api/settings* +\n/api/settings/learning/*" shape="box"];
+  API [label="Settings API / Secrets API\n/api/settings* + /api/settings/learning/*" shape="box"];
   GH -> WH;
   JN -> WH;
   WH -> WF;
@@ -47,13 +49,17 @@ digraph PipelineHealerWorkflow {
   GW -> NT;
   OR -> ST;
   OR -> EX;
+  WF -> ST [style="dashed"];
+  WF -> RS [style="dashed"];
   OR -> LRN;
   LRN -> DG;
   LRN -> RM;
   BF -> ADP;
   BF -> ST;
+  ENV -> WF [style="dashed"];
   UI -> API;
   API -> OR;
   API -> LRN;
   API -> ST;
+  API -> RS;
 }

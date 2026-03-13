@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 8870fd4 -->
+<!-- LAST_VERIFIED: 3f6e9b7 -->
 
 > OSS-first, policy-aware pipeline remediation platform for failed delivery workflows.
 
@@ -259,14 +259,19 @@ flowchart TB
 
   subgraph GOV["Operator Surface"]
     UI["Dashboard / Activities / Activity Detail / Control Center / Settings"]
-    API["Settings API"]
+    API["Settings API / Secrets API"]
     AUD["Audit Trail"]
     LRN["Learning Queue / Retrieval<br/>Verification Feedback / Trust Ops"]
   end
 
   subgraph DATA["State and Evidence"]
-    DB[("Cosmos DB / PostgreSQL / InMemory")]
+    DB[("Activities + Runtime Settings<br/>Cosmos / PostgreSQL / InMemory")]
+    RS[("Runtime Secret Store<br/>encrypted_db / azure_key_vault")]
     EXP["Explainability Trace<br/>Activity Metadata"]
+  end
+
+  subgraph CFG["Bootstrap Sources"]
+    ENV["Env / .env / Secret Refs<br/>startup overrides"]
   end
 
   subgraph OUT["Outcome Paths"]
@@ -296,9 +301,14 @@ flowchart TB
   HO --> GW --> NT
   ORCH --> DB
   ORCH --> EXP
+  WF -. loads persisted runtime .-> DB
+  WF -. loads runtime secrets .-> RS
+  ENV -. startup override .-> WF
   UI --> API --> ORCH
   API --> LRN
   API --> AUD
+  API --> DB
+  API --> RS
   ORCH --> LRN
   LRN -. retrieval context .-> DIA
   LRN -. guidance .-> REM

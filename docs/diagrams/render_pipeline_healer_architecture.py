@@ -24,11 +24,13 @@ def build_pipeline_healer_architecture_dot() -> str:
         "CD": "ci-doctor\\nissue/comment findings",
         "EXT": "External diagnostics\\ncontext",
         "BF": "Backfill Sweep\\nevery 10 min",
-        "ST": "Cosmos DB / PostgreSQL /\\nIn-Memory Storage",
+        "ST": "Activities + Runtime Settings\\nCosmos / PostgreSQL / In-Memory",
+        "RS": "Runtime Secret Store\\nencrypted_db / azure_key_vault",
+        "ENV": "Env / .env / Secret Refs\\nstartup overrides",
         "EX": "Explainability Trace /\\nActivity Metadata",
         "LRN": "Learning Queue / Retrieval\\nVerification Feedback / Trust Ops",
         "UI": "Dashboard / Activities /\\nActivity Detail / Control Center / Settings",
-        "API": "/api/settings* +\\n/api/settings/learning/*",
+        "API": "Settings API / Secrets API\\n/api/settings* + /api/settings/learning/*",
     }
 
     edges = [
@@ -52,15 +54,19 @@ def build_pipeline_healer_architecture_dot() -> str:
         ("GW", "NT"),
         ("OR", "ST"),
         ("OR", "EX"),
+        ("WF", "ST"),
+        ("WF", "RS"),
         ("OR", "LRN"),
         ("LRN", "DG"),
         ("LRN", "RM"),
         ("BF", "ADP"),
         ("BF", "ST"),
+        ("ENV", "WF"),
         ("UI", "API"),
         ("API", "OR"),
         ("API", "LRN"),
         ("API", "ST"),
+        ("API", "RS"),
     ]
 
     lines = [
@@ -75,11 +81,14 @@ def build_pipeline_healer_architecture_dot() -> str:
     ]
 
     for key, label in nodes.items():
-        shape = "cylinder" if key == "ST" else "box"
+        shape = "cylinder" if key in {"ST", "RS"} else "box"
         lines.append(f'  {key} [label="{label}" shape="{shape}"];')
 
     for start, end in edges:
-        lines.append(f"  {start} -> {end};")
+        if (start, end) in {("WF", "ST"), ("WF", "RS"), ("ENV", "WF")}:
+            lines.append(f'  {start} -> {end} [style="dashed"];')
+        else:
+            lines.append(f"  {start} -> {end};")
 
     lines.append("}")
     return "\n".join(lines) + "\n"
