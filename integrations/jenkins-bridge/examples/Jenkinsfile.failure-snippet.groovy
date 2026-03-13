@@ -14,9 +14,10 @@ SCRIPT
 post {
   failure {
     script {
-      if (fileExists('.jenkins/scripts/send-pipelinehealer-bridge.sh')) {
-        if (fileExists('.jenkins/scripts/pipelinehealer-bridge-evidence.groovy')) {
-          def bridgeEvidence = load '.jenkins/scripts/pipelinehealer-bridge-evidence.groovy'
+      def scriptsDir = "${env.WORKSPACE}/.jenkins/scripts"
+      if (fileExists("${scriptsDir}/send-pipelinehealer-bridge.sh")) {
+        if (fileExists("${scriptsDir}/pipelinehealer-bridge-evidence.groovy")) {
+          def bridgeEvidence = load "${scriptsDir}/pipelinehealer-bridge-evidence.groovy"
           bridgeEvidence.writeLogExcerpt()
         }
         sh '''
