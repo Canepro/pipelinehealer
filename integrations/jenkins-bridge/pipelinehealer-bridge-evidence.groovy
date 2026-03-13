@@ -16,6 +16,10 @@ def fetchConsoleText(String outputPath, int maxLines, int maxChars, String authA
 }
 
 def writeLogExcerpt(String outputPath = '.pipelinehealer-log-excerpt.txt', int maxLines = 120, int maxChars = 20000) {
+  if (outputPath.contains("'") || outputPath.contains('\n') || outputPath.contains('\\')) {
+    echo "PipelineHealer bridge evidence: outputPath contains unsafe characters (quote/newline/backslash); refusing."
+    return false
+  }
   echo "PipelineHealer bridge evidence: writeLogExcerpt called (outputPath=${outputPath})"
 
   if (fileExists(outputPath)) {

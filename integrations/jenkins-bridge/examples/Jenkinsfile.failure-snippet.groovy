@@ -22,7 +22,7 @@ post {
         sh '''
           set +e
           if [ -f "${WORKSPACE}/.jenkins/scripts/prepare-failure-tooling.sh" ]; then
-            bash "${WORKSPACE}/.jenkins/scripts/prepare-failure-tooling.sh" || true
+            sh "${WORKSPACE}/.jenkins/scripts/prepare-failure-tooling.sh" || true
           fi
           export PH_REPOSITORY="owner/repo"
           export PH_FAILURE_STAGE="validation"

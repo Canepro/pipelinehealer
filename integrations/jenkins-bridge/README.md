@@ -1,6 +1,6 @@
 # Jenkins Bridge Integration Kit
 
-<!-- LAST_VERIFIED: aligned with rocketchat-k8s and central-observability-hub-stack bridge fixes -->
+<!-- LAST_VERIFIED: 49948c6 -->
 
 Reusable Jenkins-side assets for PipelineHealer's signed Jenkins bridge.
 
@@ -131,7 +131,7 @@ post {
         sh '''
           set +e
           if [ -f "${WORKSPACE}/.jenkins/scripts/prepare-failure-tooling.sh" ]; then
-            bash "${WORKSPACE}/.jenkins/scripts/prepare-failure-tooling.sh" || true
+            sh "${WORKSPACE}/.jenkins/scripts/prepare-failure-tooling.sh" || true
           fi
           export PH_REPOSITORY="owner/repo"
           export PH_FAILURE_STAGE="terraform-plan"

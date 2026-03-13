@@ -17,9 +17,14 @@ if [ ! -x "$CAPTURE_SHELL" ] && ! command -v "$CAPTURE_SHELL" >/dev/null 2>&1; t
   exit 1
 fi
 
+if ! command -v tee >/dev/null 2>&1; then
+  echo "PipelineHealer bridge capture: tee is unavailable" >&2
+  exit 1
+fi
+
 (
   set +e
-  "$CAPTURE_SHELL" "$SCRIPT_FILE" 2>&1
+  "$CAPTURE_SHELL" -e "$SCRIPT_FILE" 2>&1
   echo $? > "$STATUS_FILE"
 ) | tee "$TMP_OUTPUT_FILE"
 
