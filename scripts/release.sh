@@ -30,6 +30,12 @@ What it updates:
   - CHANGELOG.md (adds new release section under Unreleased)
 
 This script does NOT commit or tag automatically.
+
+Important:
+  - tagging before this script creates the matching `## [vX.Y.Z] - YYYY-MM-DD`
+    section in CHANGELOG.md will break the release workflow's note extraction
+  - after running this script, verify the new section exists and commit the
+    generated files before pushing a release tag
 EOF
 }
 
@@ -206,6 +212,11 @@ new_raw = raw[:start] + insert + raw[end:]
 changelog_path.write_text(new_raw.rstrip() + "\n", encoding="utf-8")
 PY
 
+if ! grep -Eq "^## \\[${release_tag}\\] - ${release_date}$" CHANGELOG.md; then
+  echo "Release helper failed: CHANGELOG.md is missing the generated ${release_tag} section." >&2
+  exit 1
+fi
+
 echo "Release files updated."
 echo "  Current : $current_version"
 echo "  Next    : $next_version"
@@ -214,7 +225,8 @@ echo "  Date    : $release_date"
 echo
 echo "Next steps:"
 echo "  1) Edit CHANGELOG.md release notes under [$release_tag]"
-echo "  2) git add VERSION backend/pyproject.toml frontend/package.json charts/pipelinehealer/Chart.yaml CHANGELOG.md"
-echo "  3) git commit -m \"chore(release): $release_tag\""
-echo "  4) git tag -a $release_tag -m \"Release $release_tag\""
-echo "  5) git push origin main --follow-tags"
+echo "  2) Confirm CHANGELOG.md contains: ## [$release_tag] - ${release_date}"
+echo "  3) git add VERSION backend/pyproject.toml frontend/package.json charts/pipelinehealer/Chart.yaml CHANGELOG.md"
+echo "  4) git commit -m \"chore(release): $release_tag\""
+echo "  5) git tag -a $release_tag -m \"Release $release_tag\""
+echo "  6) git push origin main --follow-tags"

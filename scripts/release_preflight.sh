@@ -18,6 +18,7 @@ Options:
   --allow-dirty             Do not require a clean git working tree.
   --allow-non-main          Do not require the current branch to be main.
   --allow-empty-unreleased  Allow CHANGELOG [Unreleased] to remain placeholder/empty.
+                            Intended for post-`scripts/release.sh` release branches.
   -h, --help                Show help.
 
 Checks:
@@ -26,6 +27,12 @@ Checks:
   - VERSION/backend/frontend/chart sync
   - release scope coverage in CHANGELOG [Unreleased]
   - non-empty CHANGELOG [Unreleased] notes (default)
+
+Important:
+  - before running `scripts/release.sh`, keep real notes in CHANGELOG [Unreleased]
+  - after running `scripts/release.sh` on a release branch, use
+    `--allow-empty-unreleased` because the script resets [Unreleased] to the
+    placeholder while creating the concrete `## [vX.Y.Z] - YYYY-MM-DD` section
 EOF
 }
 
@@ -115,6 +122,10 @@ if body == "- _No unreleased entries yet._":
 if not re.search(r"(?m)^\s*[-*]\s+\S+", body):
     raise SystemExit("Preflight failed: CHANGELOG [Unreleased] has no bullet entries.")
 PY
+fi
+
+if [[ "$allow_empty_unreleased" -eq 1 ]]; then
+  echo "Preflight note: allowing placeholder/empty CHANGELOG [Unreleased] for a post-cut release branch."
 fi
 
 echo "Release preflight passed."

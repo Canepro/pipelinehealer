@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: ab7f344 -->
+<!-- LAST_VERIFIED: c183a90 -->
 
 > OSS-first, policy-aware pipeline remediation platform for failed delivery workflows.
 
@@ -369,6 +369,11 @@ bash scripts/release_checklist.sh minor
 bash scripts/release.sh minor
 bash scripts/release_verify.sh vX.Y.Z
 ```
+
+Important:
+- do not tag a release while the notes only exist under `## [Unreleased]`
+- `bash scripts/release.sh ...` must run before tagging so `CHANGELOG.md` contains the matching `## [vX.Y.Z] - YYYY-MM-DD` section the release workflow extracts
+- after `scripts/release.sh`, commit the generated version/changelog files before pushing the release tag
 
 Release runbook: [docs/runbooks/RELEASE_RUNBOOK.md](docs/runbooks/RELEASE_RUNBOOK.md)
 

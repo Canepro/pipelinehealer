@@ -20,6 +20,12 @@ What it verifies:
   3) release notes include "## Container Images"
   4) release workflow run for the tag commit succeeded (default)
   5) anonymous GHCR pullability gate passes for backend/frontend/chart
+
+Note:
+  - this is a post-tag verifier
+  - if release publication fails because the changelog lacks a matching
+    `## [vX.Y.Z]` section, fix the branch and cut a new patch release instead
+    of reusing the failed tag
 EOF
 }
 

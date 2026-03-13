@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 97abf04 -->
+<!-- LAST_VERIFIED: c183a90 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -404,9 +404,10 @@ bash scripts/release_verify.sh vX.Y.Z
 Suggested release flow:
 1. Run `bash scripts/release_preflight.sh`.
 2. Run `bash scripts/release.sh minor` (or `patch`/`major`).
-3. Edit release notes in `CHANGELOG.md` under the new `vX.Y.Z` section.
-4. Commit release files (including `charts/pipelinehealer/Chart.yaml`), tag `vX.Y.Z`, then push with `--follow-tags`.
-5. Run `bash scripts/release_verify.sh vX.Y.Z`.
+3. Edit release notes in `CHANGELOG.md` under the new `vX.Y.Z` section created by `scripts/release.sh`.
+4. Confirm `CHANGELOG.md` now contains `## [vX.Y.Z] - YYYY-MM-DD`; do not tag while the notes only exist under `## [Unreleased]`.
+5. Commit release files (including `charts/pipelinehealer/Chart.yaml`), tag `vX.Y.Z`, then push with `--follow-tags`.
+6. Run `bash scripts/release_verify.sh vX.Y.Z`.
 
 For full release prep through post-release verification, use `docs/runbooks/RELEASE_RUNBOOK.md`.
 

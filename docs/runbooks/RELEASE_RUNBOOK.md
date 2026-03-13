@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: c183a90 -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -126,6 +126,10 @@ This updates:
 - `charts/pipelinehealer/Chart.yaml` (`version` + `appVersion`)
 - `CHANGELOG.md` (moves Unreleased notes into new `## [vX.Y.Z] - YYYY-MM-DD` section)
 
+Important:
+- do not push or publish a release tag until this command has created the matching `## [vX.Y.Z] - YYYY-MM-DD` section in `CHANGELOG.md`
+- the release workflow extracts notes from that exact section and will fail if the notes still only live under `## [Unreleased]`
+
 ## 4) Validate Generated State
 
 ```bash
@@ -163,6 +167,11 @@ git push origin main --follow-tags
 ```
 
 Replace `X.Y.Z` with the generated version.
+
+Before tagging, double-check:
+- `CHANGELOG.md` contains `## [vX.Y.Z] - YYYY-MM-DD`
+- `## [Unreleased]` has already been reset by `scripts/release.sh`
+- the commit you are tagging includes both the version-file bump and the changelog section
 
 ### Protected `main` fallback
 
