@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: 368dbf5 -->
+<!-- LAST_VERIFIED: 8870fd4 -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -79,8 +79,16 @@ PipelineHealer uses Azure as the current reference managed deployment, but it is
 - Storage:
   - local/dev fallback: in-memory
   - durable backends: Cosmos DB (`STORAGE_MODE=cosmos`) or PostgreSQL (`STORAGE_MODE=postgres`)
+- Runtime secret storage:
+  - portable default: `SETTINGS_SECRET_BACKEND=encrypted_db`
+  - optional Azure-native path: `SETTINGS_SECRET_BACKEND=azure_key_vault`
 - Auth:
   - `api_key`, `entra`, or `hybrid`
+
+Cloud portability note:
+- AWS, GCP, OCI, or self-hosted deployments are not forced onto Azure Key Vault
+- the current portable secret-management path is `encrypted_db`
+- first-class native secret-manager integrations for other clouds are follow-on work, not a prerequisite for running the product
 
 See:
 

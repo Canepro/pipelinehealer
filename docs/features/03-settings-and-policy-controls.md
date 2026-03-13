@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: 368dbf5 -->
+<!-- LAST_VERIFIED: 8870fd4 -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -64,12 +64,16 @@ This guide explains runtime controls, persistence behavior, and governance guard
   - `postgres` via `POSTGRES_DSN`
   - with in-memory fallback only for explicit local/dev/demo paths
 - Runtime secret storage uses the configured secret backend:
-  - `encrypted_db` with `SETTINGS_DB_ENCRYPTION_KEY`
-  - `azure_key_vault` with `KEY_VAULT_URL`
+  - `encrypted_db` with `SETTINGS_DB_ENCRYPTION_KEY` as the OSS-portable default for AWS/GCP/OCI/self-hosted deployments
+  - `azure_key_vault` with `KEY_VAULT_URL` as an optional Azure-native integration
 - Setup checklist status reflects those same boundaries directly in the UI:
   - `Ready` means the required bootstrap/runtime inputs are present
   - `Missing` means the operator still needs env wiring, secret backend setup, or runtime inputs before the path is usable
 - GitHub App ID/private key fields can now be stored for configuration readiness, but the current live GitHub API runtime still authenticates with a PAT.
+
+Portability note:
+- choosing `azure_key_vault` does not define the product boundary
+- non-Azure deployments should use `encrypted_db` today unless and until a native cloud secret-manager backend is added for that platform
 
 API and CLI equivalents:
 ```bash

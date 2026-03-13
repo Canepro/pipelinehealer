@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 368dbf5 -->
+<!-- LAST_VERIFIED: 8870fd4 -->
 
 > OSS-first, policy-aware pipeline remediation platform for failed delivery workflows.
 
@@ -40,6 +40,7 @@ Pipeline failures create repetitive triage work and slow delivery. PipelineHeale
 - Honest runtime boundary reporting: env stays the bootstrap override path, and GitHub App inputs are stored for readiness only until live App auth ships.
 - Durable audit trails for settings changes and remediation decisions.
 - OSS-friendly storage options: PostgreSQL, Cosmos DB, or in-memory mode for local development.
+- Portable runtime secret baseline: `encrypted_db` works across cloud/self-hosted deployments; `azure_key_vault` is an optional Azure-native integration, not a required secret model.
 
 ## Current Scope
 
