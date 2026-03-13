@@ -21,6 +21,12 @@ CREATE TABLE IF NOT EXISTS ph_runtime_settings (
     settings JSONB NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS ph_runtime_secrets (
+    key TEXT PRIMARY KEY,
+    updated_at TIMESTAMPTZ NOT NULL,
+    payload JSONB NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS ph_admin_settings_audit (
     id BIGSERIAL PRIMARY KEY,
     timestamp TIMESTAMPTZ NOT NULL,

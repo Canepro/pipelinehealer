@@ -22,6 +22,7 @@ export type SettingsFormState = {
   auto_retry_workflow: boolean
   auto_create_tracking_issue_for_prs: boolean
   max_remediation_attempts: number
+  verify_webhook_signature: boolean
   verify_webhook_signature_in_development: boolean
   pipeline_step_timeout_seconds: number
   github_api_max_retries: number
@@ -39,7 +40,15 @@ export type SettingsFormState = {
   agent_handoff_timeout_seconds: number
   agent_handoff_max_retries: number
   ph_allowed_repos: string[]
+  azure_openai_endpoint: string
   azure_openai_deployment_name: string
+  azure_openai_api_version: string
+  azure_openai_chat_api_version: string
+  github_app_id: string
+  jenkins_bridge_enabled: boolean
+  jenkins_bridge_max_skew_seconds: number
+  jenkins_bridge_replay_ttl_seconds: number
+  jenkins_bridge_max_body_bytes: number
 }
 
 export const REPO_FULL_NAME_REGEX = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
@@ -154,6 +163,7 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
   auto_retry_workflow: data.auto_retry_workflow,
   auto_create_tracking_issue_for_prs: data.auto_create_tracking_issue_for_prs,
   max_remediation_attempts: data.max_remediation_attempts,
+  verify_webhook_signature: data.verify_webhook_signature,
   verify_webhook_signature_in_development: data.verify_webhook_signature_in_development,
   pipeline_step_timeout_seconds: data.pipeline_step_timeout_seconds,
   github_api_max_retries: data.github_api_max_retries,
@@ -176,7 +186,15 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
   agent_handoff_timeout_seconds: data.agent_handoff_timeout_seconds ?? 8,
   agent_handoff_max_retries: data.agent_handoff_max_retries ?? 1,
   ph_allowed_repos: data.ph_allowed_repos ?? [],
+  azure_openai_endpoint: data.azure_openai_endpoint ?? '',
   azure_openai_deployment_name: data.azure_openai_deployment_name ?? '',
+  azure_openai_api_version: data.azure_openai_api_version ?? '2025-04-01-preview',
+  azure_openai_chat_api_version: data.azure_openai_chat_api_version ?? '2024-12-01-preview',
+  github_app_id: data.github_app_id ?? '',
+  jenkins_bridge_enabled: data.jenkins_bridge_enabled ?? false,
+  jenkins_bridge_max_skew_seconds: data.jenkins_bridge_max_skew_seconds ?? 300,
+  jenkins_bridge_replay_ttl_seconds: data.jenkins_bridge_replay_ttl_seconds ?? 86400,
+  jenkins_bridge_max_body_bytes: data.jenkins_bridge_max_body_bytes ?? 524288,
 })
 
 export const formatAuditValue = (value: unknown) => {

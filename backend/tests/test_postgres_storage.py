@@ -36,6 +36,7 @@ def _q(sql: str) -> str:
 class _FakeState:
     activities: dict[str, dict[str, Any]] = field(default_factory=dict)
     runtime_settings: dict[str, Any] | None = None
+    runtime_secrets: dict[str, dict[str, Any]] = field(default_factory=dict)
     admin_audit: list[tuple[datetime, dict[str, Any]]] = field(default_factory=list)
     learning_queue: dict[str, dict[str, Any]] = field(default_factory=dict)
     bootstrap_count: int = 0
@@ -66,6 +67,15 @@ class _FakeConnection:
             _id, _updated_at, settings_json = args
             self._state.runtime_settings = json.loads(str(settings_json))
             return "OK"
+        if "insert into ph_runtime_secrets" in normalized:
+            key, updated_at, payload_json = args
+            payload = json.loads(str(payload_json))
+            payload["updated_at"] = updated_at.isoformat()
+            self._state.runtime_secrets[str(key)] = payload
+            return "OK"
+        if "delete from ph_runtime_secrets where key = $1" in normalized:
+            self._state.runtime_secrets.pop(str(args[0]), None)
+            return "OK"
         if "insert into ph_admin_settings_audit" in normalized:
             ts, payload_json = args
             self._state.admin_audit.append((ts, json.loads(str(payload_json))))
@@ -91,6 +101,14 @@ class _FakeConnection:
             if self._state.runtime_settings is None:
                 return None
             return {"settings": json.dumps(self._state.runtime_settings)}
+        if "from ph_runtime_secrets where key = $1" in normalized:
+            payload = self._state.runtime_secrets.get(str(args[0]))
+            if payload is None:
+                return None
+            return {
+                "updated_at": datetime.fromisoformat(str(payload["updated_at"])),
+                "payload": json.dumps({k: v for k, v in payload.items() if k != "updated_at"}),
+            }
         if "from ph_learning_queue where id = $1" in normalized:
             row = self._state.learning_queue.get(str(args[0]))
             if row is None:
@@ -146,6 +164,18 @@ class _FakeConnection:
             limit = int(args[0])
             entries = sorted(self._state.admin_audit, key=lambda item: item[0], reverse=True)
             return [{"payload": json.dumps(payload)} for _, payload in entries[:limit]]
+
+        if "from ph_runtime_secrets" in normalized:
+            rows = []
+            for key, payload in self._state.runtime_secrets.items():
+                rows.append(
+                    {
+                        "key": key,
+                        "updated_at": datetime.fromisoformat(str(payload["updated_at"])),
+                        "payload": json.dumps({k: v for k, v in payload.items() if k != "updated_at"}),
+                    }
+                )
+            return rows
 
         if "from ph_learning_queue" in normalized:
             idx = 0
@@ -234,6 +264,28 @@ async def test_storage_contract_runtime_settings_roundtrip(
     await storage.upsert_runtime_settings({"heal_mode": "safe", "auto_create_pr": True})
     payload = await storage.get_runtime_settings()
     assert payload == {"heal_mode": "safe", "auto_create_pr": True}
+    await storage.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["memory", "postgres"])
+async def test_storage_contract_runtime_secret_roundtrip(kind: str) -> None:
+    storage = await _create_storage_for_contract(kind)
+    await storage.upsert_runtime_secret_record(
+        "github_webhook_secret",
+        {"backend": "encrypted_db", "ciphertext": "abc", "nonce": "def", "safe_hint": "...1234"},
+    )
+
+    record = await storage.get_runtime_secret_record("github_webhook_secret")
+    assert record is not None
+    assert record["backend"] == "encrypted_db"
+    assert record["safe_hint"] == "...1234"
+
+    records = await storage.list_runtime_secret_records()
+    assert "github_webhook_secret" in records
+
+    await storage.delete_runtime_secret_record("github_webhook_secret")
+    assert await storage.get_runtime_secret_record("github_webhook_secret") is None
     await storage.close()
 
 

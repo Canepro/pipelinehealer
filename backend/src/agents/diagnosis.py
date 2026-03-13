@@ -1068,7 +1068,7 @@ Be specific about:
         summary = interesting[0][:240]
         if not failed_tests:
             return {"summary": summary}
-        return {test_name: summary for test_name in failed_tests[:5]}
+        return dict.fromkeys(failed_tests[:5], summary)
 
     def _build_test_suggested_fix(
         self,

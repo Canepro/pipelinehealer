@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from src.config import reset_settings
 from src.tools.github_tools import GitHubTools
 
 
@@ -120,3 +121,47 @@ async def test_update_issue_rejects_empty_payload() -> None:
             repo="pipelinehealer",
             issue_number=42,
         )
+
+
+@pytest.mark.asyncio
+async def test_refresh_runtime_settings_rebuilds_client_when_pat_changes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "first-token")
+    reset_settings()
+
+    gh = GitHubTools()
+    client_one = await gh._get_client()
+    assert client_one.headers["Authorization"] == "Bearer first-token"
+
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "second-token")
+    reset_settings()
+
+    gh.refresh_runtime_settings()
+    client_two = await gh._get_client()
+
+    assert client_two is not client_one
+    assert client_two.headers["Authorization"] == "Bearer second-token"
+    await gh.close()
+
+
+@pytest.mark.asyncio
+async def test_refresh_runtime_settings_preserves_explicit_constructor_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "env-token")
+    reset_settings()
+
+    gh = GitHubTools(token="explicit-token")
+    client_one = await gh._get_client()
+    assert client_one.headers["Authorization"] == "Bearer explicit-token"
+
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "new-env-token")
+    reset_settings()
+
+    gh.refresh_runtime_settings()
+    client_two = await gh._get_client()
+
+    assert client_two is client_one
+    assert client_two.headers["Authorization"] == "Bearer explicit-token"
+    await gh.close()

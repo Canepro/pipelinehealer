@@ -429,14 +429,20 @@ class AppSettingsView(BaseModel):
     log_prompt_tail_chars: int
     verify_webhook_signature: bool
     verify_webhook_signature_in_development: bool
+    settings_secret_backend: str
     api_auth_enabled: bool
     admin_api_auth_enabled: bool
     auth_mode: str
     entra_auth_enabled: bool
     entra_admin_roles: list[str]
+    github_app_id: str
     github_pat_configured: bool
     github_app_configured: bool
     github_auth_mode: str
+    jenkins_bridge_enabled: bool
+    jenkins_bridge_max_skew_seconds: int
+    jenkins_bridge_replay_ttl_seconds: int
+    jenkins_bridge_max_body_bytes: int
     gh_aw_tools_enabled: bool
     gh_aw_ingestion_mode: str
     gh_aw_known_workflows: list[str]
@@ -470,7 +476,27 @@ class AppSettingsView(BaseModel):
     azure_openai_deployment_name: str
     azure_openai_api_version: str
     azure_openai_chat_api_version: str
+    setup_status: "SetupStatusView"
     settings_metadata: dict[str, "AppSettingMetadataView"] = Field(default_factory=dict)
+
+
+class SetupCheckView(BaseModel):
+    """One setup-readiness check displayed in the admin UI."""
+
+    ready: bool = False
+    detail: str = ""
+
+
+class SetupStatusView(BaseModel):
+    """Grouped setup-readiness summary for the UI-first configuration flow."""
+
+    ready: bool = False
+    storage_bootstrap: SetupCheckView = Field(default_factory=SetupCheckView)
+    auth_bootstrap: SetupCheckView = Field(default_factory=SetupCheckView)
+    secret_backend: SetupCheckView = Field(default_factory=SetupCheckView)
+    llm_runtime: SetupCheckView = Field(default_factory=SetupCheckView)
+    github_runtime: SetupCheckView = Field(default_factory=SetupCheckView)
+    webhook_secrets: SetupCheckView = Field(default_factory=SetupCheckView)
 
 
 class AppSettingSource(StrEnum):
@@ -495,7 +521,7 @@ class AppSettingMetadataView(BaseModel):
 
 
 class AdminSettingsUpdateRequest(BaseModel):
-    """Admin runtime settings overrides (in-memory until process restart)."""
+    """Admin runtime settings overrides persisted through durable runtime config."""
 
     heal_mode: str | None = None
     auto_apply_remediation: bool | None = None
@@ -505,6 +531,7 @@ class AdminSettingsUpdateRequest(BaseModel):
     auto_retry_workflow: bool | None = None
     auto_create_tracking_issue_for_prs: bool | None = None
     max_remediation_attempts: int | None = Field(default=None, ge=1, le=50)
+    verify_webhook_signature: bool | None = None
     verify_webhook_signature_in_development: bool | None = None
     pipeline_step_timeout_seconds: float | None = Field(default=None, gt=0.0, le=600.0)
     github_api_max_retries: int | None = Field(default=None, ge=0, le=10)
@@ -527,11 +554,15 @@ class AdminSettingsUpdateRequest(BaseModel):
     agent_handoff_max_retries: int | None = Field(default=None, ge=0, le=5)
     ph_allowed_repos: list[str] | None = None
     llm_provider: str | None = None
+    azure_openai_endpoint: str | None = None
+    azure_openai_api_version: str | None = None
+    azure_openai_chat_api_version: str | None = None
     openai_compatible_base_url: str | None = None
     openai_compatible_model: str | None = None
     llm_model_analysis: str | None = None
     llm_model_diagnosis: str | None = None
     llm_model_remediation: str | None = None
+    github_app_id: str | None = None
     mcp_enabled: bool | None = None
     mcp_provider: str | None = None
     mcp_read_only: bool | None = None
@@ -539,7 +570,38 @@ class AdminSettingsUpdateRequest(BaseModel):
     mcp_max_retries: int | None = Field(default=None, ge=0, le=10)
     mcp_tool_policies: dict[str, str] | None = None
     mcp_repo_allowlist: list[str] | None = None
+    jenkins_bridge_enabled: bool | None = None
+    jenkins_bridge_max_skew_seconds: int | None = Field(default=None, ge=1, le=3600)
+    jenkins_bridge_replay_ttl_seconds: int | None = Field(default=None, ge=60, le=604800)
+    jenkins_bridge_max_body_bytes: int | None = Field(default=None, ge=1024, le=4194304)
     azure_openai_deployment_name: str | None = None
+
+
+class SecretWriteRequest(BaseModel):
+    """Request payload for writing or clearing one runtime-managed secret."""
+
+    value: str | None = None
+    clear: bool = False
+
+
+class AdminSecretsUpdateRequest(BaseModel):
+    """Secret-write payload for runtime-managed sensitive settings."""
+
+    secrets: dict[str, SecretWriteRequest] = Field(default_factory=dict)
+
+
+class SecretSettingView(BaseModel):
+    """Non-sensitive UI view for one runtime-managed secret."""
+
+    key: str
+    configured: bool = False
+    source: str = "missing"
+    backend: str = "unknown"
+    requires_restart: bool = False
+    overridden_by_env: bool = False
+    last_updated_at: str | None = None
+    safe_hint: str | None = None
+    note: str = ""
 
 
 class LLMProviderHealthView(BaseModel):
@@ -796,3 +858,4 @@ class AdminSettingsPersistResponse(BaseModel):
     redeploy_attempted: bool
     redeploy_started: bool
     redeploy_message: str
+    deprecated: bool = False

@@ -107,8 +107,7 @@ export default function RuntimePolicyBanner({ data }: Props) {
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-[var(--ph-muted)]">
             <AlertTriangle className="h-3.5 w-3.5" />
             <span>
-              Save and Persist keeps mutable settings durable. Startup-only
-              settings still require deployment updates.
+              Runtime settings save durably from the UI. Startup-only wiring still belongs in deployment configuration.
             </span>
             {healModeMeta && (
               <>

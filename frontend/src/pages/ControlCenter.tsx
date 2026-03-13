@@ -819,6 +819,16 @@ export default function ControlCenterPage() {
       );
     })();
 
+  const loadWithAdminKey = () => {
+    const trimmed = adminKeyInput.trim();
+    if (!trimmed) {
+      return;
+    }
+    setUseSessionAuth(false);
+    setAdminKey(trimmed);
+    setAdminKeyInput("");
+  };
+
   const latestActivity = recentActivities?.[0];
   const latestRunUrl =
     latestActivity?.repository_name && latestActivity?.workflow_run_id
@@ -1057,20 +1067,13 @@ export default function ControlCenterPage() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && adminKeyInput.trim()) {
                   e.preventDefault();
-                  setUseSessionAuth(false);
-                  setAdminKey(adminKeyInput.trim());
+                  loadWithAdminKey();
                 }
               }}
               placeholder="Enter admin key (X-Admin-Key)"
               className="flex-1"
             />
-            <Button
-              onClick={() => {
-                setUseSessionAuth(false);
-                setAdminKey(adminKeyInput.trim());
-              }}
-              disabled={!adminKeyInput.trim() || settingsLoading}
-            >
+            <Button onClick={loadWithAdminKey} disabled={!adminKeyInput.trim() || settingsLoading}>
               {settingsLoading ? "Loading..." : "Load with Admin Key"}
             </Button>
             <Button

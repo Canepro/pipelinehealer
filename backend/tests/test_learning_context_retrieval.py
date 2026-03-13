@@ -17,7 +17,6 @@ from src.models import (
     LogAnalysis,
     RemediationAction,
     RemediationResult,
-    RemediationStatus,
     WorkflowRunEvent,
 )
 from src.storage import InMemoryStorage

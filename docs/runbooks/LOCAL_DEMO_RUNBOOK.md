@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 83805e7 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -67,6 +67,7 @@ Important command scope rule:
 
 - `deploy*`, `status`, `urls`, `warm`, `lowcost`, `webhook:*`, `rollout:canary`, `demo:e2e` are Azure-infra commands.
 - `settings:check`, `settings:audit`, `settings:persist`, `settings:persist:verify`, `audit:proof`, `backfill` work with any reachable backend URL via `PH_BACKEND_URL`.
+  - `settings:persist*` is now primarily the local env-sync and compatibility-audit layer; runtime persistence already happens through the backend settings APIs
 - `demo:proof` and `demo:reset` are GitHub-only (`gh`), backend independent.
 - For Kubernetes, use the Helm guide: `docs/runbooks/KUBERNETES_HELM_RUNBOOK.md`.
   - If Entra session login is required on Kubernetes, set frontend runtime env `VITE_AUTH_MODE=entra` plus required `VITE_ENTRA_*` values in Helm values.
@@ -656,7 +657,7 @@ bash scripts/ph.sh logs --tail 100            # view backend logs (docker compos
 bash scripts/ph.sh backfill                   # trigger diagnostics backfill
 ```
 
-**Works locally:** `settings:check`, `settings:audit`, `settings:persist` (`--skip-redeploy`), `settings:persist:verify` (`--skip-redeploy`), `audit:proof`, `backfill`, `logs`, `logs:raw`, `logs:grep`, `demo:proof`, `demo:reset`.
+**Works locally:** `settings:check`, `settings:audit`, `settings:persist` (`--skip-redeploy`, for env sync plus compatibility audit), `settings:persist:verify` (`--skip-redeploy`), `audit:proof`, `backfill`, `logs`, `logs:raw`, `logs:grep`, `demo:proof`, `demo:reset`.
 
 Repo allowlist safety note:
 - default to `--repos-add` / `--repos-remove` for routine changes

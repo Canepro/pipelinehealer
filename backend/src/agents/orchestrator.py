@@ -28,8 +28,8 @@ from ..models import (
     Diagnosis,
     ExternalDiagnostic,
     ExternalDiagnosticStatus,
-    FailureType,
     FailureContext,
+    FailureType,
     JenkinsBridgePayload,
     LearningContextMatch,
     LearningContextTrace,
@@ -41,8 +41,8 @@ from ..models import (
 )
 from ..storage import ActivityStorage
 from ..tools.gh_aw_adapter import DiagnosticSourceConfig, GHAWAdapter, create_gh_aw_adapter
-from ..tools.learning_context import LearningContextRetriever, extract_learning_reason_code
 from ..tools.github_tools import GitHubTools
+from ..tools.learning_context import LearningContextRetriever, extract_learning_reason_code
 from ..tools.mcp_provider import get_mcp_provider
 from .base import create_cloud_agent, get_agent_prompt
 from .diagnosis import DiagnosisAgent

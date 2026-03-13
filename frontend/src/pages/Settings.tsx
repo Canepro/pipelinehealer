@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { KeyRound, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../api/client";
+import type { SecretSetting, SetupCheck } from "../api/client";
 import { detectCachedAdminSession } from "../auth/adminSession";
 import { useApiAuthReady } from "../auth/apiAuthReady";
 import { AUTH_ENABLED } from "../auth/config";
@@ -18,8 +19,10 @@ import {
   formatIntegrationQueryState,
 } from "../components/settings/runtimeSemantics";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SettingsPage() {
@@ -30,6 +33,7 @@ export default function SettingsPage() {
   const [useSessionAuth, setUseSessionAuth] = useState(false);
   const [newMcpRepoInput, setNewMcpRepoInput] = useState("");
   const [newHandoffHostInput, setNewHandoffHostInput] = useState("");
+  const [secretDrafts, setSecretDrafts] = useState<Record<string, string>>({});
   const [form, setForm] = useState<SettingsFormState>({
     llm_provider: "azure_openai",
     openai_compatible_base_url: "",
@@ -57,6 +61,7 @@ export default function SettingsPage() {
     auto_retry_workflow: true,
     auto_create_tracking_issue_for_prs: true,
     max_remediation_attempts: 3,
+    verify_webhook_signature: true,
     verify_webhook_signature_in_development: false,
     pipeline_step_timeout_seconds: 120,
     github_api_max_retries: 3,
@@ -74,7 +79,15 @@ export default function SettingsPage() {
     agent_handoff_timeout_seconds: 8,
     agent_handoff_max_retries: 1,
     ph_allowed_repos: [],
+    azure_openai_endpoint: "",
     azure_openai_deployment_name: "",
+    azure_openai_api_version: "2025-04-01-preview",
+    azure_openai_chat_api_version: "2024-12-01-preview",
+    github_app_id: "",
+    jenkins_bridge_enabled: false,
+    jenkins_bridge_max_skew_seconds: 300,
+    jenkins_bridge_replay_ttl_seconds: 86400,
+    jenkins_bridge_max_body_bytes: 524288,
   });
   const [lastSavedForm, setLastSavedForm] = useState<SettingsFormState | null>(
     null,
@@ -88,6 +101,13 @@ export default function SettingsPage() {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["app-settings", adminKey, useSessionAuth],
     queryFn: () => api.getSettings(effectiveAdminKey),
+    enabled: hasAuthAttempt,
+    retry: false,
+  });
+
+  const { data: secretSettings } = useQuery({
+    queryKey: ["secret-settings", adminKey, useSessionAuth],
+    queryFn: () => api.getSecretSettings(effectiveAdminKey),
     enabled: hasAuthAttempt,
     retry: false,
   });
@@ -190,6 +210,7 @@ export default function SettingsPage() {
         auto_create_tracking_issue_for_prs:
           form.auto_create_tracking_issue_for_prs,
         max_remediation_attempts: form.max_remediation_attempts,
+        verify_webhook_signature: form.verify_webhook_signature,
         verify_webhook_signature_in_development:
           form.verify_webhook_signature_in_development,
         pipeline_step_timeout_seconds: form.pipeline_step_timeout_seconds,
@@ -208,24 +229,20 @@ export default function SettingsPage() {
         agent_handoff_timeout_seconds: form.agent_handoff_timeout_seconds,
         agent_handoff_max_retries: form.agent_handoff_max_retries,
         ph_allowed_repos: form.ph_allowed_repos,
+        azure_openai_endpoint: form.azure_openai_endpoint.trim(),
+        azure_openai_api_version: form.azure_openai_api_version.trim(),
+        azure_openai_chat_api_version: form.azure_openai_chat_api_version.trim(),
+        github_app_id: form.github_app_id.trim(),
+        jenkins_bridge_enabled: form.jenkins_bridge_enabled,
+        jenkins_bridge_max_skew_seconds: form.jenkins_bridge_max_skew_seconds,
+        jenkins_bridge_replay_ttl_seconds: form.jenkins_bridge_replay_ttl_seconds,
+        jenkins_bridge_max_body_bytes: form.jenkins_bridge_max_body_bytes,
       };
       const deploymentName = form.azure_openai_deployment_name.trim();
-      if (deploymentName) {
-        payload.azure_openai_deployment_name = deploymentName;
-      }
-      const updated = await api.updateSettings(effectiveAdminKey, payload);
-      try {
-        const persist = await api.persistSettings(effectiveAdminKey);
-        return { updated, persist, persistError: null as string | null };
-      } catch (error) {
-        const persistError =
-          error instanceof Error
-            ? error.message
-            : "Persist step failed after runtime save";
-        return { updated, persist: null, persistError };
-      }
+      payload.azure_openai_deployment_name = deploymentName;
+      return await api.updateSettings(effectiveAdminKey, payload);
     },
-    onSuccess: async ({ updated, persist, persistError }) => {
+    onSuccess: async (updated) => {
       const next = toSettingsForm(updated);
       setForm(next);
       setLastSavedForm(next);
@@ -237,22 +254,8 @@ export default function SettingsPage() {
       await queryClient.invalidateQueries({
         queryKey: ["app-settings", adminKey, useSessionAuth],
       });
-      if (persistError) {
-        toast.warning("Settings saved but persist step failed", {
-          description: persistError,
-        });
-        return;
-      }
-      if (persist && persist.redeploy_attempted && !persist.redeploy_started) {
-        toast.warning("Settings saved and persisted; redeploy did not start", {
-          description: persist.redeploy_message,
-        });
-        return;
-      }
-      toast.success("Settings saved and persisted", {
-        description:
-          persist?.redeploy_message ||
-          "Changes are active and durable across restarts/redeploy.",
+      toast.success("Settings saved", {
+        description: "Changes are active now and persisted for future restarts unless overridden by env.",
       });
     },
     onError: (err) => {
@@ -261,6 +264,86 @@ export default function SettingsPage() {
       });
     },
   });
+
+  const saveSecretMutation = useMutation({
+    mutationFn: async ({ key, clear }: { key: string; clear?: boolean }) => {
+      const draft = secretDrafts[key] ?? "";
+      return api.updateSecretSettings(effectiveAdminKey, {
+        secrets: {
+          [key]: clear ? { clear: true } : { value: draft },
+        },
+      });
+    },
+    onSuccess: async () => {
+      setSecretDrafts((current) => ({ ...current }));
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["secret-settings", adminKey, useSessionAuth] }),
+        queryClient.invalidateQueries({ queryKey: ["app-settings", adminKey, useSessionAuth] }),
+        queryClient.invalidateQueries({ queryKey: ["llm-provider-health", adminKey, useSessionAuth] }),
+        queryClient.invalidateQueries({ queryKey: ["agent-handoff-integration-status", hasAuthAttempt] }),
+      ]);
+      toast.success("Secret updated", {
+        description: "The value was stored without being returned to the UI.",
+      });
+    },
+    onError: (err) => {
+      toast.error("Failed to update secret", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    },
+  });
+
+  const handleSaveSettings = () => {
+    if (
+      data?.environment === "production" &&
+      data.heal_mode === "safe" &&
+      ["demo", "freestyle"].includes(form.heal_mode) &&
+      !window.confirm(
+        "Enable a more aggressive healing mode in production? This increases autonomous write actions.",
+      )
+    ) {
+      return;
+    }
+    if (
+      data?.verify_webhook_signature &&
+      !form.verify_webhook_signature &&
+      !window.confirm(
+        "Disable webhook signature verification? Incoming webhook authenticity checks will be removed.",
+      )
+    ) {
+      return;
+    }
+    saveMutation.mutate();
+  };
+
+  const handleSecretAction = (secret: SecretSetting, clear = false) => {
+    if (
+      clear &&
+      !window.confirm(`Clear ${formatSecretLabel(secret.key)}? Dependent integrations may stop working immediately.`)
+    ) {
+      return;
+    }
+    if (
+      secret.key === "agent_handoff_webhook_url" &&
+      !clear &&
+      secret.configured &&
+      (secretDrafts[secret.key] ?? "").trim() &&
+      !window.confirm("Rotate the Assign-to-Agent destination URL? Future deliveries will go to the new host.")
+    ) {
+      return;
+    }
+    saveSecretMutation.mutate({ key: secret.key, clear });
+  };
+
+  const loadWithAdminKey = () => {
+    const trimmed = adminKeyInput.trim();
+    if (!trimmed) {
+      return;
+    }
+    setUseSessionAuth(false);
+    setAdminKey(trimmed);
+    setAdminKeyInput("");
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -293,20 +376,13 @@ export default function SettingsPage() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && adminKeyInput.trim()) {
                   e.preventDefault();
-                  setUseSessionAuth(false);
-                  setAdminKey(adminKeyInput.trim());
+                  loadWithAdminKey();
                 }
               }}
               placeholder="Enter admin key (X-Admin-Key)"
               className="flex-1"
             />
-            <Button
-              onClick={() => {
-                setUseSessionAuth(false);
-                setAdminKey(adminKeyInput.trim());
-              }}
-              disabled={!adminKeyInput.trim() || isLoading}
-            >
+            <Button onClick={loadWithAdminKey} disabled={!adminKeyInput.trim() || isLoading}>
               {isLoading ? "Loading..." : "Load with Admin Key"}
             </Button>
             <Button
@@ -416,11 +492,23 @@ export default function SettingsPage() {
         <>
           <RuntimePolicyBanner data={data} />
 
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_400px]">
+            <SetupChecklistCard status={data.setup_status} />
+            <SecretSettingsCard
+              secrets={secretSettings ?? []}
+              values={secretDrafts}
+              onChange={(key, value) =>
+                setSecretDrafts((current) => ({ ...current, [key]: value }))
+              }
+              onSave={handleSecretAction}
+              pendingKey={saveSecretMutation.isPending ? saveSecretMutation.variables?.key : null}
+            />
+          </div>
+
           <Card>
             <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
               <p className="text-sm text-[var(--ph-muted)]">
-                Use section tabs below for changes, then verify outcomes in
-                Control Center.
+                Runtime settings save immediately to durable storage. Environment values now act as explicit startup overrides.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button asChild size="sm" variant="secondary">
@@ -434,6 +522,8 @@ export default function SettingsPage() {
           </Card>
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_360px] xl:items-stretch">
             <div className="space-y-4">
+              <RuntimeWiringCard form={form} setForm={setForm} data={data} />
+
               <Card className="overflow-hidden">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Runtime posture</CardTitle>
@@ -549,26 +639,21 @@ export default function SettingsPage() {
                   />
                   <div className="space-y-3 px-1">
                     <div className="text-sm font-semibold text-[var(--ph-text)]/90">
-                      Deployment-managed
+                      Bootstrap and override boundary
                     </div>
                     <ul className="space-y-2 text-sm leading-6 text-[var(--ph-muted)]">
                       <li>
-                        Assign-to-Agent webhook URL and any embedded receiver
-                        credentials
+                        Auth bootstrap, storage bootstrap, CORS, and observability still come from environment configuration.
                       </li>
                       <li>
-                        Receiver notification target secrets and downstream chat
-                        webhook URLs
+                        Runtime values saved here are durable immediately unless the same key is overridden in env.
                       </li>
                       <li>
-                        Provider API keys, GitHub App secrets, and Jenkins
-                        shared secret material
+                        Secret values are managed separately and never returned to the browser after write.
                       </li>
                     </ul>
                     <p className="border-t border-[var(--ph-border)]/50 pt-3 text-xs leading-5 text-[var(--ph-muted)]">
-                      This page exposes runtime-safe controls. Startup-only and
-                      secret-bearing integration values stay deployment-managed
-                      on purpose.
+                      Use env only for bootstrap wiring or forced overrides. Normal operator changes belong in this UI.
                     </p>
                   </div>
                 </CardContent>
@@ -630,8 +715,7 @@ export default function SettingsPage() {
                         2. Change mutable controls in the section tabs below.
                       </li>
                       <li>
-                        3. Save once to apply runtime and persisted overrides
-                        together.
+                        3. Save once to apply and persist runtime changes.
                       </li>
                       <li>
                         4. Confirm the effect in Control Center and activity
@@ -667,7 +751,7 @@ export default function SettingsPage() {
               saveMutation.isError ? (saveMutation.error as Error) : null
             }
             saveSuccess={saveMutation.isSuccess}
-            onSave={() => saveMutation.mutate()}
+            onSave={handleSaveSettings}
           />
         </>
       )}
@@ -740,4 +824,347 @@ function SettingsSummarySection({
       </div>
     </div>
   );
+}
+
+function RuntimeWiringCard({
+  data,
+  form,
+  setForm,
+}: {
+  data: { settings_metadata: Record<string, { source: string }> };
+  form: SettingsFormState;
+  setForm: Dispatch<SetStateAction<SettingsFormState>>;
+}) {
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-base">Runtime wiring</CardTitle>
+          <Badge variant="outline">UI-managed</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-4 lg:grid-cols-2">
+        <div className="space-y-3">
+          <FieldHeader
+            label="Azure OpenAI endpoint"
+            source={data.settings_metadata?.azure_openai_endpoint?.source}
+          />
+          <Input
+            value={form.azure_openai_endpoint}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, azure_openai_endpoint: event.target.value }))
+            }
+            placeholder="https://resource.cognitiveservices.azure.com/"
+          />
+
+          <FieldHeader
+            label="Deployment name"
+            source={data.settings_metadata?.azure_openai_deployment_name?.source}
+          />
+          <Input
+            value={form.azure_openai_deployment_name}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, azure_openai_deployment_name: event.target.value }))
+            }
+            placeholder="gpt-5-mini"
+          />
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <FieldHeader
+                label="Primary API version"
+                source={data.settings_metadata?.azure_openai_api_version?.source}
+              />
+              <Input
+                value={form.azure_openai_api_version}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, azure_openai_api_version: event.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <FieldHeader
+                label="Fallback API version"
+                source={data.settings_metadata?.azure_openai_chat_api_version?.source}
+              />
+              <Input
+                value={form.azure_openai_chat_api_version}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, azure_openai_chat_api_version: event.target.value }))
+                }
+              />
+            </div>
+          </div>
+
+          <FieldHeader
+            label="GitHub App ID"
+            source={data.settings_metadata?.github_app_id?.source}
+          />
+          <Input
+            value={form.github_app_id}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, github_app_id: event.target.value }))
+            }
+            placeholder="123456"
+          />
+          <p className="text-xs leading-5 text-[var(--ph-muted)]">
+            GitHub App inputs are stored here for configuration readiness, but the current live GitHub API runtime still requires a personal access token.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-md border border-[var(--ph-border)]/70 px-3 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium text-[var(--ph-text)]">Verify webhook signatures</div>
+                <p className="mt-1 text-xs leading-5 text-[var(--ph-muted)]">
+                  Keep this enabled in production unless you have a trusted intermediary in front of the webhook endpoint.
+                </p>
+              </div>
+              <Badge variant="outline">
+                {data.settings_metadata?.verify_webhook_signature?.source === "env" ? "Env override" : "Runtime"}
+              </Badge>
+            </div>
+            <div className="mt-3">
+              <Button
+                type="button"
+                variant={form.verify_webhook_signature ? "secondary" : "ghost"}
+                onClick={() =>
+                  setForm((current) => ({ ...current, verify_webhook_signature: !current.verify_webhook_signature }))
+                }
+              >
+                {form.verify_webhook_signature ? "Required" : "Disabled"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-[var(--ph-border)]/70 px-3 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium text-[var(--ph-text)]">Jenkins bridge</div>
+                <p className="mt-1 text-xs leading-5 text-[var(--ph-muted)]">
+                  Runtime bridge policy now lives here; the shared secret stays in the separate secrets section.
+                </p>
+              </div>
+              <Badge variant="outline">
+                {data.settings_metadata?.jenkins_bridge_enabled?.source === "env" ? "Env override" : "Runtime"}
+              </Badge>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Enabled</Label>
+                <Button
+                  type="button"
+                  variant={form.jenkins_bridge_enabled ? "secondary" : "ghost"}
+                  onClick={() =>
+                    setForm((current) => ({ ...current, jenkins_bridge_enabled: !current.jenkins_bridge_enabled }))
+                  }
+                >
+                  {form.jenkins_bridge_enabled ? "On" : "Off"}
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <Label>Max skew seconds</Label>
+                <Input
+                  type="number"
+                  value={form.jenkins_bridge_max_skew_seconds}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, jenkins_bridge_max_skew_seconds: Number(event.target.value) || 0 }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Replay TTL seconds</Label>
+                <Input
+                  type="number"
+                  value={form.jenkins_bridge_replay_ttl_seconds}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, jenkins_bridge_replay_ttl_seconds: Number(event.target.value) || 0 }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Max body bytes</Label>
+                <Input
+                  type="number"
+                  value={form.jenkins_bridge_max_body_bytes}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, jenkins_bridge_max_body_bytes: Number(event.target.value) || 0 }))
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FieldHeader({ label, source }: { label: string; source?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <Label>{label}</Label>
+      <Badge variant="outline">{source === "env" ? "Env override" : "Runtime"}</Badge>
+    </div>
+  );
+}
+
+function SetupChecklistCard({ status }: { status: { ready: boolean; storage_bootstrap: SetupCheck; auth_bootstrap: SetupCheck; secret_backend: SetupCheck; llm_runtime: SetupCheck; github_runtime: SetupCheck; webhook_secrets: SetupCheck } }) {
+  const items = [
+    ["Storage bootstrap", status.storage_bootstrap],
+    ["Auth bootstrap", status.auth_bootstrap],
+    ["Secret backend", status.secret_backend],
+    ["LLM runtime", status.llm_runtime],
+    ["GitHub runtime", status.github_runtime],
+    ["Webhook secrets", status.webhook_secrets],
+  ] as const;
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-base">Setup checklist</CardTitle>
+          <Badge variant={status.ready ? "success" : "outline"}>
+            {status.ready ? "Ready" : "Action needed"}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {items.map(([label, check]) => (
+          <div
+            key={label}
+            className="grid gap-1 rounded-md border border-[var(--ph-border)]/70 px-3 py-2"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-medium text-[var(--ph-text)]">{label}</div>
+              <Badge variant={check.ready ? "success" : "outline"}>
+                {check.ready ? "Ready" : "Missing"}
+              </Badge>
+            </div>
+            <p className="text-sm leading-5 text-[var(--ph-muted)]">{check.detail}</p>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SecretSettingsCard({
+  secrets,
+  values,
+  onChange,
+  onSave,
+  pendingKey,
+}: {
+  secrets: SecretSetting[];
+  values: Record<string, string>;
+  onChange: (key: string, value: string) => void;
+  onSave: (secret: SecretSetting, clear?: boolean) => void;
+  pendingKey: string | null;
+}) {
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Secrets</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm leading-6 text-[var(--ph-muted)]">
+          Secrets are write-only. This page only shows configuration status, source, and safe hints.
+        </p>
+        <div className="space-y-4">
+          {secrets.map((secret) => (
+            <div
+              key={secret.key}
+              className="rounded-md border border-[var(--ph-border)]/70 px-3 py-3"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-[var(--ph-text)]">
+                    {formatSecretLabel(secret.key)}
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-[var(--ph-muted)]">
+                    {secret.note}
+                    {secret.safe_hint ? ` Hint: ${secret.safe_hint}.` : ""}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <SecretStatusBadge secret={secret} />
+                  <Badge variant="outline">{secret.backend}</Badge>
+                </div>
+              </div>
+              <div className="mt-3 space-y-2">
+                <Label htmlFor={`secret-${secret.key}`}>Set or rotate value</Label>
+                {secret.key === "github_app_private_key" ? (
+                  <textarea
+                    id={`secret-${secret.key}`}
+                    value={values[secret.key] ?? ""}
+                    onChange={(event) => onChange(secret.key, event.target.value)}
+                    className="min-h-28 w-full rounded-md border border-[var(--ph-border)] bg-background px-3 py-2 text-sm"
+                    placeholder="Paste the new secret value"
+                  />
+                ) : (
+                  <Input
+                    id={`secret-${secret.key}`}
+                    type={secret.key === "agent_handoff_webhook_url" ? "url" : "password"}
+                    value={values[secret.key] ?? ""}
+                    onChange={(event) => onChange(secret.key, event.target.value)}
+                    placeholder={secret.key === "agent_handoff_webhook_url" ? "https://receiver.example/api/agent-handoff" : "Enter a new secret value"}
+                  />
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => onSave(secret)}
+                    disabled={pendingKey === secret.key || !(values[secret.key] ?? "").trim()}
+                  >
+                    {pendingKey === secret.key ? "Saving..." : secret.configured ? "Rotate" : "Set"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onSave(secret, true)}
+                    disabled={pendingKey === secret.key || !secret.configured}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SecretStatusBadge({ secret }: { secret: SecretSetting }) {
+  if (secret.overridden_by_env) {
+    return <Badge variant="outline">Overridden by env</Badge>;
+  }
+  if (secret.configured) {
+    return <Badge variant="success">Configured in UI</Badge>;
+  }
+  return <Badge variant="outline">Not configured</Badge>;
+}
+
+function formatSecretLabel(key: string): string {
+  switch (key) {
+    case "azure_openai_api_key":
+      return "Azure OpenAI API key";
+    case "openai_compatible_api_key":
+      return "OpenAI-compatible API key";
+    case "github_personal_access_token":
+      return "GitHub personal access token";
+    case "github_webhook_secret":
+      return "GitHub webhook secret";
+    case "jenkins_bridge_shared_secret":
+      return "Jenkins bridge shared secret";
+    case "agent_handoff_webhook_url":
+      return "Assign-to-Agent webhook URL";
+    case "github_app_private_key":
+      return "GitHub App private key";
+    default:
+      return key;
+  }
 }

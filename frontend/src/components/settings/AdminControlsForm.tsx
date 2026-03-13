@@ -2816,7 +2816,7 @@ export default function AdminControlsForm({
                   onClick={onSave}
                 >
                   <Save className="h-4 w-4" />
-                  {savePending ? "Saving..." : "Save & Persist"}
+                  {savePending ? "Saving..." : "Save"}
                 </Button>
               </div>
             </div>

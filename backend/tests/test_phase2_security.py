@@ -51,6 +51,12 @@ async def _get_settings(headers: dict[str, str] | None = None) -> httpx.Response
         return await client.get("/api/settings", headers=headers or {})
 
 
+async def _get_secret_settings(headers: dict[str, str] | None = None) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.get("/api/settings/secrets", headers=headers or {})
+
+
 async def _patch_settings(
     payload: dict[str, object],
     headers: dict[str, str] | None = None,
@@ -58,6 +64,15 @@ async def _patch_settings(
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         return await client.patch("/api/settings", json=payload, headers=headers or {})
+
+
+async def _patch_secret_settings(
+    payload: dict[str, object],
+    headers: dict[str, str] | None = None,
+) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.patch("/api/settings/secrets", json=payload, headers=headers or {})
 
 
 async def _get_settings_audit(headers: dict[str, str] | None = None) -> httpx.Response:
@@ -392,9 +407,10 @@ async def test_settings_endpoint_returns_non_secret_fields(monkeypatch, tmp_path
     assert data["settings_metadata"]["agent_handoff_webhook_configured"]["sensitive"] is True
     assert (
         data["settings_metadata"]["agent_handoff_webhook_host"]["note"]
-        == "Derived from the startup-only Assign-to-Agent webhook URL; only the destination host is exposed."
+        == "Derived from the Assign-to-Agent webhook URL secret; only the destination host is exposed."
     )
     assert data["settings_metadata"]["openai_compatible_api_key_configured"]["sensitive"] is True
+    assert data["setup_status"]["storage_bootstrap"]["ready"] is True
     assert "azure_openai_api_key" not in data
 
 
@@ -413,6 +429,71 @@ async def test_settings_env_file_override_controls_startup_provenance(monkeypatc
     body = response.json()
     assert body["heal_mode"] == "freestyle"
     assert body["settings_metadata"]["heal_mode"]["source"] == "env"
+
+
+@pytest.mark.asyncio
+async def test_settings_distinguish_github_app_configuration_from_live_pat_runtime(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("GITHUB_APP_ID", "123456")
+    monkeypatch.setenv("GITHUB_APP_PRIVATE_KEY", "-----BEGIN PRIVATE KEY-----test")
+    monkeypatch.delenv("GITHUB_PERSONAL_ACCESS_TOKEN", raising=False)
+    reset_settings()
+    app.state.storage = InMemoryStorage()
+
+    response = await _get_settings(headers={"X-Admin-Key": "admin-secret"})
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["github_app_configured"] is True
+    assert body["github_pat_configured"] is False
+    assert body["github_auth_mode"] == "app configured (inactive)"
+    assert body["setup_status"]["github_runtime"]["ready"] is False
+    assert "requires a PAT" in body["setup_status"]["github_runtime"]["detail"]
+
+
+@pytest.mark.asyncio
+async def test_secret_settings_endpoint_redacts_values_and_supports_runtime_writes(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("SETTINGS_DB_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
+    monkeypatch.setenv("GITHUB_WEBHOOK_SECRET", "env-secret")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    initial = await _get_secret_settings(headers={"X-Admin-Key": "admin-secret"})
+    assert initial.status_code == 200
+    secrets = {item["key"]: item for item in initial.json()}
+    assert secrets["github_webhook_secret"]["overridden_by_env"] is True
+    assert secrets["github_webhook_secret"]["source"] == "env"
+
+    patch_response = await _patch_secret_settings(
+        {
+            "secrets": {
+                "openai_compatible_api_key": {"value": "sk-test-1234567890"},
+                "agent_handoff_webhook_url": {"value": "https://agent.example.com/api/agent-handoff"},
+            }
+        },
+        headers={"X-Admin-Key": "admin-secret", "X-Request-Id": "req-secret-1"},
+    )
+    assert patch_response.status_code == 200
+    body = {item["key"]: item for item in patch_response.json()}
+    assert body["openai_compatible_api_key"]["configured"] is True
+    assert body["openai_compatible_api_key"]["source"] == "secret_store"
+    assert body["agent_handoff_webhook_url"]["safe_hint"] == "agent.example.com"
+
+    settings_response = await _get_settings(headers={"X-Admin-Key": "admin-secret"})
+    assert settings_response.status_code == 200
+    settings_body = settings_response.json()
+    assert settings_body["openai_compatible_api_key_configured"] is True
+    assert settings_body["agent_handoff_webhook_host"] == "agent.example.com"
+
+    audit = await _get_settings_audit(headers={"X-Admin-Key": "admin-secret"})
+    entries = audit.json()
+    assert entries[0]["request_id"] == "req-secret-1"
+    assert "sk-test-1234567890" not in str(entries[0])
 
 
 def test_dashboard_paths_default_to_backend_env_in_repo_checkout(
@@ -525,10 +606,7 @@ async def test_admin_can_patch_runtime_settings(monkeypatch) -> None:
 async def test_admin_can_patch_agent_handoff_runtime_settings(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
-    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "false")
-    monkeypatch.setenv("AGENT_HANDOFF_MODE", "copy_only")
     monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_URL", "https://agent.example.com/hook")
-    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_ALLOWLIST", "agent.example.com")
     reset_settings()
 
     app.state.storage = InMemoryStorage()
@@ -551,9 +629,9 @@ async def test_admin_can_patch_agent_handoff_runtime_settings(monkeypatch) -> No
     assert body["agent_handoff_webhook_allowlist"] == ["agent.example.com"]
     assert body["agent_handoff_timeout_seconds"] == 12
     assert body["agent_handoff_max_retries"] == 3
-    assert body["settings_metadata"]["agent_handoff_enabled"]["source"] == "runtime_override"
-    assert body["settings_metadata"]["agent_handoff_enabled"]["durable"] is False
-    assert body["settings_metadata"]["agent_handoff_mode"]["source"] == "runtime_override"
+    assert body["settings_metadata"]["agent_handoff_enabled"]["source"] == "persisted_runtime_override"
+    assert body["settings_metadata"]["agent_handoff_enabled"]["durable"] is True
+    assert body["settings_metadata"]["agent_handoff_mode"]["source"] == "persisted_runtime_override"
 
 
 @pytest.mark.asyncio
@@ -971,7 +1049,7 @@ async def test_admin_patch_rejects_invalid_mcp_tool_policy(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_admin_patch_rejects_empty_azure_openai_deployment_name(monkeypatch) -> None:
+async def test_admin_patch_allows_clearing_azure_openai_deployment_name(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
     reset_settings()
@@ -983,8 +1061,8 @@ async def test_admin_patch_rejects_empty_azure_openai_deployment_name(monkeypatc
         {"azure_openai_deployment_name": "   "},
         headers={"X-Admin-Key": "admin-secret"},
     )
-    assert response.status_code == 422
-    assert "azure_openai_deployment_name" in response.json()["detail"]
+    assert response.status_code == 200
+    assert response.json()["azure_openai_deployment_name"] == ""
 
 
 @pytest.mark.asyncio
@@ -1124,29 +1202,12 @@ async def test_admin_patch_accepts_freestyle_and_runtime_action_toggles(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tmp_path: Path) -> None:
+async def test_admin_settings_persist_endpoint_is_deprecated_noop(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
     reset_settings()
 
-    env_file = tmp_path / ".env"
-    env_file.write_text(
-        "HEAL_MODE=safe\n"
-        "AUTO_APPLY_REMEDIATION=true\n"
-        "AUTO_CREATE_PR=true\n"
-        "JENKINS_BRIDGE_ALLOW_PR=false\n"
-        "AUTO_CREATE_ISSUE=true\n"
-        "AUTO_RETRY_WORKFLOW=true\n"
-        "AGENT_HANDOFF_ENABLED=false\n"
-        "AGENT_HANDOFF_MODE=copy_only\n"
-        "AGENT_HANDOFF_WEBHOOK_ALLOWLIST=agent.example.com\n"
-        "AGENT_HANDOFF_TIMEOUT_SECONDS=8.0\n"
-        "AGENT_HANDOFF_MAX_RETRIES=1\n"
-        "GH_AW_TOOLS_ENABLED=false\n"
-        "PH_ALLOWED_REPOS=\n",
-        encoding="utf-8",
-    )
-    monkeypatch.setenv("PIPELINEHEALER_ENV_FILE_PATH", str(env_file))
+    monkeypatch.setenv("PIPELINEHEALER_ENV_FILE_PATH", str(tmp_path / "missing-settings.env"))
 
     app.state.storage = InMemoryStorage()
     app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
@@ -1157,43 +1218,8 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
             "auto_apply_remediation": True,
             "auto_create_pr": False,
             "jenkins_bridge_allow_pr": True,
-            "auto_create_issue": False,
-            "auto_retry_workflow": False,
-            "auto_create_tracking_issue_for_prs": False,
-            "max_remediation_attempts": 9,
-            "verify_webhook_signature_in_development": True,
-            "pipeline_step_timeout_seconds": 45,
-            "github_api_max_retries": 4,
-            "github_api_retry_base_seconds": 0.7,
-            "github_api_retry_max_seconds": 9.5,
-            "log_prompt_max_chars": 14000,
-            "log_prompt_head_chars": 7000,
-            "log_prompt_tail_chars": 7000,
             "gh_aw_tools_enabled": True,
             "gh_aw_ingestion_mode": "passive",
-            "gh_aw_known_workflows": ["ci-doctor", "schema-consistency-checker"],
-            "external_diagnostics_wait_seconds": 60,
-            "external_diagnostics_poll_interval_seconds": 10,
-            "agent_handoff_enabled": True,
-            "agent_handoff_mode": "webhook",
-            "agent_handoff_webhook_allowlist": ["Agent.EXAMPLE.com"],
-            "agent_handoff_timeout_seconds": 12,
-            "agent_handoff_max_retries": 3,
-            "ph_allowed_repos": ["Canepro/PipelineHealer", "canepro/pipelinehealer-demo"],
-            "mcp_enabled": True,
-            "mcp_provider": "github",
-            "mcp_read_only": True,
-            "llm_model_analysis": "gpt-5-mini-fast",
-            "llm_model_diagnosis": "gpt-5-mini-reasoner",
-            "llm_model_remediation": "gpt-5-mini",
-            "mcp_timeout_seconds": 12,
-            "mcp_max_retries": 2,
-            "mcp_repo_allowlist": ["Canepro/PipelineHealer"],
-            "mcp_tool_policies": {
-                "fetch_failure_context": "read_only",
-                "publish_artifact": "disabled",
-            },
-            "azure_openai_deployment_name": "gpt-5-mini-fast",
         },
         headers={"X-Admin-Key": "admin-secret"},
     )
@@ -1205,67 +1231,11 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
     )
     assert persist_response.status_code == 200
     body = persist_response.json()
-    assert body["env_file"] == str(env_file)
+    assert body["deprecated"] is True
+    assert body["env_file"] == ""
     assert body["redeploy_attempted"] is False
     assert body["redeploy_started"] is False
-    assert "GH_AW_KNOWN_WORKFLOWS" in body["persisted_keys"]
-    assert "PH_ALLOWED_REPOS" in body["persisted_keys"]
-    assert "MCP_TOOL_POLICIES" in body["persisted_keys"]
-    assert "MCP_REPO_ALLOWLIST" in body["persisted_keys"]
-    assert "AGENT_HANDOFF_ENABLED" in body["persisted_keys"]
-    assert "AGENT_HANDOFF_WEBHOOK_ALLOWLIST" in body["persisted_keys"]
-
-    persisted_text = env_file.read_text(encoding="utf-8")
-    assert "HEAL_MODE=freestyle" in persisted_text
-    assert "AUTO_APPLY_REMEDIATION=true" in persisted_text
-    assert "AUTO_CREATE_PR=false" in persisted_text
-    assert "JENKINS_BRIDGE_ALLOW_PR=true" in persisted_text
-    assert "AUTO_CREATE_ISSUE=false" in persisted_text
-    assert "AUTO_RETRY_WORKFLOW=false" in persisted_text
-    assert "AUTO_CREATE_TRACKING_ISSUE_FOR_PRS=false" in persisted_text
-    assert "MAX_REMEDIATION_ATTEMPTS=9" in persisted_text
-    assert "VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT=true" in persisted_text
-    assert "PIPELINE_STEP_TIMEOUT_SECONDS=45.0" in persisted_text
-    assert "GITHUB_API_MAX_RETRIES=4" in persisted_text
-    assert "GITHUB_API_RETRY_BASE_SECONDS=0.7" in persisted_text
-    assert "GITHUB_API_RETRY_MAX_SECONDS=9.5" in persisted_text
-    assert "LOG_PROMPT_MAX_CHARS=14000" in persisted_text
-    assert "LOG_PROMPT_HEAD_CHARS=7000" in persisted_text
-    assert "LOG_PROMPT_TAIL_CHARS=7000" in persisted_text
-    assert "GH_AW_TOOLS_ENABLED=true" in persisted_text
-    assert "GH_AW_INGESTION_MODE=passive" in persisted_text
-    assert "GH_AW_KNOWN_WORKFLOWS=ci-doctor,schema-consistency-checker" in persisted_text
-    assert "EXTERNAL_DIAGNOSTICS_WAIT_SECONDS=60.0" in persisted_text
-    assert "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS=10.0" in persisted_text
-    assert "AGENT_HANDOFF_ENABLED=true" in persisted_text
-    assert "AGENT_HANDOFF_MODE=webhook" in persisted_text
-    assert "AGENT_HANDOFF_WEBHOOK_ALLOWLIST=agent.example.com" in persisted_text
-    assert "AGENT_HANDOFF_TIMEOUT_SECONDS=12.0" in persisted_text
-    assert "AGENT_HANDOFF_MAX_RETRIES=3" in persisted_text
-    assert "PH_ALLOWED_REPOS=canepro/pipelinehealer,canepro/pipelinehealer-demo" in persisted_text
-    assert "MCP_ENABLED=true" in persisted_text
-    assert "MCP_PROVIDER=github" in persisted_text
-    assert "MCP_READ_ONLY=true" in persisted_text
-    assert "MCP_TIMEOUT_SECONDS=12.0" in persisted_text
-    assert "MCP_MAX_RETRIES=2" in persisted_text
-    assert "MCP_REPO_ALLOWLIST=canepro/pipelinehealer" in persisted_text
-    assert "LLM_MODEL_ANALYSIS=gpt-5-mini-fast" in persisted_text
-    assert "LLM_MODEL_DIAGNOSIS=gpt-5-mini-reasoner" in persisted_text
-    assert "LLM_MODEL_REMEDIATION=gpt-5-mini" in persisted_text
-    assert (
-        "MCP_TOOL_POLICIES=fetch_failure_context=read_only,publish_artifact=disabled"
-        in persisted_text
-    )
-    assert "AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-mini-fast" in persisted_text
-
-    settings_after_persist = await _get_settings(headers={"X-Admin-Key": "admin-secret"})
-    assert settings_after_persist.status_code == 200
-    settings_body = settings_after_persist.json()
-    assert (
-        settings_body["settings_metadata"]["agent_handoff_enabled"]["source"]
-        == "persisted_runtime_override"
-    )
-    assert settings_body["settings_metadata"]["agent_handoff_enabled"]["durable"] is True
+    assert "already persist" in body["redeploy_message"]
 
     audit = await _get_settings_audit(headers={"X-Admin-Key": "admin-secret"})
     assert audit.status_code == 200
@@ -1276,7 +1246,7 @@ async def test_admin_can_persist_mutable_runtime_settings_to_env(monkeypatch, tm
 
 
 @pytest.mark.asyncio
-async def test_admin_persist_succeeds_without_env_file(monkeypatch, tmp_path: Path) -> None:
+async def test_admin_patch_persists_runtime_settings_without_explicit_persist(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
     monkeypatch.setenv(
@@ -1298,22 +1268,12 @@ async def test_admin_persist_succeeds_without_env_file(monkeypatch, tmp_path: Pa
     )
     assert patch_response.status_code == 200
 
-    persist_response = await _post_settings_persist(
-        payload={},
-        headers={"X-Admin-Key": "admin-secret", "X-Request-Id": "req-persist-no-env"},
-    )
-    assert persist_response.status_code == 200
-    body = persist_response.json()
-    assert body["env_file"] == ""
-    assert body["redeploy_attempted"] is False
-    assert body["redeploy_started"] is False
-    assert "durable storage" in body["redeploy_message"]
-
-    audit = await _get_settings_audit(headers={"X-Admin-Key": "admin-secret"})
-    assert audit.status_code == 200
-    entries = audit.json()
-    assert entries[0]["changed_keys"] == ["persist_settings"]
-    assert entries[0]["request_id"] == "req-persist-no-env"
+    runtime = await app.state.storage.get_runtime_settings()
+    assert runtime == {
+        "heal_mode": "demo",
+        "gh_aw_tools_enabled": True,
+        "gh_aw_ingestion_mode": "passive",
+    }
 
 
 @pytest.mark.asyncio
@@ -1354,12 +1314,6 @@ async def test_apply_persisted_runtime_settings_restores_values(
     )
     assert patch_response.status_code == 200
 
-    persist_response = await _post_settings_persist(
-        payload={"skip_redeploy": True},
-        headers={"X-Admin-Key": "admin-secret"},
-    )
-    assert persist_response.status_code == 200
-
     runtime_settings = get_settings()
     runtime_settings.heal_mode = "safe"
     runtime_settings.gh_aw_tools_enabled = False
@@ -1399,3 +1353,32 @@ async def test_apply_persisted_runtime_settings_restores_values(
         == "persisted_runtime_override"
     )
     assert settings_body["settings_metadata"]["agent_handoff_enabled"]["durable"] is True
+
+
+@pytest.mark.asyncio
+async def test_env_overrides_win_over_persisted_runtime_settings_and_secrets(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("HEAL_MODE", "safe")
+    monkeypatch.setenv("OPENAI_COMPATIBLE_API_KEY", "env-openai-key")
+    monkeypatch.setenv("SETTINGS_DB_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
+    reset_settings()
+
+    storage = InMemoryStorage()
+    await storage.upsert_runtime_settings({"heal_mode": "demo"})
+    app.state.storage = storage
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+    settings = get_settings()
+    settings.heal_mode = "debug"
+    settings.openai_compatible_api_key = ""
+
+    secret_patch = await _patch_secret_settings(
+        {"secrets": {"openai_compatible_api_key": {"value": "ui-openai-key"}}},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert secret_patch.status_code == 200
+
+    await dashboard.apply_persisted_runtime_settings(storage, app.state.workflow)  # type: ignore[arg-type]
+
+    assert settings.heal_mode == "safe"
+    assert settings.openai_compatible_api_key == "env-openai-key"

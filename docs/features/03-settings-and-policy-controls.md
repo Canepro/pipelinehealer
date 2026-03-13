@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 83805e7 -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -9,7 +9,7 @@ This guide explains runtime controls, persistence behavior, and governance guard
 - Settings page workflow (`/settings`)
 - Settings posture overview cards (runtime/scope/provider/security) for quick read before edits
 - Setup assistants for startup-managed integration boundaries (Assign-to-Agent receiver and notification targets)
-- Runtime vs persisted settings
+- Runtime vs startup override behavior
 - Admin audit trail
 - Guardrails for repos, retries, and MCP tool policy
 - Task-level model routing overrides (`analysis`, `diagnosis`, `remediation`)
@@ -24,7 +24,7 @@ This guide explains runtime controls, persistence behavior, and governance guard
    - Entra mode: signed-in sessions auto-load Settings and Control Center
      - keep `X-Admin-Key` for fallback or troubleshooting overrides
 3. Change only one policy group at a time.
-4. Use **Save & Persist** to apply and persist in one action.
+4. Use **Save** once to apply and durably persist runtime-safe changes.
 5. Re-open Control Center for read-only governance verification after each save.
 6. Use Control Center section tabs to reduce cognitive load while preserving full detail:
    - `Governance Overview`: posture, policy impact, model routing, MCP policy effect
@@ -51,13 +51,17 @@ This guide explains runtime controls, persistence behavior, and governance guard
 
 ## Runtime vs Durable
 
-- Settings UI `Save & Persist` updates runtime and then performs durable persistence.
+- Settings UI `Save` updates runtime-safe non-secret settings and persists them durably immediately.
+- Secret values are managed through the separate write-only secrets panel and never returned to the browser after write.
 - Runtime settings apply immediately.
-- Persisted settings survive restarts/redeploys.
-- Persistence uses the configured durable backend:
+- Persisted settings survive restarts/redeploys unless the same logical key is explicitly overridden by env or the selected env file.
+- Durable runtime state uses the configured backend:
   - `cosmos` via `COSMOS_DB_ENDPOINT`
   - `postgres` via `POSTGRES_DSN`
   - with in-memory fallback only for explicit local/dev/demo paths
+- Runtime secret storage uses the configured secret backend:
+  - `encrypted_db` with `SETTINGS_DB_ENCRYPTION_KEY`
+  - `azure_key_vault` with `KEY_VAULT_URL`
 
 API and CLI equivalents:
 ```bash
@@ -66,9 +70,11 @@ bash scripts/ph.sh settings:audit --limit 10
 bash scripts/ph.sh settings:persist --from-settings
 ```
 
-Backend API calls used by Save & Persist:
+Backend API calls used by Settings:
 - `PATCH /api/settings`
-- `POST /api/settings/persist`
+- `GET /api/settings/secrets`
+- `PATCH /api/settings/secrets`
+- `POST /api/settings/persist` (deprecated compatibility endpoint for CLI/env-sync audit flows)
 
 ## Runtime Action Control Model
 
@@ -183,5 +189,5 @@ curl -X PATCH \
 
 ## Related Docs
 
-- `../reference/API.md` (`GET/PATCH/POST /api/settings*`)
+- `../reference/API.md` (`GET/PATCH /api/settings*`, `GET/PATCH /api/settings/secrets`)
 - `../reference/CLI.md` (`settings:persist` flags)

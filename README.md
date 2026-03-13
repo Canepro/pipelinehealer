@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 83805e7 -->
 
 > OSS-first, policy-aware pipeline remediation platform for failed delivery workflows.
 
@@ -36,6 +36,7 @@ Pipeline failures create repetitive triage work and slow delivery. PipelineHeale
 - Deterministic-first diagnosis and remediation, with structured LLM fallback where needed.
 - Activity Detail as an incident workspace, including verification feedback for identification, diagnosis, remediation, and guidance effectiveness.
 - Control Center operator views for governance posture, learning explainability, trust ops, and audit/trace.
+- UI-first operator settings: runtime-safe controls save durably from Settings, secrets rotate through a separate write-only path, and setup checklists expose missing bootstrap wiring.
 - Durable audit trails for settings changes and remediation decisions.
 - OSS-friendly storage options: PostgreSQL, Cosmos DB, or in-memory mode for local development.
 
@@ -112,6 +113,7 @@ bun run dev
 5. Verify the app:
 - `curl -sS http://127.0.0.1:8000/health`
 - open `http://127.0.0.1:5173`
+- open `/app/settings` to confirm the setup checklist and manage runtime-safe settings or write-only secrets; environment values remain the startup override path
 
 Beginner-safe defaults already exist in `.env.example`:
 - `HEAL_MODE=safe`
@@ -193,7 +195,7 @@ The operator surface is intentionally split by job:
 - Activities: searchable run history
 - Activity Detail: incident record, evidence layers, remediation result, external diagnostics, and verification feedback
 - Control Center: governance overview, learning explainability, trust ops, and audit/trace
-- Settings: mutable runtime controls and integration wiring
+- Settings: immediate durable runtime controls, write-only secrets, and bootstrap wiring/readiness
 
 ![Activity Detail — incident record, verification workspace, and external diagnostics](docs/screens/activity-detail-current.png)
 ![Control Center — governance posture, trust ops, and integration health](docs/screens/control-center-current.png)

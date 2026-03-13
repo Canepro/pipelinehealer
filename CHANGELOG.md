@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: c8c77c8 -->
+<!-- LAST_VERIFIED: 83805e7 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -11,17 +11,22 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ### Added
 
 - Added a reusable Jenkins bridge integration kit under `integrations/jenkins-bridge`, including an install script, direct-excerpt capture helper, and Jenkinsfile example for Jenkins-first repos. (`c78ae9b`)
+- Added a UI-first runtime configuration flow for `v0.7.0`, including durable-on-save `PATCH /api/settings`, write-only `GET/PATCH /api/settings/secrets`, setup readiness reporting, and runtime secret backends for encrypted DB or Azure Key Vault storage.
 
 ### Changed
 
 - Standardized the recommended Jenkins evidence-capture pattern around plugin-free workspace excerpts and repo-local shell sender assets instead of script-approval-sensitive Groovy log access. (`ae22c4e`)
-- Reorganized the docs into `docs/reference/`, `docs/runbooks/`, `docs/architecture/`, and `docs/archive/` so current operator guidance is easier to find and historical planning material no longer competes with the canonical docs. (`d555eef`)
+- Reorganized the docs into `docs/reference/`, `docs/runbooks/`, `docs/architecture/`, and `docs/archive/` so current operator guidance is easier to find and historical planning material no longer competes with the canonical docs. (`d555eef`, `c8c77c8`)
+- Reframed Settings and related docs around immediate durable runtime saves, a separate write-only secrets surface, setup checklist readiness, and env/env-file values as the highest-precedence startup override path.
+- Deprecated `POST /api/settings/persist` into a compatibility audit/env-sync endpoint rather than the primary source of runtime durability.
 
 ### Fixed
 
 - Restored default settings persistence and env-only redeploy path resolution so checkout-based runtimes target the actual backend `.env` and repo helper scripts without requiring explicit `PIPELINEHEALER_ENV_FILE_PATH` or `PIPELINEHEALER_REPO_ROOT` overrides.
 - Stopped development startup from forcing in-memory storage over explicit `STORAGE_MODE=cosmos` or `STORAGE_MODE=postgres`, so local durable-storage validation now matches the real app boot path.
 - Restored hybrid admin-key fallback behavior for signed-in browser sessions so a valid `X-Admin-Key` can override a non-admin bearer session, while blank admin-key headers still fall back to bearer auth.
+- Refreshed live GitHub PAT usage after runtime secret rotation so the cached GitHub API client no longer requires a process restart to pick up the new token.
+- Tightened GitHub auth status semantics so GitHub App configuration is reported honestly as configuration presence when the live runtime still requires a PAT.
 
 ## [v0.6.1] - 2026-03-12
 

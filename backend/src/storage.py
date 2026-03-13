@@ -25,6 +25,7 @@ from .models import (
 logger = logging.getLogger(__name__)
 _RUNTIME_SETTINGS_ID = "pipelinehealer_runtime_settings_v1"
 _RUNTIME_SETTINGS_PARTITION = "__pipelinehealer_settings__"
+_RUNTIME_SECRETS_PARTITION = "__pipelinehealer_runtime_secrets__"
 _AUDIT_PARTITION = "__pipelinehealer_audit__"
 _LEARNING_QUEUE_PARTITION = "__pipelinehealer_learning_queue__"
 _POSTGRES_BOOTSTRAP_SQL_PATH = (
@@ -49,6 +50,12 @@ CREATE TABLE IF NOT EXISTS ph_runtime_settings (
     id TEXT PRIMARY KEY,
     updated_at TIMESTAMPTZ NOT NULL,
     settings JSONB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ph_runtime_secrets (
+    key TEXT PRIMARY KEY,
+    updated_at TIMESTAMPTZ NOT NULL,
+    payload JSONB NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS ph_admin_settings_audit (
@@ -267,6 +274,97 @@ class ActivityStorage:
         if not isinstance(settings_payload, dict):
             return None
         return settings_payload
+
+    async def upsert_runtime_secret_record(self, secret_key: str, payload: dict[str, Any]) -> None:
+        """Persist one runtime secret metadata/ciphertext record."""
+        await self.initialize()
+
+        item = {
+            "id": f"runtime_secret::{secret_key}",
+            "type": "runtime_secret",
+            "key": secret_key,
+            "repository_name": _RUNTIME_SECRETS_PARTITION,
+            "repositoryId": _RUNTIME_SECRETS_PARTITION,
+            "repository_id": _RUNTIME_SECRETS_PARTITION,
+            "updated_at": utcnow().isoformat(),
+            "payload": payload,
+        }
+        await self._workflow_runs_container_required().upsert_item(body=item)
+
+    async def get_runtime_secret_record(self, secret_key: str) -> dict[str, Any] | None:
+        """Load one runtime secret record by logical key."""
+        await self.initialize()
+
+        query = "SELECT TOP 1 * FROM c WHERE c.id = @id AND c.type = @type"
+        parameters: list[dict[str, object]] = [
+            {"name": "@id", "value": f"runtime_secret::{secret_key}"},
+            {"name": "@type", "value": "runtime_secret"},
+        ]
+        items = [
+            item
+            async for item in self._workflow_runs_container_required().query_items(
+                query=query,
+                parameters=parameters,
+            )
+        ]
+        if not items:
+            return None
+
+        payload = items[0].get("payload")
+        if not isinstance(payload, dict):
+            return None
+        record = dict(payload)
+        record.setdefault("updated_at", items[0].get("updated_at"))
+        return record
+
+    async def list_runtime_secret_records(self) -> dict[str, dict[str, Any]]:
+        """Load all runtime secret records keyed by logical key."""
+        await self.initialize()
+
+        query = "SELECT * FROM c WHERE c.type = @type"
+        parameters: list[dict[str, object]] = [{"name": "@type", "value": "runtime_secret"}]
+        records: dict[str, dict[str, Any]] = {}
+        async for item in self._workflow_runs_container_required().query_items(
+            query=query,
+            parameters=parameters,
+        ):
+            key = str(item.get("key") or "").strip()
+            payload = item.get("payload")
+            if not key or not isinstance(payload, dict):
+                continue
+            record = dict(payload)
+            record.setdefault("updated_at", item.get("updated_at"))
+            records[key] = record
+        return records
+
+    async def delete_runtime_secret_record(self, secret_key: str) -> None:
+        """Delete one runtime secret metadata/ciphertext record."""
+        await self.initialize()
+
+        item_id = f"runtime_secret::{secret_key}"
+        try:
+            await self._workflow_runs_container_required().delete_item(
+                item=item_id,
+                partition_key=_RUNTIME_SECRETS_PARTITION,
+            )
+        except Exception:
+            query = "SELECT TOP 1 * FROM c WHERE c.id = @id AND c.type = @type"
+            parameters: list[dict[str, object]] = [
+                {"name": "@id", "value": item_id},
+                {"name": "@type", "value": "runtime_secret"},
+            ]
+            items = [
+                item
+                async for item in self._workflow_runs_container_required().query_items(
+                    query=query,
+                    parameters=parameters,
+                )
+            ]
+            if items:
+                await self._workflow_runs_container_required().delete_item(
+                    item=item_id,
+                    partition_key=items[0].get("repository_name") or _RUNTIME_SECRETS_PARTITION,
+                )
 
     async def append_admin_settings_audit_entry(self, entry: dict[str, Any]) -> None:
         """Persist one admin settings audit entry."""
@@ -1010,6 +1108,65 @@ class PostgresStorage(ActivityStorage):
             return None
         return payload
 
+    async def upsert_runtime_secret_record(self, secret_key: str, payload: dict[str, Any]) -> None:
+        """Persist one runtime secret metadata/ciphertext record."""
+        await self.initialize()
+
+        async with self._pool_required().acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO ph_runtime_secrets (key, updated_at, payload)
+                VALUES ($1, $2, $3::jsonb)
+                ON CONFLICT (key) DO UPDATE SET
+                    updated_at = EXCLUDED.updated_at,
+                    payload = EXCLUDED.payload
+                """,
+                secret_key,
+                utcnow(),
+                json.dumps(payload),
+            )
+
+    async def get_runtime_secret_record(self, secret_key: str) -> dict[str, Any] | None:
+        """Load one runtime secret record by logical key."""
+        await self.initialize()
+
+        async with self._pool_required().acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT updated_at, payload::text AS payload FROM ph_runtime_secrets WHERE key = $1",
+                secret_key,
+            )
+        if row is None:
+            return None
+        payload = _parse_json_dict(row["payload"])
+        if payload is None:
+            return None
+        payload["updated_at"] = _as_utc(row["updated_at"]).isoformat()
+        return payload
+
+    async def list_runtime_secret_records(self) -> dict[str, dict[str, Any]]:
+        """Load all runtime secret records keyed by logical key."""
+        await self.initialize()
+
+        async with self._pool_required().acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT key, updated_at, payload::text AS payload FROM ph_runtime_secrets"
+            )
+        records: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            payload = _parse_json_dict(row["payload"])
+            if payload is None:
+                continue
+            payload["updated_at"] = _as_utc(row["updated_at"]).isoformat()
+            records[str(row["key"])] = payload
+        return records
+
+    async def delete_runtime_secret_record(self, secret_key: str) -> None:
+        """Delete one runtime secret record by logical key."""
+        await self.initialize()
+
+        async with self._pool_required().acquire() as conn:
+            await conn.execute("DELETE FROM ph_runtime_secrets WHERE key = $1", secret_key)
+
     async def append_admin_settings_audit_entry(self, entry: dict[str, Any]) -> None:
         """Persist one admin settings audit entry."""
         await self.initialize()
@@ -1196,6 +1353,7 @@ class InMemoryStorage(ActivityStorage):
         super().__init__()
         self._activities: dict[str, ActivityRecord] = {}
         self._runtime_settings: dict[str, Any] | None = None
+        self._runtime_secrets: dict[str, dict[str, Any]] = {}
         self._admin_settings_audit: list[dict[str, Any]] = []
         self._learning_queue_items: dict[str, dict[str, Any]] = {}
         self._initialized = True
@@ -1329,6 +1487,25 @@ class InMemoryStorage(ActivityStorage):
         if self._runtime_settings is None:
             return None
         return dict(self._runtime_settings)
+
+    async def upsert_runtime_secret_record(self, secret_key: str, payload: dict[str, Any]) -> None:
+        """Persist one runtime secret record in-memory."""
+        record = dict(payload)
+        record["updated_at"] = utcnow().isoformat()
+        self._runtime_secrets[secret_key] = record
+
+    async def get_runtime_secret_record(self, secret_key: str) -> dict[str, Any] | None:
+        """Return one in-memory runtime secret record."""
+        record = self._runtime_secrets.get(secret_key)
+        return dict(record) if record is not None else None
+
+    async def list_runtime_secret_records(self) -> dict[str, dict[str, Any]]:
+        """Return all in-memory runtime secret records."""
+        return {key: dict(value) for key, value in self._runtime_secrets.items()}
+
+    async def delete_runtime_secret_record(self, secret_key: str) -> None:
+        """Delete one in-memory runtime secret record."""
+        self._runtime_secrets.pop(secret_key, None)
 
     async def append_admin_settings_audit_entry(self, entry: dict[str, Any]) -> None:
         """Persist one admin settings audit entry in-memory."""

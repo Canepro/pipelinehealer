@@ -38,20 +38,32 @@ class GitHubTools:
         """
         settings = get_settings()
         self._settings = settings
-        self._token = (
-            token
-            or settings.github_personal_access_token
-            or os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
-        )
+        self._token_override = token
+        self._token = self._resolve_runtime_token(settings)
         self._base_url = base_url
         self._client: httpx.AsyncClient | None = None
+        self._client_token: str | None = None
         self._max_retries = max(0, settings.github_api_max_retries)
         self._retry_base_seconds = max(0.0, settings.github_api_retry_base_seconds)
         self._retry_max_seconds = max(0.0, settings.github_api_retry_max_seconds)
 
+    def _resolve_runtime_token(self, settings: Any) -> str:
+        """Resolve the active GitHub token, preserving explicit constructor overrides."""
+        if self._token_override is not None:
+            return self._token_override
+        return (
+            str(getattr(settings, "github_personal_access_token", "") or "").strip()
+            or os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
+        )
+
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client."""
-        if self._client is None:
+        token_changed = self._client is not None and self._client_token is not None and self._client_token != self._token
+        if self._client is None or token_changed:
+            if self._client is not None:
+                close_client = getattr(self._client, "aclose", None)
+                if callable(close_client):
+                    await close_client()
             headers = {
                 "Accept": "application/vnd.github+json",
                 "X-GitHub-Api-Version": "2022-11-28",
@@ -64,6 +76,7 @@ class GitHubTools:
                 headers=headers,
                 timeout=30.0,
             )
+            self._client_token = self._token
         return self._client
 
     def _retry_delay_seconds(self, attempt: int, retry_after: str | None) -> float:
@@ -136,11 +149,13 @@ class GitHubTools:
         if self._client:
             await self._client.aclose()
             self._client = None
+            self._client_token = None
 
     def refresh_runtime_settings(self) -> None:
-        """Refresh runtime retry policy from the cached settings object."""
+        """Refresh runtime retry policy and token-backed auth from current settings."""
         settings = get_settings()
         self._settings = settings
+        self._token = self._resolve_runtime_token(settings)
         self._max_retries = max(0, settings.github_api_max_retries)
         self._retry_base_seconds = max(0.0, settings.github_api_retry_base_seconds)
         self._retry_max_seconds = max(0.0, settings.github_api_retry_max_seconds)

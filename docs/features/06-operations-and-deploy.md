@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 83805e7 -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -94,9 +94,11 @@ Use `deploy:release` for Azure production/staging promotion:
 Use `deploy:env` when runtime env changed:
 - auth mode and Entra backend vars
 - frontend runtime vars (`VITE_*`)
-- policy values
+- bootstrap overrides for policy values or runtime-managed secrets
 - MCP/backend controls
 - use `deploy:env --secure-secrets` when rotating or hardening secrets
+
+Normal operator changes to runtime-safe settings now persist directly through the Settings UI or `PATCH /api/settings`. Use `deploy:env` when you are intentionally changing startup-managed env overrides.
 
 Use full `deploy` for development/hotfix iterations when image contents changed:
 - frontend/backend source changes
