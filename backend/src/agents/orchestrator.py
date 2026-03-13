@@ -1929,18 +1929,30 @@ class OrchestratorAgent:
                 or payload.failure.summary.strip()
                 or "Jenkins bridge payload did not include log excerpt."
             )
-            error_lines = [
+            explicit_error_lines = [
+                line.strip()
+                for line in payload.failure.error_lines
+                if isinstance(line, str) and line.strip()
+            ][:20]
+            error_lines = explicit_error_lines or [
                 line.strip()
                 for line in raw_logs.splitlines()
                 if line.strip()
             ][:20]
+            key_events = [payload.failure.summary.strip()]
+            if payload.failure.tool.strip():
+                key_events.append(f"tool={payload.failure.tool.strip()}")
+            if payload.failure.result.strip():
+                key_events.append(f"stage_result={payload.failure.result.strip()}")
+            if payload.failure.exit_code is not None:
+                key_events.append(f"exit_code={payload.failure.exit_code}")
             log_analyses = [
                 LogAnalysis(
                     job_id=max(1, payload.job.build_number),
                     job_name=payload.job.name,
                     raw_logs=raw_logs,
                     error_lines=error_lines,
-                    key_events=[payload.failure.summary.strip()],
+                    key_events=key_events,
                     summary=payload.failure.summary.strip(),
                 )
             ]
@@ -1981,6 +1993,10 @@ class OrchestratorAgent:
                 "source_selection_path": "jenkins_bridge",
                 "jenkins_job_url": payload.job.url,
                 "jenkins_delivery_id": payload.delivery_id,
+                "jenkins_failure_tool": payload.failure.tool.strip(),
+                "jenkins_failure_exit_code": payload.failure.exit_code,
+                "jenkins_failure_result": payload.failure.result.strip(),
+                "jenkins_failure_error_lines": error_lines,
             }
             preview_diagnosis = self._diagnosis_agent.preview_pattern_diagnosis(log_analyses)
             diagnosis_learning_context = await self._learning_context_retriever.retrieve(
@@ -2016,6 +2032,14 @@ class OrchestratorAgent:
             diagnosis_details = dict(diagnosis.error_details or {})
             diagnosis_details.setdefault("jenkins_job_url", payload.job.url)
             diagnosis_details.setdefault("jenkins_delivery_id", payload.delivery_id)
+            if payload.failure.tool.strip():
+                diagnosis_details.setdefault("failing_tool", payload.failure.tool.strip())
+            if payload.failure.exit_code is not None:
+                diagnosis_details.setdefault("exit_code", payload.failure.exit_code)
+            if payload.failure.result.strip():
+                diagnosis_details.setdefault("stage_result", payload.failure.result.strip())
+            if explicit_error_lines:
+                diagnosis_details.setdefault("error_lines", explicit_error_lines)
             diagnosis.error_details = diagnosis_details
             activity.diagnosis = diagnosis
             activity.failure_type = diagnosis.failure_type

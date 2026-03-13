@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: d555eef -->
+<!-- LAST_VERIFIED: ab7f344 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -54,49 +54,36 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 | `v0.6.0` | Released | Diagnosis/remediation hardening + learning-ops rework + operator workflow maturity |
 | `v0.6.1` | Released | Jenkins bridge low-evidence trust hardening + dashboard drill-down reliability |
 
-## Release Target: `v0.7.0` (Minor)
+## Release Target: `v0.7.1` (Patch)
 
-Theme: reusable Jenkins integration kit plus UI-first runtime configuration with env overrides.
+Theme: Jenkins bridge follow-up hardening after `v0.7.0`, focused on provider-safe diagnosis reliability for bridge-ingested failures.
 
-Carry-forward reliability scope already landed on `main` for inclusion in the `v0.7.0` release train:
+Carry-forward patch scope already landed on `main` for inclusion in the `v0.7.1` release train:
 
-- settings persistence / env-only redeploy path resolution now correctly defaults to the backend checkout root without requiring explicit repo-root overrides
-- development startup now honors explicit durable `STORAGE_MODE` selection instead of always forcing in-memory storage
-- hybrid admin auth now allows a non-empty `X-Admin-Key` to override a signed-in non-admin bearer session while preserving bearer fallback for blank headers
-- live GitHub PAT rotation now refreshes the active GitHub API client instead of waiting for a process restart
-- GitHub auth status now distinguishes between active PAT runtime auth and GitHub App configuration-only presence
+- Jenkins bridge diagnosis now sanitizes prompt-shaped CI excerpt content before Azure LLM analysis
+- Azure content-filter failures now trigger one aggressive sanitized retry before degrading to a structured fallback diagnosis
+- bridge-ingested CI failures now fail closed with explicit provider-policy context instead of surfacing raw Azure exception text to operators
 
 ### Must-Have Scope
 
-1. UI-first runtime configuration with env overrides
-   - runtime-safe non-secret settings save durably through `PATCH /api/settings` and the Settings UI
-   - runtime-managed secrets move to a separate write-only `GET/PATCH /api/settings/secrets` surface
-   - env and env-file values remain the highest-precedence startup override and must surface clearly in provenance metadata
-   - setup/readiness status must distinguish bootstrap gaps from runtime-manageable configuration gaps
-   - `POST /api/settings/persist` remains only as a compatibility audit/env-sync helper, not the primary persistence mechanism
-2. Reusable Jenkins integration assets
-   - publish a supported Jenkins bridge install kit inside the PipelineHealer repo
-   - include sender, tooling bootstrap, evidence helper, and Jenkinsfile example assets
-3. Repeatable onboarding pattern
-   - support repo-local adoption first, with a documented Shared Library rollout path for larger Jenkins estates
-   - keep the integration portable across OSS Jenkins, multibranch jobs, PR jobs, and scheduled jobs
-4. Evidence quality hardening
-   - standardize on direct workspace-captured excerpts using a plugin-free shell wrapper
-   - avoid script-approval-sensitive Groovy APIs as the primary guidance path
-5. Documentation and release clarity
-   - document the supported Jenkins plugin baseline and failure-path expectations
-   - document the new runtime-settings/save semantics, secret-management boundary, and env override precedence clearly
-   - keep this release scoped to bridge evidence quality plus UI-first configuration coherence, not native Jenkins provider parity or full GitHub App runtime auth
+1. Azure content-filter resilience for Jenkins bridge diagnosis
+   - sanitize prompt-shaped CI excerpt content before provider submission
+   - remove or rewrite lines that look like prompt injection, auth headers, shell heredocs, or raw command replay
+2. Safe degraded behavior
+   - retry once with a more aggressively sanitized prompt when Azure reports `content_filter`
+   - if the retry still fails, return a structured fallback diagnosis instead of surfacing the raw provider exception
+3. Scope boundary
+   - keep this patch focused on diagnosis reliability for bridge-ingested incidents
+   - do not expand the release into new provider surfaces or broader operator-surface work
+4. Documentation and release clarity
+   - keep changelog/release notes clear that this is a PipelineHealer-side follow-up to successful Jenkins evidence delivery
+   - document the difference between transport failures (`summary_only`) and provider-analysis failures (`log_excerpt` + content filter)
 
 ### Exit Criteria
 
-1. Runtime-safe settings changed from the UI/API persist durably immediately, with startup env overrides still surfaced honestly as effective precedence.
-2. Runtime-managed secrets are handled through a separate write-only secret surface with encrypted DB and Azure Key Vault backend support.
-3. The PipelineHealer repo ships a documented Jenkins integration kit under `integrations/jenkins-bridge`.
-4. Repo maintainers can install the bridge assets into a Jenkins repo with one command and a documented Jenkinsfile snippet.
-5. The recommended capture pattern produces `log_excerpt` bridge evidence on a real failing Jenkins build.
-6. Docs clearly distinguish the supported plugin-free capture pattern from non-portable script-approval-heavy alternatives.
-7. The work lands as `v0.7.0`, `minor`, and `Added`/`Changed` scoped PRs.
+1. Bridge-ingested Jenkins failures no longer fail diagnosis solely because Azure flags the first prompt as `content_filter`.
+2. Sanitized retry either produces a normal diagnosis or a structured provider-policy fallback without leaking raw provider exception text as the operator-facing root cause.
+3. Docs and changelog frame this as `v0.7.1`, `patch`, and `Fixed` scoped work.
 
 ## Released Target: `v0.6.1` (Patch)
 

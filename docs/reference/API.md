@@ -215,6 +215,16 @@ Behavior:
 }
 ```
 
+Optional Jenkins bridge failure fields:
+
+- `failure.command`: explicit failing command
+- `failure.result`: stage or step result (`FAILURE`, `UNSTABLE`, etc.)
+- `failure.tool`: tool or validator name (`terraform`, `checkov`, `trivy`, `helm`, etc.)
+- `failure.exit_code`: numeric process exit code when known
+- `failure.error_lines`: extracted high-signal error lines separate from `log_excerpt`
+
+These fields are backward-compatible hints. When present, PipelineHealer prefers them over re-parsing the raw excerpt.
+
 ---
 
 ### Dashboard Stats

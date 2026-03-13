@@ -210,6 +210,11 @@ if [[ -f "$EXCERPT_FILE" ]]; then
     RAW_EXCERPT="$(printf '%s' "$RAW_EXCERPT" | tail -c "$MAX_CHARS")"
   fi
 fi
+RAW_ERROR_LINES="${PH_FAILURE_ERROR_LINES:-}"
+EXIT_CODE_JSON="null"
+if [[ -n "${PH_FAILURE_EXIT_CODE:-}" && "${PH_FAILURE_EXIT_CODE}" =~ ^-?[0-9]+$ ]]; then
+  EXIT_CODE_JSON="${PH_FAILURE_EXIT_CODE}"
+fi
 
 JOB_URL="${PH_JOB_URL:-${BUILD_URL:-}}"
 JOB_HOST="$(extract_url_host "$JOB_URL" 2>/dev/null || true)"
@@ -244,8 +249,12 @@ cat >"$BODY_FILE" <<EOF
   "failure": {
     "stage": "$(json_escape "${PH_FAILURE_STAGE:-}")",
     "step": "$(json_escape "${PH_FAILURE_STEP:-}")",
+    "result": "$(json_escape "${PH_FAILURE_RESULT:-}")",
+    "tool": "$(json_escape "${PH_FAILURE_TOOL:-}")",
     "command": "$(json_escape "${PH_FAILURE_COMMAND:-}")",
+    "exit_code": ${EXIT_CODE_JSON},
     "summary": "$(json_escape "$SUMMARY")",
+    "error_lines": $(printf '%s\n' "$RAW_ERROR_LINES" | jq -R . | jq -s .),
     "log_excerpt": "$(json_escape "$RAW_EXCERPT")"
   },
   "artifacts": [],

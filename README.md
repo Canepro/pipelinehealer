@@ -1,13 +1,12 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 4600984 -->
+<!-- LAST_VERIFIED: ab7f344 -->
 
 > OSS-first, policy-aware pipeline remediation platform for failed delivery workflows.
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Try_It-brightgreen)](https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io)
 [![Demo Video](https://img.shields.io/badge/Demo_Video-YouTube-red)](https://youtu.be/9iv5ZMKYzts)
 [![Azure](https://img.shields.io/badge/Azure-Deployed-blue)](https://azure.microsoft.com)
-[![Release_Train](https://img.shields.io/badge/Release_Train-v0.7.0-blue)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 PipelineHealer ingests failed pipeline runs, normalizes the failure context, diagnoses likely root causes, and chooses a policy-safe remediation path.
@@ -48,7 +47,6 @@ Pipeline failures create repetitive triage work and slow delivery. PipelineHeale
 - Bridge path: Jenkins
 - Reference managed deployment: Azure Container Apps
 - Demo video: [YouTube walkthrough](https://youtu.be/9iv5ZMKYzts)
-- Release train on `main`: `v0.7.0`
 - Latest published release: [`v0.6.1`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.6.1)
 - Detailed release history: [CHANGELOG.md](CHANGELOG.md)
 

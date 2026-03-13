@@ -72,8 +72,15 @@ def _bridge_payload(delivery_id: str = "jenkins:job/path#1234") -> dict[str, obj
         "failure": {
             "stage": "Trivy Scan",
             "step": "run-trivy",
+            "result": "FAILURE",
+            "tool": "trivy",
             "command": "trivy image ...",
+            "exit_code": 1,
             "summary": "Critical vulnerabilities found",
+            "error_lines": [
+                "trivy image ...",
+                "critical vulnerability threshold exceeded",
+            ],
             "log_excerpt": "critical vulnerability threshold exceeded",
         },
         "artifacts": [],
