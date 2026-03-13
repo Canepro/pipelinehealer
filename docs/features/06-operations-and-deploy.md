@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: 83805e7 -->
+<!-- LAST_VERIFIED: 368dbf5 -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -33,6 +33,10 @@ Deploy:
 
 Runtime/admin:
 - `settings:check`, `settings:audit`, `settings:persist`, `audit:proof`
+
+Interpretation:
+- `settings:check` and `settings:audit` reflect the current control-plane/runtime model.
+- `settings:persist` remains a compatibility/env-sync command, not the primary persistence path for runtime-safe settings.
 
 Diagnostics:
 - `logs`, `logs:raw`, `logs:grep`, `backfill`
@@ -99,6 +103,10 @@ Use `deploy:env` when runtime env changed:
 - use `deploy:env --secure-secrets` when rotating or hardening secrets
 
 Normal operator changes to runtime-safe settings now persist directly through the Settings UI or `PATCH /api/settings`. Use `deploy:env` when you are intentionally changing startup-managed env overrides.
+
+Current GitHub auth boundary:
+- runtime PAT changes can be applied live through the Settings surface
+- GitHub App values can be stored for readiness, but full live App-auth runtime wiring is not part of the current release
 
 Use full `deploy` for development/hotfix iterations when image contents changed:
 - frontend/backend source changes

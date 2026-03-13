@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: 83805e7 -->
+<!-- LAST_VERIFIED: 368dbf5 -->
 
 Use this index to find the canonical doc quickly. If a topic appears in both an active doc and `docs/archive/`, the active doc wins.
 
@@ -11,10 +11,14 @@ Use this index to find the canonical doc quickly. If a topic appears in both an 
 - `runbooks/LOCAL_DEMO_RUNBOOK.md` — full local and Azure evaluation path
 - `../integrations/jenkins-bridge/README.md` — Jenkins bridge install kit and supported rollout pattern
 
+If you are validating the runtime configuration model specifically, start with:
+- `architecture/OPERATOR_CONTROL_PLANE.md` — configured vs effective runtime behavior, provenance, and startup override boundaries
+- `features/03-settings-and-policy-controls.md` — Settings UI workflow, setup checklist, secret handling, and compatibility notes
+
 ## Reference
 
 - `reference/API.md` — backend API contracts, auth, data models, runtime settings, and write-only secrets endpoints
-- `reference/CLI.md` — canonical `bash scripts/ph.sh` reference, including env-sync compatibility flows around `settings:persist`
+- `reference/CLI.md` — canonical `bash scripts/ph.sh` reference, including env-sync compatibility flows around deprecated `settings:persist`
 
 ## Runbooks
 

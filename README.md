@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 83805e7 -->
+<!-- LAST_VERIFIED: 368dbf5 -->
 
 > OSS-first, policy-aware pipeline remediation platform for failed delivery workflows.
 
@@ -37,6 +37,7 @@ Pipeline failures create repetitive triage work and slow delivery. PipelineHeale
 - Activity Detail as an incident workspace, including verification feedback for identification, diagnosis, remediation, and guidance effectiveness.
 - Control Center operator views for governance posture, learning explainability, trust ops, and audit/trace.
 - UI-first operator settings: runtime-safe controls save durably from Settings, secrets rotate through a separate write-only path, and setup checklists expose missing bootstrap wiring.
+- Honest runtime boundary reporting: env stays the bootstrap override path, and GitHub App inputs are stored for readiness only until live App auth ships.
 - Durable audit trails for settings changes and remediation decisions.
 - OSS-friendly storage options: PostgreSQL, Cosmos DB, or in-memory mode for local development.
 
@@ -113,7 +114,9 @@ bun run dev
 5. Verify the app:
 - `curl -sS http://127.0.0.1:8000/health`
 - open `http://127.0.0.1:5173`
-- open `/app/settings` to confirm the setup checklist and manage runtime-safe settings or write-only secrets; environment values remain the startup override path
+- open `/app/settings` to confirm the setup checklist and manage runtime-safe settings or write-only secrets
+- use `Save` to persist runtime-safe non-secret changes immediately; environment values remain the startup override path for forced/bootstrap settings
+- treat GitHub App fields as readiness/configuration signals for now; the live GitHub API runtime still uses a personal access token
 
 Beginner-safe defaults already exist in `.env.example`:
 - `HEAL_MODE=safe`
@@ -196,6 +199,11 @@ The operator surface is intentionally split by job:
 - Activity Detail: incident record, evidence layers, remediation result, external diagnostics, and verification feedback
 - Control Center: governance overview, learning explainability, trust ops, and audit/trace
 - Settings: immediate durable runtime controls, write-only secrets, and bootstrap wiring/readiness
+
+Settings intent:
+- normal operator changes belong in the product surface and persist immediately
+- env is reserved for bootstrap wiring, forced overrides, and deployment-managed secrets
+- `POST /api/settings/persist` remains only as a deprecated compatibility path for older CLI/env-sync flows
 
 ![Activity Detail — incident record, verification workspace, and external diagnostics](docs/screens/activity-detail-current.png)
 ![Control Center — governance posture, trust ops, and integration health](docs/screens/control-center-current.png)

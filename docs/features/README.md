@@ -1,6 +1,6 @@
 # Feature Guides
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 368dbf5 -->
 
 These guides explain PipelineHealer by capability so beginners and experienced operators can quickly find what they need.
 
@@ -19,6 +19,11 @@ These guides explain PipelineHealer by capability so beginners and experienced o
 - Beginner: each guide has a "Quick start" and "Common mistakes" section.
 - Operator: use guide CLI/API examples for production-safe workflows.
 - Contributor: use linked API contracts and settings behavior when extending features.
+
+Runtime configuration note:
+- runtime-safe settings now save durably from the product surface
+- write-only secrets are managed separately
+- environment variables remain the bootstrap and forced-override path
 
 ## Related Core Docs
 

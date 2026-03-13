@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: 83805e7 -->
+<!-- LAST_VERIFIED: 368dbf5 -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -55,6 +55,10 @@ This guide explains runtime controls, persistence behavior, and governance guard
 - Secret values are managed through the separate write-only secrets panel and never returned to the browser after write.
 - Runtime settings apply immediately.
 - Persisted settings survive restarts/redeploys unless the same logical key is explicitly overridden by env or the selected env file.
+- Effective precedence is:
+  1. explicit env / deploy-time override
+  2. bootstrap env-file value
+  3. persisted runtime value
 - Durable runtime state uses the configured backend:
   - `cosmos` via `COSMOS_DB_ENDPOINT`
   - `postgres` via `POSTGRES_DSN`
@@ -62,6 +66,10 @@ This guide explains runtime controls, persistence behavior, and governance guard
 - Runtime secret storage uses the configured secret backend:
   - `encrypted_db` with `SETTINGS_DB_ENCRYPTION_KEY`
   - `azure_key_vault` with `KEY_VAULT_URL`
+- Setup checklist status reflects those same boundaries directly in the UI:
+  - `Ready` means the required bootstrap/runtime inputs are present
+  - `Missing` means the operator still needs env wiring, secret backend setup, or runtime inputs before the path is usable
+- GitHub App ID/private key fields can now be stored for configuration readiness, but the current live GitHub API runtime still authenticates with a PAT.
 
 API and CLI equivalents:
 ```bash
@@ -69,6 +77,10 @@ bash scripts/ph.sh settings:check
 bash scripts/ph.sh settings:audit --limit 10
 bash scripts/ph.sh settings:persist --from-settings
 ```
+
+Compatibility note:
+- `settings:persist` is now the env-sync and compatibility-audit path for older workflows.
+- It is no longer the primary way to make runtime-safe settings durable.
 
 Backend API calls used by Settings:
 - `PATCH /api/settings`
@@ -186,6 +198,8 @@ curl -X PATCH \
   - harder to trace/rollback.
 - Leaving allowlists empty in production:
   - expands blast radius.
+- Assuming "GitHub App configured" means live App auth is active:
+  - today it only means readiness/configuration is captured; the live GitHub runtime path is still PAT-based.
 
 ## Related Docs
 
