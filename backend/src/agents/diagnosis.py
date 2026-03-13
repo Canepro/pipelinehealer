@@ -35,6 +35,13 @@ LLM_REQUIRED_TOP_LEVEL_FIELDS = (
     "error_details",
 )
 
+_CONTENT_FILTER_SIGNAL_PATTERNS = (
+    "content management policy",
+    "content_filter",
+    "response was filtered",
+    "jailbreak",
+)
+
 LLM_ERROR_DETAILS_SCHEMA: dict[FailureType, dict[str, Any]] = {
     FailureType.DEPENDENCY: {
         "package_name": "",
@@ -137,6 +144,105 @@ class DiagnosisAgent:
             template = json.dumps(LLM_ERROR_DETAILS_SCHEMA[failure_type], ensure_ascii=True)
             schema_lines.append(f'- `{failure_type.value}`: {template}')
         return "\n".join(schema_lines)
+
+    @staticmethod
+    def _is_content_filter_error(exc: Exception) -> bool:
+        message = str(exc).lower()
+        return any(signal in message for signal in _CONTENT_FILTER_SIGNAL_PATTERNS)
+
+    @staticmethod
+    def _sanitize_prompt_text(text: str, *, aggressive: bool = False) -> str:
+        """Redact prompt-shaped log content that commonly trips provider filters."""
+        sanitized = text.replace("\r", "")
+        sanitized = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", sanitized)
+        sanitized = re.sub(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b", "[REDACTED_GITHUB_TOKEN]", sanitized)
+        sanitized = re.sub(r"\b[A-Za-z0-9_-]{24,}\.[A-Za-z0-9._-]{12,}\b", "[REDACTED_TOKEN]", sanitized)
+        sanitized = re.sub(
+            r"(authorization\s*:\s*(?:bearer|basic)\s+)[^\s\"']+",
+            r"\1[REDACTED_TOKEN]",
+            sanitized,
+            flags=re.IGNORECASE,
+        )
+        sanitized = re.sub(
+            r"\b(api[_-]?key|token|secret|password|client[_-]?secret)\b(\s*[:=]\s*)[^\s\"']{4,}",
+            r"\1\2[REDACTED]",
+            sanitized,
+            flags=re.IGNORECASE,
+        )
+        sanitized = re.sub(r"(set-cookie\s*:\s*)[^\n]+", r"\1[REDACTED_COOKIE]", sanitized, flags=re.IGNORECASE)
+        sanitized = re.sub(r"(jenkins-crumb\s*:\s*)[^\n]+", r"\1[REDACTED_CRUMB]", sanitized, flags=re.IGNORECASE)
+        sanitized = re.sub(r"https?://\S+", "[REDACTED_URL]", sanitized)
+        sanitized = re.sub(r"\*{4,}", "****", sanitized)
+
+        if aggressive:
+            filtered_lines: list[str] = []
+            for raw_line in sanitized.splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+                lower = line.lower()
+                if any(
+                    marker in lower
+                    for marker in (
+                        "ignore previous",
+                        "ignore all previous",
+                        "system prompt",
+                        "developer message",
+                        "assistant:",
+                        "user:",
+                        "```",
+                        "cat <<",
+                        "<<'script'",
+                        "<<'eof'",
+                    )
+                ):
+                    filtered_lines.append("[REDACTED_PROMPT_LIKE_CONTENT]")
+                    continue
+                if lower.startswith(("curl ", "wget ", "invoke-webrequest ")):
+                    filtered_lines.append("[REDACTED_COMMAND_LINE]")
+                    continue
+                if lower.startswith(("authorization:", "cookie:", "set-cookie:", "jenkins-crumb:")):
+                    filtered_lines.append("[REDACTED_AUTH_HEADER]")
+                    continue
+                line = re.sub(r"[`$<>|]{2,}", " ", line)
+                line = re.sub(r"\s+", " ", line).strip()
+                filtered_lines.append(line[:240])
+            sanitized = "\n".join(filtered_lines)
+
+        return sanitized.strip()
+
+    def _build_content_filter_fallback_diagnosis(
+        self,
+        exc: Exception,
+        *,
+        workflow_info: dict[str, Any] | None,
+        had_log_excerpt: bool,
+    ) -> Diagnosis:
+        details: dict[str, Any] = {
+            "reason_code": "llm_prompt_content_filter",
+            "llm_provider_error": str(exc),
+            "llm_analysis_blocked": True,
+            "provider_policy_blocked": True,
+            "source_selection_path": workflow_info.get("source_selection_path", "") if workflow_info else "",
+        }
+        if workflow_info and workflow_info.get("jenkins_job_url"):
+            details["jenkins_job_url"] = workflow_info["jenkins_job_url"]
+        return Diagnosis(
+            failure_type=FailureType.UNKNOWN,
+            confidence=0.35 if had_log_excerpt else 0.2,
+            root_cause=(
+                "PipelineHealer received CI failure evidence, but model-side diagnosis was blocked by "
+                "the provider content filter while analyzing the log excerpt."
+            ),
+            is_auto_fixable=False,
+            suggested_fix=(
+                "Review the captured CI excerpt manually and sanitize or further trim the evidence before "
+                "retrying model-based diagnosis. If this persists, use a deterministic fallback classifier "
+                "for the incident."
+            ),
+            error_details=details,
+            diagnosis_source=DiagnosisSource.LLM,
+        )
 
     @staticmethod
     def _prepare_learning_context_summary(
@@ -299,6 +405,63 @@ Be specific about:
             # Extract JSON from response
             diagnosis = self._parse_diagnosis_response(response_text, pattern_diagnosis)
         except Exception as e:
+            if self._is_content_filter_error(e):
+                logger.warning(
+                    "LLM diagnosis prompt hit provider content filtering; retrying with aggressive sanitization. error=%s",
+                    e,
+                )
+                sanitized_summary = self._prepare_analysis_summary(log_analyses, aggressive=True)
+                sanitized_prompt = f"""Analyze the following CI/CD failure and provide a diagnosis.
+
+{sanitized_summary}
+
+{context_summary}
+
+{external_summary}
+
+{learning_summary}
+
+Provide your diagnosis in the following JSON format:
+{{
+    "failure_type": "dependency|test|lint|build_config|timeout|unknown",
+    "confidence": 0.0-1.0,
+    "root_cause": "Clear explanation of what went wrong",
+    "affected_files": ["list", "of", "files"],
+    "is_auto_fixable": true/false,
+    "suggested_fix": "High-level suggestion",
+    "error_details": {{ "see failure-type-specific schema below" }}
+}}
+
+Return exactly one JSON object with no markdown fences and no extra commentary.
+For the chosen `failure_type`, `error_details` must include every key from the matching schema below.
+Use empty strings, empty arrays/objects, `false`, or `0` when a field is unknown, but do not omit keys.
+
+Failure-type-specific `error_details` schemas:
+{error_details_schema_text}
+"""
+                try:
+                    response = await agent.run(sanitized_prompt)
+                    response_text = str(response) if response else ""
+                    diagnosis = self._parse_diagnosis_response(response_text, pattern_diagnosis)
+                    if external_diagnostics:
+                        diagnosis = self._apply_external_diagnostics_signal(
+                            diagnosis,
+                            external_diagnostics,
+                        )
+                    if diagnosis.diagnosis_source is None:
+                        diagnosis = self._with_source(diagnosis, DiagnosisSource.LLM)
+                    return diagnosis
+                except Exception as retry_exc:
+                    logger.error("Sanitized LLM diagnosis retry failed: %s", retry_exc)
+                    if pattern_diagnosis:
+                        return self._with_source(pattern_diagnosis, DiagnosisSource.PATTERN)
+                    return self._build_content_filter_fallback_diagnosis(
+                        retry_exc,
+                        workflow_info=workflow_info,
+                        had_log_excerpt=any(
+                            bool((analysis.raw_logs or "").strip()) for analysis in log_analyses
+                        ),
+                    )
             logger.error(f"Agent diagnosis failed: {e}")
             # Fall back to pattern-based diagnosis if available
             if pattern_diagnosis:
@@ -1268,7 +1431,12 @@ Be specific about:
         )
         return any(marker in text for marker in markers)
 
-    def _prepare_analysis_summary(self, log_analyses: list[LogAnalysis]) -> str:
+    def _prepare_analysis_summary(
+        self,
+        log_analyses: list[LogAnalysis],
+        *,
+        aggressive: bool = False,
+    ) -> str:
         """Prepare a summary of log analyses for the agent.
 
         Args:
@@ -1280,17 +1448,28 @@ Be specific about:
         summary_parts = []
 
         for analysis in log_analyses:
+            summary = self._sanitize_prompt_text(analysis.summary, aggressive=aggressive)
+            error_lines = [
+                self._sanitize_prompt_text(line, aggressive=aggressive)
+                for line in analysis.error_lines[:20]
+                if self._sanitize_prompt_text(line, aggressive=aggressive)
+            ]
+            key_events = [
+                self._sanitize_prompt_text(line, aggressive=aggressive)
+                for line in analysis.key_events[:10]
+                if self._sanitize_prompt_text(line, aggressive=aggressive)
+            ]
             part = f"""
 ## Job: {analysis.job_name}
 
 ### Summary
-{analysis.summary}
+{summary}
 
 ### Error Lines (top 20)
-{chr(10).join(analysis.error_lines[:20])}
+{chr(10).join(error_lines)}
 
 ### Key Events
-{chr(10).join(analysis.key_events[:10])}
+{chr(10).join(key_events)}
 """
             summary_parts.append(part)
 

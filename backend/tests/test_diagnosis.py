@@ -218,6 +218,103 @@ class TestPatternBasedDiagnosis:
         assert diagnosis.failure_type == FailureType.LINT
         assert diagnosis.error_details.get("linter") == "prettier"
 
+
+class _FakeLLMAgent:
+    def __init__(self, responses_or_exceptions):
+        self._responses_or_exceptions = list(responses_or_exceptions)
+        self.prompts: list[str] = []
+
+    async def run(self, prompt: str) -> str:
+        self.prompts.append(prompt)
+        item = self._responses_or_exceptions.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+
+class TestDiagnosisContentFilterHandling:
+    def setup_method(self) -> None:
+        self.agent = DiagnosisAgent()
+
+    @pytest.mark.asyncio
+    async def test_diagnose_retries_with_aggressive_sanitization_on_content_filter(self, monkeypatch) -> None:
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="terraform-validation",
+            raw_logs="curl -u admin:supersecret https://jenkins.example/consoleText\nAuthorization: Bearer abcdefghijklmnopqrstuvwxyz",
+            error_lines=[
+                "curl -u admin:supersecret https://jenkins.example/consoleText",
+                "Authorization: Bearer abcdefghijklmnopqrstuvwxyz",
+                "set-cookie: JSESSIONID=verylongcookievalue",
+                "terraform validate failed",
+            ],
+            key_events=["Jenkins Terraform validation failed"],
+            summary="Jenkins Terraform validation failed",
+        )
+        fake_agent = _FakeLLMAgent(
+            [
+                Exception("Error code: 400 content_filter jailbreak detected"),
+                (
+                    '{"failure_type":"build_config","confidence":0.72,"root_cause":"Terraform validation failed",'
+                    '"affected_files":["terraform/"],"is_auto_fixable":false,"suggested_fix":"Inspect terraform validation output.",'
+                    '"error_details":{"config_file":"terraform/","config_error":"terraform validate failed","missing_env_vars":[],"workflow_permissions_fix":false,"permissions":{},"misconfiguration_kind":"infrastructure"}}'
+                ),
+            ]
+        )
+
+        async def _fake_get_agent():
+            return fake_agent
+
+        monkeypatch.setattr(self.agent, "_get_agent", _fake_get_agent)
+
+        diagnosis = await self.agent.diagnose(
+            [log_analysis],
+            workflow_info={"source_selection_path": "jenkins_bridge", "jenkins_job_url": "https://jenkins.example/job/1/"},
+        )
+
+        assert diagnosis.failure_type == FailureType.BUILD_CONFIG
+        assert len(fake_agent.prompts) == 2
+        assert "[REDACTED_TOKEN]" in fake_agent.prompts[0]
+        assert "[REDACTED_URL]" in fake_agent.prompts[0]
+        assert (
+            "[REDACTED_COMMAND_LINE]" in fake_agent.prompts[1]
+            or "[REDACTED_AUTH_HEADER]" in fake_agent.prompts[1]
+        )
+        assert "curl -u admin:supersecret" not in fake_agent.prompts[1]
+
+    @pytest.mark.asyncio
+    async def test_diagnose_returns_structured_fallback_when_content_filter_persists(self, monkeypatch) -> None:
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="terraform-validation",
+            raw_logs="terraform validate failed",
+            error_lines=["Authorization: Bearer abcdefghijklmnopqrstuvwxyz", "terraform validate failed"],
+            key_events=["Jenkins Terraform validation failed"],
+            summary="Jenkins Terraform validation failed",
+        )
+        fake_agent = _FakeLLMAgent(
+            [
+                Exception("Error code: 400 content management policy content_filter"),
+                Exception("Error code: 400 content management policy content_filter"),
+            ]
+        )
+
+        async def _fake_get_agent():
+            return fake_agent
+
+        monkeypatch.setattr(self.agent, "_get_agent", _fake_get_agent)
+
+        diagnosis = await self.agent.diagnose(
+            [log_analysis],
+            workflow_info={"source_selection_path": "jenkins_bridge", "jenkins_job_url": "https://jenkins.example/job/2/"},
+        )
+
+        assert diagnosis.failure_type == FailureType.UNKNOWN
+        assert diagnosis.confidence == pytest.approx(0.35)
+        assert "provider content filter" in diagnosis.root_cause.lower()
+        assert diagnosis.error_details.get("reason_code") == "llm_prompt_content_filter"
+        assert diagnosis.error_details.get("jenkins_job_url") == "https://jenkins.example/job/2/"
+
     def test_detect_eslint_missing_flat_config(self) -> None:
         """Test detection of missing eslint flat config."""
         log_analysis = LogAnalysis(

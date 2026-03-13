@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 4600984 -->
+<!-- LAST_VERIFIED: ab7f344 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -8,7 +8,9 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Fixed
+
+- Reduced Jenkins-bridge Azure diagnosis failures by sanitizing prompt-shaped log content before LLM diagnosis, retrying once with an aggressive sanitized prompt on provider content-filter errors, and degrading to a structured fallback diagnosis instead of surfacing the raw Azure exception. (`ab7f344`)
 
 ## [v0.7.0] - 2026-03-13
 
