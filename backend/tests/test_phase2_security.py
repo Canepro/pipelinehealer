@@ -415,6 +415,47 @@ async def test_settings_env_file_override_controls_startup_provenance(monkeypatc
     assert body["settings_metadata"]["heal_mode"]["source"] == "env"
 
 
+def test_dashboard_paths_default_to_backend_env_in_repo_checkout(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    backend_root = repo_root / "backend"
+    fake_dashboard = backend_root / "src" / "api" / "dashboard.py"
+    fake_dashboard.parent.mkdir(parents=True)
+    fake_dashboard.write_text("# test fixture\n", encoding="utf-8")
+    (backend_root / "pyproject.toml").write_text("[project]\nname='pipelinehealer'\n", encoding="utf-8")
+    (repo_root / "scripts").mkdir(parents=True)
+    (repo_root / "scripts" / "ph.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+
+    monkeypatch.delenv("PIPELINEHEALER_REPO_ROOT", raising=False)
+    monkeypatch.delenv("PIPELINEHEALER_ENV_FILE_PATH", raising=False)
+    monkeypatch.setattr(dashboard, "__file__", str(fake_dashboard))
+
+    assert dashboard._backend_root() == backend_root
+    assert dashboard._repo_root() == repo_root
+    assert dashboard._env_file_path() == backend_root / ".env"
+
+
+def test_dashboard_paths_default_to_backend_env_in_container_layout(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    backend_root = tmp_path / "app"
+    fake_dashboard = backend_root / "src" / "api" / "dashboard.py"
+    fake_dashboard.parent.mkdir(parents=True)
+    fake_dashboard.write_text("# test fixture\n", encoding="utf-8")
+    (backend_root / "pyproject.toml").write_text("[project]\nname='pipelinehealer'\n", encoding="utf-8")
+
+    monkeypatch.delenv("PIPELINEHEALER_REPO_ROOT", raising=False)
+    monkeypatch.delenv("PIPELINEHEALER_ENV_FILE_PATH", raising=False)
+    monkeypatch.setattr(dashboard, "__file__", str(fake_dashboard))
+
+    assert dashboard._backend_root() == backend_root
+    assert dashboard._repo_root() == backend_root
+    assert dashboard._env_file_path() == backend_root / ".env"
+
+
 @pytest.mark.asyncio
 async def test_settings_endpoint_requires_admin_key(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "production")
@@ -978,6 +1019,78 @@ async def test_admin_patch_accepts_hybrid_gh_aw_ingestion_mode(monkeypatch) -> N
     )
     assert response.status_code == 200
     assert response.json()["gh_aw_ingestion_mode"] == "hybrid"
+
+
+@pytest.mark.asyncio
+async def test_hybrid_admin_key_can_override_non_admin_bearer_session(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("AUTH_MODE", "hybrid")
+    monkeypatch.setenv("API_AUTH_KEY", "hybrid-api-key")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("ENTRA_TENANT_ID", "tenant-123")
+    monkeypatch.setenv("ENTRA_CLIENT_ID", "client-123")
+    monkeypatch.setenv("ENTRA_ADMIN_ROLES", "PipelineHealer.Admin")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    def _fake_validate(authorization: str | None) -> AuthPrincipal:
+        if authorization != "Bearer user-token":
+            raise HTTPException(status_code=401, detail="Invalid bearer token")
+        return AuthPrincipal(
+            subject="regular-user",
+            roles=frozenset({"PipelineHealer.Reader"}),
+            scopes=frozenset({"PipelineHealer.Access"}),
+            claims={"sub": "regular-user"},
+        )
+
+    monkeypatch.setattr(security, "_validate_bearer_token", _fake_validate)
+
+    response = await _patch_settings(
+        {"heal_mode": "safe"},
+        headers={"Authorization": "Bearer user-token", "X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+
+    audit = await _get_settings_audit(
+        headers={"Authorization": "Bearer user-token", "X-Admin-Key": "admin-secret"},
+    )
+    assert audit.status_code == 200
+    entries = audit.json()
+    assert entries
+    assert entries[0]["actor"].startswith("admin_key:")
+
+
+@pytest.mark.asyncio
+async def test_hybrid_empty_admin_key_header_falls_back_to_bearer_auth(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("AUTH_MODE", "hybrid")
+    monkeypatch.setenv("API_AUTH_KEY", "hybrid-api-key")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("ENTRA_TENANT_ID", "tenant-123")
+    monkeypatch.setenv("ENTRA_CLIENT_ID", "client-123")
+    monkeypatch.setenv("ENTRA_ADMIN_ROLES", "PipelineHealer.Admin")
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+
+    def _fake_validate(authorization: str | None) -> AuthPrincipal:
+        if authorization != "Bearer admin-token":
+            raise HTTPException(status_code=401, detail="Invalid bearer token")
+        return AuthPrincipal(
+            subject="admin-user",
+            roles=frozenset({"PipelineHealer.Admin"}),
+            scopes=frozenset({"PipelineHealer.Access"}),
+            claims={"sub": "admin-user"},
+        )
+
+    monkeypatch.setattr(security, "_validate_bearer_token", _fake_validate)
+
+    response = await _get_settings(
+        headers={"Authorization": "Bearer admin-token", "X-Admin-Key": "   "}
+    )
+    assert response.status_code == 200
 
 
 @pytest.mark.asyncio

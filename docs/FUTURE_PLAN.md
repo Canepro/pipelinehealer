@@ -58,6 +58,12 @@ This roadmap is version-driven. Backlog work is planned against target releases,
 
 Theme: reusable Jenkins integration kit and evidence-first bridge capture.
 
+Carry-forward reliability scope already landed on `main` for inclusion in the `v0.7.0` release train:
+
+- settings persistence / env-only redeploy path resolution now correctly defaults to the backend checkout root without requiring explicit repo-root overrides
+- development startup now honors explicit durable `STORAGE_MODE` selection instead of always forcing in-memory storage
+- hybrid admin auth now allows a non-empty `X-Admin-Key` to override a signed-in non-admin bearer session while preserving bearer fallback for blank headers
+
 ### Must-Have Scope
 
 1. Reusable Jenkins integration assets

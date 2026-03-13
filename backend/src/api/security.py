@@ -268,6 +268,11 @@ async def require_admin_key(
         return
 
     if mode == "hybrid":
+        # An explicit admin key must be able to override an existing browser session.
+        if x_admin_key is not None and x_admin_key.strip():
+            _validate_admin_key_header(x_admin_key)
+            request.state.auth_principal = None
+            return
         if _extract_bearer_token(authorization):
             principal = get_request_principal(request) or _validate_bearer_token(authorization)
             _require_admin_role(principal)
