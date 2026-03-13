@@ -12,6 +12,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - Prepared the `v0.7.2` recovery release cut after the failed `v0.7.1` tag attempt so version metadata and the matching release section are staged together before the next tag is pushed. (`c183a90`)
 - Clarified the release docs and pending recovery notes so operators verify the generated `## [vX.Y.Z]` changelog section before tagging and keep the `v0.7.2` release branch auditable while follow-up fixes land. (`5db2d6b`, `f8209dd`)
+- Hardened the release helper scripts and GitHub Actions workflows against the June 2026 Node 24 transition by adding explicit changelog-section guardrails, documenting post-cut preflight behavior, and upgrading CI/release workflow actions to Node 24-compatible versions where available. (`7af1f61`)
 
 ## [v0.7.2] - 2026-03-13
 
