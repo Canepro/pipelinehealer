@@ -62,8 +62,8 @@ Installed PipelineHealer Jenkins bridge assets into:
   $TARGET_REPO/.jenkins/scripts
 
 Next steps:
-1. Wire the capture helper around the step most likely to fail.
-2. Export PH_REPOSITORY, PH_FAILURE_STAGE, and PH_FAILURE_SUMMARY in post { failure { ... } }.
-3. Export PH_LOG_EXCERPT_FILE before invoking send-pipelinehealer-bridge.sh.
+1. Use absolute paths for capture/send scripts (\${WORKSPACE}/.jenkins/scripts/...) when stages use dir().
+2. In post { failure }, load pipelinehealer-bridge-evidence.groovy and call writeLogExcerpt() before sending.
+3. Export PH_REPOSITORY, PH_FAILURE_STAGE, PH_FAILURE_SUMMARY, and PH_LOG_EXCERPT_FILE; then run send-pipelinehealer-bridge.sh.
 4. Keep workspace cleanup in post { cleanup { ... } }.
 EOF
