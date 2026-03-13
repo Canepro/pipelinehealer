@@ -1,6 +1,6 @@
 # Model Provider Strategy
 
-<!-- LAST_VERIFIED: 747334d -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 PipelineHealer uses Azure as the current reference model-provider path for managed deployment and operational simplicity, but it is being structured to avoid provider lock-in.
 
@@ -59,6 +59,6 @@ Future provider candidates:
 
 ## Operations
 
-- Provider switching and rollback runbook: `docs/MODEL_PROVIDER_SWITCH_RUNBOOK.md`
-- Kubernetes secondary deploy target: `docs/KUBERNETES_HELM_RUNBOOK.md`
-- Runtime capability/degraded-mode reference: `docs/LLM_AND_AGENT_RUNTIME.md`
+- Provider switching and rollback runbook: `docs/runbooks/MODEL_PROVIDER_SWITCH_RUNBOOK.md`
+- Kubernetes secondary deploy target: `docs/runbooks/KUBERNETES_HELM_RUNBOOK.md`
+- Runtime capability/degraded-mode reference: `docs/architecture/LLM_AND_AGENT_RUNTIME.md`

@@ -1,6 +1,6 @@
 # Pre-Deploy Placeholder Audit
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 Use this checklist before `azd up`, before major public demos, and before final submission recording.
 
@@ -136,4 +136,4 @@ Verified:
 - [x] API auth enforced for `/api/*` in non-dev (`401` without key, `200` with key)
 - [x] Storage and remediation behavior verified in deployed environment
 - [x] Logs clean: `bash scripts/ph.sh logs` shows pipeline entries without Cosmos SDK noise
-- [x] API doc exists (`docs/API.md`) and matches runtime endpoint contracts
+- [x] API doc exists (`docs/reference/API.md`) and matches runtime endpoint contracts

@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: 8ebafda -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -11,10 +11,10 @@ Use this as the only doc during recording day. It includes:
 
 Related docs:
 
-- `docs/LOCAL_DEMO_RUNBOOK.md` for deeper setup/troubleshooting
+- `docs/runbooks/LOCAL_DEMO_RUNBOOK.md` for deeper setup/troubleshooting
 - `docs/HACKATHON_LOG.md` for submission checklist and milestone status
-- `docs/API.md` for full API endpoint reference and best practices
-- `docs/CLI.md` for the full CLI command reference
+- `docs/reference/API.md` for full API endpoint reference and best practices
+- `docs/reference/CLI.md` for the full CLI command reference
 
 This runbook remains intentionally demo-specific and GitHub Actions-focused because the current recording flow uses the demo repo webhook path. That does not narrow the product scope; PipelineHealer itself is framed more broadly as a pipeline remediation control plane.
 

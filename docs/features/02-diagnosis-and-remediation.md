@@ -1,6 +1,6 @@
 # Feature: Diagnosis And Remediation
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 This guide explains how PipelineHealer moves from failed workflow logs to safe remediation artifacts.
 
@@ -74,5 +74,5 @@ How to validate:
 
 ## Related Docs
 
-- `../API.md` (`/webhook/github`, `/api/activities`, reason codes)
-- `../LOCAL_DEMO_RUNBOOK.md` (trigger patterns and proof flow)
+- `../reference/API.md` (`/webhook/github`, `/api/activities`, reason codes)
+- `../runbooks/LOCAL_DEMO_RUNBOOK.md` (trigger patterns and proof flow)

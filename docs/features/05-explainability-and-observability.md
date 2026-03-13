@@ -1,6 +1,6 @@
 # Feature: Explainability And Observability
 
-<!-- LAST_VERIFIED: c9f507b -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 This guide explains where to see evidence, model path telemetry, and confidence attribution for each activity.
 
@@ -88,5 +88,5 @@ Recommended operator flow:
 
 ## Related Docs
 
-- `../API.md` (`LLMModelPath`, `MCPModelPath`, activity schemas)
-- `../LOCAL_DEMO_RUNBOOK.md` (demo validation with screenshots)
+- `../reference/API.md` (`LLMModelPath`, `MCPModelPath`, activity schemas)
+- `../runbooks/LOCAL_DEMO_RUNBOOK.md` (demo validation with screenshots)

@@ -1,6 +1,6 @@
 # Feature: External Diagnostics And MCP
 
-<!-- LAST_VERIFIED: c9f507b -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 This guide explains how PipelineHealer ingests external findings and how GitHub MCP is selected, gated, and verified in real runs.
 
@@ -119,5 +119,5 @@ Write-capable policies (`write_with_approval` / `auto`):
 
 ## Related Docs
 
-- `../API.md` (`ExternalDiagnostic`, `MCPModelPath`, provider health)
-- `../LOCAL_DEMO_RUNBOOK.md` (backfill and validation workflow)
+- `../reference/API.md` (`ExternalDiagnostic`, `MCPModelPath`, provider health)
+- `../runbooks/LOCAL_DEMO_RUNBOOK.md` (backfill and validation workflow)

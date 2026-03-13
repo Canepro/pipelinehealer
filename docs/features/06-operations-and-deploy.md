@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -61,7 +61,7 @@ Then use backend API commands from `scripts/ph.sh` for day-to-day operations.
 
 Kubernetes target:
 - chart path: `charts/pipelinehealer`
-- runbook: `../KUBERNETES_HELM_RUNBOOK.md`
+- runbook: `../runbooks/KUBERNETES_HELM_RUNBOOK.md`
 - install pattern:
   - `helm upgrade --install pipelinehealer ./charts/pipelinehealer -n pipelinehealer --create-namespace -f values.production.yaml`
 
@@ -80,8 +80,8 @@ PipelineHealer uses Azure as the current reference managed deployment, but it is
 
 See:
 
-- `../LOCAL_DEMO_RUNBOOK.md` for profile setup
-- `../MODEL_PROVIDER_STRATEGY.md` for provider roadmap
+- `../runbooks/LOCAL_DEMO_RUNBOOK.md` for profile setup
+- `../architecture/MODEL_PROVIDER_STRATEGY.md` for provider roadmap
 
 ## Choosing `deploy` vs `deploy:env`
 
@@ -117,7 +117,7 @@ Use full `deploy` for development/hotfix iterations when image contents changed:
 
 ## Related Docs
 
-- `../CLI.md` (canonical command/flag reference)
-- `../LOCAL_DEMO_RUNBOOK.md` (deep step-by-step)
-- `../MODEL_PROVIDER_SWITCH_RUNBOOK.md` (provider switch + rollback)
-- `../KUBERNETES_HELM_RUNBOOK.md` (Helm deployment)
+- `../reference/CLI.md` (canonical command/flag reference)
+- `../runbooks/LOCAL_DEMO_RUNBOOK.md` (deep step-by-step)
+- `../runbooks/MODEL_PROVIDER_SWITCH_RUNBOOK.md` (provider switch + rollback)
+- `../runbooks/KUBERNETES_HELM_RUNBOOK.md` (Helm deployment)

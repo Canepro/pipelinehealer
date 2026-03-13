@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: d555eef -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 > OSS-first, policy-aware pipeline remediation platform for failed delivery workflows.
 
@@ -119,7 +119,7 @@ Beginner-safe defaults already exist in `.env.example`:
 - `VITE_AUTH_MODE=none`
 - `STORAGE_MODE=memory`
 
-For full local, Azure, and demo operations, use [docs/LOCAL_DEMO_RUNBOOK.md](docs/LOCAL_DEMO_RUNBOOK.md).
+For full local, Azure, and demo operations, use [docs/runbooks/LOCAL_DEMO_RUNBOOK.md](docs/runbooks/LOCAL_DEMO_RUNBOOK.md).
 
 ## Deployment Paths
 
@@ -183,7 +183,7 @@ Important operator rule:
 Validated Azure note:
 - as of `v0.6.0`, the strongest validated Azure path for `gpt-5.1-codex-mini` uses the `cognitiveservices.azure.com` base endpoint with the Responses-first runtime path
 
-Detailed runtime contract: [docs/LLM_AND_AGENT_RUNTIME.md](docs/LLM_AND_AGENT_RUNTIME.md)
+Detailed runtime contract: [docs/architecture/LLM_AND_AGENT_RUNTIME.md](docs/architecture/LLM_AND_AGENT_RUNTIME.md)
 
 ## Operator Workflow
 
@@ -222,7 +222,7 @@ bash scripts/ph.sh demo:e2e
 bash scripts/ph.sh logs
 ```
 
-Full CLI reference: [docs/CLI.md](docs/CLI.md)
+Full CLI reference: [docs/reference/CLI.md](docs/reference/CLI.md)
 
 ## Architecture
 
@@ -350,19 +350,20 @@ bash scripts/release.sh minor
 bash scripts/release_verify.sh vX.Y.Z
 ```
 
-Release runbook: [docs/RELEASE_RUNBOOK.md](docs/RELEASE_RUNBOOK.md)
+Release runbook: [docs/runbooks/RELEASE_RUNBOOK.md](docs/runbooks/RELEASE_RUNBOOK.md)
 
 ## Documentation Map
 
 - [Docs Index](docs/README.md)
 - [Feature Guides](docs/features/README.md)
-- [API Reference](docs/API.md)
-- [CLI Reference](docs/CLI.md)
-- [Local + Azure Runbook](docs/LOCAL_DEMO_RUNBOOK.md)
-- [Kubernetes Helm Runbook](docs/KUBERNETES_HELM_RUNBOOK.md)
-- [Logs & Investigation](docs/LOGS_AND_INVESTIGATION.md)
+- [Jenkins Integration Kit](integrations/jenkins-bridge/README.md)
+- [API Reference](docs/reference/API.md)
+- [CLI Reference](docs/reference/CLI.md)
+- [Operator Control Plane](docs/architecture/OPERATOR_CONTROL_PLANE.md)
+- [Local + Azure Runbook](docs/runbooks/LOCAL_DEMO_RUNBOOK.md)
+- [Kubernetes Helm Runbook](docs/runbooks/KUBERNETES_HELM_RUNBOOK.md)
+- [Logs & Investigation](docs/runbooks/LOGS_AND_INVESTIGATION.md)
 - [Changelog](CHANGELOG.md)
-- [Future Plan](docs/FUTURE_PLAN.md)
 
 ## Contributing
 

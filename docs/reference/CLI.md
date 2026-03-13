@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 8e79a7e -->
+<!-- LAST_VERIFIED: c78ae9b -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -21,7 +21,7 @@ Important: execute with `bash scripts/...`, never `source` or `. scripts/...`.
 | Scope | Typical use | Requires `az` | Requires backend URL | Notes |
 |------|-------------|---------------|----------------------|-------|
 | Azure infra | deploy/manage Azure Container Apps | Yes | No | Uses configured resource group/app names |
-| Kubernetes infra | deploy/manage with Helm | No | No | Use `helm` + `kubectl`; see `docs/KUBERNETES_HELM_RUNBOOK.md` |
+| Kubernetes infra | deploy/manage with Helm | No | No | Use `helm` + `kubectl`; see `docs/runbooks/KUBERNETES_HELM_RUNBOOK.md` |
 | Backend API | read/update runtime via API | No | No | Defaults to Azure backend; set `PH_BACKEND_URL` for local/non-Azure backend |
 | GitHub-only | inspect/reset demo artifacts | No | No | Uses `gh` only |
 | Local container ops | container logs + AOAI smoke | No | No | Requires local Docker/Podman compose stack |
@@ -68,10 +68,10 @@ This section answers two practical questions:
 | Operation type | Azure deployed backend | Local backend (`PH_BACKEND_URL`) | Other cloud backend (non-Azure) | Alternative when not supported |
 |------|-------------------------|-------------------------------|-------------------------------|--------------------------------|
 | Infra deploy/manage (`deploy*`, `status`, `urls`, `warm`, `lowcost`, `webhook:*`, `rollout:canary`, `demo:e2e`) | Supported | Not supported | Not supported | Use your platform's deploy tooling + `PH_BACKEND_URL` API commands |
-| Runtime settings/audit (`settings:*`, `audit:proof`, `backfill`) | Supported | Supported | Supported (if backend reachable) | Direct API calls from `docs/API.md` |
+| Runtime settings/audit (`settings:*`, `audit:proof`, `backfill`) | Supported | Supported | Supported (if backend reachable) | Direct API calls from `docs/reference/API.md` |
 | GitHub artifact ops (`demo:proof`, `demo:reset`) | Supported | Supported | Supported | Direct `gh` commands |
 | Local container logs/AOAI (`logs*`, `aoai:check`) | Supported in local mode with compose | Supported | Not supported for remote-only backends | Use platform-native logs (ACA/K8s/host logs) |
-| Kubernetes deploy | Outside `ph.sh` | Outside `ph.sh` | Outside `ph.sh` | Use `helm` + `kubectl` (`docs/KUBERNETES_HELM_RUNBOOK.md`) |
+| Kubernetes deploy | Outside `ph.sh` | Outside `ph.sh` | Outside `ph.sh` | Use `helm` + `kubectl` (`docs/runbooks/KUBERNETES_HELM_RUNBOOK.md`) |
 
 ### Planned (Not Yet Supported In `ph.sh`)
 
@@ -104,7 +104,7 @@ gh workflow run ci.yml -R <owner>/<repo> -f failure_type=dependency
 bash scripts/ph.sh demo:proof --repo <owner>/<repo> --limit 5
 ```
 
-PowerShell-only environments (no bash): run the same GitHub checks with `gh`, and call backend endpoints directly via `docs/API.md` until `ph.ps1` support lands (`BL-026`).
+PowerShell-only environments (no bash): run the same GitHub checks with `gh`, and call backend endpoints directly via `docs/reference/API.md` until `ph.ps1` support lands (`BL-026`).
 
 ---
 
@@ -397,7 +397,7 @@ Suggested release flow:
 4. Commit release files (including `charts/pipelinehealer/Chart.yaml`), tag `vX.Y.Z`, then push with `--follow-tags`.
 5. Run `bash scripts/release_verify.sh vX.Y.Z`.
 
-For full release prep through post-release verification, use `docs/RELEASE_RUNBOOK.md`.
+For full release prep through post-release verification, use `docs/runbooks/RELEASE_RUNBOOK.md`.
 
 ### Log Inspection
 

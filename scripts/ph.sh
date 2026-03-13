@@ -182,7 +182,7 @@ _validate_http_url() {
 require_azure() {
   if is_local_mode; then
     echo "Error: '$1' requires an Azure deployment. It does not apply in local mode (PH_BACKEND_URL is set)." >&2
-    echo "See docs/LOCAL_DEMO_RUNBOOK.md for local equivalents." >&2
+    echo "See docs/runbooks/LOCAL_DEMO_RUNBOOK.md for local equivalents." >&2
     exit 1
   fi
 }

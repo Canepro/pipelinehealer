@@ -9,16 +9,18 @@ This file is intentionally concise. Detailed phase/checklist/history tracking li
 ## Primary Docs (Use These)
 
 - `docs/README.md` — docs index
-- `docs/API.md` — full API reference (endpoints, auth, data models, best practices)
-- `docs/CLI.md` — canonical CLI reference (all commands, flags, error handling, env overrides)
+- `docs/reference/API.md` — full API reference (endpoints, auth, data models, best practices)
+- `docs/reference/CLI.md` — canonical CLI reference (all commands, flags, error handling, env overrides)
+- `docs/architecture/OPERATOR_CONTROL_PLANE.md` — product configuration/provenance contract
 - `README.md` — public-facing project overview and setup
-- `docs/DEMO_SCRIPT.md` — single-file recording/demo runbook
-- `docs/LOCAL_DEMO_RUNBOOK.md` — detailed local/Azure E2E operations
+- `docs/runbooks/DEMO_SCRIPT.md` — single-file recording/demo runbook
+- `docs/runbooks/LOCAL_DEMO_RUNBOOK.md` — detailed local/Azure E2E operations
+- `integrations/jenkins-bridge/README.md` — canonical Jenkins bridge integration guidance
 - `docs/HACKATHON_LOG.md` — phased plan, submission checklist, execution history
 
 ## One-Command Ops (Recommended)
 
-Full CLI reference: `docs/CLI.md`
+Full CLI reference: `docs/reference/CLI.md`
 
 Quick examples from repo root:
 
@@ -123,26 +125,26 @@ Before major implementation work, ensure the governing docs describe the intende
 1. `README.md` — product framing and deployment posture
 2. `CONTRIBUTING.md` — contributor rules and quality bar
 3. `docs/README.md` — docs index / where the design contract lives
-4. `docs/OPERATOR_CONTROL_PLANE.md` — settings/configuration/provenance contract
+4. `docs/architecture/OPERATOR_CONTROL_PLANE.md` — settings/configuration/provenance contract
 
 Serious product changes should be version-tracked first in `docs/FUTURE_PLAN.md` before implementation proceeds.
 
 When behavior changes, update docs using this checklist:
 
 **Feature PR** (new endpoint, UI control, agent behavior):
-1. `docs/API.md` — endpoint/model/field changes
+1. `docs/reference/API.md` — endpoint/model/field changes
 2. `README.md` — features list, env vars, commands
-3. `docs/DEMO_SCRIPT.md` — if demo flow is affected
-4. `docs/LOCAL_DEMO_RUNBOOK.md` — operator steps
+3. `docs/runbooks/DEMO_SCRIPT.md` — if demo flow is affected
+4. `docs/runbooks/LOCAL_DEMO_RUNBOOK.md` — operator steps
 
 **Config/infra change** (env vars, deploy, security):
 1. `README.md` — env vars table, security notes
-2. `docs/LOCAL_DEMO_RUNBOOK.md` — deploy/verify steps
-3. `docs/PREDEPLOY_PLACEHOLDER_AUDIT.md` — if new placeholders introduced
+2. `docs/runbooks/LOCAL_DEMO_RUNBOOK.md` — deploy/verify steps
+3. `docs/runbooks/PREDEPLOY_PLACEHOLDER_AUDIT.md` — if new placeholders introduced
 
 **Bug fix**:
 1. Only update docs if the fix changes documented behavior.
 
 **After any commit that edits a user-facing doc**, update the `<!-- LAST_VERIFIED: ... -->` marker in that file to the short SHA you are certifying against (typically the latest stable baseline commit you validated for that doc), and keep it current whenever that doc is edited again.
 
-Internal/transient docs (`docs/HACKATHON_LOG.md`, `docs/FUTURE_PLAN.md`, `docs/GH_AW_IMPLEMENTATION_TRACKER.md`) are updated at author discretion — they are not user-facing.
+Internal/transient docs (`docs/HACKATHON_LOG.md`, `docs/FUTURE_PLAN.md`, `docs/archive/GH_AW_IMPLEMENTATION_TRACKER.md`) are updated at author discretion — they are not user-facing.
