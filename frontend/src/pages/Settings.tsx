@@ -292,7 +292,7 @@ export default function SettingsPage() {
     },
     onError: (err) => {
       toast.error("Failed to update secret", {
-        description: err instanceof Error ? err.message : "Unknown error",
+        description: describeSecretUpdateError(err),
       });
     },
   });
@@ -1171,4 +1171,19 @@ function formatSecretLabel(key: string): string {
     default:
       return key;
   }
+}
+
+function describeSecretUpdateError(err: unknown): string {
+  const message = err instanceof Error ? err.message : "Unknown error";
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes("settings_db_encryption_key") ||
+    normalized.includes("key_vault_url") ||
+    normalized.includes("runtime secret backend")
+  ) {
+    return "Configure the runtime secret backend in env first, then retry the secret write.";
+  }
+
+  return message;
 }

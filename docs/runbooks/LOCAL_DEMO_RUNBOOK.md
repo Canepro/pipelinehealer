@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 83805e7 -->
+<!-- LAST_VERIFIED: 22efa6e -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -204,7 +204,7 @@ Settings UI note:
 - It also generates a sample webhook event payload and a `curl` smoke test that use the same JSON schema as the real Assign-to-Agent webhook (including `activity.repository`, `activity.workflow_run_id`, and `activity.failure_type`) so you can validate the webhook target before changing deployment config.
 - The same area now includes a notification target setup assistant for the reference receiver. It generates a valid single-target `NOTIFY_TARGETS_JSON` example for `webhook`, `slack_webhook`, `teams_webhook`, `rocketchat_webhook`, or `email` without storing those sink URLs or SMTP credentials in runtime settings.
 - The sample payload intentionally omits deployment-only values and should be treated as the canonical expected JSON shape for receiver validation.
-- The actual webhook URL remains startup configuration; it is not returned by the API.
+- The actual webhook URL is stored as a write-only runtime secret and is never returned by the API.
 
 Reference visual:
 

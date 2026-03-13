@@ -1194,7 +1194,7 @@ export default function ActivityDetail() {
     : !handoffConfig.enabled
       ? "Assign-to-Agent is disabled by runtime configuration."
       : handoffConfig.mode === "webhook" && !handoffConfig.webhook_configured
-        ? "Assign-to-Agent webhook mode is enabled, but no webhook URL is configured yet."
+        ? "Assign-to-Agent webhook mode is enabled, but no receiver URL secret is configured yet."
         : "Assign-to-Agent is unavailable.";
   const handleAssignToAgent = async () => {
     if (!handoffConfig) {

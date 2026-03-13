@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 97abf04 -->
+<!-- LAST_VERIFIED: 22efa6e -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -722,7 +722,7 @@ configured value from effective provenance. Source values are portable, app-obse
       "requires_restart": true,
       "durable": true,
       "sensitive": false,
-      "note": "Derived from the startup-only Assign-to-Agent webhook URL; only the destination host is exposed."
+      "note": "Derived from the Assign-to-Agent webhook URL secret; only the destination host is exposed."
     },
     "agent_handoff_enabled": {
       "source": "runtime_override",
@@ -738,7 +738,7 @@ configured value from effective provenance. Source values are portable, app-obse
 
 Notes:
 - `settings_metadata.<field>.source=env` means startup-managed config. The app intentionally does not guess whether that startup value arrived via plain env, ACA `secretref`, Helm secret, or another deployment adapter.
-- `agent_handoff_webhook_host` exposes only the configured destination hostname; the full webhook URL remains startup-only configuration in this release.
+- `agent_handoff_webhook_host` exposes only the configured destination hostname; the full webhook URL remains hidden because it is stored as a write-only runtime secret.
 - `settings_metadata.<field>.sensitive=true` means the field is a presence-only or operator-safe projection of hidden sensitive startup configuration.
 - `settings_metadata.<field>.durable=false` means the current value exists only as an in-process runtime override and is not represented in durable runtime storage.
 - `computed` fields are derived status/projection values, not directly mutable settings.

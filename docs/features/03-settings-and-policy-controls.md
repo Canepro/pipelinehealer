@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: 8870fd4 -->
+<!-- LAST_VERIFIED: 22efa6e -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -8,7 +8,7 @@ This guide explains runtime controls, persistence behavior, and governance guard
 
 - Settings page workflow (`/settings`)
 - Settings posture overview cards (runtime/scope/provider/security) for quick read before edits
-- Setup assistants for startup-managed integration boundaries (Assign-to-Agent receiver and notification targets)
+- Setup assistants for Assign-to-Agent receiver and notification targets
 - Runtime vs startup override behavior
 - Admin audit trail
 - Guardrails for repos, retries, and MCP tool policy
@@ -32,18 +32,18 @@ This guide explains runtime controls, persistence behavior, and governance guard
    - `Trust Ops`: recent human-review queue and compact trust reporting from activity feedback
    - `Audit & Trace`: collapsible audit timeline and request-trace review
 
-## Startup-Managed Integration Setup
+## Assign-to-Agent and Notification Setup
 
 - Settings manages runtime-safe controls directly:
   - Assign-to-Agent enablement
   - handoff mode
   - retry/timeout values
   - webhook allowlist hosts
-- Startup-only or secret-bearing integration values stay deployment-managed:
-  - receiver URL
-  - downstream notification webhook URLs
-  - provider/shared-secret material
-- To reduce operator friction without persisting secrets into generic runtime settings, Settings includes assistants that generate:
+- Secret-bearing integration values use dedicated write-only or deployment-managed paths:
+  - receiver URL in the runtime secrets panel
+  - downstream notification webhook URLs in the receiver deployment
+  - provider/shared-secret material in the secrets panel or deployment env
+- To reduce operator friction without echoing secrets back into generic runtime settings, Settings includes assistants that generate:
   - portable env blocks
   - sample payloads
   - smoke-test commands
