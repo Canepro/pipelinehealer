@@ -314,6 +314,46 @@ class TestDiagnosisContentFilterHandling:
         assert "provider content filter" in diagnosis.root_cause.lower()
         assert diagnosis.error_details.get("reason_code") == "llm_prompt_content_filter"
         assert diagnosis.error_details.get("jenkins_job_url") == "https://jenkins.example/job/2/"
+        assert diagnosis.error_details.get("provider_error_kind") == "content_filter"
+        assert "llm_provider_error" not in diagnosis.error_details
+
+    @pytest.mark.asyncio
+    async def test_diagnose_non_content_retry_failure_uses_generic_failure_path(self, monkeypatch) -> None:
+        log_analysis = LogAnalysis(
+            job_id=1,
+            job_name="terraform-validation",
+            raw_logs="terraform validate failed",
+            error_lines=["terraform validate failed"],
+            key_events=["Jenkins Terraform validation failed"],
+            summary="Jenkins Terraform validation failed",
+        )
+        fake_agent = _FakeLLMAgent(
+            [
+                Exception("Error code: 400 content_filter jailbreak detected"),
+                RuntimeError("upstream timeout"),
+            ]
+        )
+
+        async def _fake_get_agent():
+            return fake_agent
+
+        monkeypatch.setattr(self.agent, "_get_agent", _fake_get_agent)
+
+        diagnosis = await self.agent.diagnose([log_analysis])
+
+        assert diagnosis.failure_type == FailureType.UNKNOWN
+        assert diagnosis.confidence == pytest.approx(0.3)
+        assert diagnosis.root_cause == "Diagnosis failed: upstream timeout"
+
+    def test_sanitize_prompt_text_redacts_command_line_credentials_without_aggressive_mode(self) -> None:
+        sanitized = self.agent._sanitize_prompt_text(
+            "curl -u admin:supersecret https://user:pass@example.com --header 'Authorization: Bearer abcdefghijklmnopqrstuvwxyz'"
+        )
+
+        assert "admin:supersecret" not in sanitized
+        assert "user:pass@" not in sanitized
+        assert "Bearer abcdefghijklmnopqrstuvwxyz" not in sanitized
+        assert "[REDACTED_CREDENTIALS]" in sanitized
 
     def test_detect_eslint_missing_flat_config(self) -> None:
         """Test detection of missing eslint flat config."""

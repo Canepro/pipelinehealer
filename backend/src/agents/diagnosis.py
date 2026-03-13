@@ -158,7 +158,31 @@ class DiagnosisAgent:
         sanitized = re.sub(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b", "[REDACTED_GITHUB_TOKEN]", sanitized)
         sanitized = re.sub(r"\b[A-Za-z0-9_-]{24,}\.[A-Za-z0-9._-]{12,}\b", "[REDACTED_TOKEN]", sanitized)
         sanitized = re.sub(
+            r"(\bcurl\b[^\n]*?\s(?:-u|--user)\s+)([^\s\"']+)",
+            r"\1[REDACTED_CREDENTIALS]",
+            sanitized,
+            flags=re.IGNORECASE,
+        )
+        sanitized = re.sub(
+            r"(\bwget\b[^\n]*?\s--user\s+)([^\s\"']+)",
+            r"\1[REDACTED_CREDENTIALS]",
+            sanitized,
+            flags=re.IGNORECASE,
+        )
+        sanitized = re.sub(
+            r"(https?://)([^/\s:@]+):([^/\s@]+)@",
+            r"\1[REDACTED_USER]:[REDACTED_PASS]@",
+            sanitized,
+            flags=re.IGNORECASE,
+        )
+        sanitized = re.sub(
             r"(authorization\s*:\s*(?:bearer|basic)\s+)[^\s\"']+",
+            r"\1[REDACTED_TOKEN]",
+            sanitized,
+            flags=re.IGNORECASE,
+        )
+        sanitized = re.sub(
+            r"(--header\s+[\"']?authorization:\s*(?:bearer|basic)\s+)[^\"'\s]+",
             r"\1[REDACTED_TOKEN]",
             sanitized,
             flags=re.IGNORECASE,
@@ -220,7 +244,8 @@ class DiagnosisAgent:
     ) -> Diagnosis:
         details: dict[str, Any] = {
             "reason_code": "llm_prompt_content_filter",
-            "llm_provider_error": str(exc),
+            "provider_error_kind": "content_filter",
+            "provider_error_status": 400,
             "llm_analysis_blocked": True,
             "provider_policy_blocked": True,
             "source_selection_path": workflow_info.get("source_selection_path", "") if workflow_info else "",
@@ -455,12 +480,21 @@ Failure-type-specific `error_details` schemas:
                     logger.error("Sanitized LLM diagnosis retry failed: %s", retry_exc)
                     if pattern_diagnosis:
                         return self._with_source(pattern_diagnosis, DiagnosisSource.PATTERN)
-                    return self._build_content_filter_fallback_diagnosis(
-                        retry_exc,
-                        workflow_info=workflow_info,
-                        had_log_excerpt=any(
-                            bool((analysis.raw_logs or "").strip()) for analysis in log_analyses
-                        ),
+                    if self._is_content_filter_error(retry_exc):
+                        return self._build_content_filter_fallback_diagnosis(
+                            retry_exc,
+                            workflow_info=workflow_info,
+                            had_log_excerpt=any(
+                                bool((analysis.raw_logs or "").strip()) for analysis in log_analyses
+                            ),
+                        )
+                    logger.error(f"Agent diagnosis failed after sanitized retry: {retry_exc}")
+                    return Diagnosis(
+                        failure_type=FailureType.UNKNOWN,
+                        confidence=0.3,
+                        root_cause=f"Diagnosis failed: {retry_exc}",
+                        is_auto_fixable=False,
+                        diagnosis_source=DiagnosisSource.LLM,
                     )
             logger.error(f"Agent diagnosis failed: {e}")
             # Fall back to pattern-based diagnosis if available
@@ -1449,16 +1483,16 @@ Failure-type-specific `error_details` schemas:
 
         for analysis in log_analyses:
             summary = self._sanitize_prompt_text(analysis.summary, aggressive=aggressive)
-            error_lines = [
-                self._sanitize_prompt_text(line, aggressive=aggressive)
-                for line in analysis.error_lines[:20]
-                if self._sanitize_prompt_text(line, aggressive=aggressive)
-            ]
-            key_events = [
-                self._sanitize_prompt_text(line, aggressive=aggressive)
-                for line in analysis.key_events[:10]
-                if self._sanitize_prompt_text(line, aggressive=aggressive)
-            ]
+            error_lines: list[str] = []
+            for line in analysis.error_lines[:20]:
+                sanitized_line = self._sanitize_prompt_text(line, aggressive=aggressive)
+                if sanitized_line:
+                    error_lines.append(sanitized_line)
+            key_events: list[str] = []
+            for line in analysis.key_events[:10]:
+                sanitized_line = self._sanitize_prompt_text(line, aggressive=aggressive)
+                if sanitized_line:
+                    key_events.append(sanitized_line)
             part = f"""
 ## Job: {analysis.job_name}
 
