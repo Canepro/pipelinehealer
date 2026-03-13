@@ -22,6 +22,11 @@ Examples:
   bash scripts/release_checklist.sh patch
   bash scripts/release_checklist.sh minor
   bash scripts/release_checklist.sh 0.2.1
+
+Important:
+  - do not tag while release notes only exist under CHANGELOG [Unreleased]
+  - after `scripts/release.sh`, confirm CHANGELOG contains the matching
+    `## [vX.Y.Z] - YYYY-MM-DD` section before committing or tagging
 EOF
 }
 
@@ -106,8 +111,14 @@ fi
 echo
 echo "4) Validate generated state"
 echo "bash scripts/check_version_sync.sh"
+if [[ -n "$next_version" ]]; then
+  echo "grep -E '^## \\[${release_tag}\\] - ' CHANGELOG.md"
+else
+  echo "grep -E '^## \\[vX\\.Y\\.Z\\] - ' CHANGELOG.md"
+fi
 echo "python3 -m pytest backend/tests/test_phase2_security.py::test_api_routes_allow_development_without_key -q"
 echo "cd frontend && bun run build && cd .."
+echo "# Do not continue if the matching release section is missing or the notes still only live under [Unreleased]."
 echo
 echo "5) Commit + tag + push"
 echo "git add VERSION backend/pyproject.toml frontend/package.json charts/pipelinehealer/Chart.yaml CHANGELOG.md"
