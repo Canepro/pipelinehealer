@@ -133,9 +133,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         log_level=settings.log_level,
     )
 
-    # Create and initialize workflow
-    use_in_memory = settings.environment == "development"
-    workflow = create_workflow(use_in_memory=use_in_memory)
+    # Create and initialize workflow using configured storage mode selection.
+    workflow = create_workflow()
     await workflow.initialize()
 
     # Store on app.state -- route handlers read via Depends(get_storage/get_workflow).

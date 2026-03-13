@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: c8c77c8 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -10,12 +10,18 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ### Added
 
-- Added a reusable Jenkins bridge integration kit under `integrations/jenkins-bridge`, including an install script, direct-excerpt capture helper, and Jenkinsfile example for Jenkins-first repos.
+- Added a reusable Jenkins bridge integration kit under `integrations/jenkins-bridge`, including an install script, direct-excerpt capture helper, and Jenkinsfile example for Jenkins-first repos. (`c78ae9b`)
 
 ### Changed
 
-- Standardized the recommended Jenkins evidence-capture pattern around plugin-free workspace excerpts and repo-local shell sender assets instead of script-approval-sensitive Groovy log access.
-- Reorganized the docs into `docs/reference/`, `docs/runbooks/`, `docs/architecture/`, and `docs/archive/` so current operator guidance is easier to find and historical planning material no longer competes with the canonical docs.
+- Standardized the recommended Jenkins evidence-capture pattern around plugin-free workspace excerpts and repo-local shell sender assets instead of script-approval-sensitive Groovy log access. (`ae22c4e`)
+- Reorganized the docs into `docs/reference/`, `docs/runbooks/`, `docs/architecture/`, and `docs/archive/` so current operator guidance is easier to find and historical planning material no longer competes with the canonical docs. (`d555eef`)
+
+### Fixed
+
+- Restored default settings persistence and env-only redeploy path resolution so checkout-based runtimes target the actual backend `.env` and repo helper scripts without requiring explicit `PIPELINEHEALER_ENV_FILE_PATH` or `PIPELINEHEALER_REPO_ROOT` overrides.
+- Stopped development startup from forcing in-memory storage over explicit `STORAGE_MODE=cosmos` or `STORAGE_MODE=postgres`, so local durable-storage validation now matches the real app boot path.
+- Restored hybrid admin-key fallback behavior for signed-in browser sessions so a valid `X-Admin-Key` can override a non-admin bearer session, while blank admin-key headers still fall back to bearer auth.
 
 ## [v0.6.1] - 2026-03-12
 

@@ -996,7 +996,6 @@ def _extract_learning_candidates(
         candidate.promotion_readiness = _evaluate_learning_promotion_readiness(candidate)
         candidates.append(candidate)
 
-    candidates_by_id = {candidate.id: candidate for candidate in candidates}
     for candidate in candidates:
         guidance_metrics = _compute_guidance_metrics(candidate.id, activities)
         candidate.guidance_application_count = int(guidance_metrics["guidance_application_count"])
@@ -1013,13 +1012,26 @@ def _extract_learning_candidates(
     return candidates
 
 
+def _backend_root() -> Path:
+    """Resolve the backend project root for local and container layouts."""
+    current = Path(__file__).resolve()
+    for candidate in current.parents:
+        if (candidate / "pyproject.toml").exists() and (candidate / "src").is_dir():
+            return candidate
+    return current.parents[2]
+
+
 def _repo_root() -> Path:
     """Resolve repository root for helper command/script execution."""
     override = os.getenv("PIPELINEHEALER_REPO_ROOT", "").strip()
     if override:
         return Path(override).resolve()
-    # backend/src/api/dashboard.py -> repo root is 2 levels up (/app in container).
-    return Path(__file__).resolve().parents[2]
+
+    backend_root = _backend_root()
+    for candidate in (backend_root, *backend_root.parents):
+        if (candidate / "scripts" / "ph.sh").exists():
+            return candidate
+    return backend_root
 
 
 def _env_file_path() -> Path:
@@ -1027,7 +1039,7 @@ def _env_file_path() -> Path:
     override = os.getenv("PIPELINEHEALER_ENV_FILE_PATH", "").strip()
     if override:
         return Path(override).resolve()
-    return _repo_root() / "backend" / ".env"
+    return _backend_root() / ".env"
 
 
 def _env_bool(value: bool) -> str:
