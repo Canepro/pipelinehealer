@@ -1,6 +1,6 @@
 # Jenkins Bridge Integration Kit
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 49948c6 -->
 
 Reusable Jenkins-side assets for PipelineHealer's signed Jenkins bridge.
 
@@ -44,12 +44,16 @@ Preferred Jenkins support:
     into a second failure
 - `capture-pipelinehealer-bridge-excerpt.sh`
   - Captures the stdout/stderr of an inline shell script into a workspace file
-  - Preserves the wrapped command's exit code
-  - Works on stock Jenkins agents without requiring the Jenkins `tee` step
+    only when the wrapped command fails (no file on success).
+  - Preserves the wrapped command's exit code.
+  - Invoke with absolute path (e.g. `"${WORKSPACE}/.jenkins/scripts/capture-..."`)
+    when the stage runs inside a `dir()` block.
 - `pipelinehealer-bridge-evidence.groovy`
-  - Optional Groovy helper when your controller already supports the Jenkins
-    `tee` step
-  - Not the required path for OSS portability
+  - Groovy helper that synthesizes a log excerpt when the shell capture wrapper
+    did not run (e.g. failure before the wrapped step). Fetches `${BUILD_URL}consoleText`
+    via Jenkins API (optional `jenkins-api-token` credential; falls back to
+    unauthenticated). Use workspace-relative paths or call `writeLogExcerpt()` with
+    no args so `fileExists`/`readFile` work correctly.
 - `examples/Jenkinsfile.failure-snippet.groovy`
   - Minimal failure-path pattern for direct use or Shared Library wrapping
 
@@ -71,10 +75,16 @@ That creates:
 
 ## Recommended Jenkinsfile Pattern
 
-1. Wrap the shell step most likely to fail with the shell capture helper.
-2. Export `PH_LOG_EXCERPT_FILE` from the failure block before invoking the
-   sender.
-3. Keep workspace cleanup in `post { cleanup { ... } }`, not before the bridge
+1. Use **absolute paths** for capture and send scripts
+   (`"${WORKSPACE}/.jenkins/scripts/..."`) so they resolve when stages run
+   inside `dir()` blocks.
+2. Wrap the shell step most likely to fail with the shell capture helper.
+3. In `post { failure }`, load `pipelinehealer-bridge-evidence.groovy` and call
+   `writeLogExcerpt()` (no args) before sending, so setup/bootstrap failures
+   still produce log evidence.
+4. Export `PH_LOG_EXCERPT_FILE` from the failure block before invoking the
+   sender; use `bash "${WORKSPACE}/.jenkins/scripts/send-pipelinehealer-bridge.sh"`.
+5. Keep workspace cleanup in `post { cleanup { ... } }`, not before the bridge
    notifier runs.
 
 Optional structured bridge fields:
@@ -103,7 +113,7 @@ Example:
 stage('Terraform Plan') {
   steps {
     sh '''
-      cat <<'SCRIPT' | sh .jenkins/scripts/capture-pipelinehealer-bridge-excerpt.sh "${WORKSPACE}/.pipelinehealer-log-excerpt.txt"
+      cat <<'SCRIPT' | sh "${WORKSPACE}/.jenkins/scripts/capture-pipelinehealer-bridge-excerpt.sh" "${WORKSPACE}/.pipelinehealer-log-excerpt.txt"
       terraform plan -no-color -input=false -out=tfplan
 SCRIPT
     '''
@@ -113,20 +123,27 @@ SCRIPT
 post {
   failure {
     script {
-      sh '''
-        set +e
-        if [ -f .jenkins/scripts/prepare-failure-tooling.sh ]; then
-          sh .jenkins/scripts/prepare-failure-tooling.sh || true
-        fi
-        export PH_REPOSITORY="owner/repo"
-        export PH_FAILURE_STAGE="terraform-plan"
-        export PH_FAILURE_SUMMARY="Jenkins Terraform plan failed"
-        if [ -f "${WORKSPACE}/.pipelinehealer-log-excerpt.txt" ]; then
-          export PH_LOG_EXCERPT_FILE="${WORKSPACE}/.pipelinehealer-log-excerpt.txt"
-        fi
-        bash .jenkins/scripts/send-pipelinehealer-bridge.sh >/dev/null || \
-          echo "WARNING: Failed to notify PipelineHealer bridge"
-      '''
+      def scriptsDir = "${env.WORKSPACE}/.jenkins/scripts"
+      if (fileExists("${scriptsDir}/send-pipelinehealer-bridge.sh")) {
+        if (fileExists("${scriptsDir}/pipelinehealer-bridge-evidence.groovy")) {
+          def bridgeEvidence = load "${scriptsDir}/pipelinehealer-bridge-evidence.groovy"
+          bridgeEvidence.writeLogExcerpt()
+        }
+        sh '''
+          set +e
+          if [ -f "${WORKSPACE}/.jenkins/scripts/prepare-failure-tooling.sh" ]; then
+            sh "${WORKSPACE}/.jenkins/scripts/prepare-failure-tooling.sh" || true
+          fi
+          export PH_REPOSITORY="owner/repo"
+          export PH_FAILURE_STAGE="terraform-plan"
+          export PH_FAILURE_SUMMARY="Jenkins Terraform plan failed"
+          if [ -f "${WORKSPACE}/.pipelinehealer-log-excerpt.txt" ]; then
+            export PH_LOG_EXCERPT_FILE="${WORKSPACE}/.pipelinehealer-log-excerpt.txt"
+          fi
+          bash "${WORKSPACE}/.jenkins/scripts/send-pipelinehealer-bridge.sh" >/dev/null || \
+            echo "WARNING: Failed to notify PipelineHealer bridge"
+        '''
+      }
     }
   }
   cleanup {
@@ -137,15 +154,18 @@ post {
 
 ## Why This Pattern Is Preferred
 
-Direct workspace excerpt capture is more reliable than scraping
-`${BUILD_URL}/consoleText`.
+Use the shell capture helper for the step most likely to fail; use the Groovy
+evidence helper as a fallback when no excerpt file exists (e.g. failure before the
+wrapped step). The Groovy helper fetches `${BUILD_URL}/consoleText` so
+PipelineHealer still gets log evidence instead of summary-only.
 
 Benefits:
 
-- works even when Jenkins UI/API auth is restricted
-- keeps evidence local to the failing build context
+- direct excerpt capture avoids controller memory and auth when the wrapped step ran
+- consoleText fallback covers setup/bootstrap failures without rawBuild script approval
+- absolute script paths work inside `dir()` blocks; workspace-relative paths for
+  `writeLogExcerpt()` keep `fileExists`/`readFile` correct
 - sends bounded, LLM-usable evidence instead of only a short summary
-- does not require Jenkins script approval exceptions or extra controller plugins
 - stays portable across multibranch, PR, and scheduled Jenkins jobs
 
 For the backend contract, see
