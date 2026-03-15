@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 22efa6e -->
+<!-- LAST_VERIFIED: ac1b1ec -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -123,7 +123,7 @@ In the Azure Portal, open your OpenAI resource page → **Keys and Endpoint**:
 
 > **Note:** If your endpoint uses the `cognitiveservices.azure.com` domain, that works too. PipelineHealer prefers the Azure Responses API first and falls back to Chat only when a deployment rejects Responses.
 
-Validated Azure combinations as of `v0.6.0`:
+Validated Azure combinations as of `v0.7.2`:
 - stable default path: `https://<resource>.openai.azure.com/` with `gpt-5-mini`
 - validated stronger diagnosis/remediation path: `https://<resource>.cognitiveservices.azure.com/` with `gpt-5.1-codex-mini`
 

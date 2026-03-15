@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: c183a90 -->
+<!-- LAST_VERIFIED: ac1b1ec -->
 
 > OSS-first, policy-aware pipeline remediation platform for failed delivery workflows.
 
@@ -47,7 +47,7 @@ Pipeline failures create repetitive triage work and slow delivery. PipelineHeale
 - Bridge path: Jenkins
 - Reference managed deployment: Azure Container Apps
 - Demo video: [YouTube walkthrough](https://youtu.be/9iv5ZMKYzts)
-- Latest published release: [`v0.6.1`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.6.1)
+- Latest published release: [`v0.7.2`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.7.2)
 - Detailed release history: [CHANGELOG.md](CHANGELOG.md)
 
 ## Jenkins Integration Kit
@@ -186,7 +186,7 @@ Important operator rule:
 - verify live model compatibility before demos or production promotion
 
 Validated Azure note:
-- as of `v0.6.0`, the strongest validated Azure path for `gpt-5.1-codex-mini` uses the `cognitiveservices.azure.com` base endpoint with the Responses-first runtime path
+- as of `v0.7.2`, the strongest validated Azure path for `gpt-5.1-codex-mini` uses the `cognitiveservices.azure.com` base endpoint with the Responses-first runtime path
 
 Detailed runtime contract: [docs/architecture/LLM_AND_AGENT_RUNTIME.md](docs/architecture/LLM_AND_AGENT_RUNTIME.md)
 

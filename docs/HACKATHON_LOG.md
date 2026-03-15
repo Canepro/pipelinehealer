@@ -1,8 +1,8 @@
 # PipelineHealer Hackathon Log
 
-<!-- LAST_VERIFIED: ec7e28f -->
+<!-- LAST_VERIFIED: ac1b1ec -->
 
-**Last updated:** March 12, 2026
+**Last updated:** March 15, 2026
 
 This is the long-form project tracker for hackathon execution status, submission readiness, and milestone history.
 
@@ -36,7 +36,7 @@ This is the long-form project tracker for hackathon execution status, submission
   - required scope locked to `#36/#42/#57` for submission reliability
   - `#58` (PostgreSQL adapter) was implemented only after required scope was complete, CI green, and docs synced
   - storage extensibility remained adapter-scoped (no core workflow rewrites during freeze)
-- Release `v0.6.1` is the current public baseline.
+- Release `v0.7.2` is the current public baseline.
 - `v0.5.8` shipped:
   - Settings and Control Center now distinguish configured, provider-ready, operation-compatible, full-capability, degraded, and scaffolded runtime states
 - `v0.5.9` shipped:
@@ -51,7 +51,13 @@ This is the long-form project tracker for hackathon execution status, submission
   - low-evidence Jenkins bridge incidents now read as context-first/unclassified instead of strong scored diagnostics
   - dashboard drill-down filters now work consistently from repository bars and failure-type pie slices
   - repository drill-down filtering is now resilient to repository-name casing mismatches
-- Post-`v0.6.1` follow-on work is continuity and release planning, not demo-scope product correction.
+- `v0.7.0` shipped:
+  - UI-first runtime configuration now persists non-secret settings directly from the product surface with setup-readiness visibility and write-only secret management
+  - operator workflows now expose stronger configuration provenance and runtime-boundary reporting for safe control-plane changes
+- `v0.7.2` shipped:
+  - release tooling and workflow guardrails were tightened so version metadata, changelog sections, and release tags stay aligned during publication
+  - release recovery documentation now reflects the post-`v0.7.1` correction path and current published baseline
+- Post-`v0.7.2` follow-on work is continuity and release planning, not demo-scope product correction.
 - Historical `v0.5.0` planning target is now shipped:
   - deployment-facing Assign-to-Agent receiver boundary
   - generic outbound event and notification routing
