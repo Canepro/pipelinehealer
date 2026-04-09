@@ -29,6 +29,20 @@ Pipeline failures create repetitive triage work and slow delivery. PipelineHeale
 - prefer deterministic evidence and bounded automation over opaque autonomy
 - keep review-first paths explicit when confidence is low or policy blocks action
 
+## Why this matters for real teams
+
+- Reduces repetitive CI failure triage without hiding uncertainty.
+- Keeps remediation decisions reviewable and auditable.
+- Supports mixed environments, with GitHub Actions native and a Jenkins bridge path.
+- Separates policy intent from runtime behavior so operators can trust outcomes.
+
+## Current status
+
+- Published OSS release line through [`v0.7.2`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.7.2).
+- Working demo and walkthrough video are publicly available.
+- Native GitHub Actions path is active, and the Jenkins integration kit is documented and reusable.
+- Current phase: validation and hardening of operator workflows and policy controls.
+
 ## What You Get
 
 - Normalized incident records with `failing_job`, `failing_step`, `failing_command`, and evidence layers.
