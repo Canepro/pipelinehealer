@@ -372,12 +372,26 @@ def _create_azure_cloud_agent(
 
     # Use Responses API first for both classic Azure OpenAI and Azure AI Services
     # endpoints, then fall back to Chat when a deployment rejects Responses.
-    from agent_framework.azure import AzureOpenAIChatClient, AzureOpenAIResponsesClient
+    import agent_framework.azure as azure_clients
+
+    chat_client_cls = getattr(azure_clients, "AzureOpenAIChatClient", None)
+    if chat_client_cls is None:
+        raise RuntimeError(
+            "agent_framework.azure.AzureOpenAIChatClient is unavailable in this environment."
+        )
+
+    responses_client_cls = getattr(azure_clients, "AzureOpenAIResponsesClient", None)
+    if responses_client_cls is None:
+        logger.warning(
+            "agent_framework.azure.AzureOpenAIResponsesClient not available; "
+            "falling back to AzureOpenAIChatClient for primary path."
+        )
+        responses_client_cls = chat_client_cls
 
     # Primary version comes from AZURE_OPENAI_API_VERSION (env-driven).
     responses_api_version = api_version
 
-    responses_client: Any = AzureOpenAIResponsesClient(
+    responses_client: Any = responses_client_cls(
         endpoint=endpoint,
         deployment_name=resolved_deployment_name,
         api_version=responses_api_version,
@@ -389,7 +403,7 @@ def _create_azure_cloud_agent(
     # Compatibility fallback: certain resources/deployments may reject Responses API versions
     # while still supporting chat completions. Version from AZURE_OPENAI_CHAT_API_VERSION.
     fallback_chat_version = chat_api_version or api_version
-    fallback_chat_client: Any = AzureOpenAIChatClient(
+    fallback_chat_client: Any = chat_client_cls(
         endpoint=endpoint,
         deployment_name=resolved_deployment_name,
         api_version=fallback_chat_version,

@@ -14,10 +14,12 @@ def test_cognitiveservices_endpoint_uses_responses_with_chat_fallback(monkeypatc
     monkeypatch.setattr(
         "agent_framework.azure.AzureOpenAIResponsesClient",
         _FakeResponsesClient,
+        raising=False,
     )
     monkeypatch.setattr(
         "agent_framework.azure.AzureOpenAIChatClient",
         _FakeChatClient,
+        raising=False,
     )
     monkeypatch.setattr(
         "src.agents.base._as_agent_compat",
