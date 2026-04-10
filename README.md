@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: ac1b1ec -->
+<!-- LAST_VERIFIED: 695702c -->
 
 > OSS-first, policy-aware pipeline remediation platform for failed delivery workflows.
 
@@ -29,16 +29,16 @@ Pipeline failures create repetitive triage work and slow delivery. PipelineHeale
 - prefer deterministic evidence and bounded automation over opaque autonomy
 - keep review-first paths explicit when confidence is low or policy blocks action
 
-## Why this matters for real teams
+## Why This Matters for Real Teams
 
 - Reduces repetitive CI failure triage without hiding uncertainty.
 - Keeps remediation decisions reviewable and auditable.
 - Supports mixed environments, with GitHub Actions native and a Jenkins bridge path.
 - Separates policy intent from runtime behavior so operators can trust outcomes.
 
-## Current status
+## Current Status
 
-- Published OSS release line through [`v0.7.2`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.7.2).
+- Latest published release is tracked in [Current Scope](#current-scope) below.
 - Working demo and walkthrough video are publicly available.
 - Native GitHub Actions path is active, and the Jenkins integration kit is documented and reusable.
 - Current phase: validation and hardening of operator workflows and policy controls.
