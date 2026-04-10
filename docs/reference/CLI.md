@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: c183a90 -->
+<!-- LAST_VERIFIED: c9520a1 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -445,12 +445,14 @@ Use the safe pytest wrapper to prevent indefinitely hanging test runs:
 ```bash
 bash scripts/pytest_safe.sh backend/tests/test_phase1_correctness.py -q
 PYTEST_TIMEOUT_SECONDS=2400 bash scripts/pytest_safe.sh backend/tests -q
+PYTEST_CAPTURE_MODE=no bash scripts/pytest_safe.sh backend/tests -q
 ```
 
 Defaults:
 
 - timeout: `1800s` (30 minutes)
 - graceful stop: `TERM`, then forced kill after 30s if needed
+- capture: `no` by default (`PYTEST_CAPTURE_MODE` can override)
 
 ### External Diagnostics
 
