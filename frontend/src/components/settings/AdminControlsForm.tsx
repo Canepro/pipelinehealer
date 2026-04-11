@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useId, useState, type Dispatch, type SetStateAction } from "react";
 import {
   ChevronDown,
   Copy,
@@ -56,7 +56,6 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
@@ -93,6 +92,77 @@ interface Props {
 }
 
 type SettingsSection = "runtime" | "intelligence" | "security";
+
+const SETTINGS_SECTION_OPTIONS: Array<{
+  value: SettingsSection;
+  label: string;
+  summary: string;
+  Icon: typeof Zap;
+}> = [
+  {
+    value: "runtime",
+    label: "1. Runtime Controls",
+    summary:
+      "Runtime Controls: set remediation behavior, repo scope, and operation mode first.",
+    Icon: Zap,
+  },
+  {
+    value: "intelligence",
+    label: "2. AI & Integrations",
+    summary:
+      "AI & Integrations: configure model providers, handoff, external diagnostics, and MCP policies.",
+    Icon: Sparkles,
+  },
+  {
+    value: "security",
+    label: "3. Security & Advanced",
+    summary:
+      "Security & Advanced: adjust auth posture, retries, limits, and low-level safeguards.",
+    Icon: Shield,
+  },
+];
+
+export function SettingsSectionSwitcher({
+  activeSection,
+  onChange,
+}: {
+  activeSection: SettingsSection;
+  onChange: (section: SettingsSection) => void;
+}) {
+  const activeOption =
+    SETTINGS_SECTION_OPTIONS.find((option) => option.value === activeSection) ??
+    SETTINGS_SECTION_OPTIONS[0];
+
+  return (
+    <>
+      <nav aria-label="Settings sections">
+        <ul className="grid h-auto list-none grid-cols-1 gap-4 p-0 sm:grid-cols-3">
+          {SETTINGS_SECTION_OPTIONS.map(({ value, label, Icon }) => {
+            const isActive = value === activeSection;
+            return (
+              <li key={value}>
+                <Button
+                  type="button"
+                  variant={isActive ? "secondary" : "ghost"}
+                  className="w-full justify-center gap-2 py-3 text-sm font-semibold"
+                  aria-pressed={isActive}
+                  id={`settings-section-trigger-${value}`}
+                  onClick={() => onChange(value)}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+      <p className="mt-3 text-sm text-[var(--ph-muted)]">
+        {activeOption.summary}
+      </p>
+    </>
+  );
+}
 type NotificationTargetType =
   | "email"
   | "webhook"
@@ -633,45 +703,10 @@ export default function AdminControlsForm({
       <div className="space-y-8">
         <Card>
           <CardContent className="py-5">
-            <Tabs
-              value={activeSection}
-              onValueChange={(value) =>
-                setActiveSection(value as SettingsSection)
-              }
-              className="w-full"
-            >
-              <TabsList className="grid h-auto w-full grid-cols-1 gap-4 sm:grid-cols-3">
-                <TabsTrigger
-                  value="runtime"
-                  className="flex items-center justify-center gap-2 py-3 text-sm font-semibold"
-                >
-                  <Zap className="h-4 w-4" />
-                  1. Runtime Controls
-                </TabsTrigger>
-                <TabsTrigger
-                  value="intelligence"
-                  className="flex items-center justify-center gap-2 py-3 text-sm font-semibold"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  2. AI & Integrations
-                </TabsTrigger>
-                <TabsTrigger
-                  value="security"
-                  className="flex items-center justify-center gap-2 py-3 text-sm font-semibold"
-                >
-                  <Shield className="h-4 w-4" />
-                  3. Security & Advanced
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <p className="mt-3 text-sm text-[var(--ph-muted)]">
-              {activeSection === "runtime" &&
-                "Runtime Controls: set remediation behavior, repo scope, and operation mode first."}
-              {activeSection === "intelligence" &&
-                "AI & Integrations: configure model providers, handoff, external diagnostics, and MCP policies."}
-              {activeSection === "security" &&
-                "Security & Advanced: adjust auth posture, retries, limits, and low-level safeguards."}
-            </p>
+            <SettingsSectionSwitcher
+              activeSection={activeSection}
+              onChange={setActiveSection}
+            />
           </CardContent>
         </Card>
 
@@ -2874,7 +2909,7 @@ function FieldGroup({
   );
 }
 
-function SwitchField({
+export function SwitchField({
   label,
   field,
   checked,
@@ -2889,15 +2924,21 @@ function SwitchField({
 }) {
   const desc = SETTING_DESCRIPTIONS[field];
   const durability = getDurabilityLabel(metadata);
+  const switchId = useId();
+  const descriptionId = desc ? `${switchId}-description` : undefined;
+
   return (
     <div className="flex items-start gap-3 py-1">
-      <Switch checked={checked} onCheckedChange={onChange} className="mt-0.5" />
+      <Switch
+        id={switchId}
+        checked={checked}
+        onCheckedChange={onChange}
+        className="mt-0.5"
+        aria-describedby={descriptionId}
+      />
       <div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Label
-            className="text-[var(--ph-text)] cursor-pointer"
-            onClick={() => onChange(!checked)}
-          >
+          <Label htmlFor={switchId} className="text-[var(--ph-text)] cursor-pointer">
             {label}
           </Label>
           {metadata && (
@@ -2912,7 +2953,9 @@ function SwitchField({
           )}
         </div>
         {desc && (
-          <p className="text-xs text-[var(--ph-muted)] mt-0.5">{desc}</p>
+          <p id={descriptionId} className="text-xs text-[var(--ph-muted)] mt-0.5">
+            {desc}
+          </p>
         )}
       </div>
     </div>
