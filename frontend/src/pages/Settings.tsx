@@ -18,6 +18,7 @@ import {
   describeLlmCapability,
   describeSecretSettingsFailure,
   formatIntegrationQueryState,
+  type SubqueryFailureState,
 } from "../components/settings/runtimeSemantics";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1088,11 +1089,7 @@ function SecretSettingsCard({
   pendingKey,
 }: {
   secrets: SecretSetting[];
-  errorState?: {
-    title: string;
-    detail: string;
-    guidance: string;
-  } | null;
+  errorState?: SubqueryFailureState | null;
   values: Record<string, string>;
   onChange: (key: string, value: string) => void;
   onSave: (secret: SecretSetting, clear?: boolean) => void;
