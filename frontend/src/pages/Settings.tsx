@@ -20,6 +20,7 @@ import {
 import type { SettingsFormState } from "../components/settings";
 import {
   describeLlmCapability,
+  describeSecretSettingsFailure,
   formatIntegrationQueryState,
 } from "../components/settings/runtimeSemantics";
 import { Button } from "@/components/ui/button";
@@ -129,21 +130,35 @@ export default function SettingsPage() {
     retry: false,
   });
 
-  const { data: secretSettings } = useQuery({
+  const {
+    data: secretSettings,
+    isError: isSecretSettingsError,
+    error: secretSettingsError,
+  } = useQuery({
     queryKey: secretSettingsQueryKey,
     queryFn: () => api.getSecretSettings(effectiveAdminKey),
     enabled: hasAuthAttempt,
     retry: false,
   });
 
-  const { data: llmProviderHealth, isLoading: isLlmHealthLoading } = useQuery({
+  const {
+    data: llmProviderHealth,
+    isLoading: isLlmHealthLoading,
+    isError: isLlmHealthError,
+    error: llmHealthError,
+  } = useQuery({
     queryKey: llmProviderHealthQueryKey,
     queryFn: () => api.getLLMProviderHealth(effectiveAdminKey),
     enabled: hasAuthAttempt,
     retry: false,
   });
 
-  const { data: mcpProviderHealth, isLoading: isMcpHealthLoading } = useQuery({
+  const {
+    data: mcpProviderHealth,
+    isLoading: isMcpHealthLoading,
+    isError: isMcpHealthError,
+    error: mcpHealthError,
+  } = useQuery({
     queryKey: mcpProviderHealthQueryKey,
     queryFn: () => api.getMCPProviderHealth(effectiveAdminKey),
     enabled: hasAuthAttempt,
@@ -185,6 +200,11 @@ export default function SettingsPage() {
     JSON.stringify(form) !== JSON.stringify(lastSavedForm);
   const settingsErrorMessage =
     error instanceof Error ? error.message : "Unknown error";
+  const secretSettingsFailure = isSecretSettingsError
+    ? describeSecretSettingsFailure(
+        secretSettingsError instanceof Error ? secretSettingsError : null,
+      )
+    : null;
   const sessionAuthActive = AUTH_ENABLED && useSessionAuth;
   const sessionBootstrapPending =
     AUTH_ENABLED && !isApiAuthReady && adminKey.length === 0;
@@ -524,6 +544,7 @@ export default function SettingsPage() {
             <SetupChecklistCard status={data.setup_status} />
             <SecretSettingsCard
               secrets={secretSettings ?? []}
+              errorState={secretSettingsFailure}
               values={secretDrafts}
               onChange={(key, value) =>
                 setSecretDrafts((current) => ({ ...current, [key]: value }))
@@ -762,8 +783,12 @@ export default function SettingsPage() {
             setForm={setForm}
             llmProviderHealth={llmProviderHealth}
             isLlmHealthLoading={isLlmHealthLoading}
+            isLlmHealthError={isLlmHealthError}
+            llmHealthError={llmHealthError}
             mcpProviderHealth={mcpProviderHealth}
             isMcpHealthLoading={isMcpHealthLoading}
+            isMcpHealthError={isMcpHealthError}
+            mcpHealthError={mcpHealthError}
             llmCapabilitySummary={llmCapabilitySummary}
             hasUnsavedChanges={hasUnsavedChanges}
             newRepoInput={newRepoInput}
@@ -1080,12 +1105,18 @@ function SetupChecklistCard({ status }: { status: { ready: boolean; storage_boot
 
 function SecretSettingsCard({
   secrets,
+  errorState,
   values,
   onChange,
   onSave,
   pendingKey,
 }: {
   secrets: SecretSetting[];
+  errorState?: {
+    title: string;
+    detail: string;
+    guidance: string;
+  } | null;
   values: Record<string, string>;
   onChange: (key: string, value: string) => void;
   onSave: (secret: SecretSetting, clear?: boolean) => void;
@@ -1100,6 +1131,19 @@ function SecretSettingsCard({
         <p className="text-sm leading-6 text-[var(--ph-muted)]">
           Secrets are write-only. This page only shows configuration status, source, and safe hints.
         </p>
+        {errorState ? (
+          <div className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-3">
+            <p className="text-sm font-medium text-rose-500">
+              {errorState.title}
+            </p>
+            <p className="mt-1 text-sm text-[var(--ph-muted)]">
+              {errorState.detail}
+            </p>
+            <p className="mt-2 text-xs text-[var(--ph-muted)]">
+              {errorState.guidance}
+            </p>
+          </div>
+        ) : null}
         <div className="space-y-4">
           {secrets.map((secret) => (
             <div
