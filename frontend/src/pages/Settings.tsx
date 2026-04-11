@@ -9,6 +9,10 @@ import { detectCachedAdminSession } from "../auth/adminSession";
 import { useApiAuthReady } from "../auth/apiAuthReady";
 import { AUTH_ENABLED } from "../auth/config";
 import {
+  getNextAdminKeyScopeId,
+  getSettingsQueryAuthScope,
+} from "../auth/settingsQueryAuthScope";
+import {
   AdminControlsForm,
   RuntimePolicyBanner,
   toSettingsForm,
@@ -30,6 +34,7 @@ export default function SettingsPage() {
   const isApiAuthReady = useApiAuthReady();
   const [adminKeyInput, setAdminKeyInput] = useState("");
   const [adminKey, setAdminKey] = useState("");
+  const [adminKeyScopeId, setAdminKeyScopeId] = useState<number | null>(null);
   const [useSessionAuth, setUseSessionAuth] = useState(false);
   const [newMcpRepoInput, setNewMcpRepoInput] = useState("");
   const [newHandoffHostInput, setNewHandoffHostInput] = useState("");
@@ -97,30 +102,49 @@ export default function SettingsPage() {
   const hasAuthAttempt =
     adminKey.length > 0 || (isApiAuthReady && useSessionAuth);
   const effectiveAdminKey = useSessionAuth ? undefined : adminKey;
+  const authQueryScope = getSettingsQueryAuthScope({
+    useSessionAuth,
+    adminKey,
+    adminKeyScopeId,
+  });
+  const settingsQueryKey = ["app-settings", authQueryScope] as const;
+  const secretSettingsQueryKey = ["secret-settings", authQueryScope] as const;
+  const llmProviderHealthQueryKey = [
+    "llm-provider-health",
+    authQueryScope,
+  ] as const;
+  const mcpProviderHealthQueryKey = [
+    "mcp-provider-health",
+    authQueryScope,
+  ] as const;
+  const handoffIntegrationStatusQueryKey = [
+    "agent-handoff-integration-status",
+    authQueryScope,
+  ] as const;
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["app-settings", adminKey, useSessionAuth],
+    queryKey: settingsQueryKey,
     queryFn: () => api.getSettings(effectiveAdminKey),
     enabled: hasAuthAttempt,
     retry: false,
   });
 
   const { data: secretSettings } = useQuery({
-    queryKey: ["secret-settings", adminKey, useSessionAuth],
+    queryKey: secretSettingsQueryKey,
     queryFn: () => api.getSecretSettings(effectiveAdminKey),
     enabled: hasAuthAttempt,
     retry: false,
   });
 
   const { data: llmProviderHealth, isLoading: isLlmHealthLoading } = useQuery({
-    queryKey: ["llm-provider-health", adminKey, useSessionAuth],
+    queryKey: llmProviderHealthQueryKey,
     queryFn: () => api.getLLMProviderHealth(effectiveAdminKey),
     enabled: hasAuthAttempt,
     retry: false,
   });
 
   const { data: mcpProviderHealth, isLoading: isMcpHealthLoading } = useQuery({
-    queryKey: ["mcp-provider-health", adminKey, useSessionAuth],
+    queryKey: mcpProviderHealthQueryKey,
     queryFn: () => api.getMCPProviderHealth(effectiveAdminKey),
     enabled: hasAuthAttempt,
     retry: false,
@@ -131,7 +155,7 @@ export default function SettingsPage() {
     isError: isHandoffIntegrationError,
     error: handoffIntegrationError,
   } = useQuery({
-    queryKey: ["agent-handoff-integration-status", hasAuthAttempt],
+    queryKey: handoffIntegrationStatusQueryKey,
     queryFn: () => api.getAgentHandoffIntegrationStatus(),
     enabled: hasAuthAttempt,
     retry: false,
@@ -247,12 +271,9 @@ export default function SettingsPage() {
       setForm(next);
       setLastSavedForm(next);
       setGhAwWorkflowsInput(next.gh_aw_known_workflows.join(","));
-      queryClient.setQueryData(
-        ["app-settings", adminKey, useSessionAuth],
-        updated,
-      );
+      queryClient.setQueryData(settingsQueryKey, updated);
       await queryClient.invalidateQueries({
-        queryKey: ["app-settings", adminKey, useSessionAuth],
+        queryKey: settingsQueryKey,
       });
       toast.success("Settings saved", {
         description: "Changes are active now and persisted for future restarts unless overridden by env.",
@@ -281,10 +302,12 @@ export default function SettingsPage() {
         return next;
       });
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["secret-settings", adminKey, useSessionAuth] }),
-        queryClient.invalidateQueries({ queryKey: ["app-settings", adminKey, useSessionAuth] }),
-        queryClient.invalidateQueries({ queryKey: ["llm-provider-health", adminKey, useSessionAuth] }),
-        queryClient.invalidateQueries({ queryKey: ["agent-handoff-integration-status", hasAuthAttempt] }),
+        queryClient.invalidateQueries({ queryKey: secretSettingsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: settingsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: llmProviderHealthQueryKey }),
+        queryClient.invalidateQueries({
+          queryKey: handoffIntegrationStatusQueryKey,
+        }),
       ]);
       toast.success("Secret updated", {
         description: "The value was stored without being returned to the UI.",
@@ -346,6 +369,7 @@ export default function SettingsPage() {
     }
     setUseSessionAuth(false);
     setAdminKey(trimmed);
+    setAdminKeyScopeId((current) => getNextAdminKeyScopeId(current));
     setAdminKeyInput("");
   };
 
