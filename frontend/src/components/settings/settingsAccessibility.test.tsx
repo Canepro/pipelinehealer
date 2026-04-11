@@ -4,6 +4,26 @@ import { describe, expect, it } from "vitest";
 import { SettingToggleField } from "./SettingToggleField";
 import { SettingsSectionSwitcher, SwitchField } from "./AdminControlsForm";
 
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getSwitchId(markup: string) {
+  const match = markup.match(
+    /role="switch"[\s\S]*?id=(?:"|')?([^"'> ]+)(?:"|')?/,
+  );
+  expect(match).not.toBeNull();
+  return match?.[1] ?? "";
+}
+
+function getSwitchDescribedByIds(markup: string) {
+  const match = markup.match(
+    /role="switch"[\s\S]*?aria-describedby=(?:"|')?([^"'>]+)(?:"|')?/,
+  );
+  expect(match).not.toBeNull();
+  return (match?.[1] ?? "").split(/\s+/).filter(Boolean);
+}
+
 describe("Settings accessibility smoke checks", () => {
   it("renders the section switcher as a labelled pressed-button navigation control", () => {
     const markup = renderToStaticMarkup(
@@ -28,16 +48,24 @@ describe("Settings accessibility smoke checks", () => {
       />,
     );
 
+    const switchId = getSwitchId(markup);
+    const describedByIds = getSwitchDescribedByIds(markup);
+
     expect(markup).toContain('role="switch"');
     expect(markup).toMatch(
-      /role="switch"[\s\S]*id=(?:"|')?([^"'> ]+)(?:"|')?[\s\S]*<label[^>]*for=(?:"|')?\1(?:"|')?[^>]*>Retry failed workflows<\/label>/,
+      new RegExp(
+        `<label[^>]*for=(?:"|')?${escapeRegex(switchId)}(?:"|')?[^>]*>Retry failed workflows<\\/label>`,
+      ),
     );
+    expect(describedByIds).toHaveLength(1);
     expect(markup).toMatch(
-      /role="switch"[\s\S]*aria-describedby=(?:"|')?([^"'> ]+)(?:"|')?[\s\S]*<p id=(?:"|')?\1(?:"|')?[\s\S]*Allows PipelineHealer to trigger retry of failed workflow jobs/,
+      new RegExp(
+        `<p id=(?:"|')?${escapeRegex(describedByIds[0])}(?:"|')?[^>]*>`,
+      ),
     );
   });
 
-  it("associates runtime wiring toggles with the switch control and visible state label", () => {
+  it("associates runtime wiring toggles with one label, descriptive help text, and state text", () => {
     const markup = renderToStaticMarkup(
       <SettingToggleField
         label="Verify webhook signatures"
@@ -50,12 +78,32 @@ describe("Settings accessibility smoke checks", () => {
       />,
     );
 
+    const switchId = getSwitchId(markup);
+    const describedByIds = getSwitchDescribedByIds(markup);
+    const labelsForSwitch = markup.match(
+      new RegExp(
+        `<label[^>]*for=(?:"|')?${escapeRegex(switchId)}(?:"|')?`,
+        "g",
+      ),
+    );
+
     expect(markup).toContain('role="switch"');
+    expect(labelsForSwitch).toHaveLength(1);
     expect(markup).toMatch(
-      /<label[^>]*for=(?:"|')?([^"'> ]+)(?:"|')?[^>]*>Verify webhook signatures<\/label>[\s\S]*role="switch"[\s\S]*id=(?:"|')?\1(?:"|')?/,
+      new RegExp(
+        `<label[^>]*for=(?:"|')?${escapeRegex(switchId)}(?:"|')?[^>]*>Verify webhook signatures<\\/label>`,
+      ),
+    );
+    expect(describedByIds).toHaveLength(2);
+    expect(markup).toMatch(
+      new RegExp(
+        `<p id=(?:"|')?${escapeRegex(describedByIds[0])}(?:"|')?[^>]*>`,
+      ),
     );
     expect(markup).toMatch(
-      /<label[^>]*for=(?:"|')?([^"'> ]+)(?:"|')?[^>]*>Required<\/label>[\s\S]*$/,
+      new RegExp(
+        `<span id=(?:"|')?${escapeRegex(describedByIds[1])}(?:"|')?[^>]*aria-live="polite"`,
+      ),
     );
   });
 });
