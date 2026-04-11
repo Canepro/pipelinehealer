@@ -16,6 +16,62 @@ export type McpEffectiveState = {
 
 export type IntegrationTone = 'ok' | 'warn' | 'bad' | 'muted'
 
+export type SubqueryFailureState = {
+  title: string
+  detail: string
+  guidance: string
+}
+
+function formatSubqueryFailure(args: {
+  title: string
+  fallbackDetail: string
+  guidance: string
+  error?: Error | null
+}): SubqueryFailureState {
+  const detail = args.error?.message?.trim() || args.fallbackDetail
+  return {
+    title: args.title,
+    detail,
+    guidance: args.guidance,
+  }
+}
+
+export function describeSecretSettingsFailure(
+  error?: Error | null
+): SubqueryFailureState {
+  return formatSubqueryFailure({
+    title: 'Secret settings request failed',
+    fallbackDetail: 'Secrets request failed.',
+    guidance:
+      'Check the active auth method and secret backend configuration, then retry.',
+    error,
+  })
+}
+
+export function describeLlmHealthFailure(
+  error?: Error | null
+): SubqueryFailureState {
+  return formatSubqueryFailure({
+    title: 'LLM health request failed',
+    fallbackDetail: 'LLM health request failed.',
+    guidance:
+      'Check the active auth method and LLM provider health configuration, then retry.',
+    error,
+  })
+}
+
+export function describeMcpHealthFailure(
+  error?: Error | null
+): SubqueryFailureState {
+  return formatSubqueryFailure({
+    title: 'MCP health request failed',
+    fallbackDetail: 'MCP health request failed.',
+    guidance:
+      'Check the active auth method and MCP provider health configuration, then retry.',
+    error,
+  })
+}
+
 export function describeLlmCapability(
   health?: LLMProviderHealth
 ): { summary: string; detail: string; tone: IntegrationTone } {
