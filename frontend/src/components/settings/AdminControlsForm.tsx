@@ -28,6 +28,8 @@ import {
 } from "./types";
 import {
   describeLlmCapability,
+  describeLlmHealthFailure,
+  describeMcpHealthFailure,
   formatLlmValidationLabel,
   formatSettingSource,
   getDurabilityLabel,
@@ -70,8 +72,12 @@ interface Props {
   setForm: Dispatch<SetStateAction<SettingsFormState>>;
   llmProviderHealth?: LLMProviderHealth;
   isLlmHealthLoading?: boolean;
+  isLlmHealthError?: boolean;
+  llmHealthError?: Error | null;
   mcpProviderHealth?: MCPProviderHealth;
   isMcpHealthLoading?: boolean;
+  isMcpHealthError?: boolean;
+  mcpHealthError?: Error | null;
   llmCapabilitySummary?: {
     summary: string;
     detail: string;
@@ -368,8 +374,12 @@ export default function AdminControlsForm({
   setForm,
   llmProviderHealth,
   isLlmHealthLoading,
+  isLlmHealthError,
+  llmHealthError,
   mcpProviderHealth,
   isMcpHealthLoading,
+  isMcpHealthError,
+  mcpHealthError,
   llmCapabilitySummary,
   hasUnsavedChanges,
   newRepoInput,
@@ -435,6 +445,12 @@ export default function AdminControlsForm({
   const resolvedLlmCapability =
     llmCapabilitySummary ?? describeLlmCapability(llmProviderHealth);
   const llmValidationLabel = formatLlmValidationLabel(llmProviderHealth);
+  const llmHealthFailure = isLlmHealthError
+    ? describeLlmHealthFailure(llmHealthError)
+    : null;
+  const mcpHealthFailure = isMcpHealthError
+    ? describeMcpHealthFailure(mcpHealthError)
+    : null;
   const taskModelPreview = [
     {
       key: "analysis",
@@ -1339,15 +1355,21 @@ export default function AdminControlsForm({
                   value={
                     isLlmHealthLoading
                       ? "Checking..."
+                      : isLlmHealthError
+                        ? "Request failed"
                       : llmProviderHealth
                         ? `${llmProviderHealth.available ? "Available" : "Unavailable"} (${llmProviderHealth.reason})`
                         : "Unavailable"
                   }
+                  description={llmHealthFailure?.detail}
+                  guidance={llmHealthFailure?.guidance}
                 />
                 <ReadOnlyField
                   label="Provider Status"
                   value={
-                    llmProviderHealth
+                    isLlmHealthError
+                      ? "Unknown"
+                      : llmProviderHealth
                       ? llmProviderHealth.implemented
                         ? "Implemented"
                         : "Scaffolded only"
@@ -1359,20 +1381,32 @@ export default function AdminControlsForm({
                   value={
                     isLlmHealthLoading
                       ? "Checking..."
+                      : isLlmHealthError
+                        ? "Request failed"
                       : resolvedLlmCapability.summary
                   }
+                  description={llmHealthFailure?.detail}
+                  guidance={llmHealthFailure?.guidance}
                 />
                 <ReadOnlyField
                   label="Last validation"
                   value={
-                    isLlmHealthLoading ? "Checking..." : llmValidationLabel
+                    isLlmHealthLoading
+                      ? "Checking..."
+                      : isLlmHealthError
+                        ? "Unavailable"
+                        : llmValidationLabel
                   }
+                  description={llmHealthFailure?.detail}
+                  guidance={llmHealthFailure?.guidance}
                 />
               </div>
               <p className="text-xs text-[var(--ph-muted)]">
                 {isLlmHealthLoading
                   ? "Checking recent live LLM capability evidence..."
-                  : resolvedLlmCapability.detail}
+                  : isLlmHealthError
+                    ? `${llmHealthFailure?.detail} ${llmHealthFailure?.guidance}`
+                    : resolvedLlmCapability.detail}
               </p>
               <Separator />
               <div className="space-y-3">
@@ -1958,10 +1992,14 @@ export default function AdminControlsForm({
                   value={
                     isMcpHealthLoading
                       ? "Checking..."
+                      : isMcpHealthError
+                        ? "Probe failed"
                       : mcpProviderHealth
                         ? `${mcpProviderHealth.available ? "Available" : "Unavailable"} (${mcpProviderHealth.reason})`
                         : "Unavailable"
                   }
+                  description={mcpHealthFailure?.detail}
+                  guidance={mcpHealthFailure?.guidance}
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
@@ -2922,10 +2960,14 @@ function SwitchField({
 function ReadOnlyField({
   label,
   value,
+  description,
+  guidance,
   metadata,
 }: {
   label: string;
   value: string | number;
+  description?: string;
+  guidance?: string;
   metadata?: AppSettingMetadata;
 }) {
   const durability = getDurabilityLabel(metadata);
@@ -2950,6 +2992,12 @@ function ReadOnlyField({
           <span className="text-[var(--ph-muted)] italic">Not set</span>
         )}
       </p>
+      {description ? (
+        <p className="text-xs text-[var(--ph-muted)]">{description}</p>
+      ) : null}
+      {guidance ? (
+        <p className="text-xs text-[var(--ph-muted)]">{guidance}</p>
+      ) : null}
       {metadata?.note ? (
         <p className="text-xs text-[var(--ph-muted)]">{metadata.note}</p>
       ) : null}
