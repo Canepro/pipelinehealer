@@ -23,6 +23,8 @@ export function SettingToggleField({
 }) {
   const switchId = useId();
   const descriptionId = `${switchId}-description`;
+  const stateId = `${switchId}-state`;
+  const stateLabel = checked ? checkedLabel : uncheckedLabel;
 
   return (
     <div className="space-y-3">
@@ -48,14 +50,16 @@ export function SettingToggleField({
           id={switchId}
           checked={checked}
           onCheckedChange={onChange}
-          aria-describedby={descriptionId}
+          aria-describedby={`${descriptionId} ${stateId}`}
         />
-        <Label
-          htmlFor={switchId}
-          className="cursor-pointer text-sm text-[var(--ph-text)]"
+        <span
+          id={stateId}
+          aria-live="polite"
+          className="text-sm text-[var(--ph-text)]"
         >
-          {checked ? checkedLabel : uncheckedLabel}
-        </Label>
+          <span className="sr-only">Current state: </span>
+          {stateLabel}
+        </span>
       </div>
     </div>
   );
