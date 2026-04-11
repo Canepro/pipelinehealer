@@ -327,6 +327,7 @@ export default function SettingsPage() {
         queryClient.invalidateQueries({ queryKey: secretSettingsQueryKey }),
         queryClient.invalidateQueries({ queryKey: settingsQueryKey }),
         queryClient.invalidateQueries({ queryKey: llmProviderHealthQueryKey }),
+        queryClient.invalidateQueries({ queryKey: mcpProviderHealthQueryKey }),
         queryClient.invalidateQueries({
           queryKey: handoffIntegrationStatusQueryKey,
         }),
