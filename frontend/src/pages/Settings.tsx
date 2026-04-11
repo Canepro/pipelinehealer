@@ -29,6 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SettingToggleField } from "../components/settings/SettingToggleField";
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -879,7 +880,7 @@ function SettingsSummarySection({
   );
 }
 
-function RuntimeWiringCard({
+export function RuntimeWiringCard({
   data,
   form,
   setForm,
@@ -967,28 +968,24 @@ function RuntimeWiringCard({
 
         <div className="space-y-4">
           <div className="rounded-md border border-[var(--ph-border)]/70 px-3 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-medium text-[var(--ph-text)]">Verify webhook signatures</div>
-                <p className="mt-1 text-xs leading-5 text-[var(--ph-muted)]">
-                  Keep this enabled in production unless you have a trusted intermediary in front of the webhook endpoint.
-                </p>
-              </div>
-              <Badge variant="outline">
-                {data.settings_metadata?.verify_webhook_signature?.source === "env" ? "Env override" : "Runtime"}
-              </Badge>
-            </div>
-            <div className="mt-3">
-              <Button
-                type="button"
-                variant={form.verify_webhook_signature ? "secondary" : "ghost"}
-                onClick={() =>
-                  setForm((current) => ({ ...current, verify_webhook_signature: !current.verify_webhook_signature }))
-                }
-              >
-                {form.verify_webhook_signature ? "Required" : "Disabled"}
-              </Button>
-            </div>
+            <SettingToggleField
+              label="Verify webhook signatures"
+              description="Keep this enabled in production unless you have a trusted intermediary in front of the webhook endpoint."
+              checked={form.verify_webhook_signature}
+              checkedLabel="Required"
+              uncheckedLabel="Disabled"
+              badgeLabel={
+                data.settings_metadata?.verify_webhook_signature?.source === "env"
+                  ? "Env override"
+                  : "Runtime"
+              }
+              onChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  verify_webhook_signature: value,
+                }))
+              }
+            />
           </div>
 
           <div className="rounded-md border border-[var(--ph-border)]/70 px-3 py-3">
@@ -1004,18 +1001,24 @@ function RuntimeWiringCard({
               </Badge>
             </div>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Enabled</Label>
-                <Button
-                  type="button"
-                  variant={form.jenkins_bridge_enabled ? "secondary" : "ghost"}
-                  onClick={() =>
-                    setForm((current) => ({ ...current, jenkins_bridge_enabled: !current.jenkins_bridge_enabled }))
-                  }
-                >
-                  {form.jenkins_bridge_enabled ? "On" : "Off"}
-                </Button>
-              </div>
+              <SettingToggleField
+                label="Enabled"
+                description="Turn the Jenkins bridge runtime policy on or off. The shared secret stays in the separate secrets section."
+                checked={form.jenkins_bridge_enabled}
+                checkedLabel="On"
+                uncheckedLabel="Off"
+                badgeLabel={
+                  data.settings_metadata?.jenkins_bridge_enabled?.source === "env"
+                    ? "Env override"
+                    : "Runtime"
+                }
+                onChange={(value) =>
+                  setForm((current) => ({
+                    ...current,
+                    jenkins_bridge_enabled: value,
+                  }))
+                }
+              />
               <div className="space-y-2">
                 <Label>Max skew seconds</Label>
                 <Input
