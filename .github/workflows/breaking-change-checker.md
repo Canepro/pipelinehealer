@@ -26,6 +26,7 @@ safe-outputs:
     run-success: ✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋
 description: Daily analysis of recent commits and merged PRs for breaking CLI changes
 engine: copilot
+model: gpt-4o
 source: github/gh-aw/.github/workflows/breaking-change-checker.md@94662b1dee8ce96c876ba9f33b3ab8be32de82a4
 timeout-minutes: 10
 tools:
