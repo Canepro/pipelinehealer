@@ -1077,7 +1077,7 @@ jobs:
   pre_activation:
     runs-on: ubuntu-slim
     outputs:
-      activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_skip_if_match.outputs.skip_check_ok == 'true') }}
+      activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.normalize_skip_if_match.outputs.skip_check_ok == 'true') }}
     steps:
       - name: Setup Scripts
         uses: github/gh-aw/actions/setup@9382be3ca9ac18917e111a99d4e6bbff58d0dccc # v0.43.23
@@ -1097,9 +1097,10 @@ jobs:
             await main();
       - name: Check skip-if-match query
         id: check_skip_if_match
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_SKIP_QUERY: "is:issue is:open in:title \"[breaking-change]\""
+          GH_AW_SKIP_QUERY: "is:issue is:open label:breaking-change in:title \"[breaking-change]\""
           GH_AW_WORKFLOW_NAME: "Breaking Change Checker"
           GH_AW_SKIP_MAX_MATCHES: "1"
         with:
@@ -1108,6 +1109,16 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_skip_if_match.cjs');
             await main();
+      - name: Normalize skip-if-match output
+        id: normalize_skip_if_match
+        shell: bash
+        run: |
+          skip_check_ok="${{ steps.check_skip_if_match.outputs.skip_check_ok }}"
+          if [ -z "$skip_check_ok" ]; then
+            echo "::warning::skip-if-match check produced no output. Defaulting to safe proceed=true."
+            skip_check_ok="true"
+          fi
+          echo "skip_check_ok=$skip_check_ok" >> "$GITHUB_OUTPUT"
 
   safe_outputs:
     needs:

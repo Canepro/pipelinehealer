@@ -1,7 +1,7 @@
 ---
 on:
   schedule: 0 14 * * 1-5
-  skip-if-match: is:issue is:open in:title "[breaking-change]"
+  skip-if-match: is:issue is:open label:breaking-change in:title "[breaking-change]"
   workflow_dispatch: null
 permissions:
   actions: read
