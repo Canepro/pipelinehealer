@@ -51,6 +51,7 @@ export default function RuntimePolicyBanner({ data }: Props) {
             <PolicyFact
               label="Automation"
               value={data.auto_apply_remediation ? "Enabled" : "Dry-run"}
+              tone={data.auto_apply_remediation ? "ok" : "muted"}
             />
             <PolicyFact
               label="Outputs"
@@ -63,6 +64,13 @@ export default function RuntimePolicyBanner({ data }: Props) {
                   .filter(Boolean)
                   .join(", ") || "None"
               }
+              tone={
+                data.auto_create_pr ||
+                data.auto_create_issue ||
+                data.auto_retry_workflow
+                  ? "ok"
+                  : "muted"
+              }
             />
             <PolicyFact
               label="Repo scope"
@@ -71,6 +79,7 @@ export default function RuntimePolicyBanner({ data }: Props) {
                   ? `${data.ph_allowed_repos.length} repo${data.ph_allowed_repos.length !== 1 ? "s" : ""}`
                   : "Unrestricted"
               }
+              tone={data.ph_allowed_repos.length > 0 ? "ok" : "warn"}
             />
             <PolicyFact
               label="MCP posture"
@@ -81,6 +90,7 @@ export default function RuntimePolicyBanner({ data }: Props) {
                     : "Enabled · Write-capable"
                   : "Disabled"
               }
+              tone={data.mcp_enabled ? "ok" : "muted"}
             />
             <PolicyFact
               label="Jenkins bridge PRs"
@@ -93,14 +103,23 @@ export default function RuntimePolicyBanner({ data }: Props) {
             <PolicyFact
               label="Webhook signature"
               value={data.verify_webhook_signature ? "Required" : "Off"}
+              tone={data.verify_webhook_signature ? "ok" : "bad"}
             />
             <PolicyFact
               label="External diagnostics"
               value={data.gh_aw_tools_enabled ? "Enabled" : "Off"}
+              tone={data.gh_aw_tools_enabled ? "ok" : "muted"}
             />
             <PolicyFact
               label="Receiver mode"
               value={handoffStatus.label.replace("Handoff: ", "")}
+              tone={
+                handoffStatus.variant === "success"
+                  ? "ok"
+                  : handoffStatus.variant === "destructive"
+                    ? "bad"
+                    : "muted"
+              }
             />
           </div>
 
@@ -126,13 +145,37 @@ export default function RuntimePolicyBanner({ data }: Props) {
   );
 }
 
-function PolicyFact({ label, value }: { label: string; value: string }) {
+type PolicyTone = "ok" | "warn" | "bad" | "info" | "muted";
+
+const POLICY_DOT: Record<PolicyTone, string> = {
+  ok: "bg-[var(--ph-success)]",
+  warn: "bg-[var(--ph-warning)]",
+  bad: "bg-[var(--ph-danger)]",
+  info: "bg-[var(--ph-info)]",
+  muted: "bg-[var(--ph-muted)]",
+};
+
+function PolicyFact({
+  label,
+  value,
+  tone = "muted",
+}: {
+  label: string;
+  value: string;
+  tone?: PolicyTone;
+}) {
   return (
-    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/45 px-3 py-2">
-      <div className="text-xs text-[var(--ph-muted)]">{label}</div>
-      <div className="mt-1 text-sm font-medium text-[var(--ph-text)]">
-        {value}
+    <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/45 px-3.5 py-3">
+      <div className="flex items-center gap-2">
+        <span
+          className={`h-2 w-2 shrink-0 rounded-full ${POLICY_DOT[tone]}`}
+          aria-hidden="true"
+        />
+        <span className="truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ph-muted)]">
+          {label}
+        </span>
       </div>
+      <span className="text-sm font-semibold text-[var(--ph-text)]">{value}</span>
     </div>
   );
 }

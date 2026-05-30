@@ -417,11 +417,13 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       {/* Page header */}
-      <div className="flex items-center gap-3">
-        <Settings2 className="h-7 w-7 text-[var(--ph-accent)]" />
+      <div className="flex items-start gap-3.5">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]">
+          <Settings2 className="h-5 w-5 text-[var(--ph-accent)]" />
+        </div>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--ph-text)]">Settings</h1>
-          <p className="text-sm text-[var(--ph-muted)]">
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-[var(--ph-muted)]">
             Operator control surface for runtime policy, startup-managed
             dependencies, and durable settings.
           </p>

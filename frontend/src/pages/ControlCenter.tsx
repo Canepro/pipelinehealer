@@ -640,6 +640,62 @@ function SummaryRows({
   );
 }
 
+type HealthTone = "ok" | "warn" | "bad" | "info" | "muted";
+
+const HEALTH_DOT: Record<HealthTone, string> = {
+  ok: "bg-[var(--ph-success)]",
+  warn: "bg-[var(--ph-warning)]",
+  bad: "bg-[var(--ph-danger)]",
+  info: "bg-[var(--ph-info)]",
+  muted: "bg-[var(--ph-muted)]",
+};
+
+const HEALTH_TEXT: Record<HealthTone, string> = {
+  ok: "text-[var(--ph-success)]",
+  warn: "text-[var(--ph-warning)]",
+  bad: "text-[var(--ph-danger)]",
+  info: "text-[var(--ph-text)]",
+  muted: "text-[var(--ph-muted)]",
+};
+
+function HealthStat({
+  label,
+  value,
+  tone = "muted",
+  detail,
+}: {
+  label: string;
+  value: string;
+  tone?: HealthTone;
+  detail?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/40 px-4 py-3.5">
+      <div className="flex items-center gap-2">
+        <span
+          className={`h-2 w-2 shrink-0 rounded-full ${HEALTH_DOT[tone]}`}
+          aria-hidden="true"
+        />
+        <span className="truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ph-muted)]">
+          {label}
+        </span>
+      </div>
+      <span className={`text-sm font-semibold ${HEALTH_TEXT[tone]}`} title={value}>
+        {value}
+      </span>
+      {detail ? (
+        <span className="text-xs leading-4 text-[var(--ph-muted)]">{detail}</span>
+      ) : null}
+    </div>
+  );
+}
+
+function toHealthTone(
+  tone: "default" | "ok" | "warn" | "bad" | "muted" | undefined,
+): HealthTone {
+  return tone && tone !== "default" ? tone : "muted";
+}
+
 export default function ControlCenterPage() {
   const queryClient = useQueryClient();
   const isApiAuthReady = useApiAuthReady();
@@ -1032,15 +1088,19 @@ export default function ControlCenterPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--ph-text)]">
-          <ShieldCheck className="h-6 w-6 text-[var(--ph-accent)]" />
-          Control Center
-        </h1>
-        <p className="text-sm text-[var(--ph-muted)]">
-          Operational governance view for policy posture, provider readiness,
-          audit traceability, and investigation access.
-        </p>
+      <div className="flex items-start gap-3.5">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]">
+          <ShieldCheck className="h-5 w-5 text-[var(--ph-accent)]" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--ph-text)]">
+            Control Center
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-[var(--ph-muted)]">
+            Operational governance view for policy posture, provider readiness,
+            audit traceability, and investigation access.
+          </p>
+        </div>
       </div>
 
       <Card>
@@ -1211,8 +1271,55 @@ export default function ControlCenterPage() {
           </Card>
 
           {activeSection === "overview" && (
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_360px]">
-              <div className="space-y-4">
+            <div className="space-y-4">
+              <Card>
+                <CardContent className="grid grid-cols-2 gap-3 py-4 sm:grid-cols-3 xl:grid-cols-6">
+                  <HealthStat
+                    label="Heal mode"
+                    value={settings.heal_mode}
+                    tone={settings.heal_mode === "safe" ? "ok" : "warn"}
+                  />
+                  <HealthStat
+                    label="Remediation"
+                    value={settings.auto_apply_remediation ? "Automated" : "Plan-only"}
+                    tone={settings.auto_apply_remediation ? "ok" : "muted"}
+                  />
+                  <HealthStat
+                    label="LLM"
+                    value={llmLoading ? "Checking..." : llmCapabilitySummary.summary}
+                    tone={llmLoading ? "muted" : toHealthTone(llmCapabilitySummary.tone)}
+                  />
+                  <HealthStat
+                    label="MCP"
+                    value={
+                      mcpLoading
+                        ? "Checking..."
+                        : mcpHealth?.available
+                          ? "Available"
+                          : "Unavailable"
+                    }
+                    tone={
+                      mcpLoading ? "muted" : mcpHealth?.available ? "ok" : "bad"
+                    }
+                  />
+                  <HealthStat
+                    label="Receiver"
+                    value={handoffIntegrationSummary.summary}
+                    tone={toHealthTone(handoffIntegrationSummary.tone)}
+                  />
+                  <HealthStat
+                    label="Safety gated"
+                    value={
+                      statsLoading
+                        ? "..."
+                        : String(stats?.safety_blocked_remediations ?? 0)
+                    }
+                    tone="info"
+                  />
+                </CardContent>
+              </Card>
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_360px]">
+                <div className="space-y-4">
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base">
@@ -1521,6 +1628,7 @@ export default function ControlCenterPage() {
                     </Button>
                   </CardContent>
                 </Card>
+              </div>
               </div>
             </div>
           )}
