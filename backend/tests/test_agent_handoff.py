@@ -507,6 +507,7 @@ async def test_handoff_session_copy_only_mode_does_not_deliver_configured_target
     monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
     monkeypatch.setenv("AGENT_HANDOFF_MODE", "copy_only")
     monkeypatch.setenv("AGENT_HANDOFF_ENABLED_TARGETS", "openclaw")
+    monkeypatch.setenv("AGENT_HANDOFF_DEFAULT_TARGET", "openclaw")
     monkeypatch.setenv("OPENCLAW_HANDOFF_URL", "https://agent.example.com/openclaw")
     monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_ALLOWLIST", "agent.example.com")
     reset_settings()

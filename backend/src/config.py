@@ -5,7 +5,7 @@ import os
 from typing import Annotated, Any
 from urllib.parse import urlparse
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from .llm.providers import LLMProviderName, resolve_llm_provider
@@ -759,6 +759,17 @@ class Settings(BaseSettings):
                 )
             normalized.append(target)
         return normalized
+
+    @model_validator(mode="after")
+    def validate_agent_handoff_default_is_enabled(self) -> "Settings":
+        """Require startup default handoff target to be selectable."""
+        enabled_targets = {target.strip().lower() for target in self.agent_handoff_enabled_targets}
+        if self.agent_handoff_default_target not in enabled_targets:
+            raise ValueError(
+                "AGENT_HANDOFF_DEFAULT_TARGET must be included in "
+                "AGENT_HANDOFF_ENABLED_TARGETS"
+            )
+        return self
 
     @field_validator("codex_app_server_transport")
     @classmethod

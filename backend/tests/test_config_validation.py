@@ -86,6 +86,22 @@ def test_accepts_agent_control_plane_targets() -> None:
     ]
 
 
+def test_rejects_default_agent_handoff_target_not_enabled() -> None:
+    try:
+        Settings(
+            _env_file=None,
+            agent_handoff_default_target="custom",
+            agent_handoff_enabled_targets="codex_app_server,openclaw,hermes",
+        )
+    except ValidationError as exc:
+        assert (
+            "AGENT_HANDOFF_DEFAULT_TARGET must be included in "
+            "AGENT_HANDOFF_ENABLED_TARGETS"
+        ) in str(exc)
+    else:
+        raise AssertionError("Expected ValidationError for disabled default handoff target")
+
+
 def test_rejects_invalid_codex_app_server_transport() -> None:
     try:
         Settings(
