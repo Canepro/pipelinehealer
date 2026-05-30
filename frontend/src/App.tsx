@@ -9,6 +9,7 @@ const Activities = lazy(() => import('./pages/Activities'))
 const ActivityDetail = lazy(() => import('./pages/ActivityDetail'))
 const SettingsPage = lazy(() => import('./pages/Settings'))
 const ControlCenterPage = lazy(() => import('./pages/ControlCenter'))
+const StyleGuide = lazy(() => import('./pages/StyleGuide'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 function PageFallback() {
@@ -24,6 +25,7 @@ function App() {
     <Suspense fallback={<PageFallback />}>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/styleguide" element={<StyleGuide />} />
         <Route
           path="/app"
           element={
