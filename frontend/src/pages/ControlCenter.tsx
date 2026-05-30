@@ -570,20 +570,22 @@ function OverviewBlock({
   items: PostureItem[];
 }) {
   return (
-    <div>
-      <div className="mb-3 text-sm font-semibold text-[var(--ph-text)]/90">
+    <div className="space-y-2.5">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ph-muted)]">
         {title}
       </div>
-      <div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {items.map((item) => (
           <div
             key={`${title}-${item.label}`}
-            className="grid min-h-[44px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-[var(--ph-border)]/55 py-3 last:border-b-0 last:pb-0 first:pt-0"
+            className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/40 px-3 py-2.5"
           >
-            <span className="text-sm text-[var(--ph-muted)]">{item.label}</span>
-            <span className="text-right text-sm font-semibold text-[var(--ph-text)]/90">
+            <div className="text-[11px] leading-tight text-[var(--ph-muted)]">
+              {item.label}
+            </div>
+            <div className="mt-1 text-sm font-semibold text-[var(--ph-text)]">
               {item.value}
-            </span>
+            </div>
           </div>
         ))}
       </div>
@@ -599,29 +601,19 @@ function SummaryRows({
   compact?: boolean;
 }) {
   return (
-    <div>
+    <div className={compact ? "space-y-2.5" : "space-y-3"}>
       {rows.map((row) => (
         <div
           key={`${row.label}-${row.value}`}
-          className={
-            compact
-              ? "grid grid-cols-1 gap-2 border-b border-[var(--ph-border)]/55 py-3 text-sm last:border-b-0 last:pb-0 first:pt-0 sm:grid-cols-[minmax(0,128px)_minmax(0,1fr)]"
-              : "grid grid-cols-1 gap-2 border-b border-[var(--ph-border)]/55 py-3 text-sm last:border-b-0 last:pb-0 first:pt-0 sm:grid-cols-[minmax(0,180px)_minmax(0,1fr)]"
-          }
+          className="border-b border-[var(--ph-border)]/55 pb-2.5 last:border-b-0 last:pb-0"
         >
-          <span className="pt-0.5 text-xs font-medium uppercase tracking-[0.06em] text-[var(--ph-muted)]/90">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--ph-muted)]">
             {row.label}
           </span>
-          <div
-            className={
-              compact
-                ? "min-w-0 space-y-1"
-                : "min-w-0 space-y-1 sm:text-right"
-            }
-          >
+          <div className="mt-1 min-w-0">
             <span
               className={`block font-medium ${
-                row.mono ? "break-all font-mono text-xs" : "break-words"
+                row.mono ? "break-all font-mono text-xs" : "break-words text-sm"
               } ${
                 row.tone === "ok"
                   ? "text-[var(--ph-success)]"
@@ -631,13 +623,13 @@ function SummaryRows({
                       ? "text-[var(--ph-danger)]"
                       : row.tone === "muted"
                         ? "text-[var(--ph-muted)]"
-                        : "text-[var(--ph-text)]/90"
+                        : "text-[var(--ph-text)]"
               }`}
             >
               {row.value}
             </span>
             {row.detail ? (
-              <div className="break-words text-xs leading-5 text-[var(--ph-muted)]">
+              <div className="mt-1 break-words text-xs leading-5 text-[var(--ph-muted)]">
                 {row.detail}
               </div>
             ) : null}
@@ -1188,31 +1180,21 @@ export default function ControlCenterPage() {
                 }
                 className="w-full"
               >
-                <TabsList className="grid h-auto w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  <TabsTrigger
-                    value="overview"
-                    className="py-3 text-sm font-semibold"
-                  >
-                    Governance Overview
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="learning_ops"
-                    className="py-3 text-sm font-semibold"
-                  >
-                    Learning & Ops
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="trust_ops"
-                    className="py-3 text-sm font-semibold"
-                  >
-                    Trust Ops
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="audit"
-                    className="py-3 text-sm font-semibold"
-                  >
-                    Audit & Trace
-                  </TabsTrigger>
+                <TabsList className="inline-flex h-auto min-h-0 w-full flex-wrap gap-1 rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/40 p-1 sm:w-auto">
+                  {[
+                    { value: "overview", label: "Governance Overview" },
+                    { value: "learning_ops", label: "Learning & Ops" },
+                    { value: "trust_ops", label: "Trust Ops" },
+                    { value: "audit", label: "Audit & Trace" },
+                  ].map((tab) => (
+                    <TabsTrigger
+                      key={tab.value}
+                      value={tab.value}
+                      className="flex-1 whitespace-nowrap rounded-md border-b-0 px-4 py-2 text-sm font-medium text-[var(--ph-muted)] data-[state=active]:bg-[var(--ph-surface)] data-[state=active]:font-semibold data-[state=active]:shadow-sm sm:flex-none"
+                    >
+                      {tab.label}
+                    </TabsTrigger>
+                  ))}
                 </TabsList>
               </Tabs>
               <p className="mt-3 text-sm text-[var(--ph-muted)]">
@@ -1237,7 +1219,7 @@ export default function ControlCenterPage() {
                       Governance summary
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="grid gap-3 md:grid-cols-2">
+                  <CardContent className="space-y-5">
                     <OverviewBlock
                       title="Runtime posture"
                       items={[

@@ -561,7 +561,7 @@ export default function SettingsPage() {
         <>
           <RuntimePolicyBanner data={data} />
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_400px]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,340px)_minmax(0,1fr)] xl:items-start">
             <SetupChecklistCard status={data.setup_status} />
             <SecretSettingsCard
               secrets={secretSettings ?? []}
@@ -1020,10 +1020,10 @@ export function RuntimeWiringCard({
                 {data.settings_metadata?.jenkins_bridge_enabled?.source === "env" ? "Env override" : "Runtime"}
               </Badge>
             </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="mt-3 space-y-3 border-t border-[var(--ph-border)]/55 pt-3">
               <SettingToggleField
                 label="Enabled"
-                description="Turn the Jenkins bridge runtime policy on or off. The shared secret stays in the separate secrets section."
+                description="Turn the Jenkins bridge runtime policy on or off."
                 checked={form.jenkins_bridge_enabled}
                 checkedLabel="On"
                 uncheckedLabel="Off"
@@ -1039,35 +1039,37 @@ export function RuntimeWiringCard({
                   }))
                 }
               />
-              <div className="space-y-2">
-                <Label>Max skew seconds</Label>
-                <Input
-                  type="number"
-                  value={form.jenkins_bridge_max_skew_seconds}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, jenkins_bridge_max_skew_seconds: Number(event.target.value) || 0 }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Replay TTL seconds</Label>
-                <Input
-                  type="number"
-                  value={form.jenkins_bridge_replay_ttl_seconds}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, jenkins_bridge_replay_ttl_seconds: Number(event.target.value) || 0 }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Max body bytes</Label>
-                <Input
-                  type="number"
-                  value={form.jenkins_bridge_max_body_bytes}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, jenkins_bridge_max_body_bytes: Number(event.target.value) || 0 }))
-                  }
-                />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Max skew (s)</Label>
+                  <Input
+                    type="number"
+                    value={form.jenkins_bridge_max_skew_seconds}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, jenkins_bridge_max_skew_seconds: Number(event.target.value) || 0 }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Replay TTL (s)</Label>
+                  <Input
+                    type="number"
+                    value={form.jenkins_bridge_replay_ttl_seconds}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, jenkins_bridge_replay_ttl_seconds: Number(event.target.value) || 0 }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Max body (bytes)</Label>
+                  <Input
+                    type="number"
+                    value={form.jenkins_bridge_max_body_bytes}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, jenkins_bridge_max_body_bytes: Number(event.target.value) || 0 }))
+                    }
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1163,11 +1165,11 @@ function SecretSettingsCard({
             </p>
           </div>
         ) : null}
-        <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
           {secrets.map((secret) => (
             <div
               key={secret.key}
-              className="rounded-md border border-[var(--ph-border)]/70 px-3 py-3"
+              className="flex flex-col rounded-md border border-[var(--ph-border)]/70 px-3 py-3"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -1191,7 +1193,7 @@ function SecretSettingsCard({
                     id={`secret-${secret.key}`}
                     value={values[secret.key] ?? ""}
                     onChange={(event) => onChange(secret.key, event.target.value)}
-                    className="min-h-28 w-full rounded-md border border-[var(--ph-border)] bg-background px-3 py-2 text-sm"
+                    className="min-h-28 w-full rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-3 py-2 text-sm text-[var(--ph-text)] outline-none placeholder:text-[var(--ph-muted)] focus-visible:ring-2 focus-visible:ring-[var(--ph-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ph-surface)]"
                     placeholder="Paste the new secret value"
                   />
                 ) : (
