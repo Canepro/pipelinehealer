@@ -271,8 +271,10 @@ def _extract_text(payload: Any) -> str:
             "structured_output",
             "structuredContent",
             "structured_content",
-        } and isinstance(value, dict) and isinstance(value.get("text"), str):
-            return value["text"].strip()
+        } and isinstance(value, dict):
+            structured_text = value.get("text")
+            if isinstance(structured_text, str):
+                return structured_text.strip()
         text = _extract_text(value)
         if text:
             return text
