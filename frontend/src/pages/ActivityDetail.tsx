@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import {
   api,
   type Activity,
-  type ExternalAgentTarget,
+  type HandoffSessionCreateRequest,
   type HandoffSessionView,
 } from "../api/client";
 import { getActivitySourceInfo } from "../utils/activitySource";
@@ -1207,12 +1207,8 @@ export default function ActivityDetail() {
     },
   });
   const handoffMutation = useMutation({
-    mutationFn: (payload: {
-      target: ExternalAgentTarget;
-      goal: string;
-      context: string;
-      context_format?: string;
-    }) => api.createHandoffSession(id!, payload),
+    mutationFn: (payload: HandoffSessionCreateRequest) =>
+      api.createHandoffSession(id!, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["activity", id] });
       queryClient.invalidateQueries({
@@ -1399,12 +1395,21 @@ export default function ActivityDetail() {
       return;
     }
     const context = buildActivityContext(activity);
+    if (handoffConfig.mode === "copy_only") {
+      try {
+        await copyToClipboard(context);
+      } catch {
+        toast.error("Unable to copy handoff context");
+        return;
+      }
+    }
     handoffMutation.mutate(
       {
         target: handoffConfig.default_target,
         goal: buildHandoffGoal(activity),
         context,
         context_format: "markdown",
+        send: handoffConfig.mode === "webhook",
       },
       {
         onSuccess: (result) => {

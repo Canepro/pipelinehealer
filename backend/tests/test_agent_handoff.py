@@ -3,6 +3,7 @@
 import hashlib
 import hmac
 import json
+from typing import Any
 
 import httpx
 import pytest
@@ -532,6 +533,58 @@ async def test_handoff_session_copy_only_mode_does_not_deliver_configured_target
     assert body["delivery_status"] == "copied"
     assert body["session"]["status"] == "created"
     assert body["message"] == "Handoff session recorded; copy-only mode is active"
+
+
+@pytest.mark.asyncio
+async def test_handoff_session_uses_legacy_webhook_for_default_codex_target(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.api import dashboard
+
+    captured: dict[str, Any] = {}
+
+    async def _fake_deliver(**kwargs: Any) -> tuple[bool, None]:
+        captured.update(kwargs)
+        return True, None
+
+    monkeypatch.setattr(dashboard, "_deliver_handoff_webhook", _fake_deliver)
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "webhook")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED_TARGETS", "codex_app_server")
+    monkeypatch.setenv("AGENT_HANDOFF_DEFAULT_TARGET", "codex_app_server")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_URL", "https://agent.example.com/handoff")
+    monkeypatch.delenv("CODEX_APP_SERVER_HANDOFF_URL", raising=False)
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_ALLOWLIST", "agent.example.com")
+    reset_settings()
+
+    activity = ActivityRecord(
+        repositoryId="1",
+        repository_name="canepro/pipelinehealer-demo",
+        workflow_run_id=325,
+        workflow_name="CI",
+        status=RemediationStatus.FAILED,
+    )
+    activity_id = await _storage.create_activity(activity)
+    response = await _post_handoff_session(
+        activity_id,
+        {
+            "target": "codex_app_server",
+            "goal": "Fix the failed test and open a PR.",
+            "context": "safe context",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["delivery_status"] == "queued"
+    assert body["session"]["status"] == "queued"
+    assert body["session"]["metadata"]["target_url_configured"] is True
+    assert captured["url"] == "https://agent.example.com/handoff"
+    delivered_payload = captured["payload"]
+    assert isinstance(delivered_payload, dict)
+    assert delivered_payload["target"] == "codex_app_server"
 
 
 @pytest.mark.asyncio

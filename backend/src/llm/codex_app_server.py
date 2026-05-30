@@ -119,7 +119,7 @@ class CodexAppServerAgent:
 
         token = self._websocket_token()
         headers = {"Authorization": f"Bearer {token}"} if token else None
-        async with websockets.connect(ws_url, extra_headers=headers) as websocket:
+        async with websockets.connect(ws_url, additional_headers=headers) as websocket:
             async def write_line(line: str) -> None:
                 await websocket.send(line.rstrip("\n"))
 

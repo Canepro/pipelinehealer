@@ -1,3 +1,6 @@
+import sys
+from typing import Any
+
 import pytest
 from pydantic import ValidationError
 
@@ -169,3 +172,69 @@ async def test_codex_app_server_runtime_rejects_remote_websocket_without_opt_in(
 
     with pytest.raises(RuntimeError, match="ALLOW_REMOTE"):
         await agent._run_websocket("prompt")
+
+
+@pytest.mark.asyncio
+async def test_codex_app_server_runtime_uses_current_websocket_headers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeWebSocket:
+        def __init__(self) -> None:
+            self.messages = iter(
+                [
+                    '{"id": 1, "result": {}}',
+                    '{"id": 2, "result": {"thread": {"id": "thread-1"}}}',
+                    '{"id": 3, "result": {}}',
+                    '{"method": "turn/completed", "params": {"text": "ok"}}',
+                ]
+            )
+            self.sent: list[str] = []
+
+        async def __aenter__(self) -> "FakeWebSocket":
+            return self
+
+        async def __aexit__(
+            self,
+            exc_type: object,
+            exc: object,
+            traceback: object,
+        ) -> None:
+            return None
+
+        async def send(self, line: str) -> None:
+            self.sent.append(line)
+
+        async def recv(self) -> str:
+            try:
+                return next(self.messages)
+            except StopIteration as exc:
+                raise AssertionError("unexpected websocket receive") from exc
+
+    class FakeWebsocketsModule:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        def connect(self, url: str, **kwargs: Any) -> FakeWebSocket:
+            self.calls.append({"url": url, **kwargs})
+            return FakeWebSocket()
+
+    fake_websockets = FakeWebsocketsModule()
+    monkeypatch.setitem(sys.modules, "websockets", fake_websockets)
+    settings = Settings(
+        _env_file=None,
+        llm_provider="codex_app_server",
+        codex_app_server_transport="websocket",
+        codex_app_server_ws_url="ws://127.0.0.1:8765/app-server",
+        codex_app_server_ws_bearer_token="token",
+    )
+    agent = CodexAppServerAgent(settings=settings, instructions="test")
+
+    result = await agent._run_websocket("prompt")
+
+    assert result == "ok"
+    assert fake_websockets.calls == [
+        {
+            "url": "ws://127.0.0.1:8765/app-server",
+            "additional_headers": {"Authorization": "Bearer token"},
+        }
+    ]

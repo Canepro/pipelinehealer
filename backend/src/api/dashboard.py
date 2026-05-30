@@ -1945,13 +1945,14 @@ def _handoff_labels(target: ExternalAgentTarget, extra: list[str]) -> list[str]:
 
 def _target_handoff_url(target: ExternalAgentTarget) -> str:
     settings = get_settings()
+    legacy_url = settings.agent_handoff_webhook_url.strip()
     if target == ExternalAgentTarget.CODEX_APP_SERVER:
-        return settings.codex_app_server_handoff_url.strip()
+        return settings.codex_app_server_handoff_url.strip() or legacy_url
     if target == ExternalAgentTarget.OPENCLAW:
-        return settings.openclaw_handoff_url.strip()
+        return settings.openclaw_handoff_url.strip() or legacy_url
     if target == ExternalAgentTarget.HERMES:
-        return settings.hermes_handoff_url.strip()
-    return settings.agent_handoff_webhook_url.strip()
+        return settings.hermes_handoff_url.strip() or legacy_url
+    return legacy_url
 
 
 def _target_enabled(target: ExternalAgentTarget) -> bool:
