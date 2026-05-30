@@ -117,7 +117,7 @@
   <main class="shell">
     <div class="topbar">
       <div class="brand"><span class="mark">PH</span> PipelineHealer closeout</div>
-      <time datetime="2026-05-30T18:42:49+01:00">May 30, 2026, 18:42 BST</time>
+      <time datetime="2026-05-30T18:52:29+01:00">May 30, 2026, 18:52 BST</time>
     </div>
 
     <section class="hero">
@@ -259,8 +259,8 @@ values_printed=false</pre>
         <p>Backend health endpoint: <a href="https://ca-canepro-ph-backend.kinddune-53ac219d.eastus2.azurecontainerapps.io/health">https://ca-canepro-ph-backend.kinddune-53ac219d.eastus2.azurecontainerapps.io/health</a></p>
         <p>Frontend app: <a href="https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io/">https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io/</a></p>
         <p class="muted">Deployment used <code>infisical run</code> to inject values into the deploy child process, then wrote those values into ACA secrets without printing them.</p>
-        <pre>backend image: caneprophacr01.azurecr.io/pipelinehealer-backend:agent-control-plane-20260530173516
-frontend image: caneprophacr01.azurecr.io/pipelinehealer-frontend:agent-control-plane-20260530173516</pre>
+        <pre>backend image: caneprophacr01.azurecr.io/pipelinehealer-backend:51e7432
+frontend image: caneprophacr01.azurecr.io/pipelinehealer-frontend:51e7432</pre>
       </article>
 
       <article class="section" id="risks">
@@ -281,8 +281,8 @@ frontend image: caneprophacr01.azurecr.io/pipelinehealer-frontend:agent-control-
           <div class="event"><time>2026-05-30 17:05 BST</time><p>Frontend settings and activity detail surfaces were added and validated with lint/build.</p></div>
           <div class="event"><time>2026-05-30 17:14 BST</time><p>Infisical redacted process-injection proof confirmed migrated runtime and bootstrap secrets.</p></div>
           <div class="event"><time>2026-05-30 17:16 BST</time><p>Local backend and frontend servers were started and checked healthy.</p></div>
-          <div class="event"><time>2026-05-30 18:41 BST</time><p>Azure Container Apps deployment completed with ACR remote builds and ACA secret refs for backend and frontend.</p></div>
-          <div class="event"><time>2026-05-30 18:42 BST</time><p>Live health, settings, handoff config, provider health, frontend, favicon, and manifest checks passed.</p></div>
+          <div class="event"><time>2026-05-30 18:51 BST</time><p>Azure Container Apps deployment completed for commit <code>51e7432</code> with ACR remote builds and ACA secret refs for backend and frontend.</p></div>
+          <div class="event"><time>2026-05-30 18:52 BST</time><p>Live health, settings, handoff config, provider health, frontend, favicon, manifest, deployed image, and ACA secret-ref checks passed.</p></div>
         </div>
       </article>
     </section>
