@@ -2184,6 +2184,24 @@ async def update_app_settings(
             )
         changes["agent_handoff_enabled_targets"] = normalized_targets
 
+    if "agent_handoff_default_target" in changes or "agent_handoff_enabled_targets" in changes:
+        effective_default_target = str(
+            changes.get("agent_handoff_default_target", settings.agent_handoff_default_target)
+        ).strip().lower()
+        effective_enabled_targets = {
+            str(target).strip().lower()
+            for target in changes.get(
+                "agent_handoff_enabled_targets",
+                settings.agent_handoff_enabled_targets,
+            )
+            if str(target).strip()
+        }
+        if effective_default_target not in effective_enabled_targets:
+            raise HTTPException(
+                status_code=422,
+                detail="agent_handoff_default_target must be included in agent_handoff_enabled_targets",
+            )
+
     try:
         effective_handoff_webhook_url = _validate_handoff_webhook_url(
             settings.agent_handoff_webhook_url

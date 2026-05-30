@@ -954,6 +954,37 @@ async def test_admin_can_patch_llm_task_model_overrides(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_admin_patch_requires_default_handoff_target_to_be_enabled(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.delenv("AGENT_HANDOFF_DEFAULT_TARGET", raising=False)
+    monkeypatch.delenv("AGENT_HANDOFF_ENABLED_TARGETS", raising=False)
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    response = await _patch_settings(
+        {"agent_handoff_enabled_targets": ["openclaw"]},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 422
+    assert "agent_handoff_default_target" in response.json()["detail"]
+
+    response = await _patch_settings(
+        {
+            "agent_handoff_default_target": "openclaw",
+            "agent_handoff_enabled_targets": ["openclaw"],
+        },
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["agent_handoff_default_target"] == "openclaw"
+    assert body["agent_handoff_enabled_targets"] == ["openclaw"]
+
+
+@pytest.mark.asyncio
 async def test_admin_patch_rejects_invalid_llm_provider(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
