@@ -21,6 +21,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from ..config import get_settings, load_settings_snapshot
 from ..llm.adapters import get_llm_provider_adapter
 from ..llm.capability import build_llm_capability_snapshot
+from ..llm.providers import resolve_llm_provider
 from ..models import (
     ActivityRecord,
     AdminSecretsUpdateRequest,
@@ -1506,10 +1507,10 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
     if attr_name in {"llm_model_analysis", "llm_model_diagnosis", "llm_model_remediation"}:
         return str(value).strip()
     if attr_name == "llm_provider":
-        normalized = str(value).strip().lower()
-        if normalized not in {"azure_openai", "openai_compatible", "custom"}:
-            raise ValueError("invalid llm_provider")
-        return normalized
+        try:
+            return resolve_llm_provider(str(value)).value
+        except ValueError as exc:
+            raise ValueError("invalid llm_provider") from exc
     if attr_name == "mcp_provider":
         normalized = str(value).strip().lower()
         if normalized not in {"disabled", "github", "azure_monitor", "custom"}:

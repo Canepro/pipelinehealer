@@ -1312,6 +1312,7 @@ async def test_apply_persisted_runtime_settings_restores_values(
 ) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
     monkeypatch.setenv(
         "PIPELINEHEALER_ENV_FILE_PATH",
         str(tmp_path / "missing-settings.env"),
@@ -1326,6 +1327,7 @@ async def test_apply_persisted_runtime_settings_restores_values(
     patch_response = await _patch_settings(
         {
             "heal_mode": "demo",
+            "llm_provider": "codex_app_server",
             "gh_aw_tools_enabled": True,
             "gh_aw_ingestion_mode": "passive",
             "agent_handoff_enabled": True,
@@ -1345,6 +1347,7 @@ async def test_apply_persisted_runtime_settings_restores_values(
 
     runtime_settings = get_settings()
     runtime_settings.heal_mode = "safe"
+    runtime_settings.llm_provider = "azure_openai"
     runtime_settings.gh_aw_tools_enabled = False
     runtime_settings.gh_aw_ingestion_mode = "disabled"
     runtime_settings.agent_handoff_enabled = False
@@ -1361,6 +1364,7 @@ async def test_apply_persisted_runtime_settings_restores_values(
     await dashboard.apply_persisted_runtime_settings(storage, workflow)  # type: ignore[arg-type]
 
     assert runtime_settings.heal_mode == "demo"
+    assert runtime_settings.llm_provider == "codex_app_server"
     assert runtime_settings.gh_aw_tools_enabled is True
     assert runtime_settings.gh_aw_ingestion_mode == "passive"
     assert runtime_settings.agent_handoff_enabled is True
