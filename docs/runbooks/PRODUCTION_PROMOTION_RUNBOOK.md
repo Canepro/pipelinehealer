@@ -34,6 +34,69 @@ Recommended initial production lane:
 
 The first prod lane uses a separate production ACR. The release workflow still publishes public images to GHCR, so production promotion imports the reviewed GHCR release images into the prod ACR before running `deploy:release`.
 
+## Data Continuity
+
+Existing production history is in the current Cosmos DB lane:
+
+| Resource | Value |
+| --- | --- |
+| Resource group | `rg-canepro-ph-dev-eus` |
+| Cosmos account | `pipelinehealerdev-cosmos-zarrajklt3i5u` |
+| Database | `pipelinehealer` |
+| Containers | `activities`, `workflow_runs` |
+| Partition key | `/repositoryId` |
+
+Do not treat the new production lane as a clean database unless you explicitly want to discard the previous operational history. The safe default for `v0.8.0` is continuity:
+
+1. Keep the existing Cosmos account as the source of record during the first production cutover.
+2. Grant the new production backend managed identity Cosmos DB data-plane access to that existing account.
+3. Override the production backend runtime env to use the existing Cosmos endpoint and `COSMOS_DB_DATABASE=pipelinehealer`.
+4. Only move data into a new prod Cosmos account after a separate export/import plan, count comparison, and rollback checkpoint.
+
+After the production backend app exists, grant its identity access to the existing Cosmos account:
+
+```bash
+PROD_BACKEND_PRINCIPAL_ID="$(az containerapp show \
+  --resource-group rg-canepro-ph-prod-eus2 \
+  --name ca-canepro-ph-prod-backend \
+  --query identity.principalId \
+  --output tsv)"
+
+COSMOS_CONTRIBUTOR_ROLE_ID="$(az cosmosdb sql role definition list \
+  --resource-group rg-canepro-ph-dev-eus \
+  --account-name pipelinehealerdev-cosmos-zarrajklt3i5u \
+  --query "[?roleName=='Cosmos DB Built-in Data Contributor'].id | [0]" \
+  --output tsv)"
+
+az cosmosdb sql role assignment create \
+  --resource-group rg-canepro-ph-dev-eus \
+  --account-name pipelinehealerdev-cosmos-zarrajklt3i5u \
+  --role-definition-id "$COSMOS_CONTRIBUTOR_ROLE_ID" \
+  --scope "/" \
+  --principal-id "$PROD_BACKEND_PRINCIPAL_ID"
+```
+
+Set these values in the production Infisical environment before `deploy:release`:
+
+```env
+STORAGE_MODE=cosmos
+COSMOS_DB_ENDPOINT=https://pipelinehealerdev-cosmos-zarrajklt3i5u.documents.azure.com:443/
+COSMOS_DB_DATABASE=pipelinehealer
+```
+
+Then `deploy:release --secure-secrets` will sync the runtime env from the Infisical-injected process and keep the production app pointed at the existing data.
+
+Before pointing Cloudflare DNS at the new frontend/backend, verify the backend is using the intended Cosmos endpoint:
+
+```bash
+az containerapp show \
+  --resource-group rg-canepro-ph-prod-eus2 \
+  --name ca-canepro-ph-prod-backend \
+  --query "properties.template.containers[0].env[?name=='COSMOS_DB_ENDPOINT' || name=='COSMOS_DB_DATABASE' || name=='STORAGE_MODE']"
+```
+
+Do not delete, reinitialize, or rename the existing Cosmos account during this release. If a later release migrates data into `rg-canepro-ph-prod-eus2`, use a separate migration PR/runbook and capture pre/post counts for both containers.
+
 ## Infisical Boundary
 
 Use metadata in Git and secret values in Infisical.
