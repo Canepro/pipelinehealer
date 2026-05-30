@@ -206,6 +206,9 @@ Preview the application infrastructure changes:
 
 ```bash
 infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-project-id> -- \
+  bash -c 'for key in API_AUTH_KEY ADMIN_API_KEY GITHUB_WEBHOOK_SECRET; do test -n "${!key:-}" || { echo "missing $key" >&2; exit 1; }; done'
+
+infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-project-id> -- \
   az deployment group what-if \
     --resource-group rg-canepro-ph-prod-eus2 \
     --template-file infra/main.bicep \
@@ -215,6 +218,9 @@ infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-proj
 Apply only after the `what-if` output is expected:
 
 ```bash
+infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-project-id> -- \
+  bash -c 'for key in API_AUTH_KEY ADMIN_API_KEY GITHUB_WEBHOOK_SECRET; do test -n "${!key:-}" || { echo "missing $key" >&2; exit 1; }; done'
+
 infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-project-id> -- \
   az deployment group create \
     --resource-group rg-canepro-ph-prod-eus2 \
