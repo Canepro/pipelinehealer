@@ -3147,6 +3147,12 @@ async def create_handoff_session(
             if delivered
             else f"Handoff session delivery failed ({error_code or 'unknown_error'})"
         )
+    elif delivery_requested:
+        mode = AgentHandoffMode.WEBHOOK
+        error_code = "target_url_not_configured"
+        delivery_status = AgentHandoffStatus.FAILED
+        session.status = HandoffSessionStatus.FAILED
+        response_message = "Handoff session delivery failed (target URL is not configured)"
     elif payload.send and settings.agent_handoff_mode != AgentHandoffMode.WEBHOOK.value:
         response_message = "Handoff session recorded; copy-only mode is active"
     elif payload.send:
