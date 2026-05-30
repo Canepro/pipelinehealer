@@ -9,6 +9,10 @@ import { detectCachedAdminSession } from "../auth/adminSession";
 import { useApiAuthReady } from "../auth/apiAuthReady";
 import { AUTH_ENABLED } from "../auth/config";
 import {
+  getNextAdminKeyScopeId,
+  getSettingsQueryAuthScope,
+} from "../auth/settingsQueryAuthScope";
+import {
   AdminControlsForm,
   RuntimePolicyBanner,
   toSettingsForm,
@@ -16,7 +20,9 @@ import {
 import type { SettingsFormState } from "../components/settings";
 import {
   describeLlmCapability,
+  describeSecretSettingsFailure,
   formatIntegrationQueryState,
+  type SubqueryFailureState,
 } from "../components/settings/runtimeSemantics";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,12 +30,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SettingToggleField } from "../components/settings/SettingToggleField";
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const isApiAuthReady = useApiAuthReady();
   const [adminKeyInput, setAdminKeyInput] = useState("");
   const [adminKey, setAdminKey] = useState("");
+  const [adminKeyScopeId, setAdminKeyScopeId] = useState<number | null>(null);
   const [useSessionAuth, setUseSessionAuth] = useState(false);
   const [newMcpRepoInput, setNewMcpRepoInput] = useState("");
   const [newHandoffHostInput, setNewHandoffHostInput] = useState("");
@@ -105,30 +113,63 @@ export default function SettingsPage() {
   const hasAuthAttempt =
     adminKey.length > 0 || (isApiAuthReady && useSessionAuth);
   const effectiveAdminKey = useSessionAuth ? undefined : adminKey;
+  const authQueryScope = getSettingsQueryAuthScope({
+    useSessionAuth,
+    adminKey,
+    adminKeyScopeId,
+  });
+  const settingsQueryKey = ["app-settings", authQueryScope] as const;
+  const secretSettingsQueryKey = ["secret-settings", authQueryScope] as const;
+  const llmProviderHealthQueryKey = [
+    "llm-provider-health",
+    authQueryScope,
+  ] as const;
+  const mcpProviderHealthQueryKey = [
+    "mcp-provider-health",
+    authQueryScope,
+  ] as const;
+  const handoffIntegrationStatusQueryKey = [
+    "agent-handoff-integration-status",
+    authQueryScope,
+  ] as const;
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["app-settings", adminKey, useSessionAuth],
+    queryKey: settingsQueryKey,
     queryFn: () => api.getSettings(effectiveAdminKey),
     enabled: hasAuthAttempt,
     retry: false,
   });
 
-  const { data: secretSettings } = useQuery({
-    queryKey: ["secret-settings", adminKey, useSessionAuth],
+  const {
+    data: secretSettings,
+    isError: isSecretSettingsError,
+    error: secretSettingsError,
+  } = useQuery({
+    queryKey: secretSettingsQueryKey,
     queryFn: () => api.getSecretSettings(effectiveAdminKey),
     enabled: hasAuthAttempt,
     retry: false,
   });
 
-  const { data: llmProviderHealth, isLoading: isLlmHealthLoading } = useQuery({
-    queryKey: ["llm-provider-health", adminKey, useSessionAuth],
+  const {
+    data: llmProviderHealth,
+    isLoading: isLlmHealthLoading,
+    isError: isLlmHealthError,
+    error: llmHealthError,
+  } = useQuery({
+    queryKey: llmProviderHealthQueryKey,
     queryFn: () => api.getLLMProviderHealth(effectiveAdminKey),
     enabled: hasAuthAttempt,
     retry: false,
   });
 
-  const { data: mcpProviderHealth, isLoading: isMcpHealthLoading } = useQuery({
-    queryKey: ["mcp-provider-health", adminKey, useSessionAuth],
+  const {
+    data: mcpProviderHealth,
+    isLoading: isMcpHealthLoading,
+    isError: isMcpHealthError,
+    error: mcpHealthError,
+  } = useQuery({
+    queryKey: mcpProviderHealthQueryKey,
     queryFn: () => api.getMCPProviderHealth(effectiveAdminKey),
     enabled: hasAuthAttempt,
     retry: false,
@@ -139,7 +180,7 @@ export default function SettingsPage() {
     isError: isHandoffIntegrationError,
     error: handoffIntegrationError,
   } = useQuery({
-    queryKey: ["agent-handoff-integration-status", hasAuthAttempt],
+    queryKey: handoffIntegrationStatusQueryKey,
     queryFn: () => api.getAgentHandoffIntegrationStatus(),
     enabled: hasAuthAttempt,
     retry: false,
@@ -169,6 +210,11 @@ export default function SettingsPage() {
     JSON.stringify(form) !== JSON.stringify(lastSavedForm);
   const settingsErrorMessage =
     error instanceof Error ? error.message : "Unknown error";
+  const secretSettingsFailure = isSecretSettingsError
+    ? describeSecretSettingsFailure(
+        secretSettingsError instanceof Error ? secretSettingsError : null,
+      )
+    : null;
   const sessionAuthActive = AUTH_ENABLED && useSessionAuth;
   const sessionBootstrapPending =
     AUTH_ENABLED && !isApiAuthReady && adminKey.length === 0;
@@ -265,12 +311,9 @@ export default function SettingsPage() {
       setForm(next);
       setLastSavedForm(next);
       setGhAwWorkflowsInput(next.gh_aw_known_workflows.join(","));
-      queryClient.setQueryData(
-        ["app-settings", adminKey, useSessionAuth],
-        updated,
-      );
+      queryClient.setQueryData(settingsQueryKey, updated);
       await queryClient.invalidateQueries({
-        queryKey: ["app-settings", adminKey, useSessionAuth],
+        queryKey: settingsQueryKey,
       });
       toast.success("Settings saved", {
         description: "Changes are active now and persisted for future restarts unless overridden by env.",
@@ -299,10 +342,13 @@ export default function SettingsPage() {
         return next;
       });
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["secret-settings", adminKey, useSessionAuth] }),
-        queryClient.invalidateQueries({ queryKey: ["app-settings", adminKey, useSessionAuth] }),
-        queryClient.invalidateQueries({ queryKey: ["llm-provider-health", adminKey, useSessionAuth] }),
-        queryClient.invalidateQueries({ queryKey: ["agent-handoff-integration-status", hasAuthAttempt] }),
+        queryClient.invalidateQueries({ queryKey: secretSettingsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: settingsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: llmProviderHealthQueryKey }),
+        queryClient.invalidateQueries({ queryKey: mcpProviderHealthQueryKey }),
+        queryClient.invalidateQueries({
+          queryKey: handoffIntegrationStatusQueryKey,
+        }),
       ]);
       toast.success("Secret updated", {
         description: "The value was stored without being returned to the UI.",
@@ -364,6 +410,7 @@ export default function SettingsPage() {
     }
     setUseSessionAuth(false);
     setAdminKey(trimmed);
+    setAdminKeyScopeId((current) => getNextAdminKeyScopeId(current));
     setAdminKeyInput("");
   };
 
@@ -518,6 +565,7 @@ export default function SettingsPage() {
             <SetupChecklistCard status={data.setup_status} />
             <SecretSettingsCard
               secrets={secretSettings ?? []}
+              errorState={secretSettingsFailure}
               values={secretDrafts}
               onChange={(key, value) =>
                 setSecretDrafts((current) => ({ ...current, [key]: value }))
@@ -756,8 +804,12 @@ export default function SettingsPage() {
             setForm={setForm}
             llmProviderHealth={llmProviderHealth}
             isLlmHealthLoading={isLlmHealthLoading}
+            isLlmHealthError={isLlmHealthError}
+            llmHealthError={llmHealthError}
             mcpProviderHealth={mcpProviderHealth}
             isMcpHealthLoading={isMcpHealthLoading}
+            isMcpHealthError={isMcpHealthError}
+            mcpHealthError={mcpHealthError}
             llmCapabilitySummary={llmCapabilitySummary}
             hasUnsavedChanges={hasUnsavedChanges}
             newRepoInput={newRepoInput}
@@ -848,7 +900,7 @@ function SettingsSummarySection({
   );
 }
 
-function RuntimeWiringCard({
+export function RuntimeWiringCard({
   data,
   form,
   setForm,
@@ -936,28 +988,24 @@ function RuntimeWiringCard({
 
         <div className="space-y-4">
           <div className="rounded-md border border-[var(--ph-border)]/70 px-3 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-medium text-[var(--ph-text)]">Verify webhook signatures</div>
-                <p className="mt-1 text-xs leading-5 text-[var(--ph-muted)]">
-                  Keep this enabled in production unless you have a trusted intermediary in front of the webhook endpoint.
-                </p>
-              </div>
-              <Badge variant="outline">
-                {data.settings_metadata?.verify_webhook_signature?.source === "env" ? "Env override" : "Runtime"}
-              </Badge>
-            </div>
-            <div className="mt-3">
-              <Button
-                type="button"
-                variant={form.verify_webhook_signature ? "secondary" : "ghost"}
-                onClick={() =>
-                  setForm((current) => ({ ...current, verify_webhook_signature: !current.verify_webhook_signature }))
-                }
-              >
-                {form.verify_webhook_signature ? "Required" : "Disabled"}
-              </Button>
-            </div>
+            <SettingToggleField
+              label="Verify webhook signatures"
+              description="Keep this enabled in production unless you have a trusted intermediary in front of the webhook endpoint."
+              checked={form.verify_webhook_signature}
+              checkedLabel="Required"
+              uncheckedLabel="Disabled"
+              badgeLabel={
+                data.settings_metadata?.verify_webhook_signature?.source === "env"
+                  ? "Env override"
+                  : "Runtime"
+              }
+              onChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  verify_webhook_signature: value,
+                }))
+              }
+            />
           </div>
 
           <div className="rounded-md border border-[var(--ph-border)]/70 px-3 py-3">
@@ -973,18 +1021,24 @@ function RuntimeWiringCard({
               </Badge>
             </div>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Enabled</Label>
-                <Button
-                  type="button"
-                  variant={form.jenkins_bridge_enabled ? "secondary" : "ghost"}
-                  onClick={() =>
-                    setForm((current) => ({ ...current, jenkins_bridge_enabled: !current.jenkins_bridge_enabled }))
-                  }
-                >
-                  {form.jenkins_bridge_enabled ? "On" : "Off"}
-                </Button>
-              </div>
+              <SettingToggleField
+                label="Enabled"
+                description="Turn the Jenkins bridge runtime policy on or off. The shared secret stays in the separate secrets section."
+                checked={form.jenkins_bridge_enabled}
+                checkedLabel="On"
+                uncheckedLabel="Off"
+                badgeLabel={
+                  data.settings_metadata?.jenkins_bridge_enabled?.source === "env"
+                    ? "Env override"
+                    : "Runtime"
+                }
+                onChange={(value) =>
+                  setForm((current) => ({
+                    ...current,
+                    jenkins_bridge_enabled: value,
+                  }))
+                }
+              />
               <div className="space-y-2">
                 <Label>Max skew seconds</Label>
                 <Input
@@ -1074,12 +1128,14 @@ function SetupChecklistCard({ status }: { status: { ready: boolean; storage_boot
 
 function SecretSettingsCard({
   secrets,
+  errorState,
   values,
   onChange,
   onSave,
   pendingKey,
 }: {
   secrets: SecretSetting[];
+  errorState?: SubqueryFailureState | null;
   values: Record<string, string>;
   onChange: (key: string, value: string) => void;
   onSave: (secret: SecretSetting, clear?: boolean) => void;
@@ -1094,6 +1150,19 @@ function SecretSettingsCard({
         <p className="text-sm leading-6 text-[var(--ph-muted)]">
           Secrets are write-only. This page only shows configuration status, source, and safe hints.
         </p>
+        {errorState ? (
+          <div className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-3">
+            <p className="text-sm font-medium text-rose-500">
+              {errorState.title}
+            </p>
+            <p className="mt-1 text-sm text-[var(--ph-muted)]">
+              {errorState.detail}
+            </p>
+            <p className="mt-2 text-xs text-[var(--ph-muted)]">
+              {errorState.guidance}
+            </p>
+          </div>
+        ) : null}
         <div className="space-y-4">
           {secrets.map((secret) => (
             <div
