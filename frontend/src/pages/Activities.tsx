@@ -143,7 +143,7 @@ export default function Activities() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--ph-text)]">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--ph-text)]">
             Activities
           </h1>
           <p className="mt-1 text-sm text-[var(--ph-muted)]">
@@ -251,10 +251,12 @@ export default function Activities() {
         highlightedActivityId={highlightedActivityId}
       />
 
-      {/* Pagination info */}
+      {/* Result count */}
       {activities && activities.length > 0 && (
-        <div className="text-sm text-[var(--ph-muted)] text-center">
-          Showing {activities.length} activities
+        <div className="text-center text-sm text-[var(--ph-muted)]">
+          {activities.length >= filters.limit
+            ? `Showing the ${filters.limit} most recent matches. Refine the filters above to narrow results.`
+            : `Showing ${activities.length} ${activities.length === 1 ? "activity" : "activities"}.`}
         </div>
       )}
     </div>

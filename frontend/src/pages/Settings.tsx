@@ -420,7 +420,7 @@ export default function SettingsPage() {
       <div className="flex items-center gap-3">
         <Settings2 className="h-7 w-7 text-[var(--ph-accent)]" />
         <div>
-          <h1 className="text-2xl font-bold text-[var(--ph-text)]">Settings</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--ph-text)]">Settings</h1>
           <p className="text-sm text-[var(--ph-muted)]">
             Operator control surface for runtime policy, startup-managed
             dependencies, and durable settings.
@@ -529,9 +529,9 @@ export default function SettingsPage() {
 
       {/* Error state */}
       {hasAuthAttempt && isError && (
-        <Card className="border-rose-500/30">
+        <Card className="border-[var(--ph-danger-border)]">
           <CardContent className="py-6">
-            <p className="text-sm font-medium text-rose-500">
+            <p className="text-sm font-medium text-[var(--ph-danger)]">
               Failed to load settings
             </p>
             <p className="text-sm text-[var(--ph-muted)] mt-1">
@@ -1151,8 +1151,8 @@ function SecretSettingsCard({
           Secrets are write-only. This page only shows configuration status, source, and safe hints.
         </p>
         {errorState ? (
-          <div className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-3">
-            <p className="text-sm font-medium text-rose-500">
+          <div className="rounded-md border border-[var(--ph-danger-border)] bg-[var(--ph-danger-bg)] px-3 py-3">
+            <p className="text-sm font-medium text-[var(--ph-danger)]">
               {errorState.title}
             </p>
             <p className="mt-1 text-sm text-[var(--ph-muted)]">

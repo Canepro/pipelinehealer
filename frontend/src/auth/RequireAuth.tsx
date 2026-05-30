@@ -26,9 +26,9 @@ function AuthLoadingState() {
 function AuthConfigError() {
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-2xl items-center justify-center px-4">
-      <Card className="w-full border-rose-500/30">
+      <Card className="w-full border-[var(--ph-danger-border)]">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-rose-400">
+          <CardTitle className="flex items-center gap-2 text-[var(--ph-danger)]">
             <ShieldAlert className="h-5 w-5" />
             Login configuration is incomplete
           </CardTitle>
@@ -75,7 +75,7 @@ function RequireAuthInner({ children }: { children: ReactNode }) {
         <Card className="w-full">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2">
-              <LockKeyhole className="h-5 w-5 text-azure-500" />
+              <LockKeyhole className="h-5 w-5 text-[var(--ph-accent)]" />
               Secure Access Required
             </CardTitle>
           </CardHeader>

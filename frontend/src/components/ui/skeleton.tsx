@@ -7,7 +7,7 @@ function Skeleton({
 }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('animate-pulse rounded-md bg-slate-200/70 dark:bg-slate-700/60', className)}
+      className={cn('animate-pulse rounded-md bg-[var(--ph-border)]', className)}
       {...props}
     />
   )

@@ -1041,7 +1041,7 @@ export default function ControlCenterPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-[var(--ph-text)]">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--ph-text)]">
           <ShieldCheck className="h-6 w-6 text-[var(--ph-accent)]" />
           Control Center
         </h1>
@@ -1150,9 +1150,9 @@ export default function ControlCenterPage() {
       )}
 
       {hasAuthAttempt && isSettingsError && (
-        <Card className="border-rose-500/30">
+        <Card className="border-[var(--ph-danger-border)]">
           <CardContent className="py-6">
-            <p className="text-sm font-medium text-rose-500">
+            <p className="text-sm font-medium text-[var(--ph-danger)]">
               Failed to load Control Center
             </p>
             <p className="mt-1 text-sm text-[var(--ph-muted)]">
@@ -1616,7 +1616,7 @@ export default function ControlCenterPage() {
 
                   {learningLoading && <p>Loading learning queue...</p>}
                   {learningError && (
-                    <p className="text-rose-400">
+                    <p className="text-[var(--ph-danger)]">
                       {learningErrorDetail instanceof Error
                         ? learningErrorDetail.message
                         : "Failed to load learning queue"}

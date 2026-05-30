@@ -17,7 +17,6 @@ import {
   Activity,
   ArrowRight,
   CheckCircle,
-  Clock,
   FileText,
   ShieldAlert,
   SearchCheck,
@@ -467,25 +466,25 @@ export default function Dashboard() {
               title="Processed"
               value={stats?.total_runs_processed || 0}
               icon={Activity}
-              color="blue"
+              color="accent"
             />
             <StatsCard
               title="Actioned"
               value={stats?.actioned_remediations || 0}
               icon={CheckCircle}
-              color="green"
+              color="success"
             />
             <StatsCard
               title="Safety Gated"
               value={`${stats?.safety_blocked_remediations || 0} (${safetyGatedRate}%)`}
               icon={ShieldAlert}
-              color="red"
+              color="danger"
             />
             <StatsCard
               title="Issue-Only"
               value={`${stats?.issue_remediations || 0} (${issueRate}%)`}
               icon={FileText}
-              color="yellow"
+              color="warning"
             />
           </div>
         )}
@@ -550,7 +549,8 @@ export default function Dashboard() {
               </span>
             </p>
             <p className="text-sm text-[var(--ph-muted)]">
-              Click a slice to open Activities filtered to that failure type.
+              Select a failure type below (or a chart slice) to open Activities
+              filtered to it.
             </p>
           </CardHeader>
           <CardContent>
@@ -622,6 +622,29 @@ export default function Dashboard() {
                 </Button>
               </div>
             )}
+            {pieData.length > 0 && (
+              <div
+                className="mt-4 flex flex-wrap gap-2 border-t border-[var(--ph-border)] pt-3"
+                role="group"
+                aria-label="Filter Activities by failure type"
+              >
+                {pieData.map((item, index) => (
+                  <button
+                    key={item.failureType}
+                    type="button"
+                    onClick={() => handleFailureTypeSliceClick(item.failureType)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)] transition-colors hover:border-[var(--ph-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ph-accent)]"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    {item.name} ({item.value})
+                  </button>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -639,7 +662,8 @@ export default function Dashboard() {
               </span>
             </p>
             <p className="text-sm text-[var(--ph-muted)]">
-              Click a bar to open Activities filtered to that repository.
+              Select a repository below (or a chart bar) to open Activities
+              filtered to it.
             </p>
           </CardHeader>
           <CardContent>
@@ -712,6 +736,25 @@ export default function Dashboard() {
                 </Button>
               </div>
             )}
+            {repoData.length > 0 && (
+              <div
+                className="mt-4 flex flex-wrap gap-2 border-t border-[var(--ph-border)] pt-3"
+                role="group"
+                aria-label="Filter Activities by repository"
+              >
+                {repoData.map((item) => (
+                  <button
+                    key={item.fullName}
+                    type="button"
+                    onClick={() => handleRepositoryBarClick(item.fullName)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)] transition-colors hover:border-[var(--ph-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ph-accent)]"
+                    title={item.fullName}
+                  >
+                    {item.name} ({item.count})
+                  </button>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -735,7 +778,7 @@ export default function Dashboard() {
                   <select
                     value={selectedActivity?.id || ""}
                     onChange={(e) => setSelectedActivityId(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-3 py-2 text-sm text-[var(--ph-text)] focus:outline-none focus:ring-2 focus:ring-azure-500"
+                    className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-3 py-2 text-sm text-[var(--ph-text)] focus:outline-none focus:ring-2 focus:ring-[var(--ph-accent)] focus:ring-offset-2 focus:ring-offset-[var(--ph-surface)]"
                   >
                     {recentActivities.map((activity) => {
                       const sourceInfo = getActivitySourceInfo(activity);
@@ -936,25 +979,6 @@ export default function Dashboard() {
           isLoading={activitiesLoading}
         />
       </section>
-
-      {/* Average Resolution Time */}
-      {stats && stats.average_resolution_time_seconds > 0 && (
-        <Card>
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center gap-4">
-              <Clock className="h-8 w-8 text-[var(--ph-accent)]" />
-              <div>
-                <p className="text-sm text-[var(--ph-muted)]">
-                  Average resolution time
-                </p>
-                <p className="text-2xl font-semibold text-[var(--ph-text)]">
-                  {Math.round(stats.average_resolution_time_seconds)}s
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

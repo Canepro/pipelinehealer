@@ -15,7 +15,7 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      'flex h-10 w-full items-center justify-between rounded-lg border border-[var(--ph-border)] bg-gray-100 px-3 py-2 text-sm ring-offset-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-azure-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-700 dark:text-gray-100 dark:ring-offset-gray-900 [&>span]:line-clamp-1',
+      'flex h-10 w-full items-center justify-between rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-3 py-2 text-sm text-[var(--ph-text)] ring-offset-[var(--ph-surface)] placeholder:text-[var(--ph-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--ph-accent)] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
       className
     )}
     {...props}
@@ -107,7 +107,7 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-gray-100 focus:text-gray-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 dark:focus:bg-gray-700 dark:focus:text-gray-100',
+      'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-[var(--ph-bg-elevated)] focus:text-[var(--ph-text)] data-[highlighted]:bg-[var(--ph-bg-elevated)] data-[highlighted]:text-[var(--ph-text)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className
     )}
     {...props}
@@ -128,7 +128,7 @@ const SelectSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Separator
     ref={ref}
-    className={cn('-mx-1 my-1 h-px bg-gray-200 dark:bg-gray-700', className)}
+    className={cn('-mx-1 my-1 h-px bg-[var(--ph-border)]', className)}
     {...props}
   />
 ))

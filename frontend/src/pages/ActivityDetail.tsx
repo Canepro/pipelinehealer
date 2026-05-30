@@ -36,6 +36,7 @@ import {
   getVerificationHistory,
 } from "../components/activity/verification";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 const RAW_EVIDENCE_KEYS = new Set([
   "key_log_lines",
@@ -1220,7 +1221,8 @@ export default function ActivityDetail() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin h-8 w-8 border-4 border-azure-500 border-t-transparent rounded-full"></div>
+        <div className="animate-spin h-8 w-8 border-4 border-[var(--ph-accent)] border-t-transparent rounded-full"></div>
+        <span className="sr-only">Loading activity</span>
       </div>
     );
   }
@@ -1228,16 +1230,16 @@ export default function ActivityDetail() {
   if (error || !activity) {
     return (
       <div className="card p-8 text-center">
-        <AlertTriangle className="h-12 w-12 text-red-500 mx-auto" />
+        <AlertTriangle className="mx-auto h-12 w-12 text-[var(--ph-danger)]" />
         <h2 className="mt-4 text-lg font-semibold text-[var(--ph-text)]">
           Activity Not Found
         </h2>
         <p className="mt-2 text-[var(--ph-muted)]">
           The requested activity could not be found.
         </p>
-        <Link to="/app/activities" className="btn-primary mt-4 inline-block">
-          Back to Activities
-        </Link>
+        <Button asChild className="mt-4">
+          <Link to="/app/activities">Back to Activities</Link>
+        </Button>
       </div>
     );
   }
@@ -1449,7 +1451,7 @@ export default function ActivityDetail() {
             <ArrowLeft className="h-5 w-5 text-[var(--ph-muted)]" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-[var(--ph-text)]">
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--ph-text)]">
               Activity Details
             </h1>
             <p className="text-sm text-[var(--ph-muted)]">{activity.id}</p>
@@ -2188,7 +2190,7 @@ export default function ActivityDetail() {
                 <div className="mt-1 flex items-center">
                   <div className="flex-1 bg-[var(--ph-bg-elevated)] rounded-full h-2 mr-2">
                     <div
-                      className="bg-azure-500 h-2 rounded-full"
+                      className="bg-[var(--ph-accent)] h-2 rounded-full"
                       style={{
                         width: `${activity.diagnosis.confidence * 100}%`,
                       }}
@@ -2671,8 +2673,8 @@ export default function ActivityDetail() {
 
       {/* Error Card */}
       {activity.error && (
-        <div className="card p-6 border-red-200 dark:border-red-800">
-          <h2 className="text-lg font-semibold text-red-600 mb-2">Error</h2>
+        <div className="card border-[var(--ph-danger-border)] bg-[var(--ph-danger-bg)] p-6">
+          <h2 className="mb-2 text-lg font-semibold text-[var(--ph-danger)]">Error</h2>
           <p className="text-[var(--ph-text)]">{activity.error}</p>
         </div>
       )}

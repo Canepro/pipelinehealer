@@ -167,7 +167,7 @@ export default function AuditTrailPanel({
                   ))}
                 </div>
 
-                <details className="mt-3 rounded-md border border-[var(--ph-border)] bg-slate-900/20 p-2">
+                <details className="mt-3 rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-2">
                   <summary className="cursor-pointer text-xs font-medium text-[var(--ph-muted)]">
                     View value changes ({effectiveChanges.length})
                   </summary>

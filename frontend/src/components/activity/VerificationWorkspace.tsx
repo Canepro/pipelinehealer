@@ -313,7 +313,10 @@ export default function VerificationWorkspace({
       <div className="rounded-lg border border-[var(--ph-border)] bg-[color:var(--ph-surface)] p-4">
         <div className="grid gap-4 md:grid-cols-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ph-muted)]">
+            <p
+              id="verify-identification-label"
+              className="text-xs font-semibold uppercase tracking-wide text-[var(--ph-muted)]"
+            >
               Identification
             </p>
             <Select
@@ -322,7 +325,10 @@ export default function VerificationWorkspace({
                 setIdentification(value as LearningVerificationOutcome)
               }
             >
-              <SelectTrigger className="mt-2 bg-[var(--ph-bg-elevated)]">
+              <SelectTrigger
+                className="mt-2"
+                aria-labelledby="verify-identification-label"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -335,7 +341,10 @@ export default function VerificationWorkspace({
             </Select>
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ph-muted)]">
+            <p
+              id="verify-diagnosis-label"
+              className="text-xs font-semibold uppercase tracking-wide text-[var(--ph-muted)]"
+            >
               Diagnosis
             </p>
             <Select
@@ -344,7 +353,10 @@ export default function VerificationWorkspace({
                 setDiagnosis(value as LearningVerificationOutcome)
               }
             >
-              <SelectTrigger className="mt-2 bg-[var(--ph-bg-elevated)]">
+              <SelectTrigger
+                className="mt-2"
+                aria-labelledby="verify-diagnosis-label"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -357,7 +369,10 @@ export default function VerificationWorkspace({
             </Select>
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ph-muted)]">
+            <p
+              id="verify-remediation-label"
+              className="text-xs font-semibold uppercase tracking-wide text-[var(--ph-muted)]"
+            >
               Remediation
             </p>
             <Select
@@ -366,7 +381,10 @@ export default function VerificationWorkspace({
                 setRemediation(value as LearningVerificationOutcome)
               }
             >
-              <SelectTrigger className="mt-2 bg-[var(--ph-bg-elevated)]">
+              <SelectTrigger
+                className="mt-2"
+                aria-labelledby="verify-remediation-label"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -382,7 +400,10 @@ export default function VerificationWorkspace({
 
         {requiresGuidanceRating ? (
           <div className="mt-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ph-muted)]">
+            <p
+              id="verify-guidance-label"
+              className="text-xs font-semibold uppercase tracking-wide text-[var(--ph-muted)]"
+            >
               Guidance effectiveness
             </p>
             <p className="mt-1 text-sm text-[var(--ph-muted)]">
@@ -400,7 +421,10 @@ export default function VerificationWorkspace({
                 )
               }
             >
-              <SelectTrigger className="mt-2 bg-[var(--ph-bg-elevated)]">
+              <SelectTrigger
+                className="mt-2"
+                aria-labelledby="verify-guidance-label"
+              >
                 <SelectValue placeholder="Select guidance impact" />
               </SelectTrigger>
               <SelectContent>

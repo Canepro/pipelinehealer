@@ -258,7 +258,7 @@ export default function ActivityTable({
               key={activity.id}
               data-activity-id={activity.id}
               className={`space-y-3 p-4 transition-colors ${
-                activity.id === highlightedActivityId ? 'bg-azure-500/10' : ''
+                activity.id === highlightedActivityId ? 'bg-[var(--ph-accent-soft)]' : ''
               }`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -389,7 +389,7 @@ export default function ActivityTable({
                     key={activity.id}
                     data-activity-id={activity.id}
                     className={`border-b border-[var(--ph-border)] transition-colors hover:bg-[var(--ph-bg-elevated)] ${
-                      activity.id === highlightedActivityId ? 'bg-azure-500/10' : ''
+                      activity.id === highlightedActivityId ? 'bg-[var(--ph-accent-soft)]' : ''
                     }`}
                   >
                     <td className="p-4 pl-6 align-middle">
