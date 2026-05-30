@@ -1,10 +1,10 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 4055ae3 -->
+<!-- LAST_VERIFIED: a626db2 -->
 
 > OSS-first, policy-aware remediation for failed CI/CD pipelines.
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-Try_It-brightgreen)](https://ca-canepro-ph-frontend.kinddune-53ac219d.eastus2.azurecontainerapps.io)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Try_It-brightgreen)](https://pipelinehealer.canepro.me)
 [![Demo Video](https://img.shields.io/badge/Demo_Video-YouTube-red)](https://youtu.be/9iv5ZMKYzts)
 [![Azure](https://img.shields.io/badge/Azure-Deployed-blue)](https://azure.microsoft.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)

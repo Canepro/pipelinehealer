@@ -1,10 +1,10 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 4055ae3 -->
+<!-- LAST_VERIFIED: a626db2 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
-Base URL (Azure): `https://ca-canepro-ph-backend.kinddune-53ac219d.eastus2.azurecontainerapps.io`
+Base URL (Azure): `https://api.pipelinehealer.canepro.me`
 Base URL (local): `http://127.0.0.1:8000`
 
 ---
@@ -1784,7 +1784,7 @@ All error responses include a `detail` field:
 
 ### 11. CORS Configuration
 
-- `CORS_ALLOWED_ORIGINS`: exact-match origins (CSV or JSON array).
+- `CORS_ALLOWED_ORIGINS`: exact-match origins (CSV or JSON array). The reference deployment includes `https://pipelinehealer.canepro.me`.
 - `CORS_ALLOW_ORIGIN_REGEX`: regex pattern for dynamic Azure Container Apps domains.
 - Default allows `localhost:3000` and `localhost:5173` for development, plus `*.azurecontainerapps.io` for Azure.
 
