@@ -1,6 +1,6 @@
 # LLM and Agent Runtime
 
-<!-- LAST_VERIFIED: ac1b1ec -->
+<!-- LAST_VERIFIED: 4055ae3 -->
 
 This document is the operator-facing contract for how PipelineHealer uses LLMs and agents at runtime.
 
@@ -10,6 +10,7 @@ Use it when you need to answer:
 - what happens when the LLM path degrades
 - what is and is not supported in model routing today
 - how learning ops should evolve instead of staying a thin recurring-pattern queue
+- how external agent handoffs differ from model-runtime routing
 
 ## Current Runtime Model
 
@@ -23,6 +24,7 @@ PipelineHealer has multiple agent responsibilities:
 Today, one LLM provider is active per runtime:
 - `azure_openai`
 - `openai_compatible`
+- `codex_app_server`
 - `custom` (scaffold only; not production-capable)
 
 Task-level routing is supported inside that active provider:
@@ -37,6 +39,27 @@ Internal role note:
 Current limitation:
 - you cannot use Azure for analysis and `openai_compatible` for diagnosis/remediation in the same run
 - provider selection is global for the runtime, not per task
+
+## Codex App Server
+
+Codex App Server is supported as a model-backed runtime through `LLM_PROVIDER=codex_app_server`.
+
+Settings:
+- `CODEX_APP_SERVER_TRANSPORT=stdio|websocket`
+- `CODEX_APP_SERVER_COMMAND=codex app-server` for stdio
+- `CODEX_APP_SERVER_MODEL=gpt-5.4` by default
+- `CODEX_APP_SERVER_TURN_TIMEOUT_MS=120000`
+- `CODEX_APP_SERVER_WS_URL` plus one WebSocket auth input when using WebSocket transport
+
+Runtime behavior:
+- PipelineHealer starts an ephemeral Codex App Server thread for model-backed turns.
+- The turn uses read-only sandbox settings and `approvalPolicy=never`.
+- This provider is for diagnosis/remediation model work. It is separate from external-agent handoff.
+
+Important distinction:
+- `LLM_PROVIDER=codex_app_server` means PipelineHealer asks Codex App Server for model output.
+- `target=codex_app_server` in a handoff session means PipelineHealer delegates work to an external agent runtime that may have connected tools such as GitHub.
+- OpenClaw and Hermes are handoff targets, not LLM providers.
 
 ## Diagnosis Contract Enforcement
 
@@ -166,6 +189,7 @@ Before a demo or production promotion:
 
 2. Verify live model compatibility
 - `bash scripts/ph.sh aoai:check` for Azure
+- Codex App Server: `GET /api/settings/llm/provider-health`, then run one known canary activity with `LLM_PROVIDER=codex_app_server`
 - or direct provider smoke test for other providers
 
 3. Verify a real canary

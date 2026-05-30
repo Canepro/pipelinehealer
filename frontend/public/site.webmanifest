@@ -1,0 +1,16 @@
+{
+  "name": "PipelineHealer",
+  "short_name": "PipelineHealer",
+  "description": "Policy-aware pipeline remediation and external agent handoff.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "64x64",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "theme_color": "#111827",
+  "background_color": "#0b0d11",
+  "display": "standalone"
+}

@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: c9520a1 -->
+<!-- LAST_VERIFIED: 4055ae3 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -249,6 +249,19 @@ bash scripts/ph.sh urls
 bash scripts/ph.sh status
 ```
 
+Infisical-backed ACA deploys can inject values into the deploy process and keep `backend/.env` value-free:
+
+```bash
+infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- \
+  bash scripts/ph.sh deploy --secure-secrets
+infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- \
+  bash scripts/ph.sh deploy:env --secure-secrets
+```
+
+`deploy`, `deploy:env`, and `deploy:release` read process environment values before `backend/.env`. With `--secure-secrets`, sensitive backend/frontend values are written to Azure Container Apps secrets and bound through `secretref`; values are not printed by the helper.
+
+Use `bash scripts/ph.sh deploy --secure-secrets --remote-build` when local Docker/Podman is unavailable; the helper builds images with Azure Container Registry Tasks.
+
 ### Settings
 
 | Command | Description |
@@ -257,6 +270,8 @@ bash scripts/ph.sh status
 | `settings:audit` | GET `/api/settings/audit` (admin audit trail) |
 | `settings:persist` | Sync settings to local `backend/.env`, record compatibility audit when reachable, optionally redeploy |
 | `settings:persist:verify` | Run the compatibility persist flow and verify the audit entry via request ID (defaults to `--skip-redeploy`) |
+| `secrets:infisical:inventory` | Print secret names from `backend/.env` that are candidates for Infisical migration |
+| `secrets:infisical:migrate` | Copy candidate runtime/bootstrap secret values into Infisical without printing values |
 | `audit:proof` | Create two traceable audit entries and print latest records |
 | `aoai:check` | Verify Azure OpenAI connectivity from local backend container |
 
@@ -264,6 +279,8 @@ bash scripts/ph.sh status
 bash scripts/ph.sh settings:check
 bash scripts/ph.sh settings:audit --limit 20
 bash scripts/ph.sh settings:persist:verify --from-settings
+bash scripts/ph.sh secrets:infisical:inventory
+bash scripts/ph.sh secrets:infisical:migrate --project-id <infisical-project-id>
 bash scripts/ph.sh audit:proof --limit 5
 bash scripts/ph.sh aoai:check
 ```
@@ -272,6 +289,9 @@ bash scripts/ph.sh aoai:check
 
 Secret backend note:
 - runtime-secret portability does not depend on Azure; non-Azure deployments can keep `SETTINGS_SECRET_BACKEND=encrypted_db`
+- `SETTINGS_SECRET_BACKEND=infisical` stores runtime-managed secrets in Infisical and keeps PipelineHealer storage metadata-only
+- `secrets:infisical:migrate` includes runtime secrets plus bootstrap secrets such as `API_AUTH_KEY`, `ADMIN_API_KEY`, and `AUDIT_SALT`; it prints names/counts only, writes values through a short-lived `0600` temp file, and deletes that file immediately
+- after bootstrap secrets are removed from `backend/.env`, run local commands that need them through `infisical run --env <env> --path <path> --projectId <id> -- <command>` or export them in the calling environment
 - `settings:persist` does not provision or migrate secret backends; it remains the env-sync/compatibility layer around already-supported runtime settings flows
 
 `aoai:check` is a local-container smoke, not a remote backend probe:

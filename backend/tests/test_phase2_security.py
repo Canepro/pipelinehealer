@@ -954,6 +954,37 @@ async def test_admin_can_patch_llm_task_model_overrides(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_admin_patch_requires_default_handoff_target_to_be_enabled(monkeypatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.delenv("AGENT_HANDOFF_DEFAULT_TARGET", raising=False)
+    monkeypatch.delenv("AGENT_HANDOFF_ENABLED_TARGETS", raising=False)
+    reset_settings()
+
+    app.state.storage = InMemoryStorage()
+    app.state.workflow = _DummyWorkflow()  # type: ignore[assignment]
+
+    response = await _patch_settings(
+        {"agent_handoff_enabled_targets": ["openclaw"]},
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 422
+    assert "agent_handoff_default_target" in response.json()["detail"]
+
+    response = await _patch_settings(
+        {
+            "agent_handoff_default_target": "openclaw",
+            "agent_handoff_enabled_targets": ["openclaw"],
+        },
+        headers={"X-Admin-Key": "admin-secret"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["agent_handoff_default_target"] == "openclaw"
+    assert body["agent_handoff_enabled_targets"] == ["openclaw"]
+
+
+@pytest.mark.asyncio
 async def test_admin_patch_rejects_invalid_llm_provider(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
@@ -1312,6 +1343,7 @@ async def test_apply_persisted_runtime_settings_restores_values(
 ) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
     monkeypatch.setenv(
         "PIPELINEHEALER_ENV_FILE_PATH",
         str(tmp_path / "missing-settings.env"),
@@ -1326,6 +1358,7 @@ async def test_apply_persisted_runtime_settings_restores_values(
     patch_response = await _patch_settings(
         {
             "heal_mode": "demo",
+            "llm_provider": "codex_app_server",
             "gh_aw_tools_enabled": True,
             "gh_aw_ingestion_mode": "passive",
             "agent_handoff_enabled": True,
@@ -1345,6 +1378,7 @@ async def test_apply_persisted_runtime_settings_restores_values(
 
     runtime_settings = get_settings()
     runtime_settings.heal_mode = "safe"
+    runtime_settings.llm_provider = "azure_openai"
     runtime_settings.gh_aw_tools_enabled = False
     runtime_settings.gh_aw_ingestion_mode = "disabled"
     runtime_settings.agent_handoff_enabled = False
@@ -1361,6 +1395,7 @@ async def test_apply_persisted_runtime_settings_restores_values(
     await dashboard.apply_persisted_runtime_settings(storage, workflow)  # type: ignore[arg-type]
 
     assert runtime_settings.heal_mode == "demo"
+    assert runtime_settings.llm_provider == "codex_app_server"
     assert runtime_settings.gh_aw_tools_enabled is True
     assert runtime_settings.gh_aw_ingestion_mode == "passive"
     assert runtime_settings.agent_handoff_enabled is True

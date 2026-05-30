@@ -18,7 +18,12 @@ import {
   Workflow,
 } from "lucide-react";
 import { toast } from "sonner";
-import { api, type Activity } from "../api/client";
+import {
+  api,
+  type Activity,
+  type HandoffSessionCreateRequest,
+  type HandoffSessionView,
+} from "../api/client";
 import { getActivitySourceInfo } from "../utils/activitySource";
 import { copyToClipboard } from "../utils/copyToClipboard";
 import { formatSourceLabel } from "../utils/formatSourceLabel";
@@ -691,6 +696,190 @@ function buildActivityContext(activity: Activity): string {
   return finalizeContextPayload(lines.join("\n"));
 }
 
+function buildHandoffGoal(activity: Activity): string {
+  const failureType = activity.failure_type || "unclassified";
+  const runUrl = getActivitySourceInfo(activity).runUrl || "not available";
+  return [
+    `Fix the ${failureType} failure in ${activity.repository_name}.`,
+    `Use PipelineHealer activity ${activity.id} and workflow run ${activity.workflow_run_id}.`,
+    `Open a PR or comment with findings, apply PipelineHealer labels, rerun checks when appropriate, then report the result back to the handoff callback.`,
+    `Run URL: ${runUrl}`,
+  ].join(" ");
+}
+
+function formatHandoffTarget(target: string): string {
+  const labels: Record<string, string> = {
+    codex_app_server: "Codex App Server",
+    openclaw: "OpenClaw",
+    hermes: "Hermes",
+    custom: "Custom",
+  };
+  return labels[target] || target.replace(/_/g, " ");
+}
+
+function formatHandoffStatus(status: string): string {
+  return status.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function handoffStatusClass(status: string): string {
+  switch (status) {
+    case "completed":
+      return "bg-[var(--ph-success-bg)] text-[var(--ph-success)]";
+    case "failed":
+      return "bg-[var(--ph-danger-bg)] text-[var(--ph-danger)]";
+    case "waiting_on_pipelinehealer":
+    case "pr_opened":
+      return "bg-[var(--ph-warning-bg)] text-[var(--ph-warning)]";
+    case "queued":
+    case "acknowledged":
+    case "in_progress":
+      return "bg-[var(--ph-info-bg)] text-[var(--ph-info)]";
+    default:
+      return "bg-[var(--ph-bg-elevated)] text-[var(--ph-text)]";
+  }
+}
+
+function HandoffSessionsPanel({
+  sessions,
+}: {
+  sessions: HandoffSessionView[];
+}) {
+  const sorted = [...sessions].sort(
+    (a, b) =>
+      new Date(b.session.updated_at).getTime() -
+      new Date(a.session.updated_at).getTime(),
+  );
+  return (
+    <div className="card p-6">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-lg font-semibold text-[var(--ph-text)]">
+          External Agent Handoffs
+        </h2>
+        <p className="text-sm text-[var(--ph-muted)]">
+          Durable sessions for Codex App Server, OpenClaw, Hermes, and callback events.
+        </p>
+      </div>
+      {sorted.length === 0 ? (
+        <p className="mt-5 text-sm text-[var(--ph-muted)]">
+          No external agent handoff has been recorded for this activity.
+        </p>
+      ) : (
+        <div className="mt-5 space-y-4">
+          {sorted.map(({ session, messages }) => {
+            const latestMessages = [...messages].slice(-4).reverse();
+            const githubLinks = [
+              { label: "PR", url: session.github.pr_url },
+              { label: "Issue", url: session.github.issue_url },
+              { label: "Comment", url: session.github.comment_url },
+              { label: "Rerun", url: session.github.workflow_rerun_url },
+            ].filter((link): link is { label: string; url: string } =>
+              Boolean(link.url),
+            );
+            return (
+              <div
+                key={session.id}
+                className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-4"
+              >
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline">
+                        {formatHandoffTarget(session.target)}
+                      </Badge>
+                      <span
+                        className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${handoffStatusClass(session.status)}`}
+                      >
+                        {formatHandoffStatus(session.status)}
+                      </span>
+                      <Badge variant="outline">
+                        {session.policy_decision || "operator_requested"}
+                      </Badge>
+                    </div>
+                    <p className="mt-3 text-sm font-medium text-[var(--ph-text)]">
+                      {session.goal}
+                    </p>
+                    <p className="mt-2 text-xs text-[var(--ph-muted)] break-all">
+                      Session {session.id} • context sha256 {session.context_sha256.slice(0, 12)}
+                      {session.external_thread_id
+                        ? ` • thread ${session.external_thread_id}`
+                        : ""}
+                    </p>
+                  </div>
+                  <div className="text-xs text-[var(--ph-muted)] lg:text-right">
+                    <p>{format(new Date(session.updated_at), "PPpp")}</p>
+                    <p>
+                      {formatDistanceToNow(new Date(session.updated_at), {
+                        addSuffix: true,
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                {session.labels.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {session.labels.map((label) => (
+                      <Badge key={label} variant="secondary">
+                        {label}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
+
+                {githubLinks.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {githubLinks.map((link) => (
+                      <a
+                        key={link.label}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-sm text-[var(--ph-accent)] hover:opacity-80"
+                      >
+                        {link.label}
+                        <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
+
+                {latestMessages.length > 0 ? (
+                  <div className="mt-4 space-y-2">
+                    {latestMessages.map((message) => (
+                      <div
+                        key={message.id}
+                        className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-surface)] px-3 py-2"
+                      >
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--ph-muted)]">
+                          <span>{formatHandoffStatus(message.event_type)}</span>
+                          <span>{message.direction}</span>
+                          <span>{message.actor || "unknown actor"}</span>
+                          <span>
+                            {formatDistanceToNow(new Date(message.created_at), {
+                              addSuffix: true,
+                            })}
+                          </span>
+                          {message.signature_verified ? (
+                            <Badge variant="outline">signed callback</Badge>
+                          ) : null}
+                        </div>
+                        {message.body ? (
+                          <p className="mt-1 text-sm text-[var(--ph-text)]">
+                            {message.body}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const DETAIL_SECTIONS: Array<{ key: string; label: string }> = [
   { key: "summary", label: "Summary" },
   { key: "root_cause", label: "Root Cause" },
@@ -998,6 +1187,11 @@ export default function ActivityDetail() {
     queryKey: ["agent-handoff-config"],
     queryFn: () => api.getAgentHandoffConfig(),
   });
+  const { data: handoffSessions = [] } = useQuery({
+    queryKey: ["activity-handoff-sessions", id],
+    queryFn: () => api.getActivityHandoffSessions(id!),
+    enabled: !!id,
+  });
 
   const retryMutation = useMutation({
     mutationFn: () => api.retryActivity(id!),
@@ -1013,13 +1207,13 @@ export default function ActivityDetail() {
     },
   });
   const handoffMutation = useMutation({
-    mutationFn: (payload: {
-      mode?: "copy_only" | "webhook";
-      context: string;
-      context_format?: string;
-    }) => api.assignActivityToAgent(id!, payload),
+    mutationFn: (payload: HandoffSessionCreateRequest) =>
+      api.createHandoffSession(id!, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["activity", id] });
+      queryClient.invalidateQueries({
+        queryKey: ["activity-handoff-sessions", id],
+      });
     },
   });
 
@@ -1187,14 +1381,13 @@ export default function ActivityDetail() {
   };
   const assignEnabled =
     Boolean(handoffConfig?.enabled) &&
-    (handoffConfig?.mode === "copy_only" ||
-      Boolean(handoffConfig?.webhook_configured));
+    Boolean(handoffConfig?.enabled_targets?.length);
   const assignDisabledReason = !handoffConfig
     ? "Assign-to-Agent configuration is unavailable."
     : !handoffConfig.enabled
       ? "Assign-to-Agent is disabled by runtime configuration."
-      : handoffConfig.mode === "webhook" && !handoffConfig.webhook_configured
-        ? "Assign-to-Agent webhook mode is enabled, but no receiver URL secret is configured yet."
+      : !handoffConfig.enabled_targets?.length
+        ? "No external agent targets are enabled."
         : "Assign-to-Agent is unavailable.";
   const handleAssignToAgent = async () => {
     if (!handoffConfig) {
@@ -1212,17 +1405,22 @@ export default function ActivityDetail() {
     }
     handoffMutation.mutate(
       {
-        mode: handoffConfig.mode,
+        target: handoffConfig.default_target,
+        goal: buildHandoffGoal(activity),
         context,
         context_format: "markdown",
+        send: handoffConfig.mode === "webhook",
       },
       {
         onSuccess: (result) => {
-          if (result.status === "queued" || result.status === "copied") {
+          if (
+            result.delivery_status === "queued" ||
+            result.delivery_status === "copied"
+          ) {
             toast.success(
-              result.message || "Assign-to-Agent handoff submitted",
+              result.message || "External agent handoff recorded",
             );
-          } else if (result.status === "disabled") {
+          } else if (result.delivery_status === "disabled") {
             toast.info(result.message || "Assign-to-Agent is disabled");
           } else {
             toast.error(result.message || "Assign-to-Agent handoff failed");
@@ -1272,7 +1470,7 @@ export default function ActivityDetail() {
             onClick={handleAssignToAgent}
             title={
               assignEnabled
-                ? `Assign-to-Agent (${handoffConfig?.mode ?? "copy_only"})`
+                ? `Assign-to-Agent (${formatHandoffTarget(handoffConfig?.default_target ?? "codex_app_server")})`
                 : assignDisabledReason
             }
             className={`inline-flex h-9 items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)] px-3 text-sm font-semibold text-[var(--ph-text)] ${
@@ -1677,6 +1875,8 @@ export default function ActivityDetail() {
           </IncidentRecordPanel>
         </div>
       </div>
+
+      <HandoffSessionsPanel sessions={handoffSessions} />
 
       {/* External Diagnostics Card */}
       <div className="card p-6">

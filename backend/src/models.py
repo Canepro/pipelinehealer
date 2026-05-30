@@ -89,6 +89,104 @@ class AgentHandoffStatus(StrEnum):
     DISABLED = "disabled"
 
 
+class ExternalAgentTarget(StrEnum):
+    """Supported external agent-control-plane handoff targets."""
+
+    CODEX_APP_SERVER = "codex_app_server"
+    OPENCLAW = "openclaw"
+    HERMES = "hermes"
+    CUSTOM = "custom"
+
+
+class HandoffSessionStatus(StrEnum):
+    """Durable lifecycle states for delegated external-agent work."""
+
+    CREATED = "created"
+    QUEUED = "queued"
+    ACKNOWLEDGED = "acknowledged"
+    IN_PROGRESS = "in_progress"
+    WAITING_ON_PIPELINEHEALER = "waiting_on_pipelinehealer"
+    PR_OPENED = "pr_opened"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class HandoffMessageDirection(StrEnum):
+    """Direction of one handoff-session message."""
+
+    OUTBOUND = "outbound"
+    INBOUND = "inbound"
+    INTERNAL = "internal"
+
+
+class HandoffEventType(StrEnum):
+    """Allowed event types in the external-agent callback contract."""
+
+    DELEGATED = "delegated"
+    ACKNOWLEDGED = "acknowledged"
+    STARTED_WORK = "started_work"
+    NEEDS_MORE_INFO = "needs_more_info"
+    PR_OPENED = "pr_opened"
+    ISSUE_COMMENTED = "issue_commented"
+    LABEL_APPLIED = "label_applied"
+    WORKFLOW_RERUN = "workflow_rerun"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class HandoffGitHubRefs(BaseModel):
+    """GitHub references reported by PipelineHealer or an external agent."""
+
+    repository: str = ""
+    run_id: int | None = None
+    issue_url: str | None = None
+    pr_url: str | None = None
+    comment_url: str | None = None
+    labels: list[str] = Field(default_factory=list)
+    workflow_rerun_url: str | None = None
+
+
+class HandoffSession(BaseModel):
+    """Durable system-of-record session for delegated external-agent work."""
+
+    id: str = Field(default_factory=lambda: "")
+    activity_id: str
+    target: ExternalAgentTarget
+    status: HandoffSessionStatus = HandoffSessionStatus.CREATED
+    goal: str = Field(default="", max_length=4000)
+    created_by: str | None = None
+    request_id: str | None = None
+    delivery_id: str | None = None
+    external_thread_id: str | None = None
+    github: HandoffGitHubRefs = Field(default_factory=HandoffGitHubRefs)
+    labels: list[str] = Field(default_factory=list)
+    policy_decision: str = "operator_requested"
+    callback_url: str | None = None
+    context_sha256: str = ""
+    context_preview: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
+class HandoffMessage(BaseModel):
+    """One redacted message or event in a handoff session."""
+
+    id: str = Field(default_factory=lambda: "")
+    session_id: str
+    event_type: HandoffEventType
+    direction: HandoffMessageDirection
+    actor: str = ""
+    body: str = Field(default="", max_length=20000)
+    payload_sha256: str = ""
+    payload_redacted: dict[str, Any] = Field(default_factory=dict)
+    github: HandoffGitHubRefs = Field(default_factory=HandoffGitHubRefs)
+    labels: list[str] = Field(default_factory=list)
+    signature_verified: bool = False
+    request_id: str | None = None
+    created_at: datetime = Field(default_factory=utcnow)
+
+
 # =============================================================================
 # GitHub Webhook Models
 # =============================================================================
@@ -459,12 +557,23 @@ class AppSettingsView(BaseModel):
     agent_handoff_webhook_allowlist: list[str]
     agent_handoff_timeout_seconds: float
     agent_handoff_max_retries: int
+    agent_handoff_default_target: str
+    agent_handoff_enabled_targets: list[str]
+    codex_app_server_handoff_configured: bool
+    openclaw_handoff_configured: bool
+    hermes_handoff_configured: bool
     ph_allowed_repos: list[str]
     cors_allowed_origins: list[str]
     cors_allow_origin_regex: str
     llm_provider: str
     openai_compatible_base_url: str
     openai_compatible_model: str
+    codex_app_server_transport: str
+    codex_app_server_command: str
+    codex_app_server_model: str
+    codex_app_server_turn_timeout_ms: int
+    codex_app_server_ws_url: str
+    codex_app_server_ws_allow_remote: bool
     llm_model_analysis: str
     llm_model_diagnosis: str
     llm_model_remediation: str
@@ -480,6 +589,11 @@ class AppSettingsView(BaseModel):
     azure_openai_deployment_name: str
     azure_openai_api_version: str
     azure_openai_chat_api_version: str
+    infisical_project_id: str
+    infisical_environment: str
+    infisical_secret_path: str
+    infisical_cli_path: str
+    infisical_api_url: str
     setup_status: "SetupStatusView"
     settings_metadata: dict[str, "AppSettingMetadataView"] = Field(default_factory=dict)
 
@@ -556,6 +670,8 @@ class AdminSettingsUpdateRequest(BaseModel):
     agent_handoff_webhook_allowlist: list[str] | None = None
     agent_handoff_timeout_seconds: float | None = Field(default=None, gt=0.0, le=30.0)
     agent_handoff_max_retries: int | None = Field(default=None, ge=0, le=5)
+    agent_handoff_default_target: str | None = None
+    agent_handoff_enabled_targets: list[str] | None = None
     ph_allowed_repos: list[str] | None = None
     llm_provider: str | None = None
     azure_openai_endpoint: str | None = None
@@ -563,6 +679,12 @@ class AdminSettingsUpdateRequest(BaseModel):
     azure_openai_chat_api_version: str | None = None
     openai_compatible_base_url: str | None = None
     openai_compatible_model: str | None = None
+    codex_app_server_transport: str | None = None
+    codex_app_server_command: str | None = None
+    codex_app_server_model: str | None = None
+    codex_app_server_turn_timeout_ms: int | None = Field(default=None, ge=1000, le=900000)
+    codex_app_server_ws_url: str | None = None
+    codex_app_server_ws_allow_remote: bool | None = None
     llm_model_analysis: str | None = None
     llm_model_diagnosis: str | None = None
     llm_model_remediation: str | None = None
@@ -579,6 +701,11 @@ class AdminSettingsUpdateRequest(BaseModel):
     jenkins_bridge_replay_ttl_seconds: int | None = Field(default=None, ge=60, le=604800)
     jenkins_bridge_max_body_bytes: int | None = Field(default=None, ge=1024, le=4194304)
     azure_openai_deployment_name: str | None = None
+    infisical_project_id: str | None = None
+    infisical_environment: str | None = None
+    infisical_secret_path: str | None = None
+    infisical_cli_path: str | None = None
+    infisical_api_url: str | None = None
 
 
 class SecretWriteRequest(BaseModel):
@@ -649,6 +776,9 @@ class AgentHandoffConfigView(BaseModel):
     webhook_configured: bool
     timeout_seconds: float
     max_retries: int
+    default_target: ExternalAgentTarget = ExternalAgentTarget.CODEX_APP_SERVER
+    enabled_targets: list[ExternalAgentTarget] = Field(default_factory=list)
+    target_configured: dict[ExternalAgentTarget, bool] = Field(default_factory=dict)
     reason: str = "ok"
 
 
@@ -709,6 +839,47 @@ class AgentHandoffAuditEntry(BaseModel):
     delivery_id: str | None = None
     destination_host: str | None = None
     error: str | None = None
+
+
+class HandoffSessionCreateRequest(BaseModel):
+    """Request payload for creating a durable external-agent handoff session."""
+
+    target: ExternalAgentTarget = ExternalAgentTarget.CODEX_APP_SERVER
+    goal: str = Field(min_length=1, max_length=4000)
+    context: str = Field(default="", max_length=20000)
+    context_format: str = "markdown"
+    send: bool = True
+    labels: list[str] = Field(default_factory=list)
+    policy_decision: str = "operator_requested"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class HandoffSessionEventRequest(BaseModel):
+    """External-agent callback payload for one handoff session event."""
+
+    event_type: HandoffEventType
+    message: str = Field(default="", max_length=20000)
+    actor: str = "external_agent"
+    external_thread_id: str | None = None
+    github: HandoffGitHubRefs = Field(default_factory=HandoffGitHubRefs)
+    labels: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class HandoffSessionView(BaseModel):
+    """Session plus recent messages returned to operator surfaces."""
+
+    session: HandoffSession
+    messages: list[HandoffMessage] = Field(default_factory=list)
+
+
+class HandoffSessionCreateResponse(BaseModel):
+    """Response after creating and optionally dispatching a handoff session."""
+
+    session: HandoffSession
+    initial_message: HandoffMessage
+    delivery_status: AgentHandoffStatus
+    message: str = ""
 
 
 class LearningQueueStatus(StrEnum):

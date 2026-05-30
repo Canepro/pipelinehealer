@@ -88,6 +88,7 @@ jobs:
       GH_AW_SAFE_OUTPUTS: /opt/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json
       GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /opt/gh-aw/safeoutputs/tools.json
+      GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'gpt-4.1' }}
       GH_AW_WORKFLOW_ID_SANITIZED: breakingchangechecker
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
@@ -183,7 +184,25 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.409
+        env:
+          GH_AW_COPILOT_VERSION: 0.0.409
+          GH_AW_COPILOT_INSTALL_RETRIES: 3
+        run: |
+          set -eu
+          attempts="${GH_AW_COPILOT_INSTALL_RETRIES}"
+          for attempt in $(seq 1 "${attempts}"); do
+            if /opt/gh-aw/actions/install_copilot_cli.sh "${GH_AW_COPILOT_VERSION}"; then
+              echo "GitHub Copilot CLI installed (attempt ${attempt})"
+              break
+            fi
+            if [ "${attempt}" -ge "${attempts}" ]; then
+              echo "GitHub Copilot CLI installation failed after ${attempts} attempts" >&2
+              exit 1
+            fi
+            delay=$(( attempt * 4 ))
+            echo "Install failed on attempt ${attempt}; retrying in ${delay}s"
+            sleep "${delay}"
+          done
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.17.0
       - name: Determine automatic lockdown mode for GitHub MCP server
@@ -661,7 +680,7 @@ jobs:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
-          GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
+          GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'gpt-4.1' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_HEAD_REF: ${{ github.head_ref }}
@@ -706,6 +725,13 @@ jobs:
           GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
         run: |
           bash /opt/gh-aw/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
+      - name: Fix MCP log permissions for parser
+        if: always()
+        run: |
+          if [ -d /tmp/gh-aw/mcp-logs ]; then
+            sudo chown -R runner:runner /tmp/gh-aw/mcp-logs || true
+            sudo chmod -R a+rwx /tmp/gh-aw/mcp-logs || true
+          fi
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -983,7 +1009,25 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.409
+        env:
+          GH_AW_COPILOT_VERSION: 0.0.409
+          GH_AW_COPILOT_INSTALL_RETRIES: 3
+        run: |
+          set -eu
+          attempts="${GH_AW_COPILOT_INSTALL_RETRIES}"
+          for attempt in $(seq 1 "${attempts}"); do
+            if /opt/gh-aw/actions/install_copilot_cli.sh "${GH_AW_COPILOT_VERSION}"; then
+              echo "GitHub Copilot CLI installed (attempt ${attempt})"
+              break
+            fi
+            if [ "${attempt}" -ge "${attempts}" ]; then
+              echo "GitHub Copilot CLI installation failed after ${attempts} attempts" >&2
+              exit 1
+            fi
+            delay=$(( attempt * 4 ))
+            echo "Install failed on attempt ${attempt}; retrying in ${delay}s"
+            sleep "${delay}"
+          done
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -1006,7 +1050,7 @@ jobs:
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          GH_AW_MODEL_DETECTION_COPILOT: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
+          GH_AW_MODEL_DETECTION_COPILOT: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || 'gpt-4.1' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -1033,7 +1077,7 @@ jobs:
   pre_activation:
     runs-on: ubuntu-slim
     outputs:
-      activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_skip_if_match.outputs.skip_check_ok == 'true') }}
+      activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.normalize_skip_if_match.outputs.skip_check_ok == 'true') }}
     steps:
       - name: Setup Scripts
         uses: github/gh-aw/actions/setup@9382be3ca9ac18917e111a99d4e6bbff58d0dccc # v0.43.23
@@ -1053,9 +1097,10 @@ jobs:
             await main();
       - name: Check skip-if-match query
         id: check_skip_if_match
+        continue-on-error: true
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_SKIP_QUERY: "is:issue is:open in:title \"[breaking-change]\""
+          GH_AW_SKIP_QUERY: "is:issue is:open label:breaking-change in:title \"[breaking-change]\""
           GH_AW_WORKFLOW_NAME: "Breaking Change Checker"
           GH_AW_SKIP_MAX_MATCHES: "1"
         with:
@@ -1064,6 +1109,16 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_skip_if_match.cjs');
             await main();
+      - name: Normalize skip-if-match output
+        id: normalize_skip_if_match
+        shell: bash
+        run: |
+          skip_check_ok="${{ steps.check_skip_if_match.outputs.skip_check_ok }}"
+          if [ -z "$skip_check_ok" ]; then
+            echo "::warning::skip-if-match check produced no output. Defaulting to safe proceed=true."
+            skip_check_ok="true"
+          fi
+          echo "skip_check_ok=$skip_check_ok" >> "$GITHUB_OUTPUT"
 
   safe_outputs:
     needs:
@@ -1130,4 +1185,3 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/assign_copilot_to_created_issues.cjs');
             await main();
-

@@ -1,7 +1,7 @@
 ---
 on:
   schedule: 0 14 * * 1-5
-  skip-if-match: is:issue is:open in:title "[breaking-change]"
+  skip-if-match: is:issue is:open label:breaking-change in:title "[breaking-change]"
   workflow_dispatch: null
 permissions:
   actions: read
@@ -26,6 +26,7 @@ safe-outputs:
     run-success: ✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋
 description: Daily analysis of recent commits and merged PRs for breaking CLI changes
 engine: copilot
+model: gpt-4.1
 source: github/gh-aw/.github/workflows/breaking-change-checker.md@94662b1dee8ce96c876ba9f33b3ab8be32de82a4
 timeout-minutes: 10
 tools:

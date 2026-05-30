@@ -8,6 +8,7 @@ class LLMProviderName(StrEnum):
 
     AZURE_OPENAI = "azure_openai"
     OPENAI_COMPATIBLE = "openai_compatible"
+    CODEX_APP_SERVER = "codex_app_server"
     CUSTOM = "custom"
 
 

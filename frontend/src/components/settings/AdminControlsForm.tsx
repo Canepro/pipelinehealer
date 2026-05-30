@@ -246,6 +246,16 @@ const NOTIFICATION_TARGET_TYPES: Array<{
   },
 ];
 
+const EXTERNAL_AGENT_TARGETS: Array<{
+  value: SettingsFormState["agent_handoff_default_target"];
+  label: string;
+}> = [
+  { value: "codex_app_server", label: "Codex App Server" },
+  { value: "openclaw", label: "OpenClaw" },
+  { value: "hermes", label: "Hermes" },
+  { value: "custom", label: "Custom webhook" },
+];
+
 function formatMcpPolicyLabel(policy: McpPolicyMode): string {
   switch (policy) {
     case "disabled":
@@ -511,7 +521,9 @@ export default function AdminControlsForm({
   const providerDefaultModel =
     form.llm_provider === "azure_openai"
       ? form.azure_openai_deployment_name.trim()
-      : form.openai_compatible_model.trim();
+      : form.llm_provider === "codex_app_server"
+        ? form.codex_app_server_model.trim()
+        : form.openai_compatible_model.trim();
   const resolvedLlmCapability =
     llmCapabilitySummary ?? describeLlmCapability(llmProviderHealth);
   const llmValidationLabel = formatLlmValidationLabel(llmProviderHealth);
@@ -1283,7 +1295,10 @@ export default function AdminControlsForm({
                         azure_openai (recommended)
                       </SelectItem>
                       <SelectItem value="openai_compatible">
-                        openai_compatible (scaffold)
+                        openai_compatible
+                      </SelectItem>
+                      <SelectItem value="codex_app_server">
+                        codex_app_server
                       </SelectItem>
                       <SelectItem value="custom">custom (scaffold)</SelectItem>
                     </SelectContent>
@@ -1293,11 +1308,15 @@ export default function AdminControlsForm({
                   label={
                     form.llm_provider === "azure_openai"
                       ? "Model Deployment Name"
+                      : form.llm_provider === "codex_app_server"
+                        ? "Codex Model"
                       : "Model Name"
                   }
                   field={
                     form.llm_provider === "azure_openai"
                       ? "azure_openai_deployment_name"
+                      : form.llm_provider === "codex_app_server"
+                        ? "codex_app_server_model"
                       : "openai_compatible_model"
                   }
                 >
@@ -1306,6 +1325,8 @@ export default function AdminControlsForm({
                     value={
                       form.llm_provider === "azure_openai"
                         ? form.azure_openai_deployment_name
+                        : form.llm_provider === "codex_app_server"
+                          ? form.codex_app_server_model
                         : form.openai_compatible_model
                     }
                     onChange={(e) =>
@@ -1313,12 +1334,16 @@ export default function AdminControlsForm({
                         ...prev,
                         ...(form.llm_provider === "azure_openai"
                           ? { azure_openai_deployment_name: e.target.value }
+                          : form.llm_provider === "codex_app_server"
+                            ? { codex_app_server_model: e.target.value }
                           : { openai_compatible_model: e.target.value }),
                       }))
                     }
                     placeholder={
                       form.llm_provider === "azure_openai"
                         ? "e.g. gpt-4o, gpt-5-mini"
+                        : form.llm_provider === "codex_app_server"
+                          ? "e.g. gpt-5.1-codex"
                         : "e.g. gpt-4o-mini, claude-compatible-model"
                     }
                   />
@@ -1334,6 +1359,30 @@ export default function AdminControlsForm({
                       )}
                     </p>
                   </div>
+                ) : form.llm_provider === "codex_app_server" ? (
+                  <FieldGroup
+                    label="Transport"
+                    field="codex_app_server_transport"
+                  >
+                    <Select
+                      value={form.codex_app_server_transport}
+                      onValueChange={(v) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          codex_app_server_transport:
+                            v as SettingsFormState["codex_app_server_transport"],
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="stdio">stdio</SelectItem>
+                        <SelectItem value="websocket">websocket</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FieldGroup>
                 ) : (
                   <FieldGroup
                     label="Provider Base URL"
@@ -1353,6 +1402,80 @@ export default function AdminControlsForm({
                   </FieldGroup>
                 )}
               </div>
+
+              {form.llm_provider === "codex_app_server" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <FieldGroup
+                    label="Command"
+                    field="codex_app_server_command"
+                  >
+                    <Input
+                      type="text"
+                      value={form.codex_app_server_command}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          codex_app_server_command: e.target.value,
+                        }))
+                      }
+                      placeholder="codex"
+                    />
+                  </FieldGroup>
+                  <FieldGroup
+                    label="Turn Timeout (ms)"
+                    field="codex_app_server_turn_timeout_ms"
+                  >
+                    <Input
+                      type="number"
+                      min={5000}
+                      max={600000}
+                      step={1000}
+                      value={form.codex_app_server_turn_timeout_ms}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          codex_app_server_turn_timeout_ms: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </FieldGroup>
+                  {form.codex_app_server_transport === "websocket" && (
+                    <>
+                      <FieldGroup
+                        label="WebSocket URL"
+                        field="codex_app_server_ws_url"
+                      >
+                        <Input
+                          type="text"
+                          value={form.codex_app_server_ws_url}
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              codex_app_server_ws_url: e.target.value,
+                            }))
+                          }
+                          placeholder="ws://127.0.0.1:8765"
+                        />
+                      </FieldGroup>
+                      <SwitchField
+                        label="Allow Remote WebSocket"
+                        field="codex_app_server_ws_allow_remote"
+                        checked={form.codex_app_server_ws_allow_remote}
+                        onChange={(v) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            codex_app_server_ws_allow_remote: v,
+                          }))
+                        }
+                        metadata={
+                          data.settings_metadata
+                            ?.codex_app_server_ws_allow_remote
+                        }
+                      />
+                    </>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <ReadOnlyField
@@ -1381,6 +1504,20 @@ export default function AdminControlsForm({
                   <ReadOnlyField
                     label="Provider Endpoint"
                     value={data.openai_compatible_base_url || "Not configured"}
+                  />
+                </div>
+              )}
+              {form.llm_provider === "codex_app_server" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <ReadOnlyField
+                    label="Runtime"
+                    value={`${data.codex_app_server_transport} via ${data.codex_app_server_command || "codex"}`}
+                    metadata={data.settings_metadata?.codex_app_server_transport}
+                  />
+                  <ReadOnlyField
+                    label="Requested Model"
+                    value={data.codex_app_server_model || "Not configured"}
+                    metadata={data.settings_metadata?.codex_app_server_model}
                   />
                 </div>
               )}
@@ -1612,6 +1749,92 @@ export default function AdminControlsForm({
                 </FieldGroup>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <FieldGroup
+                  label="Default External Agent"
+                  field="agent_handoff_default_target"
+                  metadata={handoffMetadata.agent_handoff_default_target}
+                >
+                  <Select
+                    value={form.agent_handoff_default_target}
+                    onValueChange={(v) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        agent_handoff_default_target:
+                          v as SettingsFormState["agent_handoff_default_target"],
+                        agent_handoff_enabled_targets:
+                          prev.agent_handoff_enabled_targets.includes(
+                            v as SettingsFormState["agent_handoff_default_target"],
+                          )
+                            ? prev.agent_handoff_enabled_targets
+                            : [
+                                ...prev.agent_handoff_enabled_targets,
+                                v as SettingsFormState["agent_handoff_default_target"],
+                              ],
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EXTERNAL_AGENT_TARGETS.map((target) => (
+                        <SelectItem key={target.value} value={target.value}>
+                          {target.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FieldGroup>
+                <div className="space-y-2">
+                  <Label className="text-[var(--ph-muted)]">
+                    Enabled Handoff Targets
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    {EXTERNAL_AGENT_TARGETS.map((target) => {
+                      const checked =
+                        form.agent_handoff_enabled_targets.includes(
+                          target.value,
+                        );
+                      return (
+                        <Button
+                          key={target.value}
+                          type="button"
+                          size="sm"
+                          variant={checked ? "secondary" : "ghost"}
+                          onClick={() =>
+                            setForm((prev) => {
+                              const next = checked
+                                ? prev.agent_handoff_enabled_targets.filter(
+                                    (item) => item !== target.value,
+                                  )
+                                : [
+                                    ...prev.agent_handoff_enabled_targets,
+                                    target.value,
+                                  ];
+                              return {
+                                ...prev,
+                                agent_handoff_enabled_targets: next.includes(
+                                  prev.agent_handoff_default_target,
+                                )
+                                  ? next
+                                  : [prev.agent_handoff_default_target, ...next],
+                              };
+                            })
+                          }
+                        >
+                          {target.label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-[var(--ph-muted)]">
+                    These are policy gates. Each target still needs its own
+                    URL or runtime bridge to dispatch externally.
+                  </p>
+                </div>
+              </div>
+
               <Separator />
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -1643,6 +1866,46 @@ export default function AdminControlsForm({
                     data.agent_handoff_mode !== "webhook" ||
                     data.agent_handoff_webhook_configured
                   }
+                />
+                <StatusChip
+                  label="Default Target"
+                  value={form.agent_handoff_default_target}
+                  ok={form.agent_handoff_enabled_targets.includes(
+                    form.agent_handoff_default_target,
+                  )}
+                  metadata={data.settings_metadata?.agent_handoff_default_target}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <StatusChip
+                  label="Codex App Server"
+                  value={
+                    data.codex_app_server_handoff_configured
+                      ? "Webhook configured"
+                      : "Record-only until URL exists"
+                  }
+                  ok={form.agent_handoff_enabled_targets.includes(
+                    "codex_app_server",
+                  )}
+                />
+                <StatusChip
+                  label="OpenClaw"
+                  value={
+                    data.openclaw_handoff_configured
+                      ? "Webhook configured"
+                      : "Record-only until URL exists"
+                  }
+                  ok={form.agent_handoff_enabled_targets.includes("openclaw")}
+                />
+                <StatusChip
+                  label="Hermes"
+                  value={
+                    data.hermes_handoff_configured
+                      ? "Webhook configured"
+                      : "Record-only until URL exists"
+                  }
+                  ok={form.agent_handoff_enabled_targets.includes("hermes")}
                 />
               </div>
 

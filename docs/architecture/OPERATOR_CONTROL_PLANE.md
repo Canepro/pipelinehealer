@@ -1,4 +1,4 @@
-<!-- LAST_VERIFIED: 83805e7 -->
+<!-- LAST_VERIFIED: 4055ae3 -->
 
 # Operator Control Plane
 
@@ -15,6 +15,7 @@ Current shipped provider paths are:
 - GitHub Actions failure ingestion via `/webhook/github`
 - signed Jenkins bridge ingestion via `/webhook/jenkins`
 - GitHub-oriented diagnostics/tooling through `gh_aw` and MCP integrations
+- durable external-agent handoff sessions for Codex App Server, OpenClaw, Hermes, and custom targets
 
 These are provider paths, not the product boundary.
 
@@ -23,6 +24,7 @@ The product boundary is:
 - normalize pipeline failure evidence into a common activity model
 - apply diagnosis and remediation under explicit policy controls
 - preserve auditability and explainability across all actions
+- remain the system of record when an external agent performs the GitHub work
 - expose one coherent operator control plane regardless of deployment target
 
 Azure Container Apps is the current reference managed deployment, not the identity of the product.
@@ -39,7 +41,9 @@ Core behavior must be understandable and operable across:
 - Azure Container Apps
 - future deployment targets
 
-Platform-specific mechanisms such as ACA secret refs, Key Vault-backed injection, Helm values, or `.env` files are adapters around the same settings model.
+Platform-specific mechanisms such as ACA secret refs, Infisical injection, Key Vault-backed injection, Helm values, or `.env` files are adapters around the same settings model.
+
+Infisical is a supported runtime-secret backend beside the portable encrypted database backend and optional Azure Key Vault adapter. Operators should treat Infisical as the preferred durable store for project/runtime/API/CI/service credentials when the deployment can consume it.
 
 ### 2. Deterministic configuration
 
@@ -225,10 +229,44 @@ Should answer:
 - what happened
 - why PipelineHealer chose that path
 - what external evidence/path was used
+- what handoff session and callback events exist when work was delegated
+- which GitHub PRs, comments, labels, or workflow reruns were reported by the external agent
 - whether downstream actions were blocked by policy or missing dependency
 - whether promoted learning guidance influenced the outcome
 - whether an operator has verified identification, diagnosis, remediation, and guidance effectiveness yet
 - what still requires review before the incident can be considered trusted
+
+### External Agent Handoff
+
+PipelineHealer owns detection, diagnosis, policy decision, handoff session creation, callback events, GitHub verification metadata, labels, and audit history.
+
+External agents may perform the work:
+
+- Codex App Server
+- OpenClaw
+- Hermes
+- custom webhook-compatible agents
+
+The durable handoff model is:
+
+- `HandoffSession`: one delegated work item tied to an Activity
+- `HandoffMessage`: the back-and-forth event stream for that session
+- callback events: `acknowledged`, `started_work`, `needs_more_info`, `pr_opened`, `issue_commented`, `label_applied`, `workflow_rerun`, `completed`, `failed`
+
+GitHub labels use stable ownership semantics:
+
+- `pipelinehealer:detected`
+- `pipelinehealer:delegated`
+- `pipelinehealer:external-agent`
+- `agent:codex`
+- `agent:openclaw`
+- `agent:hermes`
+- `pipelinehealer:fix-submitted`
+- `pipelinehealer:needs-review`
+- `pipelinehealer:verified`
+- `pipelinehealer:failed-delegation`
+
+The audit trail must record whether PipelineHealer applied/verified a label or the external agent reported it.
 
 ## Historical `v0.4.0` Focus Areas
 

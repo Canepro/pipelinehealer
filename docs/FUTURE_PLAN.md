@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: ab7f344 -->
+<!-- LAST_VERIFIED: 4055ae3 -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -84,6 +84,35 @@ Carry-forward patch scope already landed on `main` for inclusion in the `v0.7.1`
 1. Bridge-ingested Jenkins failures no longer fail diagnosis solely because Azure flags the first prompt as `content_filter`.
 2. Sanitized retry either produces a normal diagnosis or a structured provider-policy fallback without leaking raw provider exception text as the operator-facing root cause.
 3. Docs and changelog frame this as `v0.7.1`, `patch`, and `Fixed` scoped work.
+
+## Active Next Target: Agent-Control-Plane `v0.8.0` (Minor)
+
+Theme: make PipelineHealer a system-of-record workflow for external coding agents.
+
+Delivered baseline in this workstream:
+
+- durable `HandoffSession` and `HandoffMessage` records tied to Activities
+- Activity Detail timeline UI for handoff sessions and callback events
+- callback events for `acknowledged`, `started_work`, `needs_more_info`, `pr_opened`, `issue_commented`, `label_applied`, `workflow_rerun`, `completed`, and `failed`
+- target metadata for Codex App Server, OpenClaw, Hermes, and custom agents
+- GitHub label taxonomy for delegated work
+- `LLM_PROVIDER=codex_app_server` as a separate model-runtime route
+- `SETTINGS_SECRET_BACKEND=infisical` plus a redacted migration helper
+- ACA deploy helpers that read Infisical-injected process env and write sensitive values as Container App secret refs
+
+Next slices:
+
+1. Add Control Center readiness panels for target-agent configuration and callback-signature status.
+2. Add GitHub verification workers that confirm reported PRs, comments, labels, and reruns from GitHub directly.
+3. Add live target adapters for Codex App Server, OpenClaw, and Hermes once each runtime endpoint contract is fixed.
+4. Add production receiver hardening for callback replay protection, request IDs, and target-specific delivery retry telemetry.
+
+Exit criteria:
+
+1. Operators can delegate a failed Activity, see the session timeline, and verify reported GitHub work from the product surface.
+2. External agents can report progress through signed callbacks.
+3. PipelineHealer records every delegated action with redacted payloads and GitHub refs.
+4. Runtime secrets can be migrated into Infisical and consumed without keeping plaintext values in `backend/.env`.
 
 ## Released Target: `v0.6.1` (Patch)
 

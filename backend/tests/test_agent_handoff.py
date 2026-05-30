@@ -1,5 +1,10 @@
 """Tests for Assign-to-Agent API integration."""
 
+import hashlib
+import hmac
+import json
+from typing import Any
+
 import httpx
 import pytest
 
@@ -41,6 +46,36 @@ async def _post_handoff(
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         return await client.post(
             f"/api/activities/{activity_id}/agent-handoff",
+            json=payload,
+            headers=headers or {},
+        )
+
+
+async def _post_handoff_session(
+    activity_id: str,
+    payload: dict[str, object],
+    *,
+    headers: dict[str, str] | None = None,
+) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.post(
+            f"/api/activities/{activity_id}/handoff-sessions",
+            json=payload,
+            headers=headers or {},
+        )
+
+
+async def _post_handoff_event(
+    session_id: str,
+    payload: dict[str, object],
+    *,
+    headers: dict[str, str] | None = None,
+) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.post(
+            f"/api/handoff-sessions/{session_id}/events",
             json=payload,
             headers=headers or {},
         )
@@ -412,3 +447,282 @@ async def test_handoff_actor_does_not_trust_raw_admin_key_header(
     assert updated is not None
     assert len(updated.agent_handoff_audit) == 1
     assert updated.agent_handoff_audit[0].actor == "api_client"
+
+
+@pytest.mark.asyncio
+async def test_handoff_session_records_durable_session_and_message(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED_TARGETS", "codex_app_server,openclaw,hermes")
+    reset_settings()
+
+    activity = ActivityRecord(
+        repositoryId="1",
+        repository_name="canepro/pipelinehealer-demo",
+        workflow_run_id=321,
+        workflow_name="CI",
+        status=RemediationStatus.FAILED,
+    )
+    activity_id = await _storage.create_activity(activity)
+    response = await _post_handoff_session(
+        activity_id,
+        {
+            "target": "openclaw",
+            "goal": "Fix the failed test and open a PR.",
+            "context": "token=supersecret123456",
+            "labels": ["pipelinehealer:needs-review"],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["session"]["target"] == "openclaw"
+    assert body["session"]["status"] == "created"
+    assert "agent:openclaw" in body["session"]["labels"]
+    assert body["delivery_status"] == "copied"
+    assert body["initial_message"]["event_type"] == "delegated"
+    assert body["initial_message"]["payload_redacted"]["context"] == "token=[REDACTED]"
+
+    sessions = await _storage.list_handoff_sessions_for_activity(activity_id)
+    assert len(sessions) == 1
+    messages = await _storage.list_handoff_messages(sessions[0].id)
+    assert len(messages) == 1
+
+
+@pytest.mark.asyncio
+async def test_handoff_session_copy_only_mode_does_not_deliver_configured_target(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.api import dashboard
+
+    async def _unexpected_deliver(**_kwargs):  # type: ignore[no-untyped-def]
+        raise AssertionError("copy-only session must not deliver to external target")
+
+    monkeypatch.setattr(dashboard, "_deliver_handoff_webhook", _unexpected_deliver)
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "copy_only")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED_TARGETS", "openclaw")
+    monkeypatch.setenv("AGENT_HANDOFF_DEFAULT_TARGET", "openclaw")
+    monkeypatch.setenv("OPENCLAW_HANDOFF_URL", "https://agent.example.com/openclaw")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_ALLOWLIST", "agent.example.com")
+    reset_settings()
+
+    activity = ActivityRecord(
+        repositoryId="1",
+        repository_name="canepro/pipelinehealer-demo",
+        workflow_run_id=324,
+        workflow_name="CI",
+        status=RemediationStatus.FAILED,
+    )
+    activity_id = await _storage.create_activity(activity)
+    response = await _post_handoff_session(
+        activity_id,
+        {
+            "target": "openclaw",
+            "goal": "Fix the failed test and open a PR.",
+            "context": "safe context",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["delivery_status"] == "copied"
+    assert body["session"]["status"] == "created"
+    assert body["message"] == "Handoff session recorded; copy-only mode is active"
+
+
+@pytest.mark.asyncio
+async def test_handoff_session_webhook_mode_without_target_url_marks_failed(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.api import dashboard
+
+    async def _unexpected_deliver(**_kwargs: Any) -> tuple[bool, None]:
+        raise AssertionError("session without target URL must not call delivery")
+
+    monkeypatch.setattr(dashboard, "_deliver_handoff_webhook", _unexpected_deliver)
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "webhook")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED_TARGETS", "openclaw")
+    monkeypatch.setenv("AGENT_HANDOFF_DEFAULT_TARGET", "openclaw")
+    monkeypatch.delenv("OPENCLAW_HANDOFF_URL", raising=False)
+    monkeypatch.delenv("AGENT_HANDOFF_WEBHOOK_URL", raising=False)
+    reset_settings()
+
+    activity = ActivityRecord(
+        repositoryId="1",
+        repository_name="canepro/pipelinehealer-demo",
+        workflow_run_id=326,
+        workflow_name="CI",
+        status=RemediationStatus.FAILED,
+    )
+    activity_id = await _storage.create_activity(activity)
+    response = await _post_handoff_session(
+        activity_id,
+        {
+            "target": "openclaw",
+            "goal": "Fix the failed test and open a PR.",
+            "context": "safe context",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["delivery_status"] == "failed"
+    assert body["session"]["status"] == "failed"
+    assert body["session"]["metadata"]["target_url_configured"] is False
+    assert body["message"] == "Handoff session delivery failed (target URL is not configured)"
+
+
+@pytest.mark.asyncio
+async def test_handoff_session_uses_legacy_webhook_for_default_codex_target(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.api import dashboard
+
+    captured: dict[str, Any] = {}
+
+    async def _fake_deliver(**kwargs: Any) -> tuple[bool, None]:
+        captured.update(kwargs)
+        return True, None
+
+    monkeypatch.setattr(dashboard, "_deliver_handoff_webhook", _fake_deliver)
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "webhook")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED_TARGETS", "codex_app_server")
+    monkeypatch.setenv("AGENT_HANDOFF_DEFAULT_TARGET", "codex_app_server")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_URL", "https://agent.example.com/handoff")
+    monkeypatch.delenv("CODEX_APP_SERVER_HANDOFF_URL", raising=False)
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_ALLOWLIST", "agent.example.com")
+    reset_settings()
+
+    activity = ActivityRecord(
+        repositoryId="1",
+        repository_name="canepro/pipelinehealer-demo",
+        workflow_run_id=325,
+        workflow_name="CI",
+        status=RemediationStatus.FAILED,
+    )
+    activity_id = await _storage.create_activity(activity)
+    response = await _post_handoff_session(
+        activity_id,
+        {
+            "target": "codex_app_server",
+            "goal": "Fix the failed test and open a PR.",
+            "context": "safe context",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["delivery_status"] == "queued"
+    assert body["session"]["status"] == "queued"
+    assert body["session"]["metadata"]["target_url_configured"] is True
+    assert captured["url"] == "https://agent.example.com/handoff"
+    delivered_payload = captured["payload"]
+    assert isinstance(delivered_payload, dict)
+    assert delivered_payload["target"] == "codex_app_server"
+
+
+@pytest.mark.asyncio
+async def test_handoff_session_callback_updates_status_with_signature(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_CALLBACK_SECRET", "callback-secret")
+    reset_settings()
+
+    activity = ActivityRecord(
+        repositoryId="1",
+        repository_name="canepro/pipelinehealer-demo",
+        workflow_run_id=322,
+        workflow_name="CI",
+        status=RemediationStatus.FAILED,
+    )
+    activity_id = await _storage.create_activity(activity)
+    create_response = await _post_handoff_session(
+        activity_id,
+        {
+            "target": "hermes",
+            "goal": "Investigate and report back.",
+            "context": "safe context",
+        },
+    )
+    assert create_response.status_code == 200
+    session_id = create_response.json()["session"]["id"]
+    event_payload = {
+        "event_type": "pr_opened",
+        "message": "Opened a PR.",
+        "actor": "hermes",
+        "github": {
+            "repository": "canepro/pipelinehealer-demo",
+            "run_id": 322,
+            "pr_url": "https://github.com/canepro/pipelinehealer-demo/pull/12",
+            "labels": ["pipelinehealer:fix-submitted"],
+        },
+    }
+    raw = json.dumps(event_payload, separators=(",", ":")).encode("utf-8")
+    signature = hmac.new(b"callback-secret", raw, hashlib.sha256).hexdigest()
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        event_response = await client.post(
+            f"/api/handoff-sessions/{session_id}/events",
+            content=raw,
+            headers={
+                "Content-Type": "application/json",
+                "X-PipelineHealer-Signature": f"sha256={signature}",
+            },
+        )
+
+    assert event_response.status_code == 200
+    body = event_response.json()
+    assert body["session"]["status"] == "pr_opened"
+    assert body["session"]["github"]["pr_url"].endswith("/pull/12")
+    assert body["messages"][-1]["signature_verified"] is True
+
+
+@pytest.mark.asyncio
+async def test_handoff_session_callback_rejects_missing_signature(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_CALLBACK_SECRET", "callback-secret")
+    reset_settings()
+
+    activity = ActivityRecord(
+        repositoryId="1",
+        repository_name="canepro/pipelinehealer-demo",
+        workflow_run_id=323,
+        workflow_name="CI",
+        status=RemediationStatus.FAILED,
+    )
+    activity_id = await _storage.create_activity(activity)
+    create_response = await _post_handoff_session(
+        activity_id,
+        {
+            "target": "codex_app_server",
+            "goal": "Fix the failure.",
+            "context": "safe context",
+        },
+    )
+    session_id = create_response.json()["session"]["id"]
+    event_response = await _post_handoff_event(
+        session_id,
+        {"event_type": "acknowledged", "message": "ack"},
+    )
+
+    assert event_response.status_code == 401

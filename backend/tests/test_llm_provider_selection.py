@@ -1,7 +1,12 @@
+import sys
+from typing import Any
+
+import pytest
 from pydantic import ValidationError
 
 from src.agents.base import NoopAgent, _resolve_model_for_task, create_cloud_agent
 from src.config import Settings
+from src.llm.codex_app_server import CodexAppServerAgent
 from src.llm.providers import LLMProviderName, resolve_llm_provider
 
 
@@ -13,6 +18,7 @@ def test_resolve_llm_provider_defaults_to_azure() -> None:
 def test_resolve_llm_provider_accepts_supported_values() -> None:
     assert resolve_llm_provider("azure_openai") == LLMProviderName.AZURE_OPENAI
     assert resolve_llm_provider("openai_compatible") == LLMProviderName.OPENAI_COMPATIBLE
+    assert resolve_llm_provider("codex_app_server") == LLMProviderName.CODEX_APP_SERVER
     assert resolve_llm_provider("custom") == LLMProviderName.CUSTOM
 
 
@@ -122,3 +128,113 @@ def test_create_cloud_agent_openai_compatible_accepts_task_override_model() -> N
         settings=settings,
     )
     assert not isinstance(agent, NoopAgent)
+
+
+def test_resolve_model_for_task_uses_codex_app_server_model() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="codex_app_server",
+        codex_app_server_model="gpt-5.4",
+    )
+    model = _resolve_model_for_task(
+        settings=settings,
+        provider=LLMProviderName.CODEX_APP_SERVER,
+        task="diagnosis",
+    )
+    assert model == "gpt-5.4"
+
+
+def test_create_cloud_agent_codex_app_server_returns_runtime_agent() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="codex_app_server",
+        codex_app_server_model="gpt-5.4",
+    )
+    agent = create_cloud_agent(
+        name="Test",
+        instructions="test",
+        credential=None,  # type: ignore[arg-type]
+        settings=settings,
+    )
+    assert not isinstance(agent, NoopAgent)
+
+
+@pytest.mark.asyncio
+async def test_codex_app_server_runtime_rejects_remote_websocket_without_opt_in() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="codex_app_server",
+        codex_app_server_transport="websocket",
+        codex_app_server_ws_url="wss://codex.example.com/app-server",
+        codex_app_server_ws_bearer_token="token",
+    )
+    agent = CodexAppServerAgent(settings=settings, instructions="test")
+
+    with pytest.raises(RuntimeError, match="ALLOW_REMOTE"):
+        await agent._run_websocket("prompt")
+
+
+@pytest.mark.asyncio
+async def test_codex_app_server_runtime_uses_current_websocket_headers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeWebSocket:
+        def __init__(self) -> None:
+            self.messages = iter(
+                [
+                    '{"id": 1, "result": {}}',
+                    '{"id": 2, "result": {"thread": {"id": "thread-1"}}}',
+                    '{"id": 3, "result": {}}',
+                    '{"method": "turn/completed", "params": {"text": "ok"}}',
+                ]
+            )
+            self.sent: list[str] = []
+
+        async def __aenter__(self) -> "FakeWebSocket":
+            return self
+
+        async def __aexit__(
+            self,
+            exc_type: object,
+            exc: object,
+            traceback: object,
+        ) -> None:
+            return None
+
+        async def send(self, line: str) -> None:
+            self.sent.append(line)
+
+        async def recv(self) -> str:
+            try:
+                return next(self.messages)
+            except StopIteration as exc:
+                raise AssertionError("unexpected websocket receive") from exc
+
+    class FakeWebsocketsModule:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        def connect(self, url: str, **kwargs: Any) -> FakeWebSocket:
+            self.calls.append({"url": url, **kwargs})
+            return FakeWebSocket()
+
+    fake_websockets = FakeWebsocketsModule()
+    monkeypatch.setitem(sys.modules, "websockets", fake_websockets)
+    settings = Settings(
+        _env_file=None,
+        llm_provider="codex_app_server",
+        codex_app_server_transport="websocket",
+        codex_app_server_ws_url="ws://127.0.0.1:8765/app-server",
+        codex_app_server_ws_bearer_token="token",
+    )
+    agent = CodexAppServerAgent(settings=settings, instructions="test")
+
+    result = await agent._run_websocket("prompt")
+
+    assert result == "ok"
+    assert fake_websockets.calls == [
+        {
+            "url": "ws://127.0.0.1:8765/app-server",
+            "additional_headers": {"Authorization": "Bearer token"},
+        }
+    ]

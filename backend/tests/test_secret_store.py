@@ -11,6 +11,7 @@ from src.config import reset_settings
 from src.secret_store import (
     AzureKeyVaultSecretStore,
     EncryptedDatabaseSecretStore,
+    InfisicalSecretStore,
     build_secret_store,
 )
 from src.storage import InMemoryStorage
@@ -22,6 +23,9 @@ def _reset_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("SETTINGS_DB_ENCRYPTION_KEY", raising=False)
     monkeypatch.delenv("KEY_VAULT_URL", raising=False)
     monkeypatch.delenv("SETTINGS_KEY_VAULT_PREFIX", raising=False)
+    monkeypatch.delenv("INFISICAL_PROJECT_ID", raising=False)
+    monkeypatch.delenv("INFISICAL_ENVIRONMENT", raising=False)
+    monkeypatch.delenv("INFISICAL_SECRET_PATH", raising=False)
     reset_settings()
     yield
     reset_settings()
@@ -127,3 +131,44 @@ async def test_azure_key_vault_secret_store_round_trip(monkeypatch: pytest.Monke
     await store.close()
     assert client.closed is True
     assert client.credential.closed is True
+
+
+@pytest.mark.asyncio
+async def test_infisical_secret_store_writes_via_temp_file(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SETTINGS_SECRET_BACKEND", "infisical")
+    monkeypatch.setenv("INFISICAL_PROJECT_ID", "project-id")
+    monkeypatch.setenv("INFISICAL_ENVIRONMENT", "dev")
+    monkeypatch.setenv("INFISICAL_SECRET_PATH", "/personal/pipelinehealer")
+    reset_settings()
+
+    calls: list[list[str]] = []
+
+    class _FakeResult:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def _fake_run(args: list[str], **kwargs: Any) -> _FakeResult:
+        _ = kwargs
+        calls.append(args)
+        assert "--file" in args
+        file_path = args[args.index("--file") + 1]
+        with open(file_path, encoding="utf-8") as handle:
+            assert "OPENAI_COMPATIBLE_API_KEY=sk-test-1234567890" in handle.read()
+        return _FakeResult()
+
+    monkeypatch.setattr(secret_store.subprocess, "run", _fake_run)
+
+    storage = InMemoryStorage()
+    store = build_secret_store(storage)
+    assert isinstance(store, InfisicalSecretStore)
+
+    await store.set("openai_compatible_api_key", "sk-test-1234567890")
+    metadata = await store.describe("openai_compatible_api_key")
+
+    assert metadata.configured is True
+    assert metadata.backend == "infisical"
+    assert metadata.reference == "dev:/personal/pipelinehealer:OPENAI_COMPATIBLE_API_KEY"
+    assert calls[0][:4] == ["infisical", "--silent", "secrets", "set"]

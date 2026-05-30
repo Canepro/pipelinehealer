@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: ac1b1ec -->
+<!-- LAST_VERIFIED: 4055ae3 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -20,6 +20,7 @@ Use this path if you are new and want the least setup friction:
 2. Fill only required values:
    - one LLM path (`AZURE_OPENAI_*` or `OPENAI_COMPATIBLE_*`)
    - `GITHUB_PERSONAL_ACCESS_TOKEN`
+   - or use Infisical with `SETTINGS_SECRET_BACKEND=infisical`
 3. Keep default auth/runtime values for first run:
    - `AUTH_MODE=api_key`
    - `VITE_AUTH_MODE=none`
@@ -31,6 +32,39 @@ For first run, skip optional sections unless needed:
 - Entra login
 - MCP diagnostics tuning
 - Azure deploy and release commands
+
+Infisical path:
+
+```bash
+bash scripts/ph.sh secrets:infisical:inventory
+bash scripts/ph.sh secrets:infisical:migrate --project-id <infisical-project-id>
+```
+
+After migration, keep only Infisical metadata in `backend/.env`:
+
+```env
+SETTINGS_SECRET_BACKEND=infisical
+INFISICAL_PROJECT_ID=<infisical-project-id>
+INFISICAL_ENVIRONMENT=dev
+INFISICAL_SECRET_PATH=/personal/pipelinehealer
+```
+
+If bootstrap values such as `API_AUTH_KEY`, `ADMIN_API_KEY`, or `AUDIT_SALT` were migrated too, start local commands through Infisical:
+
+```bash
+infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- <command>
+```
+
+For Azure Container Apps, use the same process-injection pattern with secret refs:
+
+```bash
+infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- \
+  bash scripts/ph.sh deploy --secure-secrets
+```
+
+The deploy helper reads Infisical-injected process env first, then falls back to `backend/.env` for non-secret metadata. Sensitive values are stored as Container App secrets and bound with `secretref`.
+
+If Docker or Podman is not available locally, add `--remote-build` so Azure Container Registry builds the backend and frontend images.
 
 ---
 
