@@ -3,11 +3,23 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 from collections.abc import Callable
 from contextlib import suppress
 from typing import Any
 from urllib.parse import urlparse
+
+
+def is_loopback_websocket_host(hostname: str) -> bool:
+    """Return whether a WebSocket hostname is constrained to the local host."""
+    host = hostname.strip().lower().rstrip(".")
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 class CodexAppServerAgent:
@@ -98,6 +110,12 @@ class CodexAppServerAgent:
         parsed = urlparse(ws_url)
         if parsed.scheme not in {"ws", "wss"} or not parsed.hostname:
             raise RuntimeError("CODEX_APP_SERVER_WS_URL must be a ws:// or wss:// URL")
+        allow_remote = bool(getattr(self._settings, "codex_app_server_ws_allow_remote", False))
+        if not allow_remote and not is_loopback_websocket_host(parsed.hostname):
+            raise RuntimeError(
+                "CODEX_APP_SERVER_WS_ALLOW_REMOTE must be true for non-loopback "
+                "Codex App Server WebSocket URLs"
+            )
 
         token = self._websocket_token()
         headers = {"Authorization": f"Bearer {token}"} if token else None

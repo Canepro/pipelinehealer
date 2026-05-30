@@ -1,7 +1,9 @@
+import pytest
 from pydantic import ValidationError
 
 from src.agents.base import NoopAgent, _resolve_model_for_task, create_cloud_agent
 from src.config import Settings
+from src.llm.codex_app_server import CodexAppServerAgent
 from src.llm.providers import LLMProviderName, resolve_llm_provider
 
 
@@ -152,3 +154,18 @@ def test_create_cloud_agent_codex_app_server_returns_runtime_agent() -> None:
         settings=settings,
     )
     assert not isinstance(agent, NoopAgent)
+
+
+@pytest.mark.asyncio
+async def test_codex_app_server_runtime_rejects_remote_websocket_without_opt_in() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="codex_app_server",
+        codex_app_server_transport="websocket",
+        codex_app_server_ws_url="wss://codex.example.com/app-server",
+        codex_app_server_ws_bearer_token="token",
+    )
+    agent = CodexAppServerAgent(settings=settings, instructions="test")
+
+    with pytest.raises(RuntimeError, match="ALLOW_REMOTE"):
+        await agent._run_websocket("prompt")

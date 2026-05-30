@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import httpx
 
 from ..agents.base import validate_azure_openai_endpoint
+from .codex_app_server import is_loopback_websocket_host
 from .providers import LLMProviderName, resolve_llm_provider
 
 
@@ -163,6 +164,18 @@ class CodexAppServerProviderAdapter:
                 "available": False,
                 "reason": "missing_ws_url",
                 "message": "CODEX_APP_SERVER_WS_URL must be a ws:// or wss:// URL.",
+            }
+        allow_remote = bool(getattr(settings, "codex_app_server_ws_allow_remote", False))
+        if not allow_remote and not is_loopback_websocket_host(parsed.hostname):
+            return {
+                "provider": self.name.value,
+                "implemented": True,
+                "available": False,
+                "reason": "remote_ws_not_allowed",
+                "message": (
+                    "CODEX_APP_SERVER_WS_ALLOW_REMOTE must be true for non-loopback "
+                    "Codex App Server WebSocket URLs."
+                ),
             }
         token_configured = bool(
             str(getattr(settings, "codex_app_server_ws_bearer_token", "") or "").strip()

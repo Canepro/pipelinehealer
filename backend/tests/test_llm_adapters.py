@@ -147,3 +147,18 @@ def test_codex_app_server_adapter_reports_missing_websocket_auth() -> None:
     health = adapter.health(settings)
     assert health["available"] is False
     assert health["reason"] == "missing_ws_auth"
+
+
+def test_codex_app_server_adapter_rejects_remote_websocket_without_opt_in() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="codex_app_server",
+        codex_app_server_transport="websocket",
+        codex_app_server_ws_url="wss://codex.example.com/app-server",
+        codex_app_server_ws_bearer_token="token",
+        codex_app_server_model="gpt-5.4",
+    )
+    adapter = get_llm_provider_adapter(settings)
+    health = adapter.health(settings)
+    assert health["available"] is False
+    assert health["reason"] == "remote_ws_not_allowed"

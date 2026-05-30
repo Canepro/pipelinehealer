@@ -492,6 +492,49 @@ async def test_handoff_session_records_durable_session_and_message(
 
 
 @pytest.mark.asyncio
+async def test_handoff_session_copy_only_mode_does_not_deliver_configured_target(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.api import dashboard
+
+    async def _unexpected_deliver(**_kwargs):  # type: ignore[no-untyped-def]
+        raise AssertionError("copy-only session must not deliver to external target")
+
+    monkeypatch.setattr(dashboard, "_deliver_handoff_webhook", _unexpected_deliver)
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "copy_only")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED_TARGETS", "openclaw")
+    monkeypatch.setenv("OPENCLAW_HANDOFF_URL", "https://agent.example.com/openclaw")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_ALLOWLIST", "agent.example.com")
+    reset_settings()
+
+    activity = ActivityRecord(
+        repositoryId="1",
+        repository_name="canepro/pipelinehealer-demo",
+        workflow_run_id=324,
+        workflow_name="CI",
+        status=RemediationStatus.FAILED,
+    )
+    activity_id = await _storage.create_activity(activity)
+    response = await _post_handoff_session(
+        activity_id,
+        {
+            "target": "openclaw",
+            "goal": "Fix the failed test and open a PR.",
+            "context": "safe context",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["delivery_status"] == "copied"
+    assert body["session"]["status"] == "created"
+    assert body["message"] == "Handoff session recorded; copy-only mode is active"
+
+
+@pytest.mark.asyncio
 async def test_handoff_session_callback_updates_status_with_signature(
     monkeypatch: pytest.MonkeyPatch,
     _storage: InMemoryStorage,

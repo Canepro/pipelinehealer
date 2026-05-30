@@ -3031,7 +3031,8 @@ async def create_handoff_session(
     target_url = _target_handoff_url(payload.target)
     parsed = urlparse(target_url) if target_url else None
     destination_host = (parsed.hostname or "").strip().lower() if parsed else ""
-    if target_url and (
+    delivery_requested = payload.send and settings.agent_handoff_mode == AgentHandoffMode.WEBHOOK.value
+    if delivery_requested and target_url and (
         parsed is None
         or parsed.scheme not in {"http", "https"}
         or not destination_host
@@ -3091,7 +3092,7 @@ async def create_handoff_session(
     response_message = "Handoff session recorded"
     error_code: str | None = None
     mode = AgentHandoffMode.COPY_ONLY
-    if payload.send and target_url:
+    if delivery_requested and target_url:
         mode = AgentHandoffMode.WEBHOOK
         outbound_payload = {
             "delivery_id": session.delivery_id,
@@ -3127,6 +3128,8 @@ async def create_handoff_session(
             if delivered
             else f"Handoff session delivery failed ({error_code or 'unknown_error'})"
         )
+    elif payload.send and settings.agent_handoff_mode != AgentHandoffMode.WEBHOOK.value:
+        response_message = "Handoff session recorded; copy-only mode is active"
     elif payload.send:
         response_message = "Handoff session recorded; target URL is not configured"
 
