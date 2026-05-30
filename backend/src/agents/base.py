@@ -9,6 +9,7 @@ from typing import Any, Literal
 from azure.identity import DefaultAzureCredential
 
 from ..config import get_settings
+from ..llm.codex_app_server import CodexAppServerAgent
 from ..llm.openai_compatible import OpenAICompatibleAgent
 from ..llm.providers import LLMProviderName, resolve_llm_provider
 from ..llm.telemetry import record_llm_call
@@ -237,6 +238,8 @@ def _resolve_model_for_task(*, settings: Any, provider: LLMProviderName, task: L
 
     if provider == LLMProviderName.OPENAI_COMPATIBLE:
         return str(getattr(settings, "openai_compatible_model", "") or "").strip()
+    if provider == LLMProviderName.CODEX_APP_SERVER:
+        return str(getattr(settings, "codex_app_server_model", "") or "").strip()
     return str(getattr(settings, "azure_openai_deployment_name", "") or "").strip()
 
 
@@ -311,6 +314,19 @@ def create_cloud_agent(
                     base_url=base_url,
                     api_key=api_key,
                     model=model,
+                    instructions=instructions,
+                ),
+            ),
+            provider=provider.value,
+            model=model,
+        )
+
+    if provider == LLMProviderName.CODEX_APP_SERVER:
+        model = effective_model or getattr(settings, "codex_app_server_model", "") or "gpt-5.4"
+        return ObservedAgent(
+            agent=RetryingAgent(
+                CodexAppServerAgent(
+                    settings=settings,
                     instructions=instructions,
                 ),
             ),

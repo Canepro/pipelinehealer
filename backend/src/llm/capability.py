@@ -29,6 +29,20 @@ def _required_llm_config_present(settings: Any) -> bool:
                 getattr(settings, "openai_compatible_api_key", ""),
             )
         )
+    if provider == "codex_app_server":
+        transport = str(getattr(settings, "codex_app_server_transport", "stdio") or "stdio")
+        if transport == "websocket":
+            return bool(
+                str(getattr(settings, "codex_app_server_ws_url", "") or "").strip()
+                and (
+                    str(getattr(settings, "codex_app_server_ws_bearer_token", "") or "").strip()
+                    or str(getattr(settings, "codex_app_server_ws_token_file", "") or "").strip()
+                    or str(
+                        getattr(settings, "codex_app_server_ws_shared_secret_file", "") or ""
+                    ).strip()
+                )
+            )
+        return bool(str(getattr(settings, "codex_app_server_command", "") or "").strip())
     if provider == "custom":
         return False
     return all(
@@ -50,7 +64,11 @@ def _configured_models(settings: Any) -> set[str]:
     default_model = (
         str(getattr(settings, "openai_compatible_model", "") or "").strip()
         if provider == "openai_compatible"
-        else str(getattr(settings, "azure_openai_deployment_name", "") or "").strip()
+        else (
+            str(getattr(settings, "codex_app_server_model", "") or "").strip()
+            if provider == "codex_app_server"
+            else str(getattr(settings, "azure_openai_deployment_name", "") or "").strip()
+        )
     )
     if default_model:
         models.add(default_model)

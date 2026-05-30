@@ -2,6 +2,8 @@
 
 import asyncio
 import hashlib
+import hmac
+import json
 import logging
 import os
 import re
@@ -37,7 +39,18 @@ from ..models import (
     AppSettingSource,
     AppSettingsView,
     DashboardStats,
+    ExternalAgentTarget,
     FailureType,
+    HandoffEventType,
+    HandoffGitHubRefs,
+    HandoffMessage,
+    HandoffMessageDirection,
+    HandoffSession,
+    HandoffSessionCreateRequest,
+    HandoffSessionCreateResponse,
+    HandoffSessionEventRequest,
+    HandoffSessionStatus,
+    HandoffSessionView,
     LearningGuidanceEffectiveness,
     LearningPromotionReadiness,
     LearningQueueDecisionRequest,
@@ -478,6 +491,16 @@ def _build_setup_status(storage: ActivityStorage | None = None) -> SetupStatusVi
                 else "KEY_VAULT_URL is required when SETTINGS_SECRET_BACKEND=azure_key_vault."
             ),
         )
+    elif settings.settings_secret_backend == "infisical":
+        infisical_ready = bool(settings.infisical_project_id.strip())
+        secret_backend_ready = SetupCheckView(
+            ready=infisical_ready,
+            detail=(
+                "Infisical runtime secret backend is configured."
+                if infisical_ready
+                else "INFISICAL_PROJECT_ID is required when SETTINGS_SECRET_BACKEND=infisical."
+            ),
+        )
     else:
         secret_backend_ready = SetupCheckView(
             ready=bool(settings.settings_db_encryption_key.strip()),
@@ -507,6 +530,22 @@ def _build_setup_status(storage: ActivityStorage | None = None) -> SetupStatusVi
             "OpenAI-compatible runtime and API key are configured."
             if llm_ready
             else "Configure the base URL, model, and API key for the OpenAI-compatible provider."
+        )
+    elif settings.llm_provider == "codex_app_server":
+        llm_ready = True
+        if settings.codex_app_server_transport == "websocket":
+            llm_ready = bool(
+                settings.codex_app_server_ws_url
+                and (
+                    settings.codex_app_server_ws_bearer_token
+                    or settings.codex_app_server_ws_token_file
+                    or settings.codex_app_server_ws_shared_secret_file
+                )
+            )
+        llm_detail = (
+            "Codex App Server provider configuration is present."
+            if llm_ready
+            else "Configure Codex App Server WebSocket URL and auth, or switch transport to stdio."
         )
     llm_runtime = SetupCheckView(ready=llm_ready, detail=llm_detail)
 
@@ -593,7 +632,11 @@ async def _build_secret_settings_views(storage: ActivityStorage) -> list[SecretS
                         backend="env",
                         requires_restart=spec.requires_restart,
                         overridden_by_env=True,
-                        safe_hint=(urlparse(current_value).hostname or "") if spec.key == "agent_handoff_webhook_url" and current_value.strip() else None,
+                        safe_hint=(
+                            (urlparse(current_value).hostname or "")
+                            if spec.value_type == "secret_url" and current_value.strip()
+                            else None
+                        ),
                         note="This secret is currently overridden by environment configuration.",
                     )
                 )
@@ -679,12 +722,23 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         ),
         agent_handoff_timeout_seconds=settings.agent_handoff_timeout_seconds,
         agent_handoff_max_retries=settings.agent_handoff_max_retries,
+        agent_handoff_default_target=settings.agent_handoff_default_target,
+        agent_handoff_enabled_targets=list(settings.agent_handoff_enabled_targets),
+        codex_app_server_handoff_configured=bool(settings.codex_app_server_handoff_url.strip()),
+        openclaw_handoff_configured=bool(settings.openclaw_handoff_url.strip()),
+        hermes_handoff_configured=bool(settings.hermes_handoff_url.strip()),
         ph_allowed_repos=_safe_settings_allowlist(settings.ph_allowed_repos),
         cors_allowed_origins=settings.cors_allowed_origins,
         cors_allow_origin_regex=settings.cors_allow_origin_regex,
         llm_provider=settings.llm_provider,
         openai_compatible_base_url=settings.openai_compatible_base_url,
         openai_compatible_model=settings.openai_compatible_model,
+        codex_app_server_transport=settings.codex_app_server_transport,
+        codex_app_server_command=settings.codex_app_server_command,
+        codex_app_server_model=settings.codex_app_server_model,
+        codex_app_server_turn_timeout_ms=settings.codex_app_server_turn_timeout_ms,
+        codex_app_server_ws_url=settings.codex_app_server_ws_url,
+        codex_app_server_ws_allow_remote=settings.codex_app_server_ws_allow_remote,
         llm_model_analysis=settings.llm_model_analysis,
         llm_model_diagnosis=settings.llm_model_diagnosis,
         llm_model_remediation=settings.llm_model_remediation,
@@ -700,6 +754,11 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         azure_openai_deployment_name=settings.azure_openai_deployment_name,
         azure_openai_api_version=settings.azure_openai_api_version,
         azure_openai_chat_api_version=settings.azure_openai_chat_api_version,
+        infisical_project_id=settings.infisical_project_id,
+        infisical_environment=settings.infisical_environment,
+        infisical_secret_path=settings.infisical_secret_path,
+        infisical_cli_path=settings.infisical_cli_path,
+        infisical_api_url=settings.infisical_api_url,
         setup_status=_build_setup_status(storage),
         settings_metadata=_build_settings_metadata(),
     )
@@ -1606,6 +1665,13 @@ def _agent_handoff_config_view() -> AgentHandoffConfigView:
     settings = get_settings()
     mode = AgentHandoffMode(settings.agent_handoff_mode)
     webhook_configured = bool(settings.agent_handoff_webhook_url.strip())
+    enabled_targets = [ExternalAgentTarget(value) for value in settings.agent_handoff_enabled_targets]
+    target_configured = {
+        ExternalAgentTarget.CODEX_APP_SERVER: bool(settings.codex_app_server_handoff_url.strip()),
+        ExternalAgentTarget.OPENCLAW: bool(settings.openclaw_handoff_url.strip()),
+        ExternalAgentTarget.HERMES: bool(settings.hermes_handoff_url.strip()),
+        ExternalAgentTarget.CUSTOM: webhook_configured,
+    }
     if not settings.agent_handoff_enabled:
         return AgentHandoffConfigView(
             enabled=False,
@@ -1613,6 +1679,9 @@ def _agent_handoff_config_view() -> AgentHandoffConfigView:
             webhook_configured=webhook_configured,
             timeout_seconds=settings.agent_handoff_timeout_seconds,
             max_retries=settings.agent_handoff_max_retries,
+            default_target=ExternalAgentTarget(settings.agent_handoff_default_target),
+            enabled_targets=enabled_targets,
+            target_configured=target_configured,
             reason="disabled_by_runtime",
         )
     if mode == AgentHandoffMode.WEBHOOK and not webhook_configured:
@@ -1622,6 +1691,9 @@ def _agent_handoff_config_view() -> AgentHandoffConfigView:
             webhook_configured=False,
             timeout_seconds=settings.agent_handoff_timeout_seconds,
             max_retries=settings.agent_handoff_max_retries,
+            default_target=ExternalAgentTarget(settings.agent_handoff_default_target),
+            enabled_targets=enabled_targets,
+            target_configured=target_configured,
             reason="missing_webhook_url",
         )
     return AgentHandoffConfigView(
@@ -1630,6 +1702,9 @@ def _agent_handoff_config_view() -> AgentHandoffConfigView:
         webhook_configured=webhook_configured,
         timeout_seconds=settings.agent_handoff_timeout_seconds,
         max_retries=settings.agent_handoff_max_retries,
+        default_target=ExternalAgentTarget(settings.agent_handoff_default_target),
+        enabled_targets=enabled_targets,
+        target_configured=target_configured,
         reason="ok",
     )
 
@@ -1830,6 +1905,130 @@ async def _deliver_handoff_webhook(
     return False, "delivery_failed"
 
 
+_HANDOFF_BASE_LABELS = (
+    "pipelinehealer:detected",
+    "pipelinehealer:delegated",
+    "pipelinehealer:external-agent",
+)
+_HANDOFF_TARGET_LABELS = {
+    ExternalAgentTarget.CODEX_APP_SERVER: "agent:codex",
+    ExternalAgentTarget.OPENCLAW: "agent:openclaw",
+    ExternalAgentTarget.HERMES: "agent:hermes",
+    ExternalAgentTarget.CUSTOM: "agent:custom",
+}
+_HANDOFF_EVENT_STATUS = {
+    HandoffEventType.ACKNOWLEDGED: HandoffSessionStatus.ACKNOWLEDGED,
+    HandoffEventType.STARTED_WORK: HandoffSessionStatus.IN_PROGRESS,
+    HandoffEventType.NEEDS_MORE_INFO: HandoffSessionStatus.WAITING_ON_PIPELINEHEALER,
+    HandoffEventType.PR_OPENED: HandoffSessionStatus.PR_OPENED,
+    HandoffEventType.ISSUE_COMMENTED: HandoffSessionStatus.IN_PROGRESS,
+    HandoffEventType.LABEL_APPLIED: HandoffSessionStatus.IN_PROGRESS,
+    HandoffEventType.WORKFLOW_RERUN: HandoffSessionStatus.IN_PROGRESS,
+    HandoffEventType.COMPLETED: HandoffSessionStatus.COMPLETED,
+    HandoffEventType.FAILED: HandoffSessionStatus.FAILED,
+}
+
+
+def _handoff_labels(target: ExternalAgentTarget, extra: list[str]) -> list[str]:
+    labels = [*_HANDOFF_BASE_LABELS, _HANDOFF_TARGET_LABELS[target], *extra]
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for label in labels:
+        value = str(label).strip().lower()
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        normalized.append(value)
+    return normalized
+
+
+def _target_handoff_url(target: ExternalAgentTarget) -> str:
+    settings = get_settings()
+    if target == ExternalAgentTarget.CODEX_APP_SERVER:
+        return settings.codex_app_server_handoff_url.strip()
+    if target == ExternalAgentTarget.OPENCLAW:
+        return settings.openclaw_handoff_url.strip()
+    if target == ExternalAgentTarget.HERMES:
+        return settings.hermes_handoff_url.strip()
+    return settings.agent_handoff_webhook_url.strip()
+
+
+def _target_enabled(target: ExternalAgentTarget) -> bool:
+    settings = get_settings()
+    return target.value in {item.strip().lower() for item in settings.agent_handoff_enabled_targets}
+
+
+def _session_callback_url(request: Request, session_id: str) -> str | None:
+    origin = str(request.headers.get("origin", "") or "").strip().rstrip("/")
+    if not origin.startswith(("http://", "https://")):
+        return None
+    return f"{origin}/api/handoff-sessions/{session_id}/events"
+
+
+def _message_payload_hash(payload: dict[str, Any]) -> str:
+    encoded = json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _redact_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    text = json.dumps(payload, default=str)
+    redacted = _sanitize_handoff_context(text)
+    try:
+        parsed = json.loads(redacted)
+    except json.JSONDecodeError:
+        return {"redacted": redacted}
+    return parsed if isinstance(parsed, dict) else {"redacted": redacted}
+
+
+async def _verify_handoff_callback_signature(request: Request) -> tuple[bool, bytes]:
+    body = await request.body()
+    secret = get_settings().agent_handoff_callback_secret.strip()
+    if not secret:
+        return False, body
+    signature = str(request.headers.get("X-PipelineHealer-Signature", "") or "").strip()
+    if not signature.startswith("sha256="):
+        raise HTTPException(status_code=401, detail="Missing handoff callback signature")
+    expected = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, f"sha256={expected}"):
+        raise HTTPException(status_code=401, detail="Invalid handoff callback signature")
+    return True, body
+
+
+def _github_refs_for_activity(activity: ActivityRecord) -> HandoffGitHubRefs:
+    return HandoffGitHubRefs(
+        repository=activity.repository_name,
+        run_id=activity.workflow_run_id,
+        issue_url=(activity.remediation_result.issue_url if activity.remediation_result else None),
+        pr_url=(activity.remediation_result.pr_url if activity.remediation_result else None),
+    )
+
+
+async def _record_handoff_activity_audit(
+    *,
+    storage: ActivityStorage,
+    activity: ActivityRecord,
+    session: HandoffSession,
+    status: AgentHandoffStatus,
+    mode: AgentHandoffMode,
+    error: str | None = None,
+) -> None:
+    audit = AgentHandoffAuditEntry(
+        status=status,
+        mode=mode,
+        actor=session.created_by,
+        request_id=session.request_id,
+        context_chars=len(session.context_preview),
+        context_sha256=session.context_sha256,
+        context_preview=session.context_preview,
+        delivery_id=session.delivery_id,
+        destination_host=urlparse(_target_handoff_url(session.target)).hostname,
+        error=error,
+    )
+    activity.agent_handoff_audit.append(audit)
+    activity.agent_handoff_audit = activity.agent_handoff_audit[-_AGENT_HANDOFF_MAX_AUDIT_ENTRIES:]
+    await storage.update_activity(activity)
+
+
 async def _start_env_only_redeploy_background() -> tuple[bool, str]:
     """Start env-only redeploy in background via scripts/ph.sh deploy:bg --env-only."""
     repo_root = _repo_root()
@@ -1952,6 +2151,38 @@ async def update_app_settings(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    if "agent_handoff_default_target" in changes:
+        target = str(changes["agent_handoff_default_target"]).strip().lower()
+        if target not in {"codex_app_server", "openclaw", "hermes", "custom"}:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "agent_handoff_default_target must be one of: "
+                    "codex_app_server, openclaw, hermes, custom"
+                ),
+            )
+        changes["agent_handoff_default_target"] = target
+
+    if "agent_handoff_enabled_targets" in changes:
+        targets = changes["agent_handoff_enabled_targets"]
+        if not isinstance(targets, list):
+            raise HTTPException(
+                status_code=422,
+                detail="agent_handoff_enabled_targets must be a list",
+            )
+        allowed_targets = {"codex_app_server", "openclaw", "hermes", "custom"}
+        normalized_targets = [str(item).strip().lower() for item in targets if str(item).strip()]
+        invalid_targets = [target for target in normalized_targets if target not in allowed_targets]
+        if invalid_targets:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "agent_handoff_enabled_targets values must be one of: "
+                    "codex_app_server, openclaw, hermes, custom"
+                ),
+            )
+        changes["agent_handoff_enabled_targets"] = normalized_targets
+
     try:
         effective_handoff_webhook_url = _validate_handoff_webhook_url(
             settings.agent_handoff_webhook_url
@@ -2012,10 +2243,13 @@ async def update_app_settings(
 
     if "llm_provider" in changes:
         llm_provider = str(changes["llm_provider"]).strip().lower()
-        if llm_provider not in {"azure_openai", "openai_compatible", "custom"}:
+        if llm_provider not in {"azure_openai", "openai_compatible", "codex_app_server", "custom"}:
             raise HTTPException(
                 status_code=422,
-                detail="llm_provider must be one of: azure_openai, openai_compatible, custom",
+                detail=(
+                    "llm_provider must be one of: "
+                    "azure_openai, openai_compatible, codex_app_server, custom"
+                ),
             )
         changes["llm_provider"] = llm_provider
 
@@ -2024,6 +2258,20 @@ async def update_app_settings(
 
     if "openai_compatible_model" in changes:
         changes["openai_compatible_model"] = str(changes["openai_compatible_model"]).strip()
+    if "codex_app_server_transport" in changes:
+        transport = str(changes["codex_app_server_transport"]).strip().lower() or "stdio"
+        if transport not in {"stdio", "websocket"}:
+            raise HTTPException(
+                status_code=422,
+                detail="codex_app_server_transport must be one of: stdio, websocket",
+            )
+        changes["codex_app_server_transport"] = transport
+    if "codex_app_server_command" in changes:
+        changes["codex_app_server_command"] = str(changes["codex_app_server_command"]).strip()
+    if "codex_app_server_model" in changes:
+        changes["codex_app_server_model"] = str(changes["codex_app_server_model"]).strip()
+    if "codex_app_server_ws_url" in changes:
+        changes["codex_app_server_ws_url"] = str(changes["codex_app_server_ws_url"]).strip()
     if "llm_model_analysis" in changes:
         changes["llm_model_analysis"] = str(changes["llm_model_analysis"]).strip()
     if "llm_model_diagnosis" in changes:
@@ -2032,6 +2280,17 @@ async def update_app_settings(
         changes["llm_model_remediation"] = str(changes["llm_model_remediation"]).strip()
     if "github_app_id" in changes:
         changes["github_app_id"] = str(changes["github_app_id"]).strip()
+    if "infisical_project_id" in changes:
+        changes["infisical_project_id"] = str(changes["infisical_project_id"]).strip()
+    if "infisical_environment" in changes:
+        changes["infisical_environment"] = str(changes["infisical_environment"]).strip() or "dev"
+    if "infisical_secret_path" in changes:
+        path = str(changes["infisical_secret_path"]).strip() or "/"
+        changes["infisical_secret_path"] = path if path.startswith("/") else f"/{path}"
+    if "infisical_cli_path" in changes:
+        changes["infisical_cli_path"] = str(changes["infisical_cli_path"]).strip() or "infisical"
+    if "infisical_api_url" in changes:
+        changes["infisical_api_url"] = str(changes["infisical_api_url"]).strip()
 
     if "mcp_provider" in changes:
         mcp_provider = str(changes["mcp_provider"]).strip().lower()
@@ -2743,6 +3002,253 @@ async def get_agent_handoff_config() -> AgentHandoffConfigView:
 async def get_agent_handoff_integration_status() -> AgentHandoffIntegrationStatusView:
     """Return live receiver and notification dependency status for operator surfaces."""
     return await _agent_handoff_integration_status_view()
+
+
+@router.post(
+    "/activities/{activity_id}/handoff-sessions",
+    response_model=HandoffSessionCreateResponse,
+)
+async def create_handoff_session(
+    activity_id: str,
+    payload: HandoffSessionCreateRequest,
+    request: Request,
+    storage: ActivityStorage = Depends(get_storage),
+) -> HandoffSessionCreateResponse:
+    """Create a durable external-agent handoff session for one activity."""
+    activity = await storage.get_activity(activity_id)
+    if activity is None:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    settings = get_settings()
+    if not settings.agent_handoff_enabled:
+        raise HTTPException(status_code=409, detail="External agent handoff is disabled")
+    if not _target_enabled(payload.target):
+        raise HTTPException(status_code=422, detail=f"Target '{payload.target.value}' is not enabled")
+
+    sanitized_context = _sanitize_handoff_context(payload.context)
+    context_hash = hashlib.sha256(sanitized_context.encode("utf-8")).hexdigest()
+    session_id = str(uuid4())
+    target_url = _target_handoff_url(payload.target)
+    parsed = urlparse(target_url) if target_url else None
+    destination_host = (parsed.hostname or "").strip().lower() if parsed else ""
+    if target_url and (
+        parsed is None
+        or parsed.scheme not in {"http", "https"}
+        or not destination_host
+        or not _is_allowed_handoff_host(destination_host, settings.agent_handoff_webhook_allowlist)
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Configured target handoff URL is invalid or not allowlisted",
+        )
+
+    labels = _handoff_labels(payload.target, payload.labels)
+    session = HandoffSession(
+        id=session_id,
+        activity_id=activity.id,
+        target=payload.target,
+        status=HandoffSessionStatus.CREATED,
+        goal=payload.goal.strip(),
+        created_by=_handoff_actor(request),
+        request_id=getattr(request.state, "request_id", None),
+        delivery_id=f"handoff-session:{activity.id}:{session_id}",
+        github=_github_refs_for_activity(activity),
+        labels=labels,
+        policy_decision=payload.policy_decision.strip() or "operator_requested",
+        callback_url=_session_callback_url(request, session_id),
+        context_sha256=context_hash,
+        context_preview=_handoff_context_preview(sanitized_context),
+        metadata={
+            "context_format": payload.context_format,
+            "target_url_configured": bool(target_url),
+            **payload.metadata,
+        },
+    )
+    initial_payload = {
+        "session_id": session.id,
+        "activity_id": activity.id,
+        "target": payload.target.value,
+        "goal": session.goal,
+        "context_format": payload.context_format,
+        "context": sanitized_context,
+        "labels": labels,
+        "github": session.github.model_dump(mode="json"),
+    }
+    initial_message = HandoffMessage(
+        session_id=session.id,
+        event_type=HandoffEventType.DELEGATED,
+        direction=HandoffMessageDirection.OUTBOUND,
+        actor=session.created_by or "api_client",
+        body=session.goal,
+        payload_sha256=_message_payload_hash(initial_payload),
+        payload_redacted=_redact_payload(initial_payload),
+        github=session.github,
+        labels=labels,
+        request_id=session.request_id,
+    )
+
+    delivery_status = AgentHandoffStatus.COPIED
+    response_message = "Handoff session recorded"
+    error_code: str | None = None
+    mode = AgentHandoffMode.COPY_ONLY
+    if payload.send and target_url:
+        mode = AgentHandoffMode.WEBHOOK
+        outbound_payload = {
+            "delivery_id": session.delivery_id,
+            "session_id": session.id,
+            "callback_url": session.callback_url,
+            "target": payload.target.value,
+            "activity": {
+                "id": activity.id,
+                "repository": activity.repository_name,
+                "workflow_name": activity.workflow_name,
+                "workflow_run_id": activity.workflow_run_id,
+                "status": activity.status.value,
+                "failure_type": activity.failure_type.value if activity.failure_type else None,
+            },
+            "goal": session.goal,
+            "summary": _handoff_summary(activity, request),
+            "github": session.github.model_dump(mode="json"),
+            "labels": labels,
+            "context_format": payload.context_format,
+            "context": sanitized_context,
+            "sent_at": utcnow().isoformat(),
+        }
+        delivered, error_code = await _deliver_handoff_webhook(
+            url=target_url,
+            payload=outbound_payload,
+            timeout_seconds=settings.agent_handoff_timeout_seconds,
+            max_retries=settings.agent_handoff_max_retries,
+        )
+        delivery_status = AgentHandoffStatus.QUEUED if delivered else AgentHandoffStatus.FAILED
+        session.status = HandoffSessionStatus.QUEUED if delivered else HandoffSessionStatus.FAILED
+        response_message = (
+            "Handoff session delivered to target"
+            if delivered
+            else f"Handoff session delivery failed ({error_code or 'unknown_error'})"
+        )
+    elif payload.send:
+        response_message = "Handoff session recorded; target URL is not configured"
+
+    await storage.upsert_handoff_session(session)
+    await storage.append_handoff_message(initial_message)
+    await _record_handoff_activity_audit(
+        storage=storage,
+        activity=activity,
+        session=session,
+        status=delivery_status,
+        mode=mode,
+        error=error_code,
+    )
+    return HandoffSessionCreateResponse(
+        session=session,
+        initial_message=initial_message,
+        delivery_status=delivery_status,
+        message=response_message,
+    )
+
+
+@router.get(
+    "/activities/{activity_id}/handoff-sessions",
+    response_model=list[HandoffSessionView],
+)
+async def list_activity_handoff_sessions(
+    activity_id: str,
+    storage: ActivityStorage = Depends(get_storage),
+) -> list[HandoffSessionView]:
+    """List durable handoff sessions for an activity."""
+    activity = await storage.get_activity(activity_id)
+    if activity is None:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    sessions = await storage.list_handoff_sessions_for_activity(activity_id)
+    return [
+        HandoffSessionView(
+            session=session,
+            messages=await storage.list_handoff_messages(session.id),
+        )
+        for session in sessions
+    ]
+
+
+@router.get("/handoff-sessions/{session_id}", response_model=HandoffSessionView)
+async def get_handoff_session(
+    session_id: str,
+    storage: ActivityStorage = Depends(get_storage),
+) -> HandoffSessionView:
+    """Return one durable handoff session with its messages."""
+    session = await storage.get_handoff_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Handoff session not found")
+    return HandoffSessionView(
+        session=session,
+        messages=await storage.list_handoff_messages(session.id),
+    )
+
+
+@router.post("/handoff-sessions/{session_id}/events", response_model=HandoffSessionView)
+async def record_handoff_session_event(
+    session_id: str,
+    payload: HandoffSessionEventRequest,
+    request: Request,
+    storage: ActivityStorage = Depends(get_storage),
+) -> HandoffSessionView:
+    """Record an external-agent callback event on a handoff session."""
+    signature_verified, raw_body = await _verify_handoff_callback_signature(request)
+    session = await storage.get_handoff_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Handoff session not found")
+
+    next_status = _HANDOFF_EVENT_STATUS.get(payload.event_type)
+    if next_status is not None:
+        session.status = next_status
+    if payload.external_thread_id:
+        session.external_thread_id = payload.external_thread_id
+    merged_labels = _handoff_labels(session.target, [*session.labels, *payload.labels])
+    session.labels = merged_labels
+    if payload.github.repository:
+        session.github.repository = payload.github.repository
+    for attr in ("run_id", "issue_url", "pr_url", "comment_url", "workflow_rerun_url"):
+        value = getattr(payload.github, attr)
+        if value:
+            setattr(session.github, attr, value)
+    if payload.github.labels:
+        session.github.labels = _handoff_labels(session.target, payload.github.labels)
+    session.updated_at = utcnow()
+
+    raw_payload = json.loads(raw_body.decode("utf-8")) if raw_body else payload.model_dump(mode="json")
+    message = HandoffMessage(
+        session_id=session.id,
+        event_type=payload.event_type,
+        direction=HandoffMessageDirection.INBOUND,
+        actor=payload.actor.strip() or session.target.value,
+        body=_sanitize_handoff_context(payload.message),
+        payload_sha256=hashlib.sha256(raw_body).hexdigest() if raw_body else "",
+        payload_redacted=_redact_payload(raw_payload if isinstance(raw_payload, dict) else {}),
+        github=payload.github,
+        labels=payload.labels,
+        signature_verified=signature_verified,
+        request_id=getattr(request.state, "request_id", None),
+    )
+    await storage.upsert_handoff_session(session)
+    await storage.append_handoff_message(message)
+
+    activity = await storage.get_activity(session.activity_id)
+    if activity is not None:
+        status = AgentHandoffStatus.QUEUED
+        if session.status == HandoffSessionStatus.FAILED:
+            status = AgentHandoffStatus.FAILED
+        await _record_handoff_activity_audit(
+            storage=storage,
+            activity=activity,
+            session=session,
+            status=status,
+            mode=AgentHandoffMode.WEBHOOK,
+            error=session.status.value if session.status == HandoffSessionStatus.FAILED else None,
+        )
+
+    return HandoffSessionView(
+        session=session,
+        messages=await storage.list_handoff_messages(session.id),
+    )
 
 
 @router.post(

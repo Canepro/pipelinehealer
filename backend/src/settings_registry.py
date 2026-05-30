@@ -29,6 +29,12 @@ RUNTIME_SETTING_SPECS: tuple[SettingSpec, ...] = (
     SettingSpec("azure_openai_chat_api_version", "AZURE_OPENAI_CHAT_API_VERSION", "string", False, False, False, "llm", "provider", "2024-12-01-preview"),
     SettingSpec("openai_compatible_base_url", "OPENAI_COMPATIBLE_BASE_URL", "string", False, False, False, "llm", "provider", ""),
     SettingSpec("openai_compatible_model", "OPENAI_COMPATIBLE_MODEL", "string", False, False, False, "llm", "provider", ""),
+    SettingSpec("codex_app_server_transport", "CODEX_APP_SERVER_TRANSPORT", "string", False, False, False, "llm", "codex_app_server", "stdio"),
+    SettingSpec("codex_app_server_command", "CODEX_APP_SERVER_COMMAND", "string", False, False, False, "llm", "codex_app_server", "codex app-server"),
+    SettingSpec("codex_app_server_model", "CODEX_APP_SERVER_MODEL", "string", False, False, False, "llm", "codex_app_server", "gpt-5.4"),
+    SettingSpec("codex_app_server_turn_timeout_ms", "CODEX_APP_SERVER_TURN_TIMEOUT_MS", "integer", False, False, False, "llm", "codex_app_server", 120000),
+    SettingSpec("codex_app_server_ws_url", "CODEX_APP_SERVER_WS_URL", "string", False, False, False, "llm", "codex_app_server", ""),
+    SettingSpec("codex_app_server_ws_allow_remote", "CODEX_APP_SERVER_WS_ALLOW_REMOTE", "boolean", False, False, False, "llm", "codex_app_server", False),
     SettingSpec("llm_model_analysis", "LLM_MODEL_ANALYSIS", "string", False, False, False, "llm", "model_paths", ""),
     SettingSpec("llm_model_diagnosis", "LLM_MODEL_DIAGNOSIS", "string", False, False, False, "llm", "model_paths", ""),
     SettingSpec("llm_model_remediation", "LLM_MODEL_REMEDIATION", "string", False, False, False, "llm", "model_paths", ""),
@@ -72,6 +78,13 @@ RUNTIME_SETTING_SPECS: tuple[SettingSpec, ...] = (
     SettingSpec("agent_handoff_webhook_allowlist", "AGENT_HANDOFF_WEBHOOK_ALLOWLIST", "string_list", False, False, False, "handoff", "runtime", []),
     SettingSpec("agent_handoff_timeout_seconds", "AGENT_HANDOFF_TIMEOUT_SECONDS", "number", False, False, False, "handoff", "runtime", 8.0),
     SettingSpec("agent_handoff_max_retries", "AGENT_HANDOFF_MAX_RETRIES", "integer", False, False, False, "handoff", "runtime", 1),
+    SettingSpec("agent_handoff_default_target", "AGENT_HANDOFF_DEFAULT_TARGET", "string", False, False, False, "handoff", "control_plane", "codex_app_server"),
+    SettingSpec("agent_handoff_enabled_targets", "AGENT_HANDOFF_ENABLED_TARGETS", "string_list", False, False, False, "handoff", "control_plane", ["codex_app_server", "openclaw", "hermes"]),
+    SettingSpec("infisical_project_id", "INFISICAL_PROJECT_ID", "string", False, False, False, "secrets", "infisical", ""),
+    SettingSpec("infisical_environment", "INFISICAL_ENVIRONMENT", "string", False, False, False, "secrets", "infisical", "dev"),
+    SettingSpec("infisical_secret_path", "INFISICAL_SECRET_PATH", "string", False, False, False, "secrets", "infisical", "/personal/pipelinehealer"),
+    SettingSpec("infisical_cli_path", "INFISICAL_CLI_PATH", "string", False, False, False, "secrets", "infisical", "infisical"),
+    SettingSpec("infisical_api_url", "INFISICAL_API_URL", "string", False, False, False, "secrets", "infisical", ""),
 )
 
 SECRET_SETTING_SPECS: tuple[SettingSpec, ...] = (
@@ -81,7 +94,13 @@ SECRET_SETTING_SPECS: tuple[SettingSpec, ...] = (
     SettingSpec("github_webhook_secret", "GITHUB_WEBHOOK_SECRET", "secret", True, False, False, "secrets", "github", ""),
     SettingSpec("jenkins_bridge_shared_secret", "JENKINS_BRIDGE_SHARED_SECRET", "secret", True, False, False, "secrets", "jenkins", ""),
     SettingSpec("agent_handoff_webhook_url", "AGENT_HANDOFF_WEBHOOK_URL", "secret_url", True, False, False, "secrets", "handoff", ""),
+    SettingSpec("agent_handoff_callback_secret", "AGENT_HANDOFF_CALLBACK_SECRET", "secret", True, False, False, "secrets", "handoff", ""),
+    SettingSpec("codex_app_server_handoff_url", "CODEX_APP_SERVER_HANDOFF_URL", "secret_url", True, False, False, "secrets", "handoff", ""),
+    SettingSpec("openclaw_handoff_url", "OPENCLAW_HANDOFF_URL", "secret_url", True, False, False, "secrets", "handoff", ""),
+    SettingSpec("hermes_handoff_url", "HERMES_HANDOFF_URL", "secret_url", True, False, False, "secrets", "handoff", ""),
+    SettingSpec("codex_app_server_ws_bearer_token", "CODEX_APP_SERVER_WS_BEARER_TOKEN", "secret", True, False, False, "secrets", "llm", ""),
     SettingSpec("github_app_private_key", "GITHUB_APP_PRIVATE_KEY", "secret", True, False, False, "secrets", "github", ""),
+    SettingSpec("infisical_token", "INFISICAL_TOKEN", "secret", True, False, False, "secrets", "infisical", ""),
 )
 
 BOOTSTRAP_SETTING_SPECS: tuple[SettingSpec, ...] = (

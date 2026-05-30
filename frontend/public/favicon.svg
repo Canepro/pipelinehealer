@@ -1,3 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="PipelineHealer">
+  <rect width="64" height="64" rx="14" fill="#111827"/>
+  <path d="M32 8 52 17v15c0 12.5-8.2 19.8-20 24-11.8-4.2-20-11.5-20-24V17l20-9Z" fill="#1f2937" stroke="#d6aa5c" stroke-width="3"/>
+  <path d="M18 34h8l4-11 7 21 4-10h7" fill="none" stroke="#87cc8b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M25 19h14" stroke="#f4efe4" stroke-width="4" stroke-linecap="round"/>
+  <path d="M32 19v11" stroke="#f4efe4" stroke-width="4" stroke-linecap="round"/>
 </svg>

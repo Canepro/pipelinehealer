@@ -13,6 +13,7 @@ def test_resolve_llm_provider_defaults_to_azure() -> None:
 def test_resolve_llm_provider_accepts_supported_values() -> None:
     assert resolve_llm_provider("azure_openai") == LLMProviderName.AZURE_OPENAI
     assert resolve_llm_provider("openai_compatible") == LLMProviderName.OPENAI_COMPATIBLE
+    assert resolve_llm_provider("codex_app_server") == LLMProviderName.CODEX_APP_SERVER
     assert resolve_llm_provider("custom") == LLMProviderName.CUSTOM
 
 
@@ -119,6 +120,35 @@ def test_create_cloud_agent_openai_compatible_accepts_task_override_model() -> N
         instructions="test",
         credential=None,  # type: ignore[arg-type]
         task="analysis",
+        settings=settings,
+    )
+    assert not isinstance(agent, NoopAgent)
+
+
+def test_resolve_model_for_task_uses_codex_app_server_model() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="codex_app_server",
+        codex_app_server_model="gpt-5.4",
+    )
+    model = _resolve_model_for_task(
+        settings=settings,
+        provider=LLMProviderName.CODEX_APP_SERVER,
+        task="diagnosis",
+    )
+    assert model == "gpt-5.4"
+
+
+def test_create_cloud_agent_codex_app_server_returns_runtime_agent() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="codex_app_server",
+        codex_app_server_model="gpt-5.4",
+    )
+    agent = create_cloud_agent(
+        name="Test",
+        instructions="test",
+        credential=None,  # type: ignore[arg-type]
         settings=settings,
     )
     assert not isinstance(agent, NoopAgent)

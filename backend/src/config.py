@@ -81,6 +81,42 @@ class Settings(BaseSettings):
         default="",
         description="API key for OpenAI-compatible provider",
     )
+    codex_app_server_transport: str = Field(
+        default="stdio",
+        description="Codex App Server transport for model-backed turns: stdio or websocket",
+    )
+    codex_app_server_command: str = Field(
+        default="codex app-server",
+        description="Command used when CODEX_APP_SERVER_TRANSPORT=stdio",
+    )
+    codex_app_server_model: str = Field(
+        default="gpt-5.4",
+        description="Codex model requested when LLM_PROVIDER=codex_app_server",
+    )
+    codex_app_server_turn_timeout_ms: int = Field(
+        default=120000,
+        description="Maximum time to wait for one Codex App Server turn",
+    )
+    codex_app_server_ws_url: str = Field(
+        default="",
+        description="WebSocket URL used when CODEX_APP_SERVER_TRANSPORT=websocket",
+    )
+    codex_app_server_ws_allow_remote: bool = Field(
+        default=False,
+        description="Allow non-loopback Codex App Server WebSocket endpoints",
+    )
+    codex_app_server_ws_bearer_token: str = Field(
+        default="",
+        description="Bearer token for authenticated Codex App Server WebSocket transport",
+    )
+    codex_app_server_ws_token_file: str = Field(
+        default="",
+        description="File containing a Codex App Server WebSocket capability token",
+    )
+    codex_app_server_ws_shared_secret_file: str = Field(
+        default="",
+        description="File containing a Codex App Server WebSocket shared secret",
+    )
     llm_provider: str = Field(
         default=LLMProviderName.AZURE_OPENAI.value,
         description=(
@@ -437,6 +473,54 @@ class Settings(BaseSettings):
         default=1,
         description="Maximum retries for transient Assign-to-Agent webhook failures",
     )
+    agent_handoff_default_target: str = Field(
+        default="codex_app_server",
+        description="Default target for durable external-agent handoff sessions",
+    )
+    agent_handoff_enabled_targets: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["codex_app_server", "openclaw", "hermes"],
+        description="External-agent handoff targets operators may select",
+    )
+    agent_handoff_callback_secret: str = Field(
+        default="",
+        description="Optional HMAC secret for external-agent callback events",
+    )
+    codex_app_server_handoff_url: str = Field(
+        default="",
+        description="Optional webhook endpoint for Codex App Server handoff delivery",
+    )
+    openclaw_handoff_url: str = Field(
+        default="",
+        description="Optional webhook endpoint for OpenClaw handoff delivery",
+    )
+    hermes_handoff_url: str = Field(
+        default="",
+        description="Optional webhook endpoint for Hermes handoff delivery",
+    )
+    infisical_project_id: str = Field(
+        default="",
+        description="Infisical project id for runtime secret storage",
+    )
+    infisical_environment: str = Field(
+        default="dev",
+        description="Infisical environment slug/name for runtime secret storage",
+    )
+    infisical_secret_path: str = Field(
+        default="/personal/pipelinehealer",
+        description="Infisical folder path for PipelineHealer runtime secrets",
+    )
+    infisical_cli_path: str = Field(
+        default="infisical",
+        description="Infisical CLI executable path",
+    )
+    infisical_api_url: str = Field(
+        default="",
+        description="Optional Infisical API URL/domain override",
+    )
+    infisical_token: str = Field(
+        default="",
+        description="Optional Infisical service or machine identity token",
+    )
     github_api_max_retries: int = Field(
         default=3,
         description="Maximum GitHub API retries for retryable failures (429/5xx and transient network errors)",
@@ -520,6 +604,22 @@ class Settings(BaseSettings):
             return [host.strip().lower() for host in text.split(",") if host.strip()]
         if isinstance(value, list):
             return [str(host).strip().lower() for host in value if str(host).strip()]
+        return value
+
+    @field_validator("agent_handoff_enabled_targets", mode="before")
+    @classmethod
+    def parse_agent_handoff_enabled_targets(cls, value: Any) -> Any:
+        """Allow handoff target lists from JSON arrays or comma-separated env values."""
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return []
+            if text.startswith("["):
+                parsed = json.loads(text)
+                return [str(item).strip().lower() for item in parsed if str(item).strip()]
+            return [item.strip().lower() for item in text.split(",") if item.strip()]
+        if isinstance(value, list):
+            return [str(item).strip().lower() for item in value if str(item).strip()]
         return value
 
     @field_validator("mcp_tool_policies", mode="before")
@@ -630,6 +730,53 @@ class Settings(BaseSettings):
             raise ValueError("AGENT_HANDOFF_MODE must be one of: copy_only, webhook")
         return normalized
 
+    @field_validator("agent_handoff_default_target")
+    @classmethod
+    def validate_agent_handoff_default_target(cls, value: str) -> str:
+        """Validate the default external-agent handoff target."""
+        normalized = value.strip().lower()
+        if normalized not in {"codex_app_server", "openclaw", "hermes", "custom"}:
+            raise ValueError(
+                "AGENT_HANDOFF_DEFAULT_TARGET must be one of: "
+                "codex_app_server, openclaw, hermes, custom"
+            )
+        return normalized
+
+    @field_validator("agent_handoff_enabled_targets")
+    @classmethod
+    def validate_agent_handoff_enabled_targets(cls, value: list[str]) -> list[str]:
+        """Validate selectable external-agent targets."""
+        allowed = {"codex_app_server", "openclaw", "hermes", "custom"}
+        normalized = []
+        for raw in value:
+            target = str(raw).strip().lower()
+            if not target:
+                continue
+            if target not in allowed:
+                raise ValueError(
+                    "AGENT_HANDOFF_ENABLED_TARGETS values must be one of: "
+                    "codex_app_server, openclaw, hermes, custom"
+                )
+            normalized.append(target)
+        return normalized
+
+    @field_validator("codex_app_server_transport")
+    @classmethod
+    def validate_codex_app_server_transport(cls, value: str) -> str:
+        """Validate Codex App Server transport selection."""
+        normalized = value.strip().lower() or "stdio"
+        if normalized not in {"stdio", "websocket"}:
+            raise ValueError("CODEX_APP_SERVER_TRANSPORT must be one of: stdio, websocket")
+        return normalized
+
+    @field_validator("codex_app_server_turn_timeout_ms")
+    @classmethod
+    def validate_codex_app_server_turn_timeout_ms(cls, value: int) -> int:
+        """Validate bounded Codex App Server turn timeout."""
+        if value < 1000 or value > 900000:
+            raise ValueError("CODEX_APP_SERVER_TURN_TIMEOUT_MS must be between 1000 and 900000")
+        return value
+
     @field_validator("storage_mode")
     @classmethod
     def validate_storage_mode(cls, value: str) -> str:
@@ -646,9 +793,9 @@ class Settings(BaseSettings):
     def validate_settings_secret_backend(cls, value: str) -> str:
         """Validate configured runtime secret backend selection."""
         normalized = value.strip().lower()
-        if normalized not in {"encrypted_db", "azure_key_vault"}:
+        if normalized not in {"encrypted_db", "azure_key_vault", "infisical"}:
             raise ValueError(
-                "SETTINGS_SECRET_BACKEND must be one of: encrypted_db, azure_key_vault"
+                "SETTINGS_SECRET_BACKEND must be one of: encrypted_db, azure_key_vault, infisical"
             )
         return normalized
 

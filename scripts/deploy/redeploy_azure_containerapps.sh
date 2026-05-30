@@ -24,6 +24,7 @@ Options:
   --backend-app <name>      Backend Container App (default: ca-canepro-ph-backend)
   --frontend-app <name>     Frontend Container App (default: ca-canepro-ph-frontend)
   --engine <podman|docker>  Force container engine (default: auto-detect)
+  --remote-build            Build images with ACR Tasks instead of local Docker/Podman
   --env-file <path>         Backend env file (default: <repo>/backend/.env)
   --image-tag <tag>         Image tag (default: current git short SHA)
   --release-version <ver>   Deploy existing ACR release images (vX.Y.Z or X.Y.Z) by digest
@@ -51,9 +52,10 @@ ENV_FILE="$REPO_ROOT/backend/.env"
 IMAGE_TAG="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)"
 CONTAINER_ENGINE="auto"
 COMPOSE_ENV_FILE=""
+REMOTE_BUILD="auto"
 
-API_AUTH_KEY=""
-ADMIN_API_KEY=""
+API_AUTH_KEY="${API_AUTH_KEY:-}"
+ADMIN_API_KEY="${ADMIN_API_KEY:-}"
 MODE="full"
 RELEASE_VERSION=""
 DO_VERIFY="1"
@@ -64,6 +66,9 @@ USE_SECRET_REFS="0"
 SECRET_PREFIX="ph"
 
 BACKEND_RUNTIME_ENV_KEYS=(
+  "ENVIRONMENT"
+  "STORAGE_MODE"
+  "LOG_LEVEL"
   "AUTH_MODE"
   "ENTRA_TENANT_ID"
   "ENTRA_CLIENT_ID"
@@ -75,9 +80,27 @@ BACKEND_RUNTIME_ENV_KEYS=(
   "AZURE_OPENAI_DEPLOYMENT_NAME"
   "AZURE_OPENAI_API_VERSION"
   "AZURE_OPENAI_API_KEY"
+  "AZURE_OPENAI_CHAT_API_VERSION"
+  "LLM_PROVIDER"
+  "OPENAI_COMPATIBLE_BASE_URL"
+  "OPENAI_COMPATIBLE_MODEL"
+  "OPENAI_COMPATIBLE_API_KEY"
+  "CODEX_APP_SERVER_TRANSPORT"
+  "CODEX_APP_SERVER_COMMAND"
+  "CODEX_APP_SERVER_MODEL"
+  "CODEX_APP_SERVER_TURN_TIMEOUT_MS"
+  "CODEX_APP_SERVER_WS_URL"
+  "CODEX_APP_SERVER_WS_ALLOW_REMOTE"
+  "CODEX_APP_SERVER_WS_BEARER_TOKEN"
+  "LLM_MODEL_ANALYSIS"
+  "LLM_MODEL_DIAGNOSIS"
+  "LLM_MODEL_REMEDIATION"
   "HEAL_MODE"
+  "AUTO_APPLY_REMEDIATION"
   "MAX_REMEDIATION_ATTEMPTS"
   "AUTO_CREATE_PR"
+  "AUTO_CREATE_ISSUE"
+  "AUTO_RETRY_WORKFLOW"
   "AUTO_CREATE_TRACKING_ISSUE_FOR_PRS"
   "PH_ALLOWED_REPOS"
   "AUDIT_SALT"
@@ -90,16 +113,17 @@ BACKEND_RUNTIME_ENV_KEYS=(
   "LOG_PROMPT_MAX_CHARS"
   "LOG_PROMPT_HEAD_CHARS"
   "LOG_PROMPT_TAIL_CHARS"
+  "CORS_ALLOWED_ORIGINS"
+  "CORS_ALLOW_ORIGIN_REGEX"
   "GH_AW_TOOLS_ENABLED"
   "GH_AW_INGESTION_MODE"
   "GH_AW_KNOWN_WORKFLOWS"
   "EXTERNAL_DIAGNOSTICS_WAIT_SECONDS"
   "EXTERNAL_DIAGNOSTICS_POLL_INTERVAL_SECONDS"
-  "LLM_PROVIDER"
-  "OPENAI_COMPATIBLE_BASE_URL"
-  "OPENAI_COMPATIBLE_MODEL"
-  "OPENAI_COMPATIBLE_API_KEY"
   "GITHUB_PERSONAL_ACCESS_TOKEN"
+  "GITHUB_APP_ID"
+  "GITHUB_APP_PRIVATE_KEY"
+  "GITHUB_PRIVATE_KEY_SECRET_NAME"
   "GITHUB_WEBHOOK_SECRET"
   "JENKINS_BRIDGE_ENABLED"
   "JENKINS_BRIDGE_SHARED_SECRET"
@@ -107,12 +131,38 @@ BACKEND_RUNTIME_ENV_KEYS=(
   "JENKINS_BRIDGE_REPLAY_TTL_SECONDS"
   "JENKINS_BRIDGE_MAX_BODY_BYTES"
   "JENKINS_BRIDGE_ALLOW_PR"
+  "AGENT_HANDOFF_ENABLED"
+  "AGENT_HANDOFF_MODE"
+  "AGENT_HANDOFF_WEBHOOK_URL"
+  "AGENT_HANDOFF_WEBHOOK_ALLOWLIST"
+  "AGENT_HANDOFF_TIMEOUT_SECONDS"
+  "AGENT_HANDOFF_MAX_RETRIES"
+  "AGENT_HANDOFF_DEFAULT_TARGET"
+  "AGENT_HANDOFF_ENABLED_TARGETS"
+  "AGENT_HANDOFF_CALLBACK_SECRET"
+  "CODEX_APP_SERVER_HANDOFF_URL"
+  "OPENCLAW_HANDOFF_URL"
+  "HERMES_HANDOFF_URL"
   "MCP_ENABLED"
   "MCP_PROVIDER"
   "MCP_READ_ONLY"
   "MCP_TIMEOUT_SECONDS"
   "MCP_MAX_RETRIES"
-  "AZURE_OPENAI_CHAT_API_VERSION"
+  "MCP_TOOL_POLICIES"
+  "MCP_REPO_ALLOWLIST"
+  "SETTINGS_SECRET_BACKEND"
+  "SETTINGS_DB_ENCRYPTION_KEY"
+  "KEY_VAULT_URL"
+  "INFISICAL_PROJECT_ID"
+  "INFISICAL_ENVIRONMENT"
+  "INFISICAL_SECRET_PATH"
+  "INFISICAL_CLI_PATH"
+  "INFISICAL_API_URL"
+  "INFISICAL_TOKEN"
+  "COSMOS_DB_ENDPOINT"
+  "COSMOS_DB_DATABASE"
+  "POSTGRES_DSN"
+  "APPLICATIONINSIGHTS_CONNECTION_STRING"
 )
 
 FRONTEND_RUNTIME_ENV_KEYS=(
@@ -134,9 +184,20 @@ BACKEND_SECRET_ENV_KEYS=(
   "AZURE_OPENAI_API_KEY"
   "OPENAI_COMPATIBLE_API_KEY"
   "GITHUB_PERSONAL_ACCESS_TOKEN"
+  "GITHUB_APP_PRIVATE_KEY"
   "GITHUB_WEBHOOK_SECRET"
   "JENKINS_BRIDGE_SHARED_SECRET"
   "AUDIT_SALT"
+  "AGENT_HANDOFF_WEBHOOK_URL"
+  "AGENT_HANDOFF_CALLBACK_SECRET"
+  "CODEX_APP_SERVER_HANDOFF_URL"
+  "OPENCLAW_HANDOFF_URL"
+  "HERMES_HANDOFF_URL"
+  "CODEX_APP_SERVER_WS_BEARER_TOKEN"
+  "SETTINGS_DB_ENCRYPTION_KEY"
+  "POSTGRES_DSN"
+  "APPLICATIONINSIGHTS_CONNECTION_STRING"
+  "INFISICAL_TOKEN"
 )
 
 FRONTEND_SECRET_ENV_KEYS=(
@@ -168,6 +229,10 @@ while [[ $# -gt 0 ]]; do
     --engine)
       CONTAINER_ENGINE="$2"
       shift 2
+      ;;
+    --remote-build)
+      REMOTE_BUILD="1"
+      shift
       ;;
     --image-tag)
       IMAGE_TAG="$2"
@@ -261,11 +326,19 @@ fi
 
 read_env_key() {
   local key="$1"
+  local process_value
+  if process_value="$(printenv "$key" 2>/dev/null)"; then
+    printf '%s\n' "$process_value"
+    return 0
+  fi
   grep -E "^${key}=" "$ENV_FILE" | tail -n1 | cut -d= -f2- | tr -d '\r\n' || true
 }
 
 env_key_is_present() {
   local key="$1"
+  if printenv "$key" >/dev/null 2>&1; then
+    return 0
+  fi
   grep -qE "^${key}=" "$ENV_FILE"
 }
 
@@ -615,6 +688,20 @@ prune_local_images() {
   "$engine" image prune -f >/dev/null 2>&1 || true
 }
 
+build_images_with_acr() {
+  echo "Container engine unavailable or remote build requested; building images with Azure Container Registry."
+  az acr build \
+    -r "$ACR_NAME" \
+    -t "pipelinehealer-backend:$IMAGE_TAG" \
+    -f "$REPO_ROOT/backend/Dockerfile" \
+    "$REPO_ROOT/backend"
+  az acr build \
+    -r "$ACR_NAME" \
+    -t "pipelinehealer-frontend:$IMAGE_TAG" \
+    -f "$REPO_ROOT/frontend/Dockerfile" \
+    "$REPO_ROOT/frontend"
+}
+
 prune_acr_repository() {
   local acr_name="$1"
   local repo="$2"
@@ -775,6 +862,7 @@ fi
 
 expected_backend_image=""
 expected_frontend_image=""
+used_local_container_engine="0"
 
 if [[ "$USE_SECRET_REFS" == "1" ]]; then
   apply_containerapp_secrets "$BACKEND_APP" "BACKEND_SECRET_VALUES"
@@ -782,41 +870,39 @@ if [[ "$USE_SECRET_REFS" == "1" ]]; then
 fi
 
 if [[ "$MODE" == "full" ]]; then
-  if ! CONTAINER_ENGINE="$(detect_engine)"; then
-    echo "No working container engine found for full deploy." >&2
-    echo "Try one of the following, then rerun:" >&2
-    echo "  podman machine start" >&2
-    echo "  # or start Docker Desktop" >&2
-    echo "Or run env-only mode (no image build):" >&2
-    echo "  bash scripts/deploy/redeploy_azure_containerapps.sh --env-only" >&2
-    exit 1
-  fi
-  echo "Container engine: $CONTAINER_ENGINE"
+  if [[ "$REMOTE_BUILD" == "1" ]]; then
+    build_images_with_acr
+  elif CONTAINER_ENGINE="$(detect_engine)"; then
+    used_local_container_engine="1"
+    echo "Container engine: $CONTAINER_ENGINE"
 
-  ACR_TOKEN="$(az acr login -n "$ACR_NAME" --expose-token --query accessToken -o tsv | tr -d '\r\n')"
-  "$CONTAINER_ENGINE" login "$ACR_LOGIN" -u 00000000-0000-0000-0000-000000000000 -p "$ACR_TOKEN"
+    ACR_TOKEN="$(az acr login -n "$ACR_NAME" --expose-token --query accessToken -o tsv | tr -d '\r\n')"
+    "$CONTAINER_ENGINE" login "$ACR_LOGIN" -u 00000000-0000-0000-0000-000000000000 -p "$ACR_TOKEN"
 
-  COMPOSE_ENV_FILE="$ENV_FILE"
-  if [[ "$CONTAINER_ENGINE" == "podman" ]] && command -v wslpath >/dev/null 2>&1; then
-    # Only translate when podman is delegating to a Windows compose provider.
-    if [[ "$ENV_FILE" == /mnt/* ]] && podman_compose_uses_windows_provider; then
-      COMPOSE_ENV_FILE="$(wslpath -w "$ENV_FILE")"
+    COMPOSE_ENV_FILE="$ENV_FILE"
+    if [[ "$CONTAINER_ENGINE" == "podman" ]] && command -v wslpath >/dev/null 2>&1; then
+      # Only translate when podman is delegating to a Windows compose provider.
+      if [[ "$ENV_FILE" == /mnt/* ]] && podman_compose_uses_windows_provider; then
+        COMPOSE_ENV_FILE="$(wslpath -w "$ENV_FILE")"
+      fi
     fi
-  fi
-  echo "Compose env file: $COMPOSE_ENV_FILE"
+    echo "Compose env file: $COMPOSE_ENV_FILE"
 
-  (
-    cd "$REPO_ROOT"
-    "$CONTAINER_ENGINE" compose --env-file "$COMPOSE_ENV_FILE" build backend frontend
-    backend_local_image="$(resolve_local_compose_image_ref backend)"
-    frontend_local_image="$(resolve_local_compose_image_ref frontend)"
-    echo "Local backend image : $backend_local_image"
-    echo "Local frontend image: $frontend_local_image"
-    "$CONTAINER_ENGINE" tag "$backend_local_image"  "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
-    "$CONTAINER_ENGINE" tag "$frontend_local_image" "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
-    "$CONTAINER_ENGINE" push "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
-    "$CONTAINER_ENGINE" push "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
-  )
+    (
+      cd "$REPO_ROOT"
+      "$CONTAINER_ENGINE" compose --env-file "$COMPOSE_ENV_FILE" build backend frontend
+      backend_local_image="$(resolve_local_compose_image_ref backend)"
+      frontend_local_image="$(resolve_local_compose_image_ref frontend)"
+      echo "Local backend image : $backend_local_image"
+      echo "Local frontend image: $frontend_local_image"
+      "$CONTAINER_ENGINE" tag "$backend_local_image"  "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
+      "$CONTAINER_ENGINE" tag "$frontend_local_image" "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
+      "$CONTAINER_ENGINE" push "$ACR_LOGIN/pipelinehealer-backend:$IMAGE_TAG"
+      "$CONTAINER_ENGINE" push "$ACR_LOGIN/pipelinehealer-frontend:$IMAGE_TAG"
+    )
+  else
+    build_images_with_acr
+  fi
 
   az containerapp update \
     -g "$AZ_RESOURCE_GROUP" \
@@ -918,7 +1004,7 @@ if [[ "$DO_VERIFY" == "1" ]]; then
   echo "Verification passed: backend health + admin settings endpoint."
 fi
 
-if [[ "$MODE" == "full" && "$PRUNE_LOCAL_IMAGES" == "1" ]]; then
+if [[ "$MODE" == "full" && "$PRUNE_LOCAL_IMAGES" == "1" && "$used_local_container_engine" == "1" ]]; then
   prune_local_images "$CONTAINER_ENGINE" "$ACR_LOGIN" "$IMAGE_TAG"
 fi
 

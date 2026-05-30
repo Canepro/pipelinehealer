@@ -1,9 +1,15 @@
 import type { AdminSettingsAuditEntry, AppSettings } from '../../api/client'
 
 export type SettingsFormState = {
-  llm_provider: 'azure_openai' | 'openai_compatible' | 'custom'
+  llm_provider: 'azure_openai' | 'openai_compatible' | 'codex_app_server' | 'custom'
   openai_compatible_base_url: string
   openai_compatible_model: string
+  codex_app_server_transport: 'stdio' | 'websocket'
+  codex_app_server_command: string
+  codex_app_server_model: string
+  codex_app_server_turn_timeout_ms: number
+  codex_app_server_ws_url: string
+  codex_app_server_ws_allow_remote: boolean
   llm_model_analysis: string
   llm_model_diagnosis: string
   llm_model_remediation: string
@@ -39,6 +45,8 @@ export type SettingsFormState = {
   agent_handoff_webhook_allowlist: string[]
   agent_handoff_timeout_seconds: number
   agent_handoff_max_retries: number
+  agent_handoff_default_target: 'codex_app_server' | 'openclaw' | 'hermes' | 'custom'
+  agent_handoff_enabled_targets: Array<'codex_app_server' | 'openclaw' | 'hermes' | 'custom'>
   ph_allowed_repos: string[]
   azure_openai_endpoint: string
   azure_openai_deployment_name: string
@@ -93,11 +101,20 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
   llm_provider:
     data.llm_provider === 'openai_compatible'
       ? 'openai_compatible'
+      : data.llm_provider === 'codex_app_server'
+        ? 'codex_app_server'
       : data.llm_provider === 'custom'
         ? 'custom'
         : 'azure_openai',
   openai_compatible_base_url: data.openai_compatible_base_url ?? '',
   openai_compatible_model: data.openai_compatible_model ?? '',
+  codex_app_server_transport:
+    data.codex_app_server_transport === 'websocket' ? 'websocket' : 'stdio',
+  codex_app_server_command: data.codex_app_server_command ?? 'codex',
+  codex_app_server_model: data.codex_app_server_model ?? 'gpt-5.1-codex',
+  codex_app_server_turn_timeout_ms: data.codex_app_server_turn_timeout_ms ?? 120000,
+  codex_app_server_ws_url: data.codex_app_server_ws_url ?? '',
+  codex_app_server_ws_allow_remote: data.codex_app_server_ws_allow_remote ?? false,
   llm_model_analysis: data.llm_model_analysis ?? '',
   llm_model_diagnosis: data.llm_model_diagnosis ?? '',
   llm_model_remediation: data.llm_model_remediation ?? '',
@@ -185,6 +202,18 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
   agent_handoff_webhook_allowlist: data.agent_handoff_webhook_allowlist ?? [],
   agent_handoff_timeout_seconds: data.agent_handoff_timeout_seconds ?? 8,
   agent_handoff_max_retries: data.agent_handoff_max_retries ?? 1,
+  agent_handoff_default_target:
+    data.agent_handoff_default_target === 'openclaw'
+      ? 'openclaw'
+      : data.agent_handoff_default_target === 'hermes'
+        ? 'hermes'
+        : data.agent_handoff_default_target === 'custom'
+          ? 'custom'
+          : 'codex_app_server',
+  agent_handoff_enabled_targets:
+    data.agent_handoff_enabled_targets?.filter((target) =>
+      ['codex_app_server', 'openclaw', 'hermes', 'custom'].includes(target),
+    ) ?? ['codex_app_server'],
   ph_allowed_repos: data.ph_allowed_repos ?? [],
   azure_openai_endpoint: data.azure_openai_endpoint ?? '',
   azure_openai_deployment_name: data.azure_openai_deployment_name ?? '',
@@ -252,11 +281,23 @@ export const SETTING_DESCRIPTIONS: Record<string, string> = {
   azure_openai_deployment_name:
     'The Azure OpenAI model deployment to use for AI analysis (e.g. gpt-4o, gpt-5-mini).',
   llm_provider:
-    'Model backend selector. azure_openai is production-ready, openai_compatible is available, and custom remains scaffolded.',
+    'Model backend selector. azure_openai is production-ready, openai_compatible is available, codex_app_server uses the local Codex App Server runtime, and custom remains scaffolded.',
   openai_compatible_base_url:
     'Base URL for an OpenAI-compatible provider endpoint (example: https://api.openai.com/v1).',
   openai_compatible_model:
     'Model name used when llm_provider=openai_compatible.',
+  codex_app_server_transport:
+    'Transport for the Codex App Server runtime. stdio is the safest local default; websocket is for managed bridge deployments.',
+  codex_app_server_command:
+    'Executable used for stdio Codex App Server access.',
+  codex_app_server_model:
+    'Model label requested from Codex App Server for diagnosis and remediation work.',
+  codex_app_server_turn_timeout_ms:
+    'Timeout budget for one Codex App Server turn.',
+  codex_app_server_ws_url:
+    'WebSocket URL for a Codex App Server bridge when transport=websocket.',
+  codex_app_server_ws_allow_remote:
+    'Allow a non-localhost WebSocket bridge URL for Codex App Server.',
   llm_model_analysis:
     'Optional override model/deployment for analysis tasks. Leave empty to use provider default model.',
   llm_model_diagnosis:
@@ -307,6 +348,10 @@ export const SETTING_DESCRIPTIONS: Record<string, string> = {
     'Timeout budget for outbound Assign-to-Agent webhook requests.',
   agent_handoff_max_retries:
     'Retry budget for transient outbound Assign-to-Agent webhook failures.',
+  agent_handoff_default_target:
+    'Default external-agent target for durable handoff sessions.',
+  agent_handoff_enabled_targets:
+    'Targets allowed for durable external-agent handoff sessions.',
   verify_webhook_signature_in_development:
     'Require GitHub webhook signature verification even in development mode. Usually off for local testing.',
   ph_allowed_repos:

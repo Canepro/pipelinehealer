@@ -198,7 +198,7 @@ export interface AppSettings {
   log_prompt_tail_chars: number
   verify_webhook_signature: boolean
   verify_webhook_signature_in_development: boolean
-  settings_secret_backend: 'encrypted_db' | 'azure_key_vault'
+  settings_secret_backend: 'encrypted_db' | 'azure_key_vault' | 'infisical'
   api_auth_enabled: boolean
   admin_api_auth_enabled: boolean
   auth_mode: string
@@ -224,12 +224,23 @@ export interface AppSettings {
   agent_handoff_webhook_allowlist: string[]
   agent_handoff_timeout_seconds: number
   agent_handoff_max_retries: number
+  agent_handoff_default_target: ExternalAgentTarget
+  agent_handoff_enabled_targets: ExternalAgentTarget[]
+  codex_app_server_handoff_configured: boolean
+  openclaw_handoff_configured: boolean
+  hermes_handoff_configured: boolean
   ph_allowed_repos: string[]
   cors_allowed_origins: string[]
   cors_allow_origin_regex: string
-  llm_provider: 'azure_openai' | 'openai_compatible' | 'custom'
+  llm_provider: 'azure_openai' | 'openai_compatible' | 'codex_app_server' | 'custom'
   openai_compatible_base_url: string
   openai_compatible_model: string
+  codex_app_server_transport: 'stdio' | 'websocket'
+  codex_app_server_command: string
+  codex_app_server_model: string
+  codex_app_server_turn_timeout_ms: number
+  codex_app_server_ws_url: string
+  codex_app_server_ws_allow_remote: boolean
   llm_model_analysis: string
   llm_model_diagnosis: string
   llm_model_remediation: string
@@ -245,6 +256,11 @@ export interface AppSettings {
   azure_openai_deployment_name: string
   azure_openai_api_version: string
   azure_openai_chat_api_version: string
+  infisical_project_id: string
+  infisical_environment: string
+  infisical_secret_path: string
+  infisical_cli_path: string
+  infisical_api_url: string
   setup_status: SetupStatus
   settings_metadata: Record<string, AppSettingMetadata>
 }
@@ -351,6 +367,9 @@ export interface AgentHandoffConfig {
   webhook_configured: boolean
   timeout_seconds: number
   max_retries: number
+  default_target: ExternalAgentTarget
+  enabled_targets: ExternalAgentTarget[]
+  target_configured: Record<ExternalAgentTarget, boolean>
   reason: string
 }
 
@@ -426,13 +445,21 @@ export interface AdminSettingsUpdate {
   agent_handoff_webhook_allowlist?: string[]
   agent_handoff_timeout_seconds?: number
   agent_handoff_max_retries?: number
+  agent_handoff_default_target?: ExternalAgentTarget
+  agent_handoff_enabled_targets?: ExternalAgentTarget[]
   ph_allowed_repos?: string[]
-  llm_provider?: 'azure_openai' | 'openai_compatible' | 'custom'
+  llm_provider?: 'azure_openai' | 'openai_compatible' | 'codex_app_server' | 'custom'
   azure_openai_endpoint?: string
   azure_openai_api_version?: string
   azure_openai_chat_api_version?: string
   openai_compatible_base_url?: string
   openai_compatible_model?: string
+  codex_app_server_transport?: 'stdio' | 'websocket'
+  codex_app_server_command?: string
+  codex_app_server_model?: string
+  codex_app_server_turn_timeout_ms?: number
+  codex_app_server_ws_url?: string
+  codex_app_server_ws_allow_remote?: boolean
   llm_model_analysis?: string
   llm_model_diagnosis?: string
   llm_model_remediation?: string
@@ -449,6 +476,109 @@ export interface AdminSettingsUpdate {
   jenkins_bridge_replay_ttl_seconds?: number
   jenkins_bridge_max_body_bytes?: number
   azure_openai_deployment_name?: string
+}
+
+export type ExternalAgentTarget = 'codex_app_server' | 'openclaw' | 'hermes' | 'custom'
+export type HandoffSessionStatus =
+  | 'created'
+  | 'queued'
+  | 'acknowledged'
+  | 'in_progress'
+  | 'waiting_on_pipelinehealer'
+  | 'pr_opened'
+  | 'completed'
+  | 'failed'
+export type HandoffMessageDirection = 'outbound' | 'inbound' | 'internal'
+export type HandoffEventType =
+  | 'delegated'
+  | 'acknowledged'
+  | 'started_work'
+  | 'needs_more_info'
+  | 'pr_opened'
+  | 'issue_commented'
+  | 'label_applied'
+  | 'workflow_rerun'
+  | 'completed'
+  | 'failed'
+
+export interface HandoffGitHubRefs {
+  repository: string
+  run_id?: number | null
+  issue_url?: string | null
+  pr_url?: string | null
+  comment_url?: string | null
+  labels: string[]
+  workflow_rerun_url?: string | null
+}
+
+export interface HandoffSession {
+  id: string
+  activity_id: string
+  target: ExternalAgentTarget
+  status: HandoffSessionStatus
+  goal: string
+  created_by?: string | null
+  request_id?: string | null
+  delivery_id?: string | null
+  external_thread_id?: string | null
+  github: HandoffGitHubRefs
+  labels: string[]
+  policy_decision: string
+  callback_url?: string | null
+  context_sha256: string
+  context_preview: string
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface HandoffMessage {
+  id: string
+  session_id: string
+  event_type: HandoffEventType
+  direction: HandoffMessageDirection
+  actor: string
+  body: string
+  payload_sha256: string
+  payload_redacted: Record<string, unknown>
+  github: HandoffGitHubRefs
+  labels: string[]
+  signature_verified: boolean
+  request_id?: string | null
+  created_at: string
+}
+
+export interface HandoffSessionView {
+  session: HandoffSession
+  messages: HandoffMessage[]
+}
+
+export interface HandoffSessionCreateRequest {
+  target?: ExternalAgentTarget
+  goal: string
+  context?: string
+  context_format?: string
+  send?: boolean
+  labels?: string[]
+  policy_decision?: string
+  metadata?: Record<string, unknown>
+}
+
+export interface HandoffSessionCreateResponse {
+  session: HandoffSession
+  initial_message: HandoffMessage
+  delivery_status: 'copied' | 'queued' | 'failed' | 'disabled'
+  message: string
+}
+
+export interface HandoffSessionEventRequest {
+  event_type: HandoffEventType
+  message?: string
+  actor?: string
+  external_thread_id?: string | null
+  github?: Partial<HandoffGitHubRefs>
+  labels?: string[]
+  metadata?: Record<string, unknown>
 }
 
 export interface AdminSettingsPersistResponse {
@@ -743,6 +873,20 @@ export const api = {
   getAgentHandoffConfig: () => fetchJson<AgentHandoffConfig>('/api/agent-handoff/config'),
   getAgentHandoffIntegrationStatus: () =>
     fetchJson<AgentHandoffIntegrationStatus>('/api/agent-handoff/integration-status'),
+  createHandoffSession: (activityId: string, payload: HandoffSessionCreateRequest) =>
+    fetchJson<HandoffSessionCreateResponse>(`/api/activities/${activityId}/handoff-sessions`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getActivityHandoffSessions: (activityId: string) =>
+    fetchJson<HandoffSessionView[]>(`/api/activities/${activityId}/handoff-sessions`),
+  getHandoffSession: (sessionId: string) =>
+    fetchJson<HandoffSessionView>(`/api/handoff-sessions/${sessionId}`),
+  recordHandoffSessionEvent: (sessionId: string, payload: HandoffSessionEventRequest) =>
+    fetchJson<HandoffSessionView>(`/api/handoff-sessions/${sessionId}/events`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   assignActivityToAgent: (
     id: string,
     payload: { mode?: 'copy_only' | 'webhook'; context: string; context_format?: string }

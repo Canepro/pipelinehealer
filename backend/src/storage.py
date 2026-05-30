@@ -17,6 +17,8 @@ from .models import (
     ActivityRecord,
     DashboardStats,
     FailureType,
+    HandoffMessage,
+    HandoffSession,
     RemediationAction,
     RemediationStatus,
     utcnow,
@@ -28,6 +30,8 @@ _RUNTIME_SETTINGS_PARTITION = "__pipelinehealer_settings__"
 _RUNTIME_SECRETS_PARTITION = "__pipelinehealer_runtime_secrets__"
 _AUDIT_PARTITION = "__pipelinehealer_audit__"
 _LEARNING_QUEUE_PARTITION = "__pipelinehealer_learning_queue__"
+_HANDOFF_SESSION_PARTITION = "__pipelinehealer_handoff_sessions__"
+_HANDOFF_MESSAGE_PARTITION = "__pipelinehealer_handoff_messages__"
 _POSTGRES_BOOTSTRAP_SQL_PATH = (
     Path(__file__).resolve().parents[1] / "scripts" / "postgres" / "bootstrap.sql"
 )
@@ -76,6 +80,29 @@ CREATE INDEX IF NOT EXISTS idx_ph_learning_queue_updated_at
     ON ph_learning_queue (updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ph_learning_queue_status
     ON ph_learning_queue (status);
+
+CREATE TABLE IF NOT EXISTS ph_handoff_sessions (
+    id TEXT PRIMARY KEY,
+    activity_id TEXT NOT NULL,
+    target TEXT NOT NULL,
+    status TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    payload JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ph_handoff_sessions_activity_id
+    ON ph_handoff_sessions (activity_id);
+CREATE INDEX IF NOT EXISTS idx_ph_handoff_sessions_updated_at
+    ON ph_handoff_sessions (updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS ph_handoff_messages (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    payload JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ph_handoff_messages_session_id
+    ON ph_handoff_messages (session_id, created_at ASC);
 """
 
 
@@ -467,6 +494,105 @@ class ActivityStorage:
             )
         ]
         return items
+
+    async def upsert_handoff_session(self, session: HandoffSession) -> None:
+        """Persist one external-agent handoff session."""
+        await self.initialize()
+        if not session.id:
+            session.id = str(uuid4())
+        session.updated_at = utcnow()
+
+        item = session.model_dump(mode="json")
+        item.update(
+            {
+                "id": session.id,
+                "type": "handoff_session",
+                "repository_name": _HANDOFF_SESSION_PARTITION,
+                "repositoryId": _HANDOFF_SESSION_PARTITION,
+                "repository_id": _HANDOFF_SESSION_PARTITION,
+            }
+        )
+        await self._workflow_runs_container_required().upsert_item(body=item)
+
+    async def get_handoff_session(self, session_id: str) -> HandoffSession | None:
+        """Load one handoff session by ID."""
+        await self.initialize()
+
+        query = "SELECT TOP 1 * FROM c WHERE c.id = @id AND c.type = @type"
+        parameters: list[dict[str, object]] = [
+            {"name": "@id", "value": session_id},
+            {"name": "@type", "value": "handoff_session"},
+        ]
+        items = [
+            item
+            async for item in self._workflow_runs_container_required().query_items(
+                query=query,
+                parameters=parameters,
+            )
+        ]
+        if not items:
+            return None
+        return HandoffSession(**items[0])
+
+    async def list_handoff_sessions_for_activity(self, activity_id: str) -> list[HandoffSession]:
+        """List handoff sessions linked to one activity, newest first."""
+        await self.initialize()
+
+        query = """
+            SELECT * FROM c
+            WHERE c.type = @type AND c.activity_id = @activity_id
+            ORDER BY c.updated_at DESC
+        """
+        parameters: list[dict[str, object]] = [
+            {"name": "@type", "value": "handoff_session"},
+            {"name": "@activity_id", "value": activity_id},
+        ]
+        return [
+            HandoffSession(**item)
+            async for item in self._workflow_runs_container_required().query_items(
+                query=query,
+                parameters=parameters,
+            )
+        ]
+
+    async def append_handoff_message(self, message: HandoffMessage) -> None:
+        """Append one redacted handoff-session message."""
+        await self.initialize()
+        if not message.id:
+            message.id = str(uuid4())
+
+        item = message.model_dump(mode="json")
+        item.update(
+            {
+                "id": message.id,
+                "type": "handoff_message",
+                "repository_name": _HANDOFF_MESSAGE_PARTITION,
+                "repositoryId": _HANDOFF_MESSAGE_PARTITION,
+                "repository_id": _HANDOFF_MESSAGE_PARTITION,
+            }
+        )
+        await self._workflow_runs_container_required().create_item(body=item)
+
+    async def list_handoff_messages(self, session_id: str, limit: int = 100) -> list[HandoffMessage]:
+        """List messages for one handoff session, oldest first."""
+        await self.initialize()
+        safe_limit = max(1, min(limit, 500))
+        query = f"""
+            SELECT TOP {safe_limit} * FROM c
+            WHERE c.type = @type AND c.session_id = @session_id
+            ORDER BY c.created_at ASC
+        """
+        parameters: list[dict[str, object]] = [
+            {"name": "@type", "value": "handoff_message"},
+            {"name": "@session_id", "value": session_id},
+        ]
+        return [
+            HandoffMessage(**item)
+            async for item in self._workflow_runs_container_required().query_items(
+                query=query,
+                parameters=parameters,
+            )
+        ]
 
     async def get_activity(self, activity_id: str) -> ActivityRecord | None:
         """Get an activity record by ID.
@@ -1291,6 +1417,117 @@ class PostgresStorage(ActivityStorage):
             items.append(payload)
         return items
 
+    async def upsert_handoff_session(self, session: HandoffSession) -> None:
+        """Persist one handoff session."""
+        await self.initialize()
+        if not session.id:
+            session.id = str(uuid4())
+        session.updated_at = utcnow()
+
+        payload = session.model_dump(mode="json")
+        payload["id"] = session.id
+        async with self._pool_required().acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO ph_handoff_sessions (
+                    id, activity_id, target, status, updated_at, payload
+                )
+                VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+                ON CONFLICT (id) DO UPDATE SET
+                    activity_id = EXCLUDED.activity_id,
+                    target = EXCLUDED.target,
+                    status = EXCLUDED.status,
+                    updated_at = EXCLUDED.updated_at,
+                    payload = EXCLUDED.payload
+                """,
+                session.id,
+                session.activity_id,
+                session.target.value,
+                session.status.value,
+                _as_utc(session.updated_at),
+                json.dumps(payload),
+            )
+
+    async def get_handoff_session(self, session_id: str) -> HandoffSession | None:
+        """Load one handoff session by ID."""
+        await self.initialize()
+        async with self._pool_required().acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT payload::text AS payload FROM ph_handoff_sessions WHERE id = $1",
+                session_id,
+            )
+        if row is None:
+            return None
+        payload = _parse_json_dict(row["payload"])
+        if payload is None:
+            return None
+        return HandoffSession(**payload)
+
+    async def list_handoff_sessions_for_activity(self, activity_id: str) -> list[HandoffSession]:
+        """List handoff sessions linked to one activity, newest first."""
+        await self.initialize()
+        async with self._pool_required().acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT payload::text AS payload
+                FROM ph_handoff_sessions
+                WHERE activity_id = $1
+                ORDER BY updated_at DESC
+                """,
+                activity_id,
+            )
+        sessions: list[HandoffSession] = []
+        for row in rows:
+            payload = _parse_json_dict(row["payload"])
+            if payload is not None:
+                sessions.append(HandoffSession(**payload))
+        return sessions
+
+    async def append_handoff_message(self, message: HandoffMessage) -> None:
+        """Append one handoff message."""
+        await self.initialize()
+        if not message.id:
+            message.id = str(uuid4())
+        payload = message.model_dump(mode="json")
+        payload["id"] = message.id
+        async with self._pool_required().acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO ph_handoff_messages (
+                    id, session_id, event_type, created_at, payload
+                )
+                VALUES ($1, $2, $3, $4, $5::jsonb)
+                """,
+                message.id,
+                message.session_id,
+                message.event_type.value,
+                _as_utc(message.created_at),
+                json.dumps(payload),
+            )
+
+    async def list_handoff_messages(self, session_id: str, limit: int = 100) -> list[HandoffMessage]:
+        """List messages for one handoff session, oldest first."""
+        await self.initialize()
+        safe_limit = max(1, min(limit, 500))
+        async with self._pool_required().acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT payload::text AS payload
+                FROM ph_handoff_messages
+                WHERE session_id = $1
+                ORDER BY created_at ASC
+                LIMIT $2
+                """,
+                session_id,
+                safe_limit,
+            )
+        messages: list[HandoffMessage] = []
+        for row in rows:
+            payload = _parse_json_dict(row["payload"])
+            if payload is not None:
+                messages.append(HandoffMessage(**payload))
+        return messages
+
     async def _iter_activities(
         self,
         *,
@@ -1356,6 +1593,8 @@ class InMemoryStorage(ActivityStorage):
         self._runtime_secrets: dict[str, dict[str, Any]] = {}
         self._admin_settings_audit: list[dict[str, Any]] = []
         self._learning_queue_items: dict[str, dict[str, Any]] = {}
+        self._handoff_sessions: dict[str, HandoffSession] = {}
+        self._handoff_messages: dict[str, HandoffMessage] = {}
         self._initialized = True
 
     async def initialize(self) -> None:
@@ -1545,3 +1784,41 @@ class InMemoryStorage(ActivityStorage):
             items = [item for item in items if str(item.get("status", "")).lower() == status.lower()]
         items.sort(key=lambda item: str(item.get("updated_at", "")), reverse=True)
         return [dict(item) for item in items[:safe_limit]]
+
+    async def upsert_handoff_session(self, session: HandoffSession) -> None:
+        """Persist one handoff session in-memory."""
+        if not session.id:
+            session.id = str(uuid4())
+        session.updated_at = utcnow()
+        self._handoff_sessions[session.id] = session
+
+    async def get_handoff_session(self, session_id: str) -> HandoffSession | None:
+        """Load one in-memory handoff session."""
+        return self._handoff_sessions.get(session_id)
+
+    async def list_handoff_sessions_for_activity(self, activity_id: str) -> list[HandoffSession]:
+        """List in-memory handoff sessions linked to one activity."""
+        sessions = [
+            session
+            for session in self._handoff_sessions.values()
+            if session.activity_id == activity_id
+        ]
+        sessions.sort(key=lambda session: _as_utc(session.updated_at), reverse=True)
+        return sessions
+
+    async def append_handoff_message(self, message: HandoffMessage) -> None:
+        """Append one in-memory handoff message."""
+        if not message.id:
+            message.id = str(uuid4())
+        self._handoff_messages[message.id] = message
+
+    async def list_handoff_messages(self, session_id: str, limit: int = 100) -> list[HandoffMessage]:
+        """List in-memory handoff messages for one session."""
+        safe_limit = max(1, min(limit, 500))
+        messages = [
+            message
+            for message in self._handoff_messages.values()
+            if message.session_id == session_id
+        ]
+        messages.sort(key=lambda message: _as_utc(message.created_at))
+        return messages[:safe_limit]

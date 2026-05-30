@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: ac1b1ec -->
+<!-- LAST_VERIFIED: 4055ae3 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -530,6 +530,127 @@ Behavior:
 }
 ```
 
+#### `POST /api/activities/{activity_id}/handoff-sessions`
+
+Create a durable external-agent handoff session. This is the agent-control-plane path for Codex App Server, OpenClaw, Hermes, and custom agents.
+
+**Auth**: `X-API-Key`
+
+**Request body**:
+
+```json
+{
+  "target": "codex_app_server",
+  "goal": "Fix the failed CI run, open a PR, and report back.",
+  "context": "# Redacted PipelineHealer activity context ...",
+  "context_format": "markdown",
+  "send": true,
+  "labels": ["pipelinehealer:needs-review"],
+  "policy_decision": "operator_requested",
+  "metadata": {}
+}
+```
+
+Behavior:
+
+- Creates a `HandoffSession` linked to the Activity.
+- Appends an outbound `HandoffMessage` with event type `delegated`.
+- Applies redaction before payload audit and delivery.
+- Uses target-specific URLs when configured: `CODEX_APP_SERVER_HANDOFF_URL`, `OPENCLAW_HANDOFF_URL`, or `HERMES_HANDOFF_URL`.
+- Falls back to recorded-only delivery when a target URL is not configured.
+- Adds standard labels: `pipelinehealer:detected`, `pipelinehealer:delegated`, `pipelinehealer:external-agent`, and one `agent:*` label.
+
+**Response** `200 OK`:
+
+```json
+{
+  "session": {
+    "id": "uuid-string",
+    "activity_id": "activity-id",
+    "target": "codex_app_server",
+    "status": "queued",
+    "goal": "Fix the failed CI run, open a PR, and report back.",
+    "labels": [
+      "pipelinehealer:detected",
+      "pipelinehealer:delegated",
+      "pipelinehealer:external-agent",
+      "agent:codex"
+    ]
+  },
+  "initial_message": {
+    "event_type": "delegated",
+    "direction": "outbound",
+    "payload_sha256": "sha256-hex"
+  },
+  "delivery_status": "queued",
+  "message": "Handoff session delivered to target"
+}
+```
+
+#### `GET /api/activities/{activity_id}/handoff-sessions`
+
+Returns durable handoff sessions for one Activity, including recent messages.
+
+**Auth**: `X-API-Key`
+
+#### `GET /api/handoff-sessions/{session_id}`
+
+Returns one `HandoffSessionView`.
+
+**Auth**: `X-API-Key`
+
+#### `POST /api/handoff-sessions/{session_id}/events`
+
+Record an external-agent callback event.
+
+**Auth**: `X-API-Key`. If `AGENT_HANDOFF_CALLBACK_SECRET` is configured, clients must send `X-PipelineHealer-Signature: sha256=<hmac>` over the raw JSON body.
+
+**Allowed `event_type` values**:
+
+- `acknowledged`
+- `started_work`
+- `needs_more_info`
+- `pr_opened`
+- `issue_commented`
+- `label_applied`
+- `workflow_rerun`
+- `completed`
+- `failed`
+
+**Request body**:
+
+```json
+{
+  "event_type": "pr_opened",
+  "message": "Opened a fix PR.",
+  "actor": "codex_app_server",
+  "external_thread_id": "thread-id",
+  "github": {
+    "repository": "owner/repo",
+    "run_id": 123,
+    "pr_url": "https://github.com/owner/repo/pull/456",
+    "labels": ["pipelinehealer:fix-submitted"]
+  },
+  "labels": ["pipelinehealer:fix-submitted"],
+  "metadata": {}
+}
+```
+
+GitHub label semantics:
+
+| Label | Meaning |
+|---|---|
+| `pipelinehealer:detected` | PipelineHealer detected the failing run |
+| `pipelinehealer:delegated` | PipelineHealer delegated the Activity |
+| `pipelinehealer:external-agent` | External agent work is involved |
+| `agent:codex` | Codex App Server target |
+| `agent:openclaw` | OpenClaw target |
+| `agent:hermes` | Hermes target |
+| `pipelinehealer:fix-submitted` | A PR or fix artifact was reported |
+| `pipelinehealer:needs-review` | Human review is required |
+| `pipelinehealer:verified` | PipelineHealer verified the reported work |
+| `pipelinehealer:failed-delegation` | Delegation failed or timed out |
+
 #### `POST /api/activities/{activity_id}/retry`
 
 Triggers a GitHub re-run of failed jobs for the given activity. The original activity record is **not** modified — it retains its `failed` status and error details as a historical record. When the re-run completes, a new `workflow_run.completed` webhook creates a fresh activity record for the retry attempt.
@@ -821,10 +942,18 @@ Changes take effect immediately. If the same logical key is also set through env
 | `agent_handoff_webhook_allowlist` | list[string] | Bare hostnames only; when non-empty and a startup webhook URL is present, it must include that destination host |
 | `agent_handoff_timeout_seconds` | float | >0–30 |
 | `agent_handoff_max_retries` | int | 0–5 |
+| `agent_handoff_default_target` | string | `codex_app_server`, `openclaw`, `hermes`, or `custom` |
+| `agent_handoff_enabled_targets` | list[string] | Enabled external-agent handoff targets |
 | `azure_openai_deployment_name` | string | Non-empty; switches AI model deployment at runtime |
-| `llm_provider` | string | `azure_openai`, `openai_compatible`, or `custom` |
+| `llm_provider` | string | `azure_openai`, `openai_compatible`, `codex_app_server`, or `custom` |
 | `openai_compatible_base_url` | string | Required when `llm_provider=openai_compatible`; must be `http(s)://...` |
 | `openai_compatible_model` | string | Required when `llm_provider=openai_compatible` |
+| `codex_app_server_transport` | string | `stdio` or `websocket` |
+| `codex_app_server_command` | string | Command for stdio transport |
+| `codex_app_server_model` | string | Model requested from Codex App Server |
+| `codex_app_server_turn_timeout_ms` | int | 1,000-900,000 |
+| `codex_app_server_ws_url` | string | Required for WebSocket transport |
+| `codex_app_server_ws_allow_remote` | bool | Permit non-loopback WebSocket URL when explicitly configured |
 | `llm_model_analysis` | string | Optional per-task model/deployment override for analysis |
 | `llm_model_diagnosis` | string | Optional per-task model/deployment override for diagnosis |
 | `llm_model_remediation` | string | Optional per-task model/deployment override for remediation |
@@ -835,6 +964,11 @@ Changes take effect immediately. If the same logical key is also set through env
 | `mcp_max_retries` | int | 0–10 |
 | `mcp_tool_policies` | object | `tool -> policy` map; policy is `disabled`, `read_only`, `write_with_approval`, or `auto` |
 | `mcp_repo_allowlist` | list[string] | Optional owner/repo allowlist enforced for MCP actions |
+| `infisical_project_id` | string | Infisical project id for runtime secret storage |
+| `infisical_environment` | string | Infisical environment name or slug |
+| `infisical_secret_path` | string | Infisical folder path for PipelineHealer runtime secrets |
+| `infisical_cli_path` | string | Infisical CLI executable path |
+| `infisical_api_url` | string | Optional Infisical domain/API override |
 
 **Validation**:
 - `log_prompt_head_chars + log_prompt_tail_chars` must be `<= log_prompt_max_chars`.
@@ -886,9 +1020,10 @@ Returns non-sensitive metadata for runtime-managed secrets.
 Notes:
 - This endpoint never returns plaintext secret values.
 - `source=env` means startup-managed env currently overrides the runtime secret-store value.
-- Supported runtime-managed secret keys include provider API keys, GitHub auth secrets, Jenkins bridge shared secret, and the Assign-to-Agent destination URL.
+- Supported runtime-managed secret keys include provider API keys, GitHub auth secrets, Jenkins bridge shared secret, Assign-to-Agent destination URL, callback signing secret, target-agent handoff URLs, Codex App Server WebSocket bearer token, GitHub App private key, and Infisical token.
 - `backend=encrypted_db` is the OSS-portable/default runtime secret backend for AWS/GCP/OCI/self-hosted deployments.
 - `backend=azure_key_vault` is an optional Azure-native backend, not a required product dependency.
+- `backend=infisical` stores values in Infisical and keeps only non-sensitive metadata in PipelineHealer storage.
 
 #### `PATCH /api/settings/secrets`
 
@@ -929,6 +1064,7 @@ Rules:
 Backend notes:
 - `SETTINGS_SECRET_BACKEND=encrypted_db` keeps runtime-secret management portable across non-Azure deployments.
 - `SETTINGS_SECRET_BACKEND=azure_key_vault` is available when you intentionally want Azure Key Vault integration.
+- `SETTINGS_SECRET_BACKEND=infisical` is available when `INFISICAL_PROJECT_ID`, `INFISICAL_ENVIRONMENT`, and `INFISICAL_SECRET_PATH` are configured. Use `bash scripts/ph.sh secrets:infisical:migrate --project-id <id>` to copy existing `backend/.env` runtime and bootstrap secrets into Infisical without printing values. After removing bootstrap values from `backend/.env`, start the backend with `infisical run` or deployment-native secret injection so `API_AUTH_KEY`, `ADMIN_API_KEY`, and other startup-only values are present in the process environment.
 
 #### `GET /api/settings/llm/provider-health`
 

@@ -59,6 +59,8 @@ Commands:
   settings:audit    Call backend /api/settings/audit using API+ADMIN keys from backend/.env
   settings:persist  Persist selected settings to backend/.env, API-audit when reachable, and redeploy env-only
   settings:persist:verify  Persist settings (skip redeploy by default) and verify audit entry was recorded
+  secrets:infisical:inventory  Show PipelineHealer secret names ready for Infisical migration
+  secrets:infisical:migrate  Copy backend/.env runtime/bootstrap secrets into Infisical without printing values
   audit:proof       Create two traceable admin audit entries and print latest audit records
   aoai:check        Verify Azure OpenAI connectivity from local backend container
   backfill          Trigger on-demand backfill sweep for external diagnostics (ci-doctor)
@@ -83,6 +85,8 @@ Examples:
   bash scripts/ph.sh settings:persist --repos-add owner/repo1,owner/repo2 --gh-aw-tools-enabled true --gh-aw-ingestion-mode hybrid
   bash scripts/ph.sh settings:persist --repos-remove owner/legacy-repo
   bash scripts/ph.sh settings:persist --repos-replace owner/repo1,owner/repo2 --skip-redeploy
+  bash scripts/ph.sh secrets:infisical:inventory
+  bash scripts/ph.sh secrets:infisical:migrate --project-id <infisical-project-id>
   bash scripts/ph.sh audit:proof --limit 5
   bash scripts/ph.sh logs
   bash scripts/ph.sh logs:grep --pattern "debug-mode"
@@ -130,6 +134,10 @@ env_file() {
 read_env_key() {
   local key="$1"
   local file
+  if [[ -n "${!key:-}" ]]; then
+    printf '%s\n' "${!key}"
+    return 0
+  fi
   file="$(env_file)"
   if [[ ! -f "$file" ]]; then
     return 0
@@ -2172,6 +2180,12 @@ case "$COMMAND" in
     ;;
   settings:persist:verify)
     cmd_settings_persist_verify "$@"
+    ;;
+  secrets:infisical:inventory)
+    python3 "$SCRIPT_DIR/infisical_runtime_migration.py" "$@"
+    ;;
+  secrets:infisical:migrate)
+    python3 "$SCRIPT_DIR/infisical_runtime_migration.py" --apply "$@"
     ;;
   audit:proof)
     audit_proof "$@"

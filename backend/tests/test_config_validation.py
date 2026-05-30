@@ -62,6 +62,42 @@ def test_accepts_postgres_storage_mode() -> None:
     assert settings.storage_mode == "postgres"
 
 
+def test_accepts_infisical_secret_backend() -> None:
+    settings = Settings(
+        _env_file=None,
+        settings_secret_backend="infisical",
+        infisical_project_id="project-id",
+    )
+    assert settings.settings_secret_backend == "infisical"
+    assert settings.infisical_project_id == "project-id"
+
+
+def test_accepts_agent_control_plane_targets() -> None:
+    settings = Settings(
+        _env_file=None,
+        agent_handoff_default_target="openclaw",
+        agent_handoff_enabled_targets="codex_app_server,openclaw,hermes",
+    )
+    assert settings.agent_handoff_default_target == "openclaw"
+    assert settings.agent_handoff_enabled_targets == [
+        "codex_app_server",
+        "openclaw",
+        "hermes",
+    ]
+
+
+def test_rejects_invalid_codex_app_server_transport() -> None:
+    try:
+        Settings(
+            _env_file=None,
+            codex_app_server_transport="bad_transport",
+        )
+    except ValidationError as exc:
+        assert "CODEX_APP_SERVER_TRANSPORT must be one of" in str(exc)
+    else:
+        raise AssertionError("Expected ValidationError for invalid Codex App Server transport")
+
+
 def test_rejects_invalid_storage_mode() -> None:
     try:
         Settings(

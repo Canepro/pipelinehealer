@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: 8870fd4 -->
+<!-- LAST_VERIFIED: 4055ae3 -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -102,6 +102,8 @@ Use `deploy:release` for Azure production/staging promotion:
 - no local container build dependency
 - best match for release-driven operations
 - add `--secure-secrets` to store sensitive runtime values as Container App secrets + `secretref` mappings
+- wrap deploy commands in `infisical run -- ...` when secrets have been migrated out of `backend/.env`; the deploy helper reads process env first and does not print values
+- use `--remote-build` when Docker or Podman is unavailable locally; Azure Container Registry Tasks will build the backend and frontend images
 
 Use `deploy:env` when runtime env changed:
 - auth mode and Entra backend vars

@@ -43,3 +43,26 @@ CREATE TABLE IF NOT EXISTS ph_learning_queue (
 );
 CREATE INDEX IF NOT EXISTS idx_ph_learning_queue_updated_at ON ph_learning_queue (updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ph_learning_queue_status ON ph_learning_queue (status);
+
+CREATE TABLE IF NOT EXISTS ph_handoff_sessions (
+    id TEXT PRIMARY KEY,
+    activity_id TEXT NOT NULL,
+    target TEXT NOT NULL,
+    status TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    payload JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ph_handoff_sessions_activity_id
+    ON ph_handoff_sessions (activity_id);
+CREATE INDEX IF NOT EXISTS idx_ph_handoff_sessions_updated_at
+    ON ph_handoff_sessions (updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS ph_handoff_messages (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    payload JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ph_handoff_messages_session_id
+    ON ph_handoff_messages (session_id, created_at ASC);

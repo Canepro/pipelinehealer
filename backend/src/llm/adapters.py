@@ -1,7 +1,9 @@
 """LLM provider adapters (phase 2 scaffold, Azure-first behavior)."""
 
 from dataclasses import dataclass
+from shutil import which
 from typing import Any, Protocol
+from urllib.parse import urlparse
 
 import httpx
 
@@ -85,6 +87,105 @@ class PlaceholderProviderAdapter:
             "available": False,
             "reason": "not_implemented",
             "message": f"{self.name.value} provider adapter is scaffolded but not implemented yet.",
+        }
+
+
+@dataclass(frozen=True)
+class CodexAppServerProviderAdapter:
+    """Codex App Server provider adapter with local transport validation."""
+
+    name: LLMProviderName = LLMProviderName.CODEX_APP_SERVER
+
+    def health(self, settings: Any) -> dict[str, Any]:
+        transport = str(getattr(settings, "codex_app_server_transport", "stdio") or "stdio").strip().lower()
+        model = str(getattr(settings, "codex_app_server_model", "") or "").strip()
+        timeout_ms = int(getattr(settings, "codex_app_server_turn_timeout_ms", 120000) or 120000)
+        if not model:
+            return {
+                "provider": self.name.value,
+                "implemented": True,
+                "available": False,
+                "reason": "missing_model",
+                "message": "CODEX_APP_SERVER_MODEL is not configured.",
+            }
+        if timeout_ms < 1000:
+            return {
+                "provider": self.name.value,
+                "implemented": True,
+                "available": False,
+                "reason": "invalid_timeout",
+                "message": "CODEX_APP_SERVER_TURN_TIMEOUT_MS must be at least 1000.",
+            }
+        if transport == "stdio":
+            command = str(getattr(settings, "codex_app_server_command", "") or "").strip()
+            executable = command.split()[0] if command.split() else ""
+            if not executable:
+                return {
+                    "provider": self.name.value,
+                    "implemented": True,
+                    "available": False,
+                    "reason": "missing_command",
+                    "message": "CODEX_APP_SERVER_COMMAND is not configured.",
+                }
+            if which(executable) is None:
+                return {
+                    "provider": self.name.value,
+                    "implemented": True,
+                    "available": False,
+                    "reason": "command_not_found",
+                    "message": f"Codex App Server command executable '{executable}' was not found.",
+                }
+            return {
+                "provider": self.name.value,
+                "implemented": True,
+                "available": True,
+                "reason": "ok",
+                "message": "Codex App Server stdio provider configuration looks valid.",
+                "endpoint": "stdio",
+                "deployment_name": model,
+                "api_version": "",
+            }
+
+        if transport != "websocket":
+            return {
+                "provider": self.name.value,
+                "implemented": True,
+                "available": False,
+                "reason": "invalid_transport",
+                "message": "CODEX_APP_SERVER_TRANSPORT must be stdio or websocket.",
+            }
+        ws_url = str(getattr(settings, "codex_app_server_ws_url", "") or "").strip()
+        parsed = urlparse(ws_url)
+        if parsed.scheme not in {"ws", "wss"} or not parsed.hostname:
+            return {
+                "provider": self.name.value,
+                "implemented": True,
+                "available": False,
+                "reason": "missing_ws_url",
+                "message": "CODEX_APP_SERVER_WS_URL must be a ws:// or wss:// URL.",
+            }
+        token_configured = bool(
+            str(getattr(settings, "codex_app_server_ws_bearer_token", "") or "").strip()
+            or str(getattr(settings, "codex_app_server_ws_token_file", "") or "").strip()
+            or str(getattr(settings, "codex_app_server_ws_shared_secret_file", "") or "").strip()
+        )
+        if not token_configured:
+            return {
+                "provider": self.name.value,
+                "implemented": True,
+                "available": False,
+                "reason": "missing_ws_auth",
+                "message": "Codex App Server WebSocket transport requires a bearer token or auth file.",
+            }
+        return {
+            "provider": self.name.value,
+            "implemented": True,
+            "available": True,
+            "reason": "ok",
+            "message": "Codex App Server WebSocket provider configuration looks valid.",
+            "endpoint": f"{parsed.scheme}://{parsed.hostname}",
+            "deployment_name": model,
+            "api_version": "",
         }
 
 
@@ -196,4 +297,6 @@ def get_llm_provider_adapter(settings: Any) -> LLMProviderAdapter:
         return AzureOpenAIProviderAdapter()
     if provider == LLMProviderName.OPENAI_COMPATIBLE:
         return OpenAICompatibleProviderAdapter()
+    if provider == LLMProviderName.CODEX_APP_SERVER:
+        return CodexAppServerProviderAdapter()
     return PlaceholderProviderAdapter(name=provider)
