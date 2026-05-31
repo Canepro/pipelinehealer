@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Filter, RefreshCw } from 'lucide-react'
+import { Activity, Filter, RefreshCw, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
@@ -8,6 +8,7 @@ import ActivityTable from '../components/ActivityTable'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { Panel, PanelHeader, PanelBody } from '@/components/ui/panel'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -138,17 +139,43 @@ export default function Activities() {
     setSearchParams(nextParams, { replace: true })
   }
 
+  const activeFilterCount = [
+    filters.repository,
+    filters.status,
+    filters.failure_type,
+  ].filter(Boolean).length
+
+  const clearAllFilters = () => {
+    setRepositoryDraft('')
+    setFilters((prev) => ({ ...prev, status: '', failure_type: '' }))
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('status')
+    nextParams.delete('failure_type')
+    nextParams.delete('repository')
+    setSearchParams(nextParams, { replace: true })
+  }
+
+  const statusLabel = statusOptions.find((o) => o.value === filters.status)?.label
+  const failureTypeLabel = failureTypeOptions.find(
+    (o) => o.value === filters.failure_type,
+  )?.label
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[var(--ph-text)]">
-            Activities
-          </h1>
-          <p className="mt-1 text-sm text-[var(--ph-muted)]">
-            All CI/CD healing activities
-          </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]">
+            <Activity className="h-5 w-5 text-[var(--ph-accent)]" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--ph-text)]">
+              Activities
+            </h1>
+            <p className="mt-1 text-sm text-[var(--ph-muted)]">
+              Every CI/CD healing activity PipelineHealer has processed.
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {focusedActivityId && (
@@ -167,26 +194,34 @@ export default function Activities() {
               </Button>
             </>
           )}
-          {filters.repository && <Badge variant="outline">Repo: {filters.repository}</Badge>}
           <Button
             variant="secondary"
+            size="sm"
             onClick={() => void handleRefresh()}
             disabled={isLoading}
             aria-busy={isFetching}
           >
-            <RefreshCw
-              className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`}
-            />
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
             {isFetching ? 'Refreshing...' : 'Refresh'}
           </Button>
         </div>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-4 md:p-5">
+      <Panel>
+        <PanelHeader
+          title="Filters"
+          icon={<Filter className="h-4 w-4" />}
+          actions={
+            activeFilterCount > 0 ? (
+              <Button variant="ghost" size="sm" onClick={clearAllFilters}>
+                Clear all
+              </Button>
+            ) : undefined
+          }
+        />
+        <PanelBody className="space-y-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
-            <Filter className="h-5 w-5 text-[var(--ph-muted)]" />
             <Input
               value={repositoryDraft}
               onChange={(event) => setRepositoryDraft(event.target.value)}
@@ -226,14 +261,34 @@ export default function Activities() {
                 ))}
               </SelectContent>
             </Select>
-            {filters.repository && (
-              <Button variant="ghost" size="sm" onClick={() => setRepositoryDraft('')}>
-                Clear repo
-              </Button>
-            )}
           </div>
-        </CardContent>
-      </Card>
+          {activeFilterCount > 0 && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-[var(--ph-border)] pt-3">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ph-muted)]">
+                Active
+              </span>
+              {filters.repository && (
+                <FilterChip
+                  label={`Repo: ${filters.repository}`}
+                  onClear={() => setRepositoryDraft('')}
+                />
+              )}
+              {filters.status && (
+                <FilterChip
+                  label={`Status: ${statusLabel ?? filters.status}`}
+                  onClear={() => updateFilter('status', '')}
+                />
+              )}
+              {filters.failure_type && (
+                <FilterChip
+                  label={`Type: ${failureTypeLabel ?? filters.failure_type}`}
+                  onClear={() => updateFilter('failure_type', '')}
+                />
+              )}
+            </div>
+          )}
+        </PanelBody>
+      </Panel>
 
       {/* Activities Table */}
       {!hasFocusedActivity && focusedActivityId && (
@@ -260,5 +315,21 @@ export default function Activities() {
         </div>
       )}
     </div>
+  )
+}
+
+function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] py-1 pl-2.5 pr-1 text-xs font-medium text-[var(--ph-text)]">
+      {label}
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label={`Clear ${label}`}
+        className="flex h-4 w-4 items-center justify-center rounded-full text-[var(--ph-muted)] transition-colors hover:bg-[var(--ph-border)] hover:text-[var(--ph-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ph-accent)]"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </span>
   )
 }
