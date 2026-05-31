@@ -521,6 +521,10 @@ class AppSettingsView(BaseModel):
     auto_create_issue: bool
     auto_retry_workflow: bool
     auto_create_tracking_issue_for_prs: bool
+    auto_merge_remediation_prs: bool
+    auto_merge_strategy: str
+    auto_merge_poll_seconds: float
+    auto_merge_require_clean_checks: bool
     max_remediation_attempts: int
     pipeline_step_timeout_seconds: float
     github_api_max_retries: int
@@ -648,6 +652,10 @@ class AdminSettingsUpdateRequest(BaseModel):
     auto_create_issue: bool | None = None
     auto_retry_workflow: bool | None = None
     auto_create_tracking_issue_for_prs: bool | None = None
+    auto_merge_remediation_prs: bool | None = None
+    auto_merge_strategy: str | None = None
+    auto_merge_poll_seconds: float | None = Field(default=None, ge=0.0, le=900.0)
+    auto_merge_require_clean_checks: bool | None = None
     max_remediation_attempts: int | None = Field(default=None, ge=1, le=50)
     verify_webhook_signature: bool | None = None
     verify_webhook_signature_in_development: bool | None = None

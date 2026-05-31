@@ -683,6 +683,10 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         auto_create_issue=settings.auto_create_issue,
         auto_retry_workflow=settings.auto_retry_workflow,
         auto_create_tracking_issue_for_prs=settings.auto_create_tracking_issue_for_prs,
+        auto_merge_remediation_prs=settings.auto_merge_remediation_prs,
+        auto_merge_strategy=settings.auto_merge_strategy,
+        auto_merge_poll_seconds=settings.auto_merge_poll_seconds,
+        auto_merge_require_clean_checks=settings.auto_merge_require_clean_checks,
         max_remediation_attempts=settings.max_remediation_attempts,
         pipeline_step_timeout_seconds=settings.pipeline_step_timeout_seconds,
         github_api_max_retries=settings.github_api_max_retries,
@@ -1423,6 +1427,8 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         "auto_create_issue",
         "auto_retry_workflow",
         "auto_create_tracking_issue_for_prs",
+        "auto_merge_remediation_prs",
+        "auto_merge_require_clean_checks",
         "verify_webhook_signature",
         "verify_webhook_signature_in_development",
         "gh_aw_tools_enabled",
@@ -1451,8 +1457,14 @@ def _normalize_persisted_mutable_value(attr_name: str, value: Any) -> Any:
         "github_api_retry_max_seconds",
         "agent_handoff_timeout_seconds",
         "mcp_timeout_seconds",
+        "auto_merge_poll_seconds",
     }:
         return float(value)
+    if attr_name == "auto_merge_strategy":
+        normalized = str(value).strip().lower()
+        if normalized not in {"github_auto_merge", "merge_when_clean"}:
+            raise ValueError("invalid auto_merge_strategy")
+        return normalized
     if attr_name == "external_diagnostics_wait_seconds":
         wait_seconds = float(value)
         if wait_seconds < 0.0 or wait_seconds > 900.0:
@@ -2123,8 +2135,17 @@ async def update_app_settings(
             raise HTTPException(
                 status_code=422,
                 detail="gh_aw_ingestion_mode must be one of: disabled, passive, hybrid",
-            )
+        )
         changes["gh_aw_ingestion_mode"] = mode
+
+    if "auto_merge_strategy" in changes:
+        strategy = str(changes["auto_merge_strategy"]).strip().lower()
+        if strategy not in {"github_auto_merge", "merge_when_clean"}:
+            raise HTTPException(
+                status_code=422,
+                detail="auto_merge_strategy must be one of: github_auto_merge, merge_when_clean",
+            )
+        changes["auto_merge_strategy"] = strategy
 
     if "gh_aw_known_workflows" in changes:
         workflows = changes["gh_aw_known_workflows"]

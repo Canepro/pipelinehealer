@@ -188,6 +188,10 @@ export interface AppSettings {
   auto_create_issue: boolean
   auto_retry_workflow: boolean
   auto_create_tracking_issue_for_prs: boolean
+  auto_merge_remediation_prs: boolean
+  auto_merge_strategy: 'github_auto_merge' | 'merge_when_clean'
+  auto_merge_poll_seconds: number
+  auto_merge_require_clean_checks: boolean
   max_remediation_attempts: number
   pipeline_step_timeout_seconds: number
   github_api_max_retries: number
@@ -427,6 +431,10 @@ export interface AdminSettingsUpdate {
   auto_create_issue?: boolean
   auto_retry_workflow?: boolean
   auto_create_tracking_issue_for_prs?: boolean
+  auto_merge_remediation_prs?: boolean
+  auto_merge_strategy?: 'github_auto_merge' | 'merge_when_clean'
+  auto_merge_poll_seconds?: number
+  auto_merge_require_clean_checks?: boolean
   max_remediation_attempts?: number
   verify_webhook_signature?: boolean
   verify_webhook_signature_in_development?: boolean

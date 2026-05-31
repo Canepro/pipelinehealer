@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 044aa39 -->
+<!-- LAST_VERIFIED: 17c3243 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -221,6 +221,11 @@ GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxxxxxx # your PAT with repo + workflow scope
 
 # Healing behavior
 HEAL_MODE=safe                              # safe is recommended for getting started
+AUTO_CREATE_PR=true                         # publish bounded remediation PRs
+AUTO_MERGE_REMEDIATION_PRS=false            # set true only for approved demo/prod allowlists
+AUTO_MERGE_STRATEGY=merge_when_clean        # merge_when_clean | github_auto_merge
+AUTO_MERGE_POLL_SECONDS=90                  # keep <= PIPELINE_STEP_TIMEOUT_SECONDS
+AUTO_MERGE_REQUIRE_CLEAN_CHECKS=true
 
 # Storage posture
 STORAGE_MODE=memory                         # local/dev default (ephemeral)
@@ -233,6 +238,7 @@ AGENT_HANDOFF_WEBHOOK_ALLOWLIST=
 ```
 
 Settings UI note:
+- Runtime policy now includes remediation PR auto-merge. The `merge_when_clean` strategy polls the generated PR head and merges only after GitHub reports the PR mergeable and checks are clean; `github_auto_merge` asks GitHub to manage the merge after branch requirements pass.
 - The Settings page now includes a webhook setup assistant for Assign-to-Agent.
 - It validates a candidate webhook URL, derives the destination host, and generates a portable env block you can copy into local `.env`, Docker/Helm values, or cloud deployment adapters.
 - It also generates a sample webhook event payload and a `curl` smoke test that use the same JSON schema as the real Assign-to-Agent webhook (including `activity.repository`, `activity.workflow_run_id`, and `activity.failure_type`) so you can validate the webhook target before changing deployment config.
@@ -598,6 +604,8 @@ gh workflow run ci.yml -R <owner>/<repo> -f failure_type=lint
 
 Replace `<owner>/<repo>` with your demo repo (for example `Canepro/pipelinehealer-demo`).
 If the workflow filename is not `ci.yml` in your repo, use the name returned by `gh workflow list`.
+
+For an approved end-to-end auto-fix demo, enable `AUTO_CREATE_PR=true` and `AUTO_MERGE_REMEDIATION_PRS=true` for a narrow `PH_ALLOWED_REPOS` list. Keep `AUTO_MERGE_REQUIRE_CLEAN_CHECKS=true`; PipelineHealer records the PR URL, merge strategy, check summary, and merge result in the Activity remediation details.
 
 **Wait about 30-60 seconds** for the workflow to run and fail. You should see webhook events arriving in the smee terminal.
 

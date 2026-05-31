@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 044aa39 -->
+<!-- LAST_VERIFIED: 17c3243 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -777,6 +777,10 @@ configured value from effective provenance. Source values are portable, app-obse
   "auto_create_issue": true,
   "auto_retry_workflow": true,
   "auto_create_tracking_issue_for_prs": true,
+  "auto_merge_remediation_prs": false,
+  "auto_merge_strategy": "merge_when_clean",
+  "auto_merge_poll_seconds": 90.0,
+  "auto_merge_require_clean_checks": true,
   "max_remediation_attempts": 3,
   "pipeline_step_timeout_seconds": 120.0,
   "github_api_max_retries": 3,
@@ -876,6 +880,7 @@ Notes:
 - `setup_status` groups readiness checks for bootstrap storage/auth wiring, runtime secret backend readiness, current LLM runtime inputs, current GitHub runtime inputs, and webhook-secret dependencies.
 - Environment or env-file values remain the highest-precedence startup override for the same logical keys, even when durable runtime values also exist.
 - `github_auth_mode="app configured (inactive)"` means GitHub App inputs are present, but the current live GitHub API runtime still depends on a PAT.
+- `auto_merge_remediation_prs` is an explicit operator gate. With `auto_merge_strategy=github_auto_merge`, PipelineHealer requests GitHub native auto-merge. With `auto_merge_strategy=merge_when_clean`, PipelineHealer polls the generated PR head and only calls the GitHub merge endpoint after the PR is mergeable and checks satisfy `auto_merge_require_clean_checks`.
 
 #### `PATCH /api/settings`
 
@@ -901,6 +906,10 @@ Changes take effect immediately. If the same logical key is also set through env
   "jenkins_bridge_allow_pr": false,
   "auto_create_issue": true,
   "auto_retry_workflow": false,
+  "auto_merge_remediation_prs": true,
+  "auto_merge_strategy": "merge_when_clean",
+  "auto_merge_poll_seconds": 90.0,
+  "auto_merge_require_clean_checks": true,
   "max_remediation_attempts": 5,
   "pipeline_step_timeout_seconds": 180.0,
   "log_prompt_max_chars": 20000,
@@ -922,6 +931,10 @@ Changes take effect immediately. If the same logical key is also set through env
 | `auto_create_issue` | bool | — |
 | `auto_retry_workflow` | bool | — |
 | `auto_create_tracking_issue_for_prs` | bool | — |
+| `auto_merge_remediation_prs` | bool | Only applies to PipelineHealer-created remediation PRs |
+| `auto_merge_strategy` | string | `github_auto_merge` or `merge_when_clean` |
+| `auto_merge_poll_seconds` | float | 0–900 |
+| `auto_merge_require_clean_checks` | bool | Requires at least one successful GitHub status/check and no failures before direct merge |
 | `max_remediation_attempts` | int | 1–50 |
 | `verify_webhook_signature_in_development` | bool | — |
 | `pipeline_step_timeout_seconds` | float | 0–600 |

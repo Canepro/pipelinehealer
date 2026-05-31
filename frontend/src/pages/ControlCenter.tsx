@@ -1308,6 +1308,12 @@ export default function ControlCenterPage() {
                           value: settings.auto_retry_workflow ? "Yes" : "No",
                         },
                         {
+                          label: "Auto-merge PRs",
+                          value: settings.auto_merge_remediation_prs
+                            ? settings.auto_merge_strategy
+                            : "No",
+                        },
+                        {
                           label: "Max attempts",
                           value: settings.max_remediation_attempts,
                         },

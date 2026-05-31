@@ -442,6 +442,29 @@ class Settings(BaseSettings):
             "(requires auto_create_issue=true)"
         ),
     )
+    auto_merge_remediation_prs: bool = Field(
+        default=False,
+        description=(
+            "Allow PipelineHealer to merge its own remediation PRs after GitHub reports them "
+            "mergeable and required checks are clean."
+        ),
+    )
+    auto_merge_strategy: str = Field(
+        default="merge_when_clean",
+        description=(
+            "Auto-merge strategy for PipelineHealer remediation PRs: "
+            "github_auto_merge requests GitHub native auto-merge; merge_when_clean polls checks "
+            "and merges when the PR is clean."
+        ),
+    )
+    auto_merge_poll_seconds: float = Field(
+        default=90.0,
+        description="Maximum seconds to wait for remediation PR checks before direct merge.",
+    )
+    auto_merge_require_clean_checks: bool = Field(
+        default=True,
+        description="Require at least one successful check/status and no failing checks before merging.",
+    )
     pipeline_step_timeout_seconds: float = Field(
         default=120.0,
         description="Per-step timeout (seconds) for analyze/diagnose/remediate orchestration steps",
@@ -854,6 +877,25 @@ class Settings(BaseSettings):
         if normalized not in {"disabled", "passive", "hybrid"}:
             raise ValueError("GH_AW_INGESTION_MODE must be one of: disabled, passive, hybrid")
         return normalized
+
+    @field_validator("auto_merge_strategy")
+    @classmethod
+    def validate_auto_merge_strategy(cls, value: str) -> str:
+        """Validate remediation PR merge strategy."""
+        normalized = value.strip().lower()
+        if normalized not in {"github_auto_merge", "merge_when_clean"}:
+            raise ValueError(
+                "AUTO_MERGE_STRATEGY must be one of: github_auto_merge, merge_when_clean"
+            )
+        return normalized
+
+    @field_validator("auto_merge_poll_seconds")
+    @classmethod
+    def validate_auto_merge_poll_seconds(cls, value: float) -> float:
+        """Validate bounded auto-merge polling budget."""
+        if value < 0.0 or value > 900.0:
+            raise ValueError("AUTO_MERGE_POLL_SECONDS must be between 0 and 900 seconds")
+        return value
 
     @field_validator("external_diagnostics_wait_seconds")
     @classmethod

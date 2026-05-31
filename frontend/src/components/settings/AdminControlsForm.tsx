@@ -869,11 +869,86 @@ export default function AdminControlsForm({
                     data.settings_metadata?.auto_create_tracking_issue_for_prs
                   }
                 />
+                <SwitchField
+                  label="Auto-Merge Remediation PRs"
+                  field="auto_merge_remediation_prs"
+                  checked={form.auto_merge_remediation_prs}
+                  onChange={(v) =>
+                    setForm((p) => ({ ...p, auto_merge_remediation_prs: v }))
+                  }
+                  metadata={data.settings_metadata?.auto_merge_remediation_prs}
+                />
+                <SwitchField
+                  label="Require Clean Checks"
+                  field="auto_merge_require_clean_checks"
+                  checked={form.auto_merge_require_clean_checks}
+                  onChange={(v) =>
+                    setForm((p) => ({
+                      ...p,
+                      auto_merge_require_clean_checks: v,
+                    }))
+                  }
+                  metadata={
+                    data.settings_metadata?.auto_merge_require_clean_checks
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <FieldGroup
+                  label="Auto-Merge Strategy"
+                  field="auto_merge_strategy"
+                  metadata={data.settings_metadata?.auto_merge_strategy}
+                >
+                  <Select
+                    value={form.auto_merge_strategy}
+                    onValueChange={(v) =>
+                      setForm((p) => ({
+                        ...p,
+                        auto_merge_strategy:
+                          v as SettingsFormState["auto_merge_strategy"],
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="merge_when_clean">
+                        Merge when clean
+                      </SelectItem>
+                      <SelectItem value="github_auto_merge">
+                        GitHub native auto-merge
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FieldGroup>
+
+                <FieldGroup
+                  label="Auto-Merge Wait Seconds"
+                  field="auto_merge_poll_seconds"
+                  metadata={data.settings_metadata?.auto_merge_poll_seconds}
+                >
+                  <Input
+                    type="number"
+                    min={0}
+                    max={900}
+                    step={5}
+                    value={form.auto_merge_poll_seconds}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        auto_merge_poll_seconds: Number(e.target.value),
+                      }))
+                    }
+                  />
+                </FieldGroup>
               </div>
               <p className="text-xs text-[var(--ph-muted)]">
                 Dependency hints: Jenkins bridge PR output requires both
-                `Auto-Create Pull Requests` and `Jenkins Bridge: Allow PRs`. If
-                either is off, Jenkins bridge events stay issue-first.
+                `Auto-Create Pull Requests` and `Jenkins Bridge: Allow PRs`.
+                Remediation PR auto-merge only applies to PipelineHealer-created
+                PRs and still requires GitHub to report the PR mergeable.
               </p>
 
               <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4 space-y-4">

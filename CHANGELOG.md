@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 044aa39 -->
+<!-- LAST_VERIFIED: 17c3243 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -9,6 +9,21 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ## [Unreleased]
 
 - _No unreleased entries yet._
+
+## [v0.8.6] - 2026-05-31
+
+### Added
+
+- Added an explicit remediation PR auto-merge policy with `github_auto_merge` and `merge_when_clean` strategies.
+- Added GitHub helpers for native auto-merge requests, commit check summaries, and guarded PR merges.
+
+### Changed
+
+- Surfaced remediation auto-merge controls in Settings, Control Center, runtime config, CLI persistence, Docker, and Azure Container Apps env propagation.
+
+### Fixed
+
+- Ensured automated remediation can progress from diagnosis to PR creation to traceable merge when the operator enables auto-merge for an approved repo allowlist.
 
 ## [v0.8.5] - 2026-05-31
 

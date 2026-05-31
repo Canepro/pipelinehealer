@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 044aa39 -->
+<!-- LAST_VERIFIED: 17c3243 -->
 
 > OSS-first, policy-aware remediation for failed CI/CD pipelines.
 
@@ -28,8 +28,8 @@ Native ingress is GitHub Actions. Jenkins is supported through the signed bridge
 - Model providers: Azure OpenAI, OpenAI-compatible, Codex App Server, custom scaffold
 - Storage: PostgreSQL, Cosmos DB, in-memory local mode
 - Secret stores: Infisical, encrypted DB, optional Azure Key Vault
-- Current production release: `v0.8.5`
-- Latest published release: [`v0.8.5`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.8.5)
+- Current production release: `v0.8.6`
+- Latest published release: [`v0.8.6`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.8.6)
 
 ## Core Workflow
 
@@ -195,7 +195,7 @@ Optional local storage:
 - Activities: searchable run history
 - Activity Detail: incident record, evidence, remediation, handoff sessions, verification
 - Control Center: governance, learning, trust ops, audit
-- Settings: runtime controls, model routing, handoff target policy, write-only secrets
+- Settings: runtime controls, model routing, remediation PR auto-merge policy, handoff target policy, write-only secrets
 
 ![Activity Detail: incident record, verification, and diagnostics](docs/screens/activity-detail-current.png)
 ![Control Center: governance posture and integration health](docs/screens/control-center-current.png)
@@ -206,6 +206,7 @@ Optional local storage:
 - API routes use `X-API-Key` in non-development key mode
 - admin settings routes use `X-API-Key` plus `X-Admin-Key`
 - Jenkins bridge uses signed payloads with replay/skew guards
+- remediation PR auto-merge is off until explicitly enabled; direct merge mode requires GitHub to report clean checks
 - MCP is disabled and read-only by default
 - secret values stay in Infisical, ACA secret refs, encrypted DB, or Key Vault depending on deployment
 

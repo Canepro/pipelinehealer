@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import re
+import time
 from typing import Any
 
 import httpx
@@ -884,6 +885,313 @@ class RemediationAgent:
             state_reason="completed",
         )
 
+    @staticmethod
+    def _extract_pr_number(pr: dict[str, Any]) -> int | None:
+        raw = pr.get("number")
+        return raw if isinstance(raw, int) else None
+
+    @staticmethod
+    def _extract_pr_head_sha(pr: dict[str, Any]) -> str:
+        head = pr.get("head")
+        if isinstance(head, dict):
+            return str(head.get("sha") or "").strip()
+        return ""
+
+    @staticmethod
+    def _extract_pr_node_id(pr: dict[str, Any]) -> str:
+        return str(pr.get("node_id") or "").strip()
+
+    def _auto_merge_client_mutation_id(self, workflow_run_id: int, pr_number: int, head_sha: str) -> str:
+        """Return a stable GitHub GraphQL mutation id for this remediation PR."""
+        suffix = head_sha[:12] if head_sha else "unknown"
+        return f"pipelinehealer-run-{workflow_run_id}-pr-{pr_number}-{suffix}"
+
+    async def _comment_auto_merge_status(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        pr_number: int,
+        body: str,
+    ) -> None:
+        """Best-effort PR comment for visible GitHub-side auto-merge audit."""
+        try:
+            await self._github_tools.add_issue_comment(
+                owner=owner,
+                repo=repo,
+                issue_number=pr_number,
+                body=body,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to comment on auto-merge status for PR #%s in %s/%s: %s",
+                pr_number,
+                owner,
+                repo,
+                exc,
+            )
+
+    async def _refresh_pr_for_auto_merge(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        pr: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Fetch full PR details when list/create payloads omit merge metadata."""
+        pr_number = self._extract_pr_number(pr)
+        if pr_number is None:
+            return pr
+        if self._extract_pr_head_sha(pr) and self._extract_pr_node_id(pr) and "mergeable" in pr:
+            return pr
+        try:
+            return await self._github_tools.get_pull_request(owner, repo, pr_number)
+        except Exception as exc:
+            logger.warning(
+                "Failed to refresh PR #%s before auto-merge in %s/%s: %s",
+                pr_number,
+                owner,
+                repo,
+                exc,
+            )
+            return pr
+
+    async def _enable_github_native_auto_merge(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        pr: dict[str, Any],
+        workflow_run_id: int,
+    ) -> dict[str, Any]:
+        """Request GitHub native auto-merge for a generated remediation PR."""
+        pr_number = self._extract_pr_number(pr)
+        head_sha = self._extract_pr_head_sha(pr)
+        node_id = self._extract_pr_node_id(pr)
+        client_mutation_id = (
+            self._auto_merge_client_mutation_id(workflow_run_id, pr_number, head_sha)
+            if pr_number is not None
+            else ""
+        )
+        details: dict[str, Any] = {
+            "requested": True,
+            "strategy": "github_auto_merge",
+            "enabled": False,
+            "merged": False,
+            "pr_number": pr_number,
+            "expected_head_oid": head_sha or None,
+            "client_mutation_id": client_mutation_id or None,
+        }
+        if pr_number is None or not node_id:
+            details["error"] = "GitHub PR payload did not include a PR number/node id"
+            return details
+
+        try:
+            result = await self._github_tools.enable_pull_request_auto_merge(
+                pull_request_id=node_id,
+                expected_head_oid=head_sha or None,
+                merge_method="SQUASH",
+                client_mutation_id=client_mutation_id,
+            )
+            details["enabled"] = True
+            details["github_result"] = result
+            await self._comment_auto_merge_status(
+                owner=owner,
+                repo=repo,
+                pr_number=pr_number,
+                body=(
+                    "PipelineHealer requested GitHub native auto-merge for this remediation PR.\n\n"
+                    f"- Source workflow run: https://github.com/{owner}/{repo}/actions/runs/{workflow_run_id}\n"
+                    f"- Expected head SHA: `{head_sha or 'unknown'}`\n"
+                    f"- Client mutation id: `{client_mutation_id}`"
+                ),
+            )
+        except Exception as exc:
+            details["error"] = str(exc)
+            logger.warning(
+                "Failed to request GitHub native auto-merge for PR #%s in %s/%s: %s",
+                pr_number,
+                owner,
+                repo,
+                exc,
+            )
+        return details
+
+    async def _merge_when_clean(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        pr: dict[str, Any],
+        workflow_run_id: int,
+        remediation_fingerprint: str,
+    ) -> dict[str, Any]:
+        """Poll GitHub until a remediation PR is mergeable and checks are clean, then merge."""
+        pr_number = self._extract_pr_number(pr)
+        poll_budget = max(0.0, float(getattr(self._settings, "auto_merge_poll_seconds", 0.0) or 0.0))
+        require_clean_checks = bool(
+            getattr(self._settings, "auto_merge_require_clean_checks", True)
+        )
+        details: dict[str, Any] = {
+            "requested": True,
+            "strategy": "merge_when_clean",
+            "enabled": False,
+            "merged": False,
+            "pr_number": pr_number,
+            "poll_budget_seconds": poll_budget,
+            "require_clean_checks": require_clean_checks,
+            "attempts": 0,
+        }
+        if pr_number is None:
+            details["error"] = "GitHub PR payload did not include a PR number"
+            return details
+
+        deadline = time.monotonic() + poll_budget
+        poll_interval = min(10.0, max(2.0, poll_budget / 12.0)) if poll_budget else 0.0
+        last_state: dict[str, Any] = {}
+
+        while True:
+            details["attempts"] = int(details["attempts"]) + 1
+            current_pr = await self._github_tools.get_pull_request(owner, repo, pr_number)
+            head_sha = self._extract_pr_head_sha(current_pr)
+            mergeable = current_pr.get("mergeable")
+            mergeable_state = str(current_pr.get("mergeable_state") or "").lower()
+            is_draft = bool(current_pr.get("draft"))
+            state = str(current_pr.get("state") or "").lower()
+
+            check_summary: dict[str, Any] = {
+                "state": "not_required",
+                "has_checks": False,
+            }
+            checks_ready = True
+            if require_clean_checks:
+                if not head_sha:
+                    checks_ready = False
+                    check_summary = {"state": "missing_head_sha", "has_checks": False}
+                else:
+                    check_summary = await self._github_tools.get_commit_check_summary(
+                        owner,
+                        repo,
+                        head_sha,
+                    )
+                    checks_ready = (
+                        check_summary.get("state") == "success"
+                        and bool(check_summary.get("has_checks"))
+                    )
+
+            ready = (
+                state == "open"
+                and not is_draft
+                and mergeable is True
+                and mergeable_state in {"clean", "unstable", "has_hooks"}
+                and checks_ready
+            )
+            last_state = {
+                "state": state,
+                "draft": is_draft,
+                "mergeable": mergeable,
+                "mergeable_state": mergeable_state,
+                "head_sha": head_sha or None,
+                "checks": check_summary,
+            }
+            details["last_state"] = last_state
+
+            if ready:
+                merge_result = await self._github_tools.merge_pull_request(
+                    owner,
+                    repo,
+                    pr_number,
+                    commit_title=f"fix: merge PipelineHealer remediation #{pr_number}",
+                    commit_message=(
+                        "Merged automatically by PipelineHealer after GitHub reported "
+                        "the remediation PR mergeable and checks clean.\n\n"
+                        f"Source workflow run: https://github.com/{owner}/{repo}/actions/runs/{workflow_run_id}\n"
+                        f"Remediation fingerprint: {remediation_fingerprint}"
+                    ),
+                    sha=head_sha or None,
+                    merge_method="squash",
+                )
+                details["merged"] = True
+                details["enabled"] = True
+                details["merge_result"] = merge_result
+                await self._comment_auto_merge_status(
+                    owner=owner,
+                    repo=repo,
+                    pr_number=pr_number,
+                    body=(
+                        "PipelineHealer merged this remediation PR after checks passed.\n\n"
+                        f"- Source workflow run: https://github.com/{owner}/{repo}/actions/runs/{workflow_run_id}\n"
+                        f"- Head SHA: `{head_sha or 'unknown'}`\n"
+                        f"- Remediation fingerprint: `{remediation_fingerprint}`"
+                    ),
+                )
+                return details
+
+            if poll_budget <= 0 or time.monotonic() >= deadline:
+                details["error"] = "Timed out waiting for mergeable PR with clean checks"
+                logger.info(
+                    "Auto-merge wait ended for PR #%s in %s/%s: %s",
+                    pr_number,
+                    owner,
+                    repo,
+                    last_state,
+                )
+                return details
+
+            await asyncio.sleep(poll_interval)
+
+    async def _maybe_auto_merge_pull_request(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        pr: dict[str, Any],
+        workflow_run_id: int,
+        remediation_fingerprint: str,
+    ) -> dict[str, Any]:
+        """Apply the configured auto-merge policy to a PipelineHealer-generated PR."""
+        strategy = str(getattr(self._settings, "auto_merge_strategy", "merge_when_clean")).strip().lower()
+        if strategy not in {"github_auto_merge", "merge_when_clean"}:
+            strategy = "merge_when_clean"
+        details: dict[str, Any] = {
+            "requested": False,
+            "strategy": strategy,
+            "enabled": False,
+            "merged": False,
+        }
+        if not bool(getattr(self._settings, "auto_merge_remediation_prs", False)):
+            details["reason"] = "auto_merge_remediation_prs=false"
+            return details
+
+        try:
+            refreshed_pr = await self._refresh_pr_for_auto_merge(owner=owner, repo=repo, pr=pr)
+            if strategy == "github_auto_merge":
+                return await self._enable_github_native_auto_merge(
+                    owner=owner,
+                    repo=repo,
+                    pr=refreshed_pr,
+                    workflow_run_id=workflow_run_id,
+                )
+
+            return await self._merge_when_clean(
+                owner=owner,
+                repo=repo,
+                pr=refreshed_pr,
+                workflow_run_id=workflow_run_id,
+                remediation_fingerprint=remediation_fingerprint,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Auto-merge policy failed for remediation PR in %s/%s (run %s): %s",
+                owner,
+                repo,
+                workflow_run_id,
+                exc,
+            )
+            details["requested"] = True
+            details["error"] = str(exc)
+            return details
+
     async def _create_pull_request(
         self,
         plan: RemediationPlan,
@@ -943,6 +1251,13 @@ class RemediationAgent:
                     owner,
                     repo,
                 )
+                auto_merge = await self._maybe_auto_merge_pull_request(
+                    owner=owner,
+                    repo=repo,
+                    pr=existing_pr,
+                    workflow_run_id=workflow_run_id,
+                    remediation_fingerprint=remediation_fp,
+                )
                 return RemediationResult(
                     success=True,
                     action_taken=RemediationAction.CREATE_PR,
@@ -962,6 +1277,7 @@ class RemediationAgent:
                         ),
                         "reused_existing_pr": True,
                         "remediation_fingerprint": remediation_fp,
+                        "auto_merge": auto_merge,
                     },
                 )
 
@@ -1029,6 +1345,13 @@ class RemediationAgent:
                             existing_pr.get("number"),
                             candidate_branch_name,
                         )
+                        auto_merge = await self._maybe_auto_merge_pull_request(
+                            owner=owner,
+                            repo=repo,
+                            pr=existing_pr,
+                            workflow_run_id=workflow_run_id,
+                            remediation_fingerprint=remediation_fp,
+                        )
                         return RemediationResult(
                             success=True,
                             action_taken=RemediationAction.CREATE_PR,
@@ -1053,6 +1376,7 @@ class RemediationAgent:
                                 ),
                                 "reused_existing_pr": True,
                                 "remediation_fingerprint": remediation_fp,
+                                "auto_merge": auto_merge,
                             },
                         )
                     logger.info(
@@ -1148,6 +1472,13 @@ class RemediationAgent:
 
             pr_url = pr_result.get("html_url", "")
             logger.info(f"Created PR: {pr_url}")
+            auto_merge = await self._maybe_auto_merge_pull_request(
+                owner=owner,
+                repo=repo,
+                pr=pr_result,
+                workflow_run_id=workflow_run_id,
+                remediation_fingerprint=remediation_fp,
+            )
 
             superseded_issues = await self._find_superseded_review_issues(
                 owner=owner,
@@ -1192,6 +1523,7 @@ class RemediationAgent:
                     "remediation_fingerprint": remediation_fp,
                     "patch_drafting_trace": patch_drafting_trace,
                     "closed_superseded_issue_numbers": closed_superseded_issue_numbers,
+                    "auto_merge": auto_merge,
                 },
             )
 
