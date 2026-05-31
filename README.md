@@ -1,20 +1,21 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: e1a9ae4 -->
+<!-- LAST_VERIFIED: bd24039 -->
 
-> OSS-first, policy-aware remediation for failed CI/CD pipelines.
+> Agent control plane for failed delivery pipelines.
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Try_It-brightgreen)](https://pipelinehealer.canepro.me)
 [![Demo Video](https://img.shields.io/badge/Demo_Video-YouTube-red)](https://youtu.be/9iv5ZMKYzts)
 [![Azure](https://img.shields.io/badge/Azure-Deployed-blue)](https://azure.microsoft.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-PipelineHealer ingests failed pipeline runs, normalizes the evidence, diagnoses likely root causes, and chooses a policy-safe remediation path.
+PipelineHealer detects failed CI/CD runs, gathers the evidence, diagnoses the likely cause, and chooses the safest way to heal the pipeline: create or reuse a fix PR, rerun failed workflow jobs, open a structured review issue, or delegate the work to an external agent.
 
-- deterministic fixes can create or reuse pull requests
-- ambiguous or risky failures fall back to structured issues
-- selected failures can be delegated to external agents while PipelineHealer keeps the audit trail
-- every outcome stays tied to run evidence, policy, labels, and operator verification
+- Deterministic fixes create or reuse pull requests against approved repositories.
+- Flaky or retryable failures can trigger GitHub's rerun-failed-jobs path.
+- Ambiguous or risky failures fall back to structured issues instead of claiming an unsafe fix.
+- Selected failures can be delegated to external agents while PipelineHealer keeps the audit trail.
+- Every outcome stays tied to run evidence, policy, labels, and operator verification.
 
 Native ingress is GitHub Actions. Jenkins is supported through the signed bridge in [integrations/jenkins-bridge](integrations/jenkins-bridge/README.md). Azure Container Apps is the reference managed deployment, but PipelineHealer is not Azure-only.
 
@@ -35,6 +36,10 @@ Native ingress is GitHub Actions. Jenkins is supported through the signed bridge
 ```text
 failed run -> normalized evidence -> diagnosis -> policy decision -> remediation or handoff -> verification
 ```
+
+PipelineHealer is designed to fix when the evidence and policy allow it, not only report. In the default safe posture it can publish PRs, issues, and workflow retries; automatic PR merge remains an explicit operator gate and only applies to PipelineHealer-created remediation PRs when GitHub reports the configured clean-check condition.
+
+For Jenkins bridge events, PipelineHealer uses the same diagnosis/remediation pipeline but stays issue-first unless `JENKINS_BRIDGE_ALLOW_PR=true` and PR creation is enabled. That keeps lower-evidence external CI payloads useful without overstating trust.
 
 PipelineHealer remains the system of record. External agents can do the GitHub work, open PRs, comment, apply labels, rerun workflows, and report back through callback events.
 

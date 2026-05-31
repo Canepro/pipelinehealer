@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: e1a9ae4 -->
+<!-- LAST_VERIFIED: bd24039 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -16,7 +16,7 @@ Related docs:
 - `docs/reference/API.md` for full API endpoint reference and best practices
 - `docs/reference/CLI.md` for the full CLI command reference
 
-This runbook remains intentionally demo-specific and GitHub Actions-focused because the current recording flow uses the demo repo webhook path. That does not narrow the product scope; PipelineHealer itself is framed more broadly as a pipeline remediation control plane.
+This runbook remains intentionally demo-specific and GitHub Actions-focused because the current recording flow uses the demo repo webhook path. That does not narrow the product scope; PipelineHealer itself is an agent control plane that heals failed delivery pipelines when evidence and policy allow it.
 
 ## Hackathon Requirement Alignment (March 9, 2026)
 
@@ -34,7 +34,7 @@ Remaining submission item this doc drives: demo video length must be 2:00 max.
 Required shell values used in this runbook:
 
 ```bash
-export RELEASE_TAG="${RELEASE_TAG:-$(git describe --tags --abbrev=0 2>/dev/null || echo v0.7.2)}"
+export RELEASE_TAG="${RELEASE_TAG:-$(git describe --tags --abbrev=0 2>/dev/null || echo v0.8.9)}"
 export DEMO_REPO="${DEMO_REPO:?set DEMO_REPO=owner/repo for your demo fixture repo}"
 export PH_RG="${PH_RG:?set PH_RG to your Azure resource group}"
 export PH_BACKEND_APP="${PH_BACKEND_APP:?set PH_BACKEND_APP to your backend Container App}"
@@ -42,7 +42,7 @@ export PH_FRONTEND_APP="${PH_FRONTEND_APP:?set PH_FRONTEND_APP to your frontend 
 export PH_ACR_NAME="${PH_ACR_NAME:?set PH_ACR_NAME to your Azure Container Registry}"
 ```
 
-Keep `RELEASE_TAG` pinned to the latest published tag for recording. The default above resolves to the latest local tag when available and falls back to `v0.7.2` (the latest published release) if tags have not been fetched yet, so the demo never targets an unpublished tag whose release images do not exist. Run `git fetch --tags` first if you want the newest published tag picked up automatically. Do not point the demo flow at an untagged local branch or unreleased commit.
+Keep `RELEASE_TAG` pinned to the latest published tag for recording. The default above resolves to the latest local tag when available and falls back to `v0.8.9` if tags have not been fetched yet, so the demo never targets an unpublished tag whose release images do not exist. Run `git fetch --tags` first if you want the newest published tag picked up automatically. Do not point the demo flow at an untagged local branch or unreleased commit.
 `DEMO_REPO` must be explicit. The public CLI does not fall back to a maintainer demo repository.
 
 ## Recording Plan (2 Minutes Max)

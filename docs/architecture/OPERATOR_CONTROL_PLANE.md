@@ -1,14 +1,16 @@
-<!-- LAST_VERIFIED: 17c3243 -->
+<!-- LAST_VERIFIED: bd24039 -->
 
 # Operator Control Plane
 
-This document defines the product contract for configuration, settings provenance, and operator-facing control surfaces.
+This document defines the product contract for PipelineHealer's north star, configuration model, settings provenance, and operator-facing control surfaces.
 
 It started as the `v0.4.0` implementation contract and now remains the standing product-level design reference for control-plane changes.
 
 ## Product Model
 
-PipelineHealer is an OSS-first, policy-aware pipeline remediation platform.
+PipelineHealer is an OSS-first agent control plane for failed delivery pipelines.
+
+The north star is simple: PipelineHealer should heal failed pipelines when evidence and policy allow it, and make the reason visible when it cannot. Healing includes remediation PRs, workflow retries, verified external-agent handoffs, structured review issues, labels, and durable audit records. Reporting is one output, not the product boundary.
 
 Current shipped provider paths are:
 
@@ -23,6 +25,7 @@ The product boundary is:
 
 - normalize pipeline failure evidence into a common activity model
 - apply diagnosis and remediation under explicit policy controls
+- create or reuse remediation PRs, retry failed workflow jobs, or open review issues based on evidence and policy
 - preserve auditability and explainability across all actions
 - remain the system of record when an external agent performs the GitHub work
 - expose one coherent operator control plane regardless of deployment target
@@ -229,6 +232,7 @@ Should answer:
 
 - what happened
 - why PipelineHealer chose that path
+- whether PipelineHealer healed the failure, delegated it, retried it, or opened a review issue
 - what external evidence/path was used
 - what handoff session and callback events exist when work was delegated
 - which GitHub PRs, comments, labels, or workflow reruns were reported by the external agent

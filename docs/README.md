@@ -1,12 +1,12 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: e1a9ae4 -->
+<!-- LAST_VERIFIED: bd24039 -->
 
 Use this index to find the canonical doc quickly. If a topic appears in both an active doc and `docs/archive/`, the active doc wins.
 
 ## Start Here
 
-- `../README.md` - product story, current scope, quick start, and deployment overview
+- `../README.md` - product north star, current scope, healing contract, quick start, and deployment overview
 - `features/README.md` - feature-by-feature operator walkthroughs
 - `runbooks/LOCAL_DEMO_RUNBOOK.md` - full local and Azure evaluation path
 - `../integrations/jenkins-bridge/README.md` - Jenkins bridge install kit and supported rollout pattern
@@ -33,7 +33,7 @@ If you are validating the runtime configuration model specifically, start with:
 
 ## Architecture
 
-- `architecture/OPERATOR_CONTROL_PLANE.md` - product contract for configuration, provenance, runtime-save semantics, and startup override boundaries
+- `architecture/OPERATOR_CONTROL_PLANE.md` - north star product contract for configuration, provenance, runtime-save semantics, and startup override boundaries
 - `architecture/MODEL_PROVIDER_STRATEGY.md` - provider-portable model backend posture
 - `architecture/LLM_AND_AGENT_RUNTIME.md` - validated runtime and degraded-mode behavior
 - `architecture/LEARNING_SYSTEM_PLAN.md` - learning queue lifecycle and activation rules

@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: e004b56 -->
+<!-- LAST_VERIFIED: bd24039 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -16,7 +16,9 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - Upgraded release workflow actions to Node 24-native majors and clarified that
   redacted secret verification is the expected production evidence boundary.
 - Recorded post-v0.8.9 documentation-only production evidence updates
-  (`691e298`, `7c74b67`, `e1a9ae4`, `e004b56`).
+  (`691e298`, `7c74b67`, `e1a9ae4`, `e004b56`, `bd24039`).
+- Clarified the public product north star and healing contract across the
+  README, docs index, architecture contract, and demo runbook.
 
 ## [v0.8.9] - 2026-05-31
 
