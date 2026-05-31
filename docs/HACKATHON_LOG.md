@@ -1,6 +1,6 @@
 # PipelineHealer Hackathon Log
 
-<!-- LAST_VERIFIED: ac1b1ec -->
+<!-- LAST_VERIFIED: e1a9ae4 -->
 
 **Last updated:** March 15, 2026
 
@@ -172,10 +172,8 @@ This is the long-form project tracker for hackathon execution status, submission
 - [x] Demo video (2 min max)
   - Published: `https://youtu.be/9iv5ZMKYzts`
 - [x] Architecture diagram (Mermaid in `README.md`)
-- [x] Microsoft Learn profile URL(s) captured for all participants:
-  - Vincent Mogah: `https://learn.microsoft.com/en-us/users/canepro0084/`
-  - Logeshwaran R: `https://learn.microsoft.com/en-in/users/logeshwaranr-5820/`
-  - Goziechukwu Chima-Duru: `https://learn.microsoft.com/en-us/users/GozieChimaDuru-2688`
+- [x] Microsoft Learn profile URL(s) captured for all participants in the
+  private submission checklist.
 
 ## Current Working Defaults
 
@@ -227,7 +225,7 @@ This is the long-form project tracker for hackathon execution status, submission
 
 ### Feb 12, 2026
 
-- Provisioned and validated Azure dev stack in `rg-canepro-ph-dev-eus`.
+- Provisioned and validated Azure dev stack in a project-owned dev resource group.
 - Stabilized frontend-to-backend proxy behavior in Azure (host/SNI/key forwarding fixes).
 - Added production runtime env hardening and validated protected settings endpoint.
 - Fixed dashboard stats/failure endpoints by removing unsupported async Cosmos query kwargs and stabilizing aggregation path.
@@ -361,20 +359,20 @@ This is the long-form project tracker for hackathon execution status, submission
   - `manifest.*not found` (Docker image manifest not found)
   - `pull access denied|repository does not exist` (Docker image pull failed)
 - Added one-command log inspection to `scripts/ph.sh`:
-  - `logs` — filtered backend container logs (Cosmos noise stripped)
-  - `logs:raw` — unfiltered backend container logs
-  - `logs:grep --pattern <regex>` — grep backend logs for a pattern
+  - `logs` - filtered backend container logs (Cosmos noise stripped)
+  - `logs:raw` - unfiltered backend container logs
+  - `logs:grep --pattern <regex>` - grep backend logs for a pattern
 - Fixed dashboard chart font visibility: changed axis tick fill from `#9ca3af` to `#e2e8f0` for dark-theme legibility; added pie chart inline labels.
 - Added `.gitignore` entries for `output/` (Playwright screenshots) and `infra/main.json` (generated ARM template).
 - Created comprehensive API reference documentation (`docs/API.md`) covering all endpoints, authentication, data models, and best practices.
 - Updated all project docs to align with current codebase state:
-  - `FUTURE_PLAN.md` — marked completed items, added new baseline entries
-  - `LOCAL_DEMO_RUNBOOK.md` — added logs commands, updated troubleshooting
-  - `PREDEPLOY_PLACEHOLDER_AUDIT.md` — updated sign-off snapshot date
-  - `UI_PLAN.md` — noted chart legibility fix in Week 2 checkpoint
-  - `DEMO_SCRIPT.md` — added logs verification commands
-  - `README.md` — added API doc to documentation map
-  - `docs/README.md` — added API.md to docs index
+  - `FUTURE_PLAN.md` - marked completed items, added new baseline entries
+  - `LOCAL_DEMO_RUNBOOK.md` - added logs commands, updated troubleshooting
+  - `PREDEPLOY_PLACEHOLDER_AUDIT.md` - updated sign-off snapshot date
+  - `UI_PLAN.md` - noted chart legibility fix in Week 2 checkpoint
+  - `DEMO_SCRIPT.md` - added logs verification commands
+  - `README.md` - added API doc to documentation map
+  - `docs/README.md` - added API.md to docs index
 - Verified clean Azure deployment: both backend and frontend images built, pushed, and serving latest commit.
 - Tested real-repo canary flow on `Canepro/portfolio_website_New` with a novel failure type (network/DNS resolution error during `next build && next export`) not matching any hardcoded diagnosis patterns. LLM fallback diagnosed correctly as `build_config` at 95-98% confidence with accurate root cause, suggested fixes, and affected files.
 - Fixed JSON parsing failure in diagnosis agent: replaced greedy regex (`r"\{[\s\S]*\}"`) with a brace-balanced JSON extractor that handles markdown code fences, nested objects, and LLM commentary surrounding JSON payloads.
@@ -436,7 +434,7 @@ This is the long-form project tracker for hackathon execution status, submission
   - verified production in `AUTH_MODE=hybrid`
   - documented cutover path to `AUTH_MODE=entra`
 - Fixed Entra production integration pitfalls:
-  - tenant identifier mismatch (`04f...` vs `040f...`)
+  - tenant identifier mismatch between copied Entra values
   - SPA redirect URI mismatch (`/app`)
   - token issuer compatibility (accept both Microsoft tenant issuer formats)
 - Updated docs to reflect current behavior:
@@ -469,7 +467,7 @@ This is the long-form project tracker for hackathon execution status, submission
     - `CollapsibleSection` wrapper truncates sections > 6 lines with "Show more / Show less" toggle.
     - Empty/low-value sections are hidden automatically.
   - Added `defaultOpen` prop to `ExternalFindingsPanel`; auto-expands when `diagnostic.status === 'available'`.
-- **Extended sanitizer** (commit `dda4b68`): strips gh-aw setup hints (`> To add this workflow…`), usage guide links, and `- [x] expires on…` markers — caught during live E2E validation.
+- **Extended sanitizer** (commit `dda4b68`): strips gh-aw setup hints (`> To add this workflow…`), usage guide links, and `- [x] expires on…` markers - caught during live E2E validation.
 - **E2E validation** (run `22045680912`):
   - Triggered `dependency` failure in demo repo.
   - Full pipeline completed: detection → diagnosis (dependency, 85%) → remediation (PR [#91](https://github.com/Canepro/pipelinehealer-demo/pull/91), issue [#90](https://github.com/Canepro/pipelinehealer-demo/issues/90)) → ci-doctor findings ingested (issue [#89](https://github.com/Canepro/pipelinehealer-demo/issues/89), match via `run_url`).

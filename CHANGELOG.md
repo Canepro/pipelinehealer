@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 3d754c5 -->
+<!-- LAST_VERIFIED: e1a9ae4 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -8,7 +8,13 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Changed
+
+- Tightened public documentation and Azure reference defaults so generated
+  evidence reports stay untracked, examples avoid maintainer infrastructure
+  names, and optional ACR mirroring requires an operator-supplied `ACR_NAME`.
+- Recorded post-v0.8.9 documentation-only production evidence updates
+  (`691e298`, `7c74b67`, `e1a9ae4`).
 
 ## [v0.8.9] - 2026-05-31
 

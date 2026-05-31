@@ -24,25 +24,25 @@ variable "base_name" {
 variable "acr_name" {
   description = "Azure Container Registry name. Must be globally unique, lowercase, and alphanumeric."
   type        = string
-  default     = "caneprophacr01"
+  default     = "pipelinehealeracr"
 }
 
 variable "container_apps_environment_name" {
   description = "Container Apps environment name."
   type        = string
-  default     = "cae-canepro-ph-dev-eus"
+  default     = "cae-pipelinehealer-dev"
 }
 
 variable "backend_container_app_name" {
   description = "Backend Container App name."
   type        = string
-  default     = "ca-canepro-ph-backend"
+  default     = "pipelinehealer-backend-dev"
 }
 
 variable "frontend_container_app_name" {
   description = "Frontend Container App name."
   type        = string
-  default     = "ca-canepro-ph-frontend"
+  default     = "pipelinehealer-frontend-dev"
 }
 
 variable "backend_image_name" {
@@ -91,7 +91,7 @@ variable "github_personal_access_token" {
 variable "acr_pull_identity_name" {
   description = "User-assigned identity name used by Container Apps to pull from ACR."
   type        = string
-  default     = "id-canepro-ph-acrpull"
+  default     = "id-pipelinehealer-acrpull"
 }
 
 variable "openai_deployment_name" {

@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 3d754c5 -->
+<!-- LAST_VERIFIED: e1a9ae4 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -1053,7 +1053,7 @@ Writes, rotates, or clears runtime-managed secrets without returning plaintext.
 {
   "secrets": {
     "github_personal_access_token": {
-      "value": "ghp_redacted"
+      "value": "<redacted-github-token>"
     },
     "agent_handoff_webhook_url": {
       "clear": true

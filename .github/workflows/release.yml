@@ -11,7 +11,7 @@ permissions:
   packages: write
 
 env:
-  ACR_NAME: ${{ vars.ACR_NAME || 'caneprophacr01' }}
+  ACR_NAME: ${{ vars.ACR_NAME }}
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -48,15 +48,16 @@ jobs:
       - name: Resolve Azure ACR publish mode
         id: azure_mode
         env:
+          ACR_NAME: ${{ vars.ACR_NAME }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           set -euo pipefail
           missing=0
-          for key in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+          for key in ACR_NAME AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
             if [[ -z "${!key:-}" ]]; then
-              echo "::notice::Optional Azure secret missing: ${key}"
+              echo "::notice::Optional Azure publish value missing: ${key}"
               missing=1
             fi
           done

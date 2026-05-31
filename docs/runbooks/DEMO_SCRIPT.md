@@ -1,6 +1,6 @@
 # PipelineHealer Demo Recording Guide (Single-File Runbook)
 
-<!-- LAST_VERIFIED: caeed6a -->
+<!-- LAST_VERIFIED: e1a9ae4 -->
 
 Use this as the only doc during recording day. It includes:
 
@@ -26,10 +26,8 @@ This runbook aligns to the submission checklist in `docs/HACKATHON_LOG.md`:
 - Live Azure deployment: `bash scripts/ph.sh urls`
 - Project description: `README.md`
 - Architecture diagram: `README.md` -> `Architecture` section
-- Microsoft Learn profiles:
-  - Vincent Mogah: `https://learn.microsoft.com/en-us/users/canepro0084/`
-  - Logeshwaran R: `https://learn.microsoft.com/en-in/users/logeshwaranr-5820/`
-  - Goziechukwu Chima-Duru: `https://learn.microsoft.com/en-us/users/GozieChimaDuru-2688`
+- Microsoft Learn profiles: keep participant profile URLs in the private
+  submission checklist, not in the public runbook.
 
 Remaining submission item this doc drives: demo video length must be 2:00 max.
 
@@ -209,7 +207,7 @@ Expected result pattern:
 
 Reference visual:
 
-![Settings — runtime policy, Assign-to-Agent integration health, and provider wiring](screens/settings-current.png)
+![Settings - runtime policy, Assign-to-Agent integration health, and provider wiring](screens/settings-current.png)
 
 ### External diagnostics enrichment
 
@@ -247,7 +245,7 @@ TELL: The dashboard shows what happened at a glance, and the shell footer shows 
 
 SHOW: Activities list, then open one completed activity.
 
-![Dashboard — processed count, safety gating, failure breakdown, explainability snapshot](screens/dashboard-current.png)
+![Dashboard - processed count, safety gating, failure breakdown, explainability snapshot](screens/dashboard-current.png)
 
 TELL: When a `workflow_run` fails, PipelineHealer analyzes the logs, diagnoses the root cause, and then chooses a policy-safe remediation path. Deterministic cases can become PRs. Risky or ambiguous cases fall back to structured issues.
 
@@ -255,7 +253,7 @@ TELL: When a `workflow_run` fails, PipelineHealer analyzes the logs, diagnoses t
 
 SHOW: Activity detail incident record, `Failure Context`, `Evidence Layers`, then expand `External Findings Details`.
 
-![Activity Detail — incident record, verification workspace, and external diagnostics in one operator view](screens/activity-detail-current.png)
+![Activity Detail - incident record, verification workspace, and external diagnostics in one operator view](screens/activity-detail-current.png)
 
 TELL: Each activity keeps the incident story, diagnosis, remediation result, verification state, evidence layers, and external findings in one place. That makes the system explainable and auditable instead of acting like a black box.
 

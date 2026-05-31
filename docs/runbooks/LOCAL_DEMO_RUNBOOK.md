@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 3d754c5 -->
+<!-- LAST_VERIFIED: e1a9ae4 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -73,14 +73,14 @@ If Docker or Podman is not available locally, add `--remote-build` so Azure Cont
 
 Before you start, make sure you have:
 
-- **Python 3.11+** — check with `python3 --version`
-- **[uv](https://docs.astral.sh/uv/)** (recommended) or pip — `uv --version`
-- **[Bun](https://bun.sh/)** — `bun --version`
-- **[GitHub CLI](https://cli.github.com/)** — `gh auth status` (must be logged in)
-- **Docker or Podman** (optional, for containerized setup only) — `docker --version` or `podman --version`
-- **jq** (optional, only for pretty-filtered JSON examples) — `jq --version`
-- **An LLM provider route** (Codex App Server default, Azure OpenAI, or OpenAI-compatible) — see Step 1 below
-- **A GitHub Personal Access Token** with `repo` and `workflow` scopes — [create one here](https://github.com/settings/tokens)
+- **Python 3.11+** - check with `python3 --version`
+- **[uv](https://docs.astral.sh/uv/)** (recommended) or pip - `uv --version`
+- **[Bun](https://bun.sh/)** - `bun --version`
+- **[GitHub CLI](https://cli.github.com/)** - `gh auth status` (must be logged in)
+- **Docker or Podman** (optional, for containerized setup only) - `docker --version` or `podman --version`
+- **jq** (optional, only for pretty-filtered JSON examples) - `jq --version`
+- **An LLM provider route** (Codex App Server default, Azure OpenAI, or OpenAI-compatible) - see Step 1 below
+- **A GitHub Personal Access Token** with `repo` and `workflow` scopes - [create one here](https://github.com/settings/tokens)
 
 ---
 
@@ -126,7 +126,7 @@ Planned support (not yet shipped):
 
 ---
 
-## Step 1 — Configure an LLM Provider
+## Step 1 - Configure an LLM Provider
 
 PipelineHealer needs one working LLM provider for log analysis/diagnosis/remediation.
 
@@ -186,7 +186,7 @@ If you are not using Azure OpenAI, configure:
 LLM_PROVIDER=openai_compatible
 OPENAI_COMPATIBLE_BASE_URL=https://api.openai.com/v1
 OPENAI_COMPATIBLE_MODEL=provider-model-name
-OPENAI_COMPATIBLE_API_KEY=sk-...
+OPENAI_COMPATIBLE_API_KEY=<openai-compatible-api-key>
 ```
 
 For this path, Azure-specific smoke command `aoai:check` does not apply.
@@ -203,7 +203,7 @@ Reference:
 
 ---
 
-## Step 2 — Configure Environment
+## Step 2 - Configure Environment
 
 From the repo root:
 
@@ -217,19 +217,19 @@ Open `backend/.env` in your editor and fill in these values:
 # LLM provider (pick one path from Step 1)
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
 AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o       # the name you chose in step 1.2
-AZURE_OPENAI_API_KEY=your-key-here         # Key 1 or Key 2 from step 1.3
+AZURE_OPENAI_API_KEY=<azure-openai-api-key> # Key 1 or Key 2 from step 1.3
 # OR
 # LLM_PROVIDER=openai_compatible
 # OPENAI_COMPATIBLE_BASE_URL=https://api.openai.com/v1
 # OPENAI_COMPATIBLE_MODEL=provider-model-name
-# OPENAI_COMPATIBLE_API_KEY=sk-...
+# OPENAI_COMPATIBLE_API_KEY=<openai-compatible-api-key>
 # Optional per-task model overrides (empty => provider default):
 # LLM_MODEL_ANALYSIS=analysis-deployment
 # LLM_MODEL_DIAGNOSIS=diagnosis-deployment
 # LLM_MODEL_REMEDIATION=remediation-deployment
 
 # GitHub
-GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxxxxxx # your PAT with repo + workflow scopes
+GITHUB_PERSONAL_ACCESS_TOKEN=<github-token-with-repo-and-workflow-scopes>
 
 # Healing behavior
 HEAL_MODE=safe                              # safe is recommended for getting started
@@ -260,7 +260,7 @@ Settings UI note:
 
 Reference visual:
 
-![Settings — AI and integrations section with Assign-to-Agent runtime status](screens/settings-current.png)
+![Settings - AI and integrations section with Assign-to-Agent runtime status](screens/settings-current.png)
 
 If you are using the reference Azure Function receiver for webhook mode, its own app settings can fan out the same handoff event to notification targets:
 
@@ -285,9 +285,9 @@ NOTIFY_EMAIL_SMTP_PASSWORD=
 
 Notification proof visual:
 
-![Rocket.Chat notification — compact Assign-to-Agent summary delivered through the reference receiver](screens/agent-handoff-rocketchat-current.png)
+![Rocket.Chat notification - compact Assign-to-Agent summary delivered through the reference receiver](screens/agent-handoff-rocketchat-current.png)
 
-> **That's it for getting started.** Everything else in `.env` has sensible defaults. You can tune optional settings later — see the full list in `backend/.env.example`.
+> **That's it for getting started.** Everything else in `.env` has sensible defaults. You can tune optional settings later - see the full list in `backend/.env.example`.
 
 Non-development storage guardrail:
 - For durable deploys, set one of:
@@ -426,7 +426,7 @@ bash scripts/ph.sh settings:check | jq '.mcp_enabled,.mcp_provider,.mcp_read_onl
 
 #### Issues encountered in this repo rollout (and fixes)
 
-- Wrong tenant GUID copy/paste (`04f...` vs `040f...`):
+- Wrong tenant GUID copy/paste:
   - Symptom: `AADSTS90002`
   - Fix: use the exact `Directory (tenant) ID` from Entra and prefer explicit `VITE_ENTRA_AUTHORITY`.
 - Missing SPA redirect URI with `/app` path:
@@ -447,7 +447,7 @@ bash scripts/ph.sh settings:check | jq '.mcp_enabled,.mcp_provider,.mcp_read_onl
 
 ---
 
-## Step 3 — Start the Backend
+## Step 3 - Start the Backend
 
 You have two options. Pick whichever suits you:
 
@@ -482,9 +482,9 @@ You should see `{"status":"healthy"}`. If you don't, check that port 8000 isn't 
 
 ---
 
-## Step 4 — Start the Frontend
+## Step 4 - Start the Frontend
 
-> **Skip this step** if you used Docker Compose in Step 3 — the frontend is already running at `http://127.0.0.1:3000`.
+> **Skip this step** if you used Docker Compose in Step 3 - the frontend is already running at `http://127.0.0.1:3000`.
 
 For host-native setup:
 
@@ -498,7 +498,7 @@ Open the URL printed by Vite (usually `http://127.0.0.1:5173`). You should see a
 
 ---
 
-## Step 5 — Verify Model Connection (Recommended)
+## Step 5 - Verify Model Connection (Recommended)
 
 If you are using `LLM_PROVIDER=codex_app_server`, verify provider values through `settings:check`:
 
@@ -577,7 +577,7 @@ Important Azure endpoint formatting rule:
 
 ---
 
-## Step 6 — Set Up Webhook Forwarding
+## Step 6 - Set Up Webhook Forwarding
 
 PipelineHealer listens for GitHub webhook events to know when a workflow fails. Since your backend is running on `localhost`, GitHub can't reach it directly. You need a tunnel.
 
@@ -610,7 +610,7 @@ If your backend is running on a remote VM or cluster and `127.0.0.1:8000` only e
 
 ---
 
-## Step 7 — Trigger Failures and Watch PipelineHealer Work
+## Step 7 - Trigger Failures and Watch PipelineHealer Work
 
 Now trigger some CI failures to give PipelineHealer something to analyze:
 
@@ -639,26 +639,26 @@ For an approved end-to-end auto-fix demo, enable `AUTO_CREATE_PR=true` and `AUTO
 
 ### Check the results
 
-**Dashboard** — open your frontend URL and you should see activities appearing with status badges.
+**Dashboard** - open your frontend URL and you should see activities appearing with status badges.
 
 Reference visuals:
 
-![Dashboard — KPIs, safety framing, and explainability snapshot](screens/dashboard-current.png)
-![Activity Detail — incident record, verification workspace, and external diagnostics](screens/activity-detail-current.png)
-![Control Center — governance posture, trust ops, and integration health](screens/control-center-current.png)
+![Dashboard - KPIs, safety framing, and explainability snapshot](screens/dashboard-current.png)
+![Activity Detail - incident record, verification workspace, and external diagnostics](screens/activity-detail-current.png)
+![Control Center - governance posture, trust ops, and integration health](screens/control-center-current.png)
 
 Top-level KPI chips now also include:
 
-- `MCP Runs (30d)` — activities processed with MCP enabled
-- `LLM Fallback (30d)` — percentage of LLM-observed runs that used fallback path
+- `MCP Runs (30d)` - activities processed with MCP enabled
+- `LLM Fallback (30d)` - percentage of LLM-observed runs that used fallback path
 
-**API** — or check via the command line:
+**API** - or check via the command line:
 
 ```bash
 curl -sS "http://127.0.0.1:8000/api/activities?limit=20"
 ```
 
-**GitHub** — check for new PRs and issues:
+**GitHub** - check for new PRs and issues:
 
 ```bash
 gh pr list -R <owner>/<repo>
@@ -755,7 +755,7 @@ bun run build
 
 ## Azure Deployment
 
-The sections below are for deploying to Azure. **You do not need Azure to run PipelineHealer locally** — the steps above are sufficient.
+The sections below are for deploying to Azure. **You do not need Azure to run PipelineHealer locally** - the steps above are sufficient.
 
 ### Quick Status Check
 
@@ -856,7 +856,7 @@ gh api repos/$REPO/hooks --jq '.[] | {id,active,url:.config.url,events,last_resp
 
 ### Azure OpenAI errors
 
-- **`404 Resource not found`**: The `AZURE_OPENAI_ENDPOINT` is probably malformed. It should be just `https://<resource>.openai.azure.com/` — no extra path.
+- **`404 Resource not found`**: The `AZURE_OPENAI_ENDPOINT` is probably malformed. It should be just `https://<resource>.openai.azure.com/` - no extra path.
 - **`API version not supported`**: PipelineHealer automatically falls back to the Chat Completions client. If both fail, check the API version in your Azure deployment's Target URI and update `AZURE_OPENAI_API_VERSION` in `.env`.
 
 ### `Max remediation attempts reached`
@@ -868,7 +868,7 @@ The safety guard limits how many times PipelineHealer will remediate the same wo
 
 ### Activities stuck in `pending` / `analyzing` / `diagnosing`
 
-If the backend was restarted while processing an activity, it can get stuck. This is handled automatically — on startup, the backend marks interrupted activities as `failed` with a clear message. If you see stuck activities from before this fix, restart the backend.
+If the backend was restarted while processing an activity, it can get stuck. This is handled automatically - on startup, the backend marks interrupted activities as `failed` with a clear message. If you see stuck activities from before this fix, restart the backend.
 
 ### PR creation fails with `422 Unprocessable Entity`
 
@@ -882,7 +882,7 @@ If you still see persistent `422` failures, inspect the activity error and verif
 
 ### Remediation shows `410 Gone` or `403 Forbidden`
 
-The target repository has issues or PRs disabled, or is archived. PipelineHealer handles this gracefully — the activity completes as `completed` with a reason code like `OUTPUT_ISSUES_DISABLED` visible in the Activity Detail page.
+The target repository has issues or PRs disabled, or is archived. PipelineHealer handles this gracefully - the activity completes as `completed` with a reason code like `OUTPUT_ISSUES_DISABLED` visible in the Activity Detail page.
 
 ### Remediation shows `403 Forbidden` for `/repos/<owner>/<repo>/issues` or pull request APIs
 
@@ -912,12 +912,14 @@ bash scripts/ph.sh deploy:env
 
 ### **(WSL only)** Azure CLI errors: `UtilAcceptVsock... accept4 failed 110`
 
-This is a known WSL2 issue with Azure CLI. Workaround — query the backend directly:
+This is a known WSL2 issue with Azure CLI. Workaround: query the backend
+directly. Do not paste real keys into documentation or shell history; set them
+in your shell from your secret manager first.
 
 ```bash
 FQDN="<backend-fqdn>.azurecontainerapps.io"
-API_KEY=$(grep -E '^API_AUTH_KEY=' backend/.env | tail -n1 | cut -d= -f2-)
-ADMIN_KEY=$(grep -E '^ADMIN_API_KEY=' backend/.env | tail -n1 | cut -d= -f2-)
+: "${API_KEY:?set API_KEY from your secret manager}"
+: "${ADMIN_KEY:?set ADMIN_KEY from your secret manager}"
 
 curl -fsS "https://$FQDN/api/settings" \
   -H "X-API-Key: $API_KEY" \

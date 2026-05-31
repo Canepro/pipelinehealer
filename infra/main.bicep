@@ -11,16 +11,16 @@ param environmentName string = 'dev'
 param baseName string = 'pipelinehealer'
 
 @description('Azure Container Registry name (global unique, lowercase alphanumeric)')
-param acrName string = 'caneprophacr01'
+param acrName string = 'pipelinehealeracr'
 
 @description('Container Apps environment name')
-param containerAppsEnvironmentName string = 'cae-canepro-ph-dev-eus'
+param containerAppsEnvironmentName string = 'cae-pipelinehealer-dev'
 
 @description('Backend Container App name')
-param backendContainerAppName string = 'ca-canepro-ph-backend'
+param backendContainerAppName string = 'pipelinehealer-backend-dev'
 
 @description('Frontend Container App name')
-param frontendContainerAppName string = 'ca-canepro-ph-frontend'
+param frontendContainerAppName string = 'pipelinehealer-frontend-dev'
 
 @description('Backend image repository name in ACR')
 param backendImageName string = 'pipelinehealer-backend'
@@ -180,7 +180,7 @@ param githubWebhookSecret string = ''
 param githubPersonalAccessToken string = ''
 
 @description('User-assigned identity name used by Container Apps to pull from ACR')
-param acrPullIdentityName string = 'id-canepro-ph-acrpull'
+param acrPullIdentityName string = 'id-pipelinehealer-acrpull'
 
 // Generate unique suffix for globally unique names
 var uniqueSuffix = uniqueString(resourceGroup().id)

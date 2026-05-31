@@ -1,4 +1,4 @@
-<!-- LAST_VERIFIED: fadd4cf -->
+<!-- LAST_VERIFIED: e1a9ae4 -->
 
 # Security Policy
 
@@ -26,7 +26,15 @@ If a secret is exposed:
 Use:
 
 - local `.env` for development only (never commit)
-- Azure Key Vault / GitHub secrets for hosted paths
+- Infisical for project/runtime/API/CI/service credentials when available
+- GitHub secrets for GitHub-hosted automation
+- Azure Key Vault for Azure-native deployments that already depend on it
+
+Public documentation, examples, and reports must not include plaintext
+secrets, local machine paths, personal accounts, tenant identifiers, Infisical
+project IDs, private registry names, or private image digests. Keep generated
+operator evidence in untracked `reports/` unless it has been deliberately
+redacted for publication.
 
 ## Auth and Runtime Security Defaults
 

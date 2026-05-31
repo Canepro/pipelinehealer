@@ -28,7 +28,8 @@ It provisions the same major resources:
 cp terraform.tfvars.example terraform.tfvars
 ```
 
-2. Fill in the secret values and adjust names as needed.
+2. Fill in sensitive values through your normal secret workflow and adjust
+   resource names as needed. Do not commit `terraform.tfvars`.
 
 3. Initialize and plan:
 

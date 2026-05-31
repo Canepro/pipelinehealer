@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 3d754c5 -->
+<!-- LAST_VERIFIED: e1a9ae4 -->
 
 > OSS-first, policy-aware remediation for failed CI/CD pipelines.
 
@@ -28,8 +28,7 @@ Native ingress is GitHub Actions. Jenkins is supported through the signed bridge
 - Model providers: Azure OpenAI, OpenAI-compatible, Codex App Server, custom scaffold
 - Storage: PostgreSQL, Cosmos DB, in-memory local mode
 - Secret stores: Infisical, encrypted DB, optional Azure Key Vault
-- Current production release: `v0.8.9`
-- Latest published release: [`v0.8.9`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.8.9)
+- Latest release: [`v0.8.9`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.8.9)
 
 ## Core Workflow
 
@@ -53,8 +52,8 @@ Prerequisites:
 - Python 3.12+
 - `uv`
 - Bun
-- GitHub token or GitHub App wiring
-- one model route, such as Azure OpenAI or Codex App Server
+- GitHub token or GitHub App credentials
+- one model route, normally Codex App Server, Azure OpenAI, or another OpenAI-compatible provider
 
 Create local env metadata:
 
@@ -112,7 +111,7 @@ curl -sS http://127.0.0.1:8000/health
 
 Open `http://127.0.0.1:5173`.
 
-## Tell An Agent To Install PipelineHealer
+## Agent Setup Prompt
 
 Paste this into Codex, OpenClaw, Hermes, or another coding agent:
 
@@ -132,7 +131,7 @@ Steps:
 4. Install frontend deps with: cd frontend && bun install.
 5. Migrate or inject secrets with Infisical. Use redacted proof only.
 6. Finish model, GitHub, repo allowlist, auto-fix, handoff, and write-only secret setup in /app/settings.
-7. Start backend with infisical run and uvicorn.
+7. Start the backend with infisical run and uvicorn.
 8. Start frontend with bun run dev.
 9. Verify /health, /api/settings, frontend load, and at least one activity or handoff path if test data exists.
 10. Report exact commands run, pass/fail status, and any blocked secrets or provider setup.
@@ -227,6 +226,7 @@ Optional local storage:
 - remediation PR auto-merge is off until explicitly enabled; direct merge mode requires GitHub to report clean checks
 - MCP is disabled and read-only by default
 - secret values stay in Infisical, ACA secret refs, encrypted DB, or Key Vault depending on deployment
+- local closeout and evidence reports belong in untracked `reports/`; promote only redacted, product-useful artifacts into `docs/`
 
 Security policy: [SECURITY.md](SECURITY.md)
 

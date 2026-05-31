@@ -3,10 +3,10 @@ using './main.bicep'
 param location = 'eastus2'
 param environmentName = 'dev'
 param baseName = 'pipelinehealer'
-param acrName = 'caneprophacr01'
-param containerAppsEnvironmentName = 'cae-canepro-ph-dev-eus'
-param backendContainerAppName = 'ca-canepro-ph-backend'
-param frontendContainerAppName = 'ca-canepro-ph-frontend'
+param acrName = readEnvironmentVariable('PH_ACR_NAME', 'pipelinehealeracr')
+param containerAppsEnvironmentName = readEnvironmentVariable('PH_CONTAINER_APPS_ENVIRONMENT_NAME', 'cae-pipelinehealer-dev')
+param backendContainerAppName = readEnvironmentVariable('PH_BACKEND_APP', 'pipelinehealer-backend-dev')
+param frontendContainerAppName = readEnvironmentVariable('PH_FRONTEND_APP', 'pipelinehealer-frontend-dev')
 param backendImageName = 'pipelinehealer-backend'
 param frontendImageName = 'pipelinehealer-frontend'
 param imageTag = 'latest'

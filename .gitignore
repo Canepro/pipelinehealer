@@ -59,6 +59,10 @@ htmlcov/
 logs/
 *.log
 
+# Local evidence reports. Keep generated closeouts private unless a redacted
+# report is deliberately promoted into docs/.
+reports/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -66,6 +70,7 @@ Thumbs.db
 # Azure
 .azure/
 azurite/
+infra/terraform/.terraform/
 
 # Secrets (never commit these!)
 *.pem

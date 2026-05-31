@@ -1,6 +1,6 @@
 # Contributing
 
-<!-- LAST_VERIFIED: 97abf04 -->
+<!-- LAST_VERIFIED: e1a9ae4 -->
 
 Thanks for your interest in improving PipelineHealer.
 
@@ -84,6 +84,23 @@ Always execute scripts with `bash scripts/...`. Do not use `source` or `. script
   2. `docs/reference/API.md`
   3. `docs/runbooks/LOCAL_DEMO_RUNBOOK.md`
   4. `docs/reference/CLI.md`
+
+## Public Documentation Hygiene
+
+This repository is public. Keep durable docs useful to an operator who is not
+using the maintainer's infrastructure.
+
+- Keep generated reports, screenshots with private data, and deployment
+  closeouts in untracked `reports/` unless they are explicitly redacted and
+  promoted into `docs/`.
+- Do not publish local machine paths, personal account names, tenant IDs,
+  Infisical project IDs, private registry names, image digests from private
+  registries, or copied secret metadata that helps identify a private runtime.
+- Use placeholders such as `<resource-group>`, `<infisical-project-id>`, and
+  `<github-token-with-repo-and-workflow-scopes>` in public examples.
+- Treat a committed secret or private runtime identifier as a security event:
+  rotate or revoke it, remove it from the public surface, and document the
+  redacted fix.
 
 ## Quality Gates
 
