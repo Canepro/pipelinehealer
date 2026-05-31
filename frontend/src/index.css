@@ -13,18 +13,32 @@
   --ph-muted: #5e6e61;
   --ph-accent: #9a5d18;
   --ph-accent-hover: #7d4b13;
+  --ph-accent-soft: rgba(154, 93, 24, 0.12);
   --ph-success: #15803d;
   --ph-success-bg: rgba(22, 163, 74, 0.15);
   --ph-success-border: rgba(22, 163, 74, 0.3);
   --ph-danger: #be123c;
   --ph-danger-bg: rgba(225, 29, 72, 0.12);
   --ph-danger-border: rgba(225, 29, 72, 0.25);
+  --ph-danger-solid: #be123c;
+  --ph-danger-solid-hover: #9f1239;
   --ph-warning: #a16207;
   --ph-warning-bg: rgba(245, 158, 11, 0.15);
   --ph-warning-border: rgba(245, 158, 11, 0.3);
   --ph-info: #0e7490;
   --ph-info-bg: rgba(6, 182, 212, 0.12);
   --ph-info-border: rgba(6, 182, 212, 0.25);
+  /* Categorical data-viz palette (theme-aware, AA-legible on surfaces). */
+  --ph-chart-1: #356fae;
+  --ph-chart-2: #0f8b7e;
+  --ph-chart-3: #3f9d52;
+  --ph-chart-4: #9a5d18;
+  --ph-chart-5: #6d5bc4;
+  --ph-chart-6: #5e6e7e;
+  /* Elevation: hairline + soft shadow per layer. */
+  --ph-shadow-sm: 0 1px 2px rgba(8, 18, 36, 0.06);
+  --ph-shadow-md: 0 6px 18px -14px rgba(8, 18, 36, 0.35);
+  --ph-shadow-lg: 0 24px 48px -24px rgba(8, 18, 36, 0.4);
   --ph-tooltip-bg: #1e293b;
   --ph-tooltip-border: #475569;
   --ph-tooltip-text: #e2e8f0;
@@ -47,18 +61,30 @@
     --ph-muted: #96a5b6;
     --ph-accent: #c67a28;
     --ph-accent-hover: #d98e3d;
+    --ph-accent-soft: rgba(198, 122, 40, 0.18);
     --ph-success: #4ade80;
     --ph-success-bg: rgba(16, 185, 129, 0.2);
     --ph-success-border: rgba(52, 211, 153, 0.3);
     --ph-danger: #fb7185;
     --ph-danger-bg: rgba(244, 63, 94, 0.2);
     --ph-danger-border: rgba(251, 113, 133, 0.3);
+    --ph-danger-solid: #e11d48;
+    --ph-danger-solid-hover: #be123c;
     --ph-warning: #fbbf24;
     --ph-warning-bg: rgba(245, 158, 11, 0.2);
     --ph-warning-border: rgba(251, 191, 36, 0.3);
     --ph-info: #22d3ee;
     --ph-info-bg: rgba(6, 182, 212, 0.2);
     --ph-info-border: rgba(34, 211, 238, 0.3);
+    --ph-chart-1: #5b9bd6;
+    --ph-chart-2: #2bb3a3;
+    --ph-chart-3: #5cbf6e;
+    --ph-chart-4: #d6aa5c;
+    --ph-chart-5: #9b8cdd;
+    --ph-chart-6: #8fa0b2;
+    --ph-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --ph-shadow-md: 0 8px 22px -14px rgba(0, 0, 0, 0.6);
+    --ph-shadow-lg: 0 28px 56px -26px rgba(0, 0, 0, 0.7);
     --ph-tooltip-bg: #0f172a;
     --ph-tooltip-border: #334155;
     --ph-tooltip-text: #e2e8f0;
@@ -80,32 +106,33 @@ body {
   min-height: 100vh;
 }
 
+/* Consistent keyboard focus for native/interactive elements that do not set
+   their own ring (links, raw inputs). Component primitives opt out with
+   focus-visible:outline-none and draw an accent ring instead. */
+:focus-visible {
+  outline: 2px solid var(--ph-accent);
+  outline-offset: 2px;
+}
+
+/* Respect reduced-motion preferences: spinners, skeletons, and transitions
+   collapse to near-instant for users who ask for less animation. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @layer components {
   .card {
     @apply rounded-lg border;
     background: var(--ph-surface);
     border-color: var(--ph-border);
     box-shadow: 0 6px 18px -18px rgba(8, 18, 36, 0.4);
-  }
-
-  .btn-primary {
-    @apply text-white font-semibold py-2 px-4 rounded-lg transition-colors;
-    background: var(--ph-accent);
-  }
-
-  .btn-primary:hover {
-    background: var(--ph-accent-hover);
-  }
-
-  .btn-secondary {
-    @apply font-medium py-2 px-4 rounded-lg transition-colors;
-    background: var(--ph-bg-elevated);
-    color: var(--ph-text);
-    border: 1px solid var(--ph-border);
-  }
-
-  .btn-secondary:hover {
-    background: var(--ph-bg);
   }
 
   .status-badge {

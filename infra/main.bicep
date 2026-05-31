@@ -280,6 +280,30 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
           identity: acrPullIdentity.id
         }
       ]
+      secrets: concat(
+        [
+          {
+            name: 'api-auth-key'
+            value: apiAuthKey
+          }
+          {
+            name: 'admin-api-key'
+            value: adminApiKey
+          }
+          {
+            name: 'github-webhook-secret'
+            value: githubWebhookSecret
+          }
+        ],
+        empty(githubPersonalAccessToken)
+          ? []
+          : [
+              {
+                name: 'github-personal-access-token'
+                value: githubPersonalAccessToken
+              }
+            ]
+      )
     }
     template: {
       containers: [
@@ -321,20 +345,24 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'API_AUTH_KEY'
-              value: apiAuthKey
+              secretRef: 'api-auth-key'
             }
             {
               name: 'ADMIN_API_KEY'
-              value: adminApiKey
+              secretRef: 'admin-api-key'
             }
             {
               name: 'GITHUB_WEBHOOK_SECRET'
-              value: githubWebhookSecret
+              secretRef: 'github-webhook-secret'
             }
-            {
-              name: 'GITHUB_PERSONAL_ACCESS_TOKEN'
-              value: githubPersonalAccessToken
-            }
+            ...(empty(githubPersonalAccessToken)
+              ? []
+              : [
+                  {
+                    name: 'GITHUB_PERSONAL_ACCESS_TOKEN'
+                    secretRef: 'github-personal-access-token'
+                  }
+                ])
           ]
         }
       ]
@@ -375,6 +403,12 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
           identity: acrPullIdentity.id
         }
       ]
+      secrets: [
+        {
+          name: 'api-auth-key'
+          value: apiAuthKey
+        }
+      ]
     }
     template: {
       containers: [
@@ -392,7 +426,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'API_AUTH_KEY'
-              value: apiAuthKey
+              secretRef: 'api-auth-key'
             }
           ]
         }

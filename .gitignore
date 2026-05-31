@@ -80,6 +80,7 @@ infra/main.json
 
 # Agent/tool scaffolding (local-only)
 .codex/
+.claude/
 .tmp/
 
 # Local demo fixture repo

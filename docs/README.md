@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: 368dbf5 -->
+<!-- LAST_VERIFIED: 2c862a3 -->
 
 Use this index to find the canonical doc quickly. If a topic appears in both an active doc and `docs/archive/`, the active doc wins.
 
@@ -27,6 +27,7 @@ If you are validating the runtime configuration model specifically, start with:
 - `runbooks/LOGS_AND_INVESTIGATION.md` — troubleshooting and evidence collection guide
 - `runbooks/KUBERNETES_HELM_RUNBOOK.md` — secondary Helm/Kubernetes deployment path
 - `runbooks/RELEASE_RUNBOOK.md` — release prep, publish, verify, and rollback
+- `runbooks/PRODUCTION_PROMOTION_RUNBOOK.md` — reviewed release promotion to the production Azure Container Apps lane
 - `runbooks/MODEL_PROVIDER_SWITCH_RUNBOOK.md` — auditable provider switch and rollback flow
 - `runbooks/PREDEPLOY_PLACEHOLDER_AUDIT.md` — pre-deploy stop-ship checklist
 

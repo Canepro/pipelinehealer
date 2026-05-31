@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: a626db2 -->
+<!-- LAST_VERIFIED: 2c862a3 -->
 
 > OSS-first, policy-aware remediation for failed CI/CD pipelines.
 
@@ -28,7 +28,8 @@ Native ingress is GitHub Actions. Jenkins is supported through the signed bridge
 - Model providers: Azure OpenAI, OpenAI-compatible, Codex App Server, custom scaffold
 - Storage: PostgreSQL, Cosmos DB, in-memory local mode
 - Secret stores: Infisical, encrypted DB, optional Azure Key Vault
-- Latest published release: [`v0.7.2`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.7.2)
+- Current release candidate: `v0.8.0`
+- Latest published release: [`v0.7.2`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.7.2) until the reviewed `v0.8.0` tag is pushed
 
 ## Core Workflow
 
@@ -162,6 +163,8 @@ bash scripts/ph.sh logs
 ```
 
 The deploy adapter stores sensitive values as Container App secrets and binds them through `secretref`. It reads process env first, so `infisical run` can inject values without restoring them to `backend/.env`.
+
+For the production lane, follow [docs/runbooks/PRODUCTION_PROMOTION_RUNBOOK.md](docs/runbooks/PRODUCTION_PROMOTION_RUNBOOK.md). Production promotion uses reviewed release images, Infisical-injected secrets, Azure `what-if`, and the `rg-canepro-ph-prod-eus2` Container Apps lane.
 
 ## Kubernetes And Local Containers
 

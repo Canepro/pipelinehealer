@@ -40,7 +40,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatTile, type Tone } from "@/components/ui/status";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useConfirm } from "@/components/ui/use-confirm";
 
 type ControlCenterSection =
   | "overview"
@@ -570,20 +572,22 @@ function OverviewBlock({
   items: PostureItem[];
 }) {
   return (
-    <div>
-      <div className="mb-3 text-sm font-semibold text-[var(--ph-text)]/90">
+    <div className="space-y-2.5">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ph-muted)]">
         {title}
       </div>
-      <div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {items.map((item) => (
           <div
             key={`${title}-${item.label}`}
-            className="grid min-h-[44px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-[var(--ph-border)]/55 py-3 last:border-b-0 last:pb-0 first:pt-0"
+            className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/40 px-3 py-2.5"
           >
-            <span className="text-sm text-[var(--ph-muted)]">{item.label}</span>
-            <span className="text-right text-sm font-semibold text-[var(--ph-text)]/90">
+            <div className="text-[11px] leading-tight text-[var(--ph-muted)]">
+              {item.label}
+            </div>
+            <div className="mt-1 text-sm font-semibold text-[var(--ph-text)]">
               {item.value}
-            </span>
+            </div>
           </div>
         ))}
       </div>
@@ -599,29 +603,19 @@ function SummaryRows({
   compact?: boolean;
 }) {
   return (
-    <div>
+    <div className={compact ? "space-y-2.5" : "space-y-3"}>
       {rows.map((row) => (
         <div
           key={`${row.label}-${row.value}`}
-          className={
-            compact
-              ? "grid grid-cols-1 gap-2 border-b border-[var(--ph-border)]/55 py-3 text-sm last:border-b-0 last:pb-0 first:pt-0 sm:grid-cols-[minmax(0,128px)_minmax(0,1fr)]"
-              : "grid grid-cols-1 gap-2 border-b border-[var(--ph-border)]/55 py-3 text-sm last:border-b-0 last:pb-0 first:pt-0 sm:grid-cols-[minmax(0,180px)_minmax(0,1fr)]"
-          }
+          className="border-b border-[var(--ph-border)]/55 pb-2.5 last:border-b-0 last:pb-0"
         >
-          <span className="pt-0.5 text-xs font-medium uppercase tracking-[0.06em] text-[var(--ph-muted)]/90">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--ph-muted)]">
             {row.label}
           </span>
-          <div
-            className={
-              compact
-                ? "min-w-0 space-y-1"
-                : "min-w-0 space-y-1 sm:text-right"
-            }
-          >
+          <div className="mt-1 min-w-0">
             <span
               className={`block font-medium ${
-                row.mono ? "break-all font-mono text-xs" : "break-words"
+                row.mono ? "break-all font-mono text-xs" : "break-words text-sm"
               } ${
                 row.tone === "ok"
                   ? "text-[var(--ph-success)]"
@@ -631,13 +625,13 @@ function SummaryRows({
                       ? "text-[var(--ph-danger)]"
                       : row.tone === "muted"
                         ? "text-[var(--ph-muted)]"
-                        : "text-[var(--ph-text)]/90"
+                        : "text-[var(--ph-text)]"
               }`}
             >
               {row.value}
             </span>
             {row.detail ? (
-              <div className="break-words text-xs leading-5 text-[var(--ph-muted)]">
+              <div className="mt-1 break-words text-xs leading-5 text-[var(--ph-muted)]">
                 {row.detail}
               </div>
             ) : null}
@@ -648,8 +642,16 @@ function SummaryRows({
   );
 }
 
+function toHealthTone(
+  tone: "default" | "ok" | "warn" | "bad" | "muted" | undefined,
+): Tone {
+  if (tone === "ok" || tone === "warn" || tone === "bad") return tone;
+  return "neutral";
+}
+
 export default function ControlCenterPage() {
   const queryClient = useQueryClient();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const isApiAuthReady = useApiAuthReady();
   const [adminKeyInput, setAdminKeyInput] = useState("");
   const [adminKey, setAdminKey] = useState("");
@@ -1040,15 +1042,20 @@ export default function ControlCenterPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-[var(--ph-text)]">
-          <ShieldCheck className="h-6 w-6 text-[var(--ph-accent)]" />
-          Control Center
-        </h1>
-        <p className="text-sm text-[var(--ph-muted)]">
-          Operational governance view for policy posture, provider readiness,
-          audit traceability, and investigation access.
-        </p>
+      {confirmDialog}
+      <div className="flex items-start gap-3.5">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]">
+          <ShieldCheck className="h-5 w-5 text-[var(--ph-accent)]" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--ph-text)]">
+            Control Center
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-[var(--ph-muted)]">
+            Operational governance view for policy posture, provider readiness,
+            audit traceability, and investigation access.
+          </p>
+        </div>
       </div>
 
       <Card>
@@ -1150,9 +1157,9 @@ export default function ControlCenterPage() {
       )}
 
       {hasAuthAttempt && isSettingsError && (
-        <Card className="border-rose-500/30">
+        <Card className="border-[var(--ph-danger-border)]">
           <CardContent className="py-6">
-            <p className="text-sm font-medium text-rose-500">
+            <p className="text-sm font-medium text-[var(--ph-danger)]">
               Failed to load Control Center
             </p>
             <p className="mt-1 text-sm text-[var(--ph-muted)]">
@@ -1188,31 +1195,21 @@ export default function ControlCenterPage() {
                 }
                 className="w-full"
               >
-                <TabsList className="grid h-auto w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  <TabsTrigger
-                    value="overview"
-                    className="py-3 text-sm font-semibold"
-                  >
-                    Governance Overview
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="learning_ops"
-                    className="py-3 text-sm font-semibold"
-                  >
-                    Learning & Ops
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="trust_ops"
-                    className="py-3 text-sm font-semibold"
-                  >
-                    Trust Ops
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="audit"
-                    className="py-3 text-sm font-semibold"
-                  >
-                    Audit & Trace
-                  </TabsTrigger>
+                <TabsList className="inline-flex h-auto min-h-0 w-full flex-wrap gap-1 rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/40 p-1 sm:w-auto">
+                  {[
+                    { value: "overview", label: "Governance Overview" },
+                    { value: "learning_ops", label: "Learning & Ops" },
+                    { value: "trust_ops", label: "Trust Ops" },
+                    { value: "audit", label: "Audit & Trace" },
+                  ].map((tab) => (
+                    <TabsTrigger
+                      key={tab.value}
+                      value={tab.value}
+                      className="flex-1 whitespace-nowrap rounded-md border-b-0 px-4 py-2 text-sm font-medium text-[var(--ph-muted)] data-[state=active]:bg-[var(--ph-surface)] data-[state=active]:font-semibold data-[state=active]:shadow-sm sm:flex-none"
+                    >
+                      {tab.label}
+                    </TabsTrigger>
+                  ))}
                 </TabsList>
               </Tabs>
               <p className="mt-3 text-sm text-[var(--ph-muted)]">
@@ -1229,15 +1226,62 @@ export default function ControlCenterPage() {
           </Card>
 
           {activeSection === "overview" && (
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_360px]">
-              <div className="space-y-4">
+            <div className="space-y-4">
+              <Card>
+                <CardContent className="grid grid-cols-2 gap-3 py-4 sm:grid-cols-3 xl:grid-cols-6">
+                  <StatTile
+                    label="Heal mode"
+                    value={settings.heal_mode}
+                    tone={settings.heal_mode === "safe" ? "ok" : "warn"}
+                  />
+                  <StatTile
+                    label="Remediation"
+                    value={settings.auto_apply_remediation ? "Automated" : "Plan-only"}
+                    tone={settings.auto_apply_remediation ? "ok" : "neutral"}
+                  />
+                  <StatTile
+                    label="LLM"
+                    value={llmLoading ? "Checking..." : llmCapabilitySummary.summary}
+                    tone={llmLoading ? "neutral" : toHealthTone(llmCapabilitySummary.tone)}
+                  />
+                  <StatTile
+                    label="MCP"
+                    value={
+                      mcpLoading
+                        ? "Checking..."
+                        : mcpHealth?.available
+                          ? "Available"
+                          : "Unavailable"
+                    }
+                    tone={
+                      mcpLoading ? "neutral" : mcpHealth?.available ? "ok" : "bad"
+                    }
+                  />
+                  <StatTile
+                    label="Receiver"
+                    value={handoffIntegrationSummary.summary}
+                    tone={toHealthTone(handoffIntegrationSummary.tone)}
+                  />
+                  <StatTile
+                    label="Safety gated"
+                    value={
+                      statsLoading
+                        ? "..."
+                        : String(stats?.safety_blocked_remediations ?? 0)
+                    }
+                    tone="info"
+                  />
+                </CardContent>
+              </Card>
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_360px]">
+                <div className="space-y-4">
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base">
                       Governance summary
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="grid gap-3 md:grid-cols-2">
+                  <CardContent className="space-y-5">
                     <OverviewBlock
                       title="Runtime posture"
                       items={[
@@ -1540,6 +1584,7 @@ export default function ControlCenterPage() {
                   </CardContent>
                 </Card>
               </div>
+              </div>
             </div>
           )}
 
@@ -1616,7 +1661,7 @@ export default function ControlCenterPage() {
 
                   {learningLoading && <p>Loading learning queue...</p>}
                   {learningError && (
-                    <p className="text-rose-400">
+                    <p className="text-[var(--ph-danger)]">
                       {learningErrorDetail instanceof Error
                         ? learningErrorDetail.message
                         : "Failed to load learning queue"}
@@ -1653,10 +1698,14 @@ export default function ControlCenterPage() {
                             action: "activate",
                           })
                         }
-                        onForceActivate={() => {
-                          const ok = window.confirm(
-                            "Force-activate this playbook candidate? This bypasses readiness gates and will be audit logged.",
-                          );
+                        onForceActivate={async () => {
+                          const ok = await confirm({
+                            title: "Force-activate this playbook?",
+                            description:
+                              "This bypasses readiness gates and will be audit logged.",
+                            confirmLabel: "Force activate",
+                            destructive: true,
+                          });
                           if (!ok) return;
                           decideLearningMutation.mutate({
                             candidateId: item.id,

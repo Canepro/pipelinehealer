@@ -36,6 +36,7 @@ import {
   getVerificationHistory,
 } from "../components/activity/verification";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 const RAW_EVIDENCE_KEYS = new Set([
   "key_log_lines",
@@ -1220,7 +1221,8 @@ export default function ActivityDetail() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin h-8 w-8 border-4 border-azure-500 border-t-transparent rounded-full"></div>
+        <div className="animate-spin h-8 w-8 border-4 border-[var(--ph-accent)] border-t-transparent rounded-full"></div>
+        <span className="sr-only">Loading activity</span>
       </div>
     );
   }
@@ -1228,16 +1230,16 @@ export default function ActivityDetail() {
   if (error || !activity) {
     return (
       <div className="card p-8 text-center">
-        <AlertTriangle className="h-12 w-12 text-red-500 mx-auto" />
+        <AlertTriangle className="mx-auto h-12 w-12 text-[var(--ph-danger)]" />
         <h2 className="mt-4 text-lg font-semibold text-[var(--ph-text)]">
           Activity Not Found
         </h2>
         <p className="mt-2 text-[var(--ph-muted)]">
           The requested activity could not be found.
         </p>
-        <Link to="/app/activities" className="btn-primary mt-4 inline-block">
-          Back to Activities
-        </Link>
+        <Button asChild className="mt-4">
+          <Link to="/app/activities">Back to Activities</Link>
+        </Button>
       </div>
     );
   }
@@ -1440,32 +1442,38 @@ export default function ActivityDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
           <Link
             to="/app/activities"
-            className="p-2 hover:bg-[var(--ph-bg-elevated)] rounded-lg transition-colors"
+            aria-label="Back to activities"
+            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--ph-border)] text-[var(--ph-muted)] transition-colors hover:bg-[var(--ph-bg-elevated)] hover:text-[var(--ph-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ph-accent)]"
           >
-            <ArrowLeft className="h-5 w-5 text-[var(--ph-muted)]" />
+            <ArrowLeft className="h-5 w-5" />
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--ph-text)]">
-              Activity Details
-            </h1>
-            <p className="text-sm text-[var(--ph-muted)]">{activity.id}</p>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-semibold tracking-tight text-[var(--ph-text)]">
+                Activity Details
+              </h1>
+              <StatusBadge status={activity.status} size="sm" />
+              {activity.failure_type ? (
+                <FailureTypeBadge type={activity.failure_type} />
+              ) : null}
+            </div>
+            <p className="mt-1 break-all font-mono text-xs text-[var(--ph-muted)]">
+              {activity.id}
+            </p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)]/60 p-2">
-          <button
-            onClick={handleCopyContext}
-            className="inline-flex h-9 items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)] px-3 text-sm font-semibold text-[var(--ph-text)] transition-colors hover:bg-[color:var(--ph-surface)]"
-          >
-            <Copy className="mr-2 h-4 w-4" />
-            Copy Context
-          </button>
-          <button
-            type="button"
-            aria-disabled={!assignEnabled || handoffMutation.isPending}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={handleCopyContext}>
+            <Copy className="h-4 w-4" />
+            Copy context
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             disabled={!assignEnabled || handoffMutation.isPending}
             onClick={handleAssignToAgent}
             title={
@@ -1473,33 +1481,26 @@ export default function ActivityDetail() {
                 ? `Assign-to-Agent (${formatHandoffTarget(handoffConfig?.default_target ?? "codex_app_server")})`
                 : assignDisabledReason
             }
-            className={`inline-flex h-9 items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)] px-3 text-sm font-semibold text-[var(--ph-text)] ${
-              !assignEnabled || handoffMutation.isPending
-                ? "cursor-not-allowed opacity-75"
-                : "transition-colors hover:bg-[color:var(--ph-surface)]"
-            }`}
           >
-            <Bot className="mr-2 h-4 w-4" />
+            <Bot className="h-4 w-4" />
             Assign to Agent
             {!assignEnabled && (
-              <span className="ml-2 inline-flex items-center rounded-md border border-[var(--ph-border)] bg-[color:var(--ph-surface)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ph-text)]">
+              <span className="ml-1 rounded border border-[var(--ph-border)] bg-[var(--ph-surface)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
                 {handoffConfig?.enabled ? "Needs setup" : "Disabled"}
               </span>
             )}
-          </button>
+          </Button>
           {(activity.status === "failed" || activity.status === "skipped") && (
-            <button
+            <Button
+              size="sm"
               onClick={() => retryMutation.mutate()}
               disabled={retryMutation.isPending}
-              className="inline-flex h-9 items-center rounded-md bg-[var(--ph-accent)] px-3 text-sm font-semibold text-white transition-colors hover:brightness-95 disabled:opacity-50"
             >
               <RefreshCw
-                className={`h-4 w-4 mr-2 ${
-                  retryMutation.isPending ? "animate-spin" : ""
-                }`}
+                className={`h-4 w-4 ${retryMutation.isPending ? "animate-spin" : ""}`}
               />
               Retry
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -2188,7 +2189,7 @@ export default function ActivityDetail() {
                 <div className="mt-1 flex items-center">
                   <div className="flex-1 bg-[var(--ph-bg-elevated)] rounded-full h-2 mr-2">
                     <div
-                      className="bg-azure-500 h-2 rounded-full"
+                      className="bg-[var(--ph-accent)] h-2 rounded-full"
                       style={{
                         width: `${activity.diagnosis.confidence * 100}%`,
                       }}
@@ -2671,8 +2672,8 @@ export default function ActivityDetail() {
 
       {/* Error Card */}
       {activity.error && (
-        <div className="card p-6 border-red-200 dark:border-red-800">
-          <h2 className="text-lg font-semibold text-red-600 mb-2">Error</h2>
+        <div className="card border-[var(--ph-danger-border)] bg-[var(--ph-danger-bg)] p-6">
+          <h2 className="mb-2 text-lg font-semibold text-[var(--ph-danger)]">Error</h2>
           <p className="text-[var(--ph-text)]">{activity.error}</p>
         </div>
       )}

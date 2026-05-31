@@ -40,7 +40,7 @@ const SheetContent = React.forwardRef<
     >
       {children}
       <SheetPrimitive.Close
-        className="absolute right-3 top-3 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-200"
+        className="absolute right-3 top-3 rounded-md p-1 text-[var(--ph-muted)] transition-colors hover:bg-[var(--ph-surface)] hover:text-[var(--ph-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ph-accent)]"
       >
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
@@ -59,7 +59,7 @@ const SheetTitle = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
 >(({ className, ...props }, ref) => (
-  <SheetPrimitive.Title ref={ref} className={cn('text-base font-semibold text-slate-100', className)} {...props} />
+  <SheetPrimitive.Title ref={ref} className={cn('text-base font-semibold text-[var(--ph-text)]', className)} {...props} />
 ))
 SheetTitle.displayName = SheetPrimitive.Title.displayName
 
@@ -69,7 +69,7 @@ const SheetDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Description
     ref={ref}
-    className={cn('text-sm text-slate-400', className)}
+    className={cn('text-sm text-[var(--ph-muted)]', className)}
     {...props}
   />
 ))

@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: c183a90 -->
+<!-- LAST_VERIFIED: 2c862a3 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -8,11 +8,31 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
+- _No unreleased entries yet._
+
+## [v0.8.0] - 2026-05-30
+
+### Added
+
+- Added the agent-control-plane workflow for external handoff sessions, callback messages, policy labels, and audit records across Codex App Server, OpenClaw, Hermes, and custom targets.
+- Added Codex App Server as a model/runtime route with explicit stdio and WebSocket configuration controls, including remote WebSocket opt-in and token-file support.
+- Added Infisical-backed secret storage and migration tooling so runtime/API/CI/service secrets can move out of local `.env` files and into operator-managed injection paths.
+- Added a production promotion scaffold for Azure Container Apps, including a prod Bicep parameter file and an Infisical-first release runbook.
+
 ### Changed
 
-- Prepared the `v0.7.2` recovery release cut after the failed `v0.7.1` tag attempt so version metadata and the matching release section are staged together before the next tag is pushed. (`c183a90`)
-- Clarified the release docs and pending recovery notes so operators verify the generated `## [vX.Y.Z]` changelog section before tagging and keep the `v0.7.2` release branch auditable while follow-up fixes land. (`5db2d6b`, `f8209dd`)
-- Hardened the release helper scripts and GitHub Actions workflows against the June 2026 Node 24 transition by adding explicit changelog-section guardrails, documenting post-cut preflight behavior, and upgrading CI/release workflow actions to Node 24-compatible versions where available. (`7af1f61`)
+- Refreshed the frontend UI/UX system after the design review by tightening semantic tokens, focus states, form primitives, navigation states, dashboard affordances, and settings error handling.
+- Removed the unused `framer-motion` dependency from the frontend bundle.
+- Updated release metadata for `v0.8.0` across the app version file, backend package, frontend package, Helm chart, and changelog.
+
+### Fixed
+
+- Fixed external-agent handoff review findings around copy-only delivery, missing target URL failure states, default target validation, WebSocket header compatibility, remote WebSocket safety, and legacy webhook fallback behavior.
+- Resolved the frontend primary-button hover/focus gap and reduced raw Tailwind color leakage across reusable UI primitives.
+
+### Security
+
+- Patched the Dependabot-reported frontend advisory by upgrading the Vite/Vitest/PostCSS toolchain and verified the current frontend lockfile no longer carries the vulnerable path.
 
 ## [v0.7.2] - 2026-03-13
 

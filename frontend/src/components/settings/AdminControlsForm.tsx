@@ -914,7 +914,7 @@ export default function AdminControlsForm({
                 </div>
 
                 {jenkinsBridgeUrlInput.trim() && !jenkinsBridgeTarget && (
-                  <p className="text-sm text-rose-400">
+                  <p className="text-sm text-[var(--ph-danger)]">
                     Enter the full{" "}
                     <code className="font-mono">http(s)</code>{" "}
                     bridge URL ending in
@@ -1182,7 +1182,7 @@ export default function AdminControlsForm({
                   (notificationTargetType === "email" &&
                     notificationTargetEmailRecipients.trim())) &&
                   !notificationTargetDraft && (
-                  <p className="text-sm text-rose-400">
+                  <p className="text-sm text-[var(--ph-danger)]">
                     {notificationTargetType === "email"
                       ? "Enter at least one valid recipient email so the assistant can generate a valid notification target entry."
                       : 'Enter a full http(s) target URL so the assistant can generate a valid notification target entry.'}
@@ -1994,7 +1994,7 @@ export default function AdminControlsForm({
                 </p>
                 {handoffNeedsStartupUrl &&
                   !data.agent_handoff_webhook_configured && (
-                    <p className="mt-2 text-sm text-rose-400">
+                    <p className="mt-2 text-sm text-[var(--ph-danger)]">
                       Webhook mode is selected, but no startup webhook URL is
                       configured.
                     </p>
@@ -2049,7 +2049,7 @@ export default function AdminControlsForm({
                 </div>
 
                 {handoffWebhookInput.trim() && !handoffWebhookDraft && (
-                  <p className="text-sm text-rose-400">
+                  <p className="text-sm text-[var(--ph-danger)]">
                     Enter a full{" "}
                     <code className="font-mono">http(s)</code>{" "}
                     webhook URL so the assistant can derive the destination
@@ -3097,7 +3097,7 @@ export default function AdminControlsForm({
         )}
 
         {/* ── Save / Discard Bar ── */}
-        <Card>
+        <Card className="sticky bottom-4 z-20 shadow-[var(--ph-shadow-lg)]">
           <CardContent className="py-4 px-6">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
@@ -3105,12 +3105,12 @@ export default function AdminControlsForm({
                   {hasUnsavedChanges ? "Unsaved changes" : "In sync"}
                 </Badge>
                 {saveError && (
-                  <span className="text-sm text-rose-500">
+                  <span className="text-sm text-[var(--ph-danger)]">
                     {saveError.message || "Failed to save"}
                   </span>
                 )}
                 {saveSuccess && !hasUnsavedChanges && (
-                  <span className="text-sm text-emerald-500">
+                  <span className="text-sm text-[var(--ph-success)]">
                     Settings saved
                   </span>
                 )}

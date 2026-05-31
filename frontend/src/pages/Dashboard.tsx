@@ -17,8 +17,8 @@ import {
   Activity,
   ArrowRight,
   CheckCircle,
-  Clock,
   FileText,
+  LayoutDashboard,
   ShieldAlert,
   SearchCheck,
   Copy,
@@ -41,7 +41,9 @@ import ActivityTable from "../components/ActivityTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatTile } from "@/components/ui/status";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CHART_PALETTE } from "@/components/charts/palette";
 
 function getCssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -77,14 +79,7 @@ function useChartTheme() {
   return theme;
 }
 
-const COLORS = [
-  "#2563eb",
-  "#0ea5e9",
-  "#14b8a6",
-  "#16a34a",
-  "#f59e0b",
-  "#64748b",
-];
+const COLORS = CHART_PALETTE;
 const REASON_LABELS: Record<string, string> = {
   OUTSIDE_ALLOWED_FILES: "Touches non-allowlisted files.",
   LOW_CONFIDENCE: "Model confidence below threshold.",
@@ -366,90 +361,49 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Executive header */}
-      <Card>
-        <CardContent className="p-5 md:p-6">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-            <div className="max-w-2xl">
-              <h1 className="text-2xl font-semibold tracking-tight text-[var(--ph-text)] sm:text-3xl">
-                Pipeline Reliability Dashboard
-              </h1>
-              <p className="mt-2 text-sm leading-relaxed text-[var(--ph-muted)] sm:text-base">
-                Track remediation throughput, safety posture, and external
-                diagnostic signals from one place.
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Button asChild size="sm">
-                  <Link to="/app/activities">
-                    Review Activities
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild size="sm" variant="secondary">
-                  <Link to="/app/control-center">Control Center</Link>
-                </Button>
-                <Button asChild size="sm" variant="ghost">
-                  <Link to="/app/settings">Runtime Settings</Link>
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:min-w-[360px] lg:grid-cols-3">
-              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
-                <p className="text-xs text-[var(--ph-muted)]">Success rate</p>
-                <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">
-                  {successRate}%
-                </p>
-              </div>
-              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
-                <p className="text-xs text-[var(--ph-muted)]">
-                  External signals
-                </p>
-                <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">
-                  {externalSignalCount}
-                </p>
-              </div>
-              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
-                <p className="text-xs text-[var(--ph-muted)]">MCP runs (30d)</p>
-                <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">
-                  {stats?.mcp_enabled_runs_30d ?? 0}
-                </p>
-              </div>
-              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
-                <p className="text-xs text-[var(--ph-muted)]">
-                  LLM fallback (30d)
-                </p>
-                <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">
-                  {llmFallbackRate30d}%
-                </p>
-              </div>
-              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
-                <p className="text-xs text-[var(--ph-muted)]">Avg resolution</p>
-                <p className="mt-1 text-lg font-semibold text-[var(--ph-text)]">
-                  {stats?.average_resolution_time_seconds
-                    ? `${Math.round(stats.average_resolution_time_seconds)}s`
-                    : "N/A"}
-                </p>
-              </div>
-              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/75 p-3">
-                <p className="text-xs text-[var(--ph-muted)]">Last updated</p>
-                <p className="mt-1 truncate text-sm font-medium text-[var(--ph-text)]">
-                  {lastUpdatedLabel}
-                </p>
-              </div>
+    <div className="space-y-6">
+      {/* Page header */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]">
+            <LayoutDashboard className="h-5 w-5 text-[var(--ph-accent)]" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--ph-text)]">
+              Pipeline Reliability Dashboard
+            </h1>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-[var(--ph-muted)]">
+              Remediation throughput, safety posture, and external diagnostic
+              signals in one place.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button asChild size="sm">
+                <Link to="/app/activities">
+                  Review Activities
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild size="sm" variant="secondary">
+                <Link to="/app/control-center">Control Center</Link>
+              </Button>
+              <Button asChild size="sm" variant="ghost">
+                <Link to="/app/settings">Runtime Settings</Link>
+              </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="flex flex-col items-start gap-1.5 sm:items-end">
+          <Badge variant="outline">Last 30 days</Badge>
+          <span className="text-xs text-[var(--ph-muted)]">
+            Updated {lastUpdatedLabel}
+          </span>
+        </div>
+      </div>
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-[var(--ph-text)]">
-            Healing Throughput
-          </h2>
-          <Badge variant="outline">Last 30 days</Badge>
-        </div>
+        <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--ph-muted)]">
+          Healing throughput
+        </h2>
         {showStatsLoading ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, index) => (
@@ -467,28 +421,65 @@ export default function Dashboard() {
               title="Processed"
               value={stats?.total_runs_processed || 0}
               icon={Activity}
-              color="blue"
+              color="accent"
             />
             <StatsCard
               title="Actioned"
               value={stats?.actioned_remediations || 0}
               icon={CheckCircle}
-              color="green"
+              color="success"
             />
             <StatsCard
               title="Safety Gated"
               value={`${stats?.safety_blocked_remediations || 0} (${safetyGatedRate}%)`}
               icon={ShieldAlert}
-              color="red"
+              color="danger"
             />
             <StatsCard
               title="Issue-Only"
               value={`${stats?.issue_remediations || 0} (${issueRate}%)`}
               icon={FileText}
-              color="yellow"
+              color="warning"
             />
           </div>
         )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--ph-muted)]">
+          Signals (30 days)
+        </h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+          <StatTile
+            label="Success rate"
+            value={`${successRate}%`}
+            tone={successRate >= 80 ? "ok" : successRate >= 50 ? "warn" : "neutral"}
+          />
+          <StatTile
+            label="External signals"
+            value={String(externalSignalCount)}
+            tone={externalSignalCount > 0 ? "info" : "neutral"}
+          />
+          <StatTile
+            label="MCP runs"
+            value={String(stats?.mcp_enabled_runs_30d ?? 0)}
+            tone="neutral"
+          />
+          <StatTile
+            label="LLM fallback"
+            value={`${llmFallbackRate30d}%`}
+            tone={llmFallbackRate30d > 20 ? "warn" : "neutral"}
+          />
+          <StatTile
+            label="Avg resolution"
+            value={
+              stats?.average_resolution_time_seconds
+                ? `${Math.round(stats.average_resolution_time_seconds)}s`
+                : "N/A"
+            }
+            tone="neutral"
+          />
+        </div>
       </section>
 
       <Card>
@@ -550,7 +541,8 @@ export default function Dashboard() {
               </span>
             </p>
             <p className="text-sm text-[var(--ph-muted)]">
-              Click a slice to open Activities filtered to that failure type.
+              Select a failure type below (or a chart slice) to open Activities
+              filtered to it.
             </p>
           </CardHeader>
           <CardContent>
@@ -563,7 +555,7 @@ export default function Dashboard() {
                     cy="50%"
                     innerRadius={60}
                     outerRadius={100}
-                    fill="#8884d8"
+                    fill="var(--ph-chart-1)"
                     paddingAngle={2}
                     dataKey="value"
                     cursor="pointer"
@@ -622,6 +614,29 @@ export default function Dashboard() {
                 </Button>
               </div>
             )}
+            {pieData.length > 0 && (
+              <div
+                className="mt-4 flex flex-wrap gap-2 border-t border-[var(--ph-border)] pt-3"
+                role="group"
+                aria-label="Filter Activities by failure type"
+              >
+                {pieData.map((item, index) => (
+                  <button
+                    key={item.failureType}
+                    type="button"
+                    onClick={() => handleFailureTypeSliceClick(item.failureType)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)] transition-colors hover:border-[var(--ph-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ph-accent)]"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    {item.name} ({item.value})
+                  </button>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -639,7 +654,8 @@ export default function Dashboard() {
               </span>
             </p>
             <p className="text-sm text-[var(--ph-muted)]">
-              Click a bar to open Activities filtered to that repository.
+              Select a repository below (or a chart bar) to open Activities
+              filtered to it.
             </p>
           </CardHeader>
           <CardContent>
@@ -685,7 +701,7 @@ export default function Dashboard() {
                   />
                   <Bar
                     dataKey="count"
-                    fill="#3b82f6"
+                    fill="var(--ph-chart-1)"
                     radius={[4, 4, 0, 0]}
                     cursor="pointer"
                     onClick={(data: { payload?: { fullName?: string } } | undefined) =>
@@ -712,6 +728,25 @@ export default function Dashboard() {
                 </Button>
               </div>
             )}
+            {repoData.length > 0 && (
+              <div
+                className="mt-4 flex flex-wrap gap-2 border-t border-[var(--ph-border)] pt-3"
+                role="group"
+                aria-label="Filter Activities by repository"
+              >
+                {repoData.map((item) => (
+                  <button
+                    key={item.fullName}
+                    type="button"
+                    onClick={() => handleRepositoryBarClick(item.fullName)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-2 py-1 text-xs font-medium text-[var(--ph-text)] transition-colors hover:border-[var(--ph-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ph-accent)]"
+                    title={item.fullName}
+                  >
+                    {item.name} ({item.count})
+                  </button>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -735,7 +770,7 @@ export default function Dashboard() {
                   <select
                     value={selectedActivity?.id || ""}
                     onChange={(e) => setSelectedActivityId(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-3 py-2 text-sm text-[var(--ph-text)] focus:outline-none focus:ring-2 focus:ring-azure-500"
+                    className="h-10 w-full rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-3 py-2 text-sm text-[var(--ph-text)] focus:outline-none focus:ring-2 focus:ring-[var(--ph-accent)] focus:ring-offset-2 focus:ring-offset-[var(--ph-surface)]"
                   >
                     {recentActivities.map((activity) => {
                       const sourceInfo = getActivitySourceInfo(activity);
@@ -936,25 +971,6 @@ export default function Dashboard() {
           isLoading={activitiesLoading}
         />
       </section>
-
-      {/* Average Resolution Time */}
-      {stats && stats.average_resolution_time_seconds > 0 && (
-        <Card>
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center gap-4">
-              <Clock className="h-8 w-8 text-[var(--ph-accent)]" />
-              <div>
-                <p className="text-sm text-[var(--ph-muted)]">
-                  Average resolution time
-                </p>
-                <p className="text-2xl font-semibold text-[var(--ph-text)]">
-                  {Math.round(stats.average_resolution_time_seconds)}s
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

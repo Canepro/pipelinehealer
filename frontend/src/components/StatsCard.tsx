@@ -11,16 +11,17 @@ interface StatsCardProps {
     value: number;
     isPositive: boolean;
   };
-  color?: "blue" | "green" | "red" | "yellow";
+  color?: "accent" | "success" | "danger" | "warning";
 }
 
 const colorClasses = {
-  blue: "border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] text-[var(--ph-accent)]",
-  green:
-    "border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] text-emerald-400",
-  red: "border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] text-rose-400",
-  yellow:
-    "border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] text-amber-400",
+  accent: "border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] text-[var(--ph-accent)]",
+  success:
+    "border-[var(--ph-success-border)] bg-[var(--ph-success-bg)] text-[var(--ph-success)]",
+  danger:
+    "border-[var(--ph-danger-border)] bg-[var(--ph-danger-bg)] text-[var(--ph-danger)]",
+  warning:
+    "border-[var(--ph-warning-border)] bg-[var(--ph-warning-bg)] text-[var(--ph-warning)]",
 };
 
 export default function StatsCard({
@@ -28,7 +29,7 @@ export default function StatsCard({
   value,
   icon: Icon,
   trend,
-  color = "blue",
+  color = "accent",
 }: StatsCardProps) {
   return (
     <Card>

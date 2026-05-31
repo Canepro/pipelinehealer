@@ -1,6 +1,6 @@
 # Feature: Operations And Deployment
 
-<!-- LAST_VERIFIED: 4055ae3 -->
+<!-- LAST_VERIFIED: 2c862a3 -->
 
 This guide explains day-to-day operations: local bring-up, Azure deploy, verification, and safe rollout.
 
@@ -93,6 +93,7 @@ Cloud portability note:
 See:
 
 - `../runbooks/LOCAL_DEMO_RUNBOOK.md` for profile setup
+- `../runbooks/PRODUCTION_PROMOTION_RUNBOOK.md` for reviewed production release promotion
 - `../architecture/MODEL_PROVIDER_STRATEGY.md` for provider roadmap
 
 ## Choosing `deploy` vs `deploy:env`

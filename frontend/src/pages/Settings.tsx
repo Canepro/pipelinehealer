@@ -30,10 +30,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useConfirm } from "@/components/ui/use-confirm";
 import { SettingToggleField } from "../components/settings/SettingToggleField";
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const isApiAuthReady = useApiAuthReady();
   const [adminKeyInput, setAdminKeyInput] = useState("");
   const [adminKey, setAdminKey] = useState("");
@@ -361,33 +363,45 @@ export default function SettingsPage() {
     },
   });
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     if (
       data?.environment === "production" &&
       data.heal_mode === "safe" &&
       ["demo", "freestyle"].includes(form.heal_mode) &&
-      !window.confirm(
-        "Enable a more aggressive healing mode in production? This increases autonomous write actions.",
-      )
+      !(await confirm({
+        title: "Enable aggressive healing in production?",
+        description:
+          "This increases autonomous write actions in a production environment.",
+        confirmLabel: "Enable",
+        destructive: true,
+      }))
     ) {
       return;
     }
     if (
       data?.verify_webhook_signature &&
       !form.verify_webhook_signature &&
-      !window.confirm(
-        "Disable webhook signature verification? Incoming webhook authenticity checks will be removed.",
-      )
+      !(await confirm({
+        title: "Disable webhook signature verification?",
+        description: "Incoming webhook authenticity checks will be removed.",
+        confirmLabel: "Disable",
+        destructive: true,
+      }))
     ) {
       return;
     }
     saveMutation.mutate();
   };
 
-  const handleSecretAction = (secret: SecretSetting, clear = false) => {
+  const handleSecretAction = async (secret: SecretSetting, clear = false) => {
     if (
       clear &&
-      !window.confirm(`Clear ${formatSecretLabel(secret.key)}? Dependent integrations may stop working immediately.`)
+      !(await confirm({
+        title: `Clear ${formatSecretLabel(secret.key)}?`,
+        description: "Dependent integrations may stop working immediately.",
+        confirmLabel: "Clear secret",
+        destructive: true,
+      }))
     ) {
       return;
     }
@@ -396,7 +410,11 @@ export default function SettingsPage() {
       !clear &&
       secret.configured &&
       (secretDrafts[secret.key] ?? "").trim() &&
-      !window.confirm("Rotate the Assign-to-Agent destination URL? Future deliveries will go to the new host.")
+      !(await confirm({
+        title: "Rotate the Assign-to-Agent destination URL?",
+        description: "Future deliveries will go to the new host.",
+        confirmLabel: "Rotate",
+      }))
     ) {
       return;
     }
@@ -416,12 +434,15 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      {confirmDialog}
       {/* Page header */}
-      <div className="flex items-center gap-3">
-        <Settings2 className="h-7 w-7 text-[var(--ph-accent)]" />
+      <div className="flex items-start gap-3.5">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]">
+          <Settings2 className="h-5 w-5 text-[var(--ph-accent)]" />
+        </div>
         <div>
-          <h1 className="text-2xl font-bold text-[var(--ph-text)]">Settings</h1>
-          <p className="text-sm text-[var(--ph-muted)]">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--ph-text)]">Settings</h1>
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-[var(--ph-muted)]">
             Operator control surface for runtime policy, startup-managed
             dependencies, and durable settings.
           </p>
@@ -529,9 +550,9 @@ export default function SettingsPage() {
 
       {/* Error state */}
       {hasAuthAttempt && isError && (
-        <Card className="border-rose-500/30">
+        <Card className="border-[var(--ph-danger-border)]">
           <CardContent className="py-6">
-            <p className="text-sm font-medium text-rose-500">
+            <p className="text-sm font-medium text-[var(--ph-danger)]">
               Failed to load settings
             </p>
             <p className="text-sm text-[var(--ph-muted)] mt-1">
@@ -561,7 +582,7 @@ export default function SettingsPage() {
         <>
           <RuntimePolicyBanner data={data} />
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_400px]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,340px)_minmax(0,1fr)] xl:items-start">
             <SetupChecklistCard status={data.setup_status} />
             <SecretSettingsCard
               secrets={secretSettings ?? []}
@@ -1020,10 +1041,10 @@ export function RuntimeWiringCard({
                 {data.settings_metadata?.jenkins_bridge_enabled?.source === "env" ? "Env override" : "Runtime"}
               </Badge>
             </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="mt-3 space-y-3 border-t border-[var(--ph-border)]/55 pt-3">
               <SettingToggleField
                 label="Enabled"
-                description="Turn the Jenkins bridge runtime policy on or off. The shared secret stays in the separate secrets section."
+                description="Turn the Jenkins bridge runtime policy on or off."
                 checked={form.jenkins_bridge_enabled}
                 checkedLabel="On"
                 uncheckedLabel="Off"
@@ -1039,35 +1060,37 @@ export function RuntimeWiringCard({
                   }))
                 }
               />
-              <div className="space-y-2">
-                <Label>Max skew seconds</Label>
-                <Input
-                  type="number"
-                  value={form.jenkins_bridge_max_skew_seconds}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, jenkins_bridge_max_skew_seconds: Number(event.target.value) || 0 }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Replay TTL seconds</Label>
-                <Input
-                  type="number"
-                  value={form.jenkins_bridge_replay_ttl_seconds}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, jenkins_bridge_replay_ttl_seconds: Number(event.target.value) || 0 }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Max body bytes</Label>
-                <Input
-                  type="number"
-                  value={form.jenkins_bridge_max_body_bytes}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, jenkins_bridge_max_body_bytes: Number(event.target.value) || 0 }))
-                  }
-                />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Max skew (s)</Label>
+                  <Input
+                    type="number"
+                    value={form.jenkins_bridge_max_skew_seconds}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, jenkins_bridge_max_skew_seconds: Number(event.target.value) || 0 }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Replay TTL (s)</Label>
+                  <Input
+                    type="number"
+                    value={form.jenkins_bridge_replay_ttl_seconds}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, jenkins_bridge_replay_ttl_seconds: Number(event.target.value) || 0 }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Max body (bytes)</Label>
+                  <Input
+                    type="number"
+                    value={form.jenkins_bridge_max_body_bytes}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, jenkins_bridge_max_body_bytes: Number(event.target.value) || 0 }))
+                    }
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1151,8 +1174,8 @@ function SecretSettingsCard({
           Secrets are write-only. This page only shows configuration status, source, and safe hints.
         </p>
         {errorState ? (
-          <div className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-3">
-            <p className="text-sm font-medium text-rose-500">
+          <div className="rounded-md border border-[var(--ph-danger-border)] bg-[var(--ph-danger-bg)] px-3 py-3">
+            <p className="text-sm font-medium text-[var(--ph-danger)]">
               {errorState.title}
             </p>
             <p className="mt-1 text-sm text-[var(--ph-muted)]">
@@ -1163,11 +1186,11 @@ function SecretSettingsCard({
             </p>
           </div>
         ) : null}
-        <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
           {secrets.map((secret) => (
             <div
               key={secret.key}
-              className="rounded-md border border-[var(--ph-border)]/70 px-3 py-3"
+              className="flex flex-col rounded-md border border-[var(--ph-border)]/70 px-3 py-3"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -1191,7 +1214,7 @@ function SecretSettingsCard({
                     id={`secret-${secret.key}`}
                     value={values[secret.key] ?? ""}
                     onChange={(event) => onChange(secret.key, event.target.value)}
-                    className="min-h-28 w-full rounded-md border border-[var(--ph-border)] bg-background px-3 py-2 text-sm"
+                    className="min-h-28 w-full rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-3 py-2 text-sm text-[var(--ph-text)] outline-none placeholder:text-[var(--ph-muted)] focus-visible:ring-2 focus-visible:ring-[var(--ph-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ph-surface)]"
                     placeholder="Paste the new secret value"
                   />
                 ) : (
