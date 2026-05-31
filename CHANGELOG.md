@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 3d44e0a -->
+<!-- LAST_VERIFIED: 50ba6f3 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -9,6 +9,12 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ## [Unreleased]
 
 - _No unreleased entries yet._
+
+## [v0.8.2] - 2026-05-31
+
+### Fixed
+
+- Blocked anonymous frontend-proxy API access when Entra session auth is enabled. The frontend proxy no longer forwards the real backend API key in Entra mode, and production Bicep now carries backend/frontend Entra runtime settings so future deploys do not reset auth to `none`/`api_key`.
 
 ## [v0.8.1] - 2026-05-31
 

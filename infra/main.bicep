@@ -113,6 +113,51 @@ param codexAppServerWsBearerToken string = ''
 @description('API key for X-API-Key protected /api/* routes')
 param apiAuthKey string = ''
 
+@description('Backend authentication mode for /api routes.')
+@allowed([
+  'api_key'
+  'entra'
+  'hybrid'
+])
+param authMode string = 'api_key'
+
+@description('Microsoft Entra tenant ID for backend bearer-token validation.')
+param entraTenantId string = ''
+
+@description('Microsoft Entra API app client ID used for backend token audience defaults.')
+param entraClientId string = ''
+
+@description('Optional accepted JWT audience values for Entra bearer tokens.')
+param entraAllowedAudiences string = ''
+
+@description('Accepted Entra app-role or scope values for admin-only settings endpoints.')
+param entraAdminRoles string = 'PipelineHealer.Admin'
+
+@description('Frontend session auth mode.')
+@allowed([
+  'none'
+  'entra'
+])
+param frontendAuthMode string = 'none'
+
+@description('Frontend Microsoft Entra tenant ID.')
+param frontendEntraTenantId string = ''
+
+@description('Frontend Microsoft Entra SPA client ID.')
+param frontendEntraClientId string = ''
+
+@description('Frontend Microsoft Entra authority URL.')
+param frontendEntraAuthority string = ''
+
+@description('Frontend Microsoft Entra API access scope.')
+param frontendEntraApiScope string = ''
+
+@description('Frontend Microsoft Entra redirect URI.')
+param frontendEntraRedirectUri string = ''
+
+@description('Frontend Microsoft Entra post-logout redirect URI.')
+param frontendEntraPostLogoutRedirectUri string = ''
+
 @secure()
 @description('Admin API key for X-Admin-Key protected /api/settings* routes')
 param adminApiKey string = ''
@@ -471,6 +516,26 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
               secretRef: 'admin-api-key'
             }
             {
+              name: 'AUTH_MODE'
+              value: authMode
+            }
+            {
+              name: 'ENTRA_TENANT_ID'
+              value: entraTenantId
+            }
+            {
+              name: 'ENTRA_CLIENT_ID'
+              value: entraClientId
+            }
+            {
+              name: 'ENTRA_ALLOWED_AUDIENCES'
+              value: entraAllowedAudiences
+            }
+            {
+              name: 'ENTRA_ADMIN_ROLES'
+              value: entraAdminRoles
+            }
+            {
               name: 'GITHUB_WEBHOOK_SECRET'
               secretRef: 'github-webhook-secret'
             }
@@ -551,9 +616,46 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'BACKEND_UPSTREAM'
               value: 'https://${backendApp.properties.configuration.ingress.fqdn}'
             }
+            ...(frontendAuthMode == 'entra'
+              ? [
+                  {
+                    name: 'API_AUTH_KEY'
+                    value: 'disabled'
+                  }
+                ]
+              : [
+                  {
+                    name: 'API_AUTH_KEY'
+                    secretRef: 'api-auth-key'
+                  }
+                ])
             {
-              name: 'API_AUTH_KEY'
-              secretRef: 'api-auth-key'
+              name: 'VITE_AUTH_MODE'
+              value: frontendAuthMode
+            }
+            {
+              name: 'VITE_ENTRA_TENANT_ID'
+              value: frontendEntraTenantId
+            }
+            {
+              name: 'VITE_ENTRA_CLIENT_ID'
+              value: frontendEntraClientId
+            }
+            {
+              name: 'VITE_ENTRA_AUTHORITY'
+              value: frontendEntraAuthority
+            }
+            {
+              name: 'VITE_ENTRA_API_SCOPE'
+              value: frontendEntraApiScope
+            }
+            {
+              name: 'VITE_ENTRA_REDIRECT_URI'
+              value: frontendEntraRedirectUri
+            }
+            {
+              name: 'VITE_ENTRA_POST_LOGOUT_REDIRECT_URI'
+              value: frontendEntraPostLogoutRedirectUri
             }
           ]
         }

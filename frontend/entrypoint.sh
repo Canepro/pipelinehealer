@@ -15,7 +15,22 @@ set -eu
 : "${VITE_API_AUTH_KEY:=}"
 : "${VITE_API_TIMEOUT_MS:=15000}"
 
-envsubst '${BACKEND_UPSTREAM} ${API_AUTH_KEY}' \
+case "$(printf '%s' "$VITE_AUTH_MODE" | tr '[:upper:]' '[:lower:]')" in
+  entra)
+    API_PROXY_AUTH_HEADER=""
+    ;;
+  *)
+    if [ -n "$API_AUTH_KEY" ]; then
+      API_PROXY_AUTH_HEADER="proxy_set_header X-API-Key ${API_AUTH_KEY};"
+    else
+      API_PROXY_AUTH_HEADER=""
+    fi
+    ;;
+esac
+export API_PROXY_AUTH_HEADER
+
+# shellcheck disable=SC2016 # envsubst needs literal variable names here.
+envsubst '${BACKEND_UPSTREAM} ${API_PROXY_AUTH_HEADER}' \
   < /etc/nginx/templates/default.conf.template \
   > /etc/nginx/conf.d/default.conf
 

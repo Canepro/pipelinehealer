@@ -251,3 +251,35 @@ def test_deploy_env_allows_entra_mode_when_required_keys_exist_on_app(tmp_path: 
         },
     )
     assert result.returncode == 0
+
+    az_log = (tmp_path / "az.log").read_text(encoding="utf-8")
+    fe_update = next(
+        line
+        for line in az_log.splitlines()
+        if line.startswith("containerapp update ") and " -n fe " in f" {line} "
+    )
+    assert "API_AUTH_KEY=disabled" in fe_update
+    assert "API_AUTH_KEY=api_key" not in fe_update
+
+
+def test_deploy_env_keeps_frontend_proxy_key_for_key_mode(tmp_path: Path) -> None:
+    env_file = tmp_path / "backend.env"
+    env_file.write_text(
+        dedent(
+            """\
+            API_AUTH_KEY=api_key
+            ADMIN_API_KEY=admin_key
+            VITE_AUTH_MODE=none
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    az_log = _run_env_only_deploy(tmp_path, env_file)
+    fe_update = next(
+        line
+        for line in az_log.splitlines()
+        if line.startswith("containerapp update ") and " -n fe " in f" {line} "
+    )
+
+    assert "API_AUTH_KEY=api_key" in fe_update

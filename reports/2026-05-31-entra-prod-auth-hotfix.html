@@ -1,0 +1,760 @@
+<!doctype html>
+<!-- Codex HTML Report Template v0.5.0: dark editorial report, layered surfaces, refined typography, gated status, timestamped, evidence-oriented. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PipelineHealer Entra Auth Hotfix Closeout</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d11;
+      --bg-tint: #0f1117;
+      --surface-1: #15171f;
+      --surface-2: #1c1f29;
+      --surface-3: #242836;
+      --pre-bg: #090a0d;
+      --ink: #f4efe4;
+      --muted: #aab1be;
+      --soft: #868e9c;
+      --line: rgba(255, 255, 255, 0.085);
+      --line-2: rgba(255, 255, 255, 0.16);
+      --accent: #d6aa5c;
+      --accent-bright: #ecc379;
+      --accent-soft: rgba(214, 170, 92, 0.14);
+      --accent-line: rgba(214, 170, 92, 0.55);
+      --good: #87cc8b;
+      --warn: #e2b45e;
+      --bad: #e58b7d;
+      --info: #93b8df;
+      --neutral: #abb4c1;
+      --shadow: 0 18px 42px -26px rgba(0, 0, 0, 0.8), 0 2px 6px rgba(0, 0, 0, 0.35);
+      --shadow-lg: 0 44px 90px -46px rgba(0, 0, 0, 0.85);
+      --radius: 14px;
+      --radius-sm: 9px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.6;
+      background:
+        radial-gradient(1100px 420px at 50% -160px, rgba(214, 170, 92, 0.10), transparent 70%),
+        linear-gradient(180deg, var(--bg-tint), var(--bg) 460px);
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover {
+      color: var(--accent-bright);
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    .shell {
+      width: min(1120px, 100% - 40px);
+      margin: 0 auto;
+      padding: 26px 0 72px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      color: var(--ink);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .mark {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      border: 1px solid var(--accent-line);
+      background: linear-gradient(180deg, rgba(214, 170, 92, 0.22), rgba(214, 170, 92, 0.04));
+      color: var(--accent-bright);
+      font-family: var(--serif);
+      font-weight: 700;
+    }
+    .topbar time { color: var(--ink); font-weight: 600; }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 46px 46px 40px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        radial-gradient(620px 200px at 8% -30px, rgba(214, 170, 92, 0.16), transparent 72%),
+        linear-gradient(180deg, var(--surface-2), var(--surface-1));
+      box-shadow: var(--shadow-lg);
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      left: 46px;
+      right: 46px;
+      bottom: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-line), transparent);
+    }
+    .kicker {
+      margin: 0 0 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--accent);
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .kicker::before { content: ""; width: 24px; height: 1px; background: var(--accent-line); }
+
+    h1, h2, h3 { margin: 0; }
+    h1 {
+      max-width: 28ch;
+      font-family: var(--serif);
+      font-weight: 600;
+      font-size: 2.05rem;
+      line-height: 1.08;
+      letter-spacing: -0.01em;
+      text-wrap: balance;
+    }
+    .lede {
+      max-width: 66ch;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 1.08rem;
+      line-height: 1.62;
+    }
+
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 16px 0 6px;
+    }
+    .fact {
+      position: relative;
+      padding: 16px 16px 16px 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent), var(--surface-1);
+      box-shadow: var(--shadow);
+    }
+    .fact::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 15px;
+      bottom: 15px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: var(--accent);
+      opacity: 0.85;
+    }
+    .fact .value { margin-top: 9px; font-size: 1.05rem; font-weight: 650; line-height: 1.3; }
+
+    .label, .eyebrow {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .label { color: var(--soft); }
+    .eyebrow { display: block; margin-bottom: 9px; color: var(--accent); letter-spacing: 0.14em; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 11px 4px 9px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      font-weight: 650;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+    .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .done { color: var(--good); background: rgba(135, 204, 139, 0.12); border-color: rgba(135, 204, 139, 0.42); }
+    .partial { color: var(--warn); background: rgba(226, 180, 94, 0.13); border-color: rgba(226, 180, 94, 0.42); }
+    .blocked, .risk, .gated { color: var(--bad); background: rgba(229, 139, 125, 0.13); border-color: rgba(229, 139, 125, 0.42); }
+    .info { color: var(--info); background: rgba(147, 184, 223, 0.13); border-color: rgba(147, 184, 223, 0.42); }
+    .neutral { color: var(--neutral); background: rgba(171, 180, 193, 0.12); border-color: rgba(171, 180, 193, 0.40); }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin: 20px 0 22px;
+      padding: 10px 0;
+      background: rgba(11, 13, 17, 0.8);
+      backdrop-filter: blur(10px) saturate(140%);
+      border-bottom: 1px solid var(--line);
+    }
+    nav a {
+      padding: 7px 13px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-1);
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 600;
+    }
+    nav a:hover, nav a:focus-visible {
+      color: var(--ink);
+      border-color: var(--accent-line);
+      background: var(--surface-2);
+      text-decoration: none;
+    }
+
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+    .section {
+      grid-column: span 12;
+      padding: 26px 28px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.022), transparent 140px), var(--surface-1);
+      box-shadow: var(--shadow);
+      scroll-margin-top: 82px;
+    }
+    .span-7 { grid-column: span 7; }
+    .span-6 { grid-column: span 6; }
+    .section-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
+
+    h2 {
+      font-family: var(--serif);
+      font-weight: 600;
+      font-size: 1.4rem;
+      line-height: 1.16;
+      letter-spacing: -0.005em;
+    }
+    h3 { font-size: 0.96rem; font-weight: 700; }
+
+    .section p { margin: 0; color: var(--muted); }
+    .section p + p { margin-top: 12px; }
+    .section > p, .section .table-wrap, .section .cards, .section .timeline { margin-top: 16px; }
+
+    .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .card {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+    }
+    .card strong { display: block; margin-bottom: 8px; font-size: 0.95rem; color: var(--ink); }
+    .card p { font-size: 0.95rem; }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-1);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    th, td { padding: 12px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th {
+      background: var(--surface-2);
+      color: var(--soft);
+      font-size: 0.71rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+    td:first-child { color: var(--ink); font-weight: 550; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    code {
+      font-family: var(--mono);
+      font-size: 0.88em;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--pre-bg);
+      color: #e9efe9;
+      line-height: 1.55;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+    pre code { padding: 0; border: 0; background: none; font-size: 0.86rem; color: inherit; }
+
+    .timeline { display: grid; gap: 0; }
+    .event {
+      display: grid;
+      grid-template-columns: 142px minmax(0, 1fr);
+      gap: 18px;
+      padding: 16px 0;
+      border-top: 1px solid var(--line);
+    }
+    .event:first-child { border-top: 0; padding-top: 2px; }
+    .time { color: var(--muted); font-family: var(--mono); font-size: 0.82rem; }
+    .time time { display: block; color: var(--ink); font-weight: 650; }
+    .time span { display: block; margin-top: 3px; color: var(--soft); }
+    .event-body { position: relative; padding-left: 24px; }
+    .event-body::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 6px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+    .event-body::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 19px;
+      bottom: -32px;
+      width: 1px;
+      background: var(--line-2);
+    }
+    .event:last-child .event-body::after { display: none; }
+    .event-body strong { color: var(--ink); }
+    .event-body p { margin-top: 5px; }
+
+    details {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-1);
+      overflow: hidden;
+    }
+    details + details { margin-top: 10px; }
+    summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 14px 16px;
+      font-weight: 650;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    summary:hover { background: var(--surface-2); }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; color: var(--accent); font-size: 1.15rem; font-weight: 700; line-height: 1; }
+    details[open] summary { border-bottom: 1px solid var(--line); }
+    details[open] summary::after { content: "-"; }
+    .details-body { padding: 14px 16px 16px; color: var(--muted); }
+    .details-body ul { margin: 0; padding-left: 18px; }
+    .details-body li { margin: 4px 0; }
+
+    .footer {
+      margin-top: 26px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--soft);
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 920px) { .facts { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 720px) {
+      .shell { width: min(100% - 24px, 1120px); padding-top: 18px; }
+      .hero { padding: 28px 22px 26px; }
+      .hero::after { left: 22px; right: 22px; }
+      .grid { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr; }
+      .facts { grid-template-columns: 1fr; }
+      .section { padding: 20px 18px; }
+      .event { grid-template-columns: 1fr; gap: 4px; }
+      .event-body { padding-left: 0; }
+      .event-body::before, .event-body::after { display: none; }
+      .topbar { flex-direction: column; align-items: flex-start; gap: 6px; }
+      table { min-width: 560px; }
+    }
+    @media (min-width: 721px) { h1 { font-size: 2.6rem; } h2 { font-size: 1.5rem; } }
+    @media (min-width: 1080px) { h1 { font-size: 3.05rem; } }
+
+    @media print {
+      body { background: #fff; color: #111; }
+      nav { display: none; }
+      .topbar, .hero, .fact, .section, .card, .table-wrap, table, details, summary {
+        background: #fff !important;
+        color: #111;
+        box-shadow: none;
+        border-color: #ddd;
+      }
+      a { color: #1a4f8f; }
+      .kicker, .eyebrow { color: #8a6d2f; }
+      h1, h2, h3, .brand, .topbar time, td:first-child, .event-body strong, summary { color: #111; }
+      .label, .lede, .section p, .details-body, .footer, .time, .time span, .card p, .value { color: #444; }
+      th { background: #f3f3f3 !important; color: #333; }
+      code { background: #f1f1f1; color: #111; border-color: #ddd; }
+      pre { background: #f6f6f6 !important; color: #111 !important; border-color: #ddd; }
+      .hero::after, .event-body::after { display: none; }
+      details { break-inside: avoid; }
+      .status { border: 1px solid #999; background: #fff; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="mark" aria-hidden="true">C</span> PipelineHealer Closeout</div>
+      <div>Generated <time datetime="2026-05-31">2026-05-31</time></div>
+    </header>
+
+    <section class="hero" aria-labelledby="report-title">
+      <p class="kicker">Production access control hotfix</p>
+      <h1 id="report-title">PipelineHealer Entra production auth regression closeout</h1>
+      <p class="lede">A production regression caused anonymous access to <code>/api/stats</code> through frontend proxy behavior. The hotfix re-enabled Entra auth mode in production runtime config, removed insecure proxy key injection in that mode, and aligned frontend and backend settings through deploy scripts and infra. Direct API and proxy paths are now returning 401 in unauthenticated scenarios. Release steps remain pending.</p>
+    </section>
+
+    <section class="facts" aria-label="Report summary">
+      <div class="fact">
+        <div class="label">Status</div>
+        <div class="value"><span class="status partial">Mitigation in production, release pending</span></div>
+      </div>
+      <div class="fact">
+        <div class="label">Release target</div>
+        <div class="value">v0.8.2</div>
+      </div>
+      <div class="fact">
+        <div class="label">PR</div>
+        <div class="value"><a href="https://github.com/Canepro/pipelinehealer/pull/184">#184</a></div>
+      </div>
+      <div class="fact">
+        <div class="label">Branch</div>
+        <div class="value">codex/entra-prod-auth-hotfix-v0.8.2</div>
+      </div>
+    </section>
+
+    <nav aria-label="Report sections">
+      <a href="#outcome">Outcome</a>
+      <a href="#next-action">Next</a>
+      <a href="#gates">Gates</a>
+      <a href="#changes">Changes</a>
+      <a href="#verification">Verification</a>
+      <a href="#timeline">Timeline</a>
+      <a href="#risks">Risks</a>
+      <a href="#evidence">Evidence</a>
+    </nav>
+
+    <div class="grid">
+      <section class="section span-7" id="outcome">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Outcome</span>
+            <h2>What is now true</h2>
+          </div>
+          <span class="status done">Core access gap fixed</span>
+        </div>
+        <p>The production frontend runtime config was accidentally set to <code>VITE_AUTH_MODE="none"</code>, so Entra login was skipped. This created a serious access control issue because frontend proxying could pass an injected backend API key and return <code>200</code> from <code>https://pipelinehealer.canepro.me/api/stats</code> anonymously.</p>
+        <p>Live mitigation is now in place. Backend ACA is configured with <code>AUTH_MODE=hybrid</code> plus Entra validation values, and frontend ACA uses <code>VITE_AUTH_MODE=entra</code>. API proxy auth header injection is now disabled in production via non-secret placeholder behavior. The runtime configuration now reports Entra mode. Both anonymous frontend proxy <code>/api/stats</code> and unauthenticated direct <code>/api/stats</code> now return <code>401</code>. Infisical break-glass key and admin checks still work.</p>
+      </section>
+
+      <section class="section span-5" id="next-action">
+        <span class="eyebrow">Recommended next action</span>
+        <h2>Finish release controls, then deploy</h2>
+        <p>Prioritize PR merge and CI completion first, then tag <code>v0.8.2</code>, run release workflow, deploy the hotfix, and perform the final post-deploy smoke pass against production endpoints.</p>
+      </section>
+
+      <section class="section" id="gates">
+        <span class="eyebrow">Gate checklist</span>
+        <h2>Readiness gates</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Gate</th>
+                <th>Current state</th>
+                <th>Required proof</th>
+                <th>Stop condition</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Unauthenticated access control</td>
+                <td><span class="status done">Passed</span></td>
+                <td>Anonymous proxy and direct <code>/api/stats</code> return <code>401</code>.</td>
+                <td>Any repeat anonymous <code>200</code>.</td>
+              </tr>
+              <tr>
+                <td>Runtime auth mode</td>
+                <td><span class="status done">Passed</span></td>
+                <td>Production runtime config shows Entra path active for frontend, and backend hybrid validation enabled.</td>
+                <td>Runtime drift to <code>VITE_AUTH_MODE=none</code>.</td>
+              </tr>
+              <tr>
+                <td>PR and checks</td>
+                <td><span class="status partial">Pending</span></td>
+                <td>PR #184 merged after all required checks complete.</td>
+                <td>Merges blocked by failing check.</td>
+              </tr>
+              <tr>
+                <td>Tag and release</td>
+                <td><span class="status partial">Pending</span></td>
+                <td>Git tag <code>v0.8.2</code> and release workflow completed.</td>
+                <td>Release not cut or failed deploy checks.</td>
+              </tr>
+              <tr>
+                <td>Post-deploy smoke</td>
+                <td><span class="status partial">Pending</span></td>
+                <td>Production smoke confirms no anonymous bypass and Entra sign in path remains stable.</td>
+                <td>Any fail in production auth smoke.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="changes">
+        <span class="eyebrow">Changes</span>
+        <h2>Hotfix implementation footprint</h2>
+        <div class="cards">
+          <article class="card">
+            <strong>Frontend runtime behavior</strong>
+            <p><code>frontend/entrypoint.sh</code> now conditionally omits proxy API auth header in Entra mode. <code>frontend/nginx.conf</code> uses <code>API_PROXY_AUTH_HEADER</code> to gate header injection correctly.</p>
+          </article>
+          <article class="card">
+            <strong>Infra and deployment flow</strong>
+            <p><code>scripts/deploy/redeploy_azure_containerapps.sh</code> binds a disabled non-secret placeholder in Entra mode, while <code>infra/main.bicep</code> and <code>infra/main.prod.bicepparam</code> carry Entra runtime settings.</p>
+          </article>
+          <article class="card">
+            <strong>Validation and release metadata</strong>
+            <p>Tests were updated in <code>backend/tests/test_redeploy_azure_env_sync.py</code>, and release documentation metadata was updated for v0.8.2. Infisical prod path now injects 44 names, including 12 Entra runtime names.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section span-6" id="verification">
+        <span class="eyebrow">Verification</span>
+        <h2>Checks run and results</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Check</th>
+                <th>Result</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Version sync</td>
+                <td><span class="status done">Pass</span></td>
+                <td>Version sync OK for <code>0.8.2</code>.</td>
+              </tr>
+              <tr>
+                <td><code>pytest backend/tests/test_redeploy_azure_env_sync.py</code></td>
+                <td><span class="status done">55 passed</span></td>
+                <td>Counts from provided local run.</td>
+              </tr>
+              <tr>
+                <td><code>pytest backend/tests/test_phase2_security.py</code></td>
+                <td><span class="status done">Pass</span></td>
+                <td>From provided local run.</td>
+              </tr>
+              <tr>
+                <td>Frontend lint / test / build</td>
+                <td><span class="status done">Pass</span></td>
+                <td>17 tests passed.</td>
+              </tr>
+              <tr>
+                <td><code>bicep build</code> and prod params build</td>
+                <td><span class="status done">Pass</span></td>
+                <td>Both passed with dummy secrets.</td>
+              </tr>
+              <tr>
+                <td><code>ruff</code> and <code>shellcheck</code></td>
+                <td><span class="status done">Pass</span></td>
+                <td>Both pass.</td>
+              </tr>
+              <tr>
+                <td><code>git diff --check</code></td>
+                <td><span class="status done">Pass</span></td>
+                <td>No diff hygiene issues.</td>
+              </tr>
+              <tr>
+                <td>Runtime regression probe</td>
+                <td><span class="status done">Pass</span></td>
+                <td>Anonymous proxy <code>/api/stats</code> and direct <code>/api/stats</code> now return <code>401</code>.</td>
+              </tr>
+              <tr>
+                <td>Infisical prod runtime</td>
+                <td><span class="status done">Pass</span></td>
+                <td>Prod path now injects 44 names with 12 Entra runtime names.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section span-6" id="timeline">
+        <span class="eyebrow">Timeline</span>
+        <h2>Work timeline</h2>
+        <div class="timeline">
+          <div class="event">
+            <div class="time">
+              <time datetime="2026-05-31">2026-05-31</time>
+              <span>Regression discovery</span>
+            </div>
+            <div class="event-body">
+              <strong>Production auth bypass identified.</strong>
+              <p>The runtime config was reported with <code>VITE_AUTH_MODE="none"</code> and frontend same-origin proxy returned anonymous <code>200</code> on <code>/api/stats</code>.</p>
+            </div>
+          </div>
+          <div class="event">
+            <div class="time">
+              <time datetime="2026-05-31">2026-05-31</time>
+              <span>Mitigation applied</span>
+            </div>
+            <div class="event-body">
+              <strong>Frontend, backend, deploy scripts, and infra were aligned to Entra.</strong>
+              <p>Proxy header behavior changed in Entra mode, Entra runtime settings propagated, and release metadata updated.</p>
+            </div>
+          </div>
+          <div class="event">
+            <div class="time">
+              <time datetime="2026-05-31">2026-05-31</time>
+              <span>Validation complete</span>
+            </div>
+            <div class="event-body">
+              <strong>Local checks passed and residual release tasks were marked.</strong>
+              <p>Regression checks and test suites passed. Remaining items were tracked as pending: PR checks, merge, tag, release workflow, deploy, and post-deploy smoke.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="risks">
+        <span class="eyebrow">Residual risk</span>
+        <h2>Open risks and gaps</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Risk</th>
+                <th>Impact</th>
+                <th>Mitigation / next step</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Pending release and deployment sequence</td>
+                <td>High operational risk if delayed</td>
+                <td>Complete PR merge, run release workflow, and perform final smoke checks before declaring rollout complete.</td>
+              </tr>
+              <tr>
+                <td>Configuration drift after deployment</td>
+                <td>Medium</td>
+                <td>Keep existing deployment drift watch in place and keep Entra mode as the default in production templates.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="evidence">
+        <span class="eyebrow">Evidence</span>
+        <h2>Proof summary</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Claim</th>
+                <th>Evidence</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Serious anonymous proxy regression existed</td>
+                <td>Production runtime-config had <code>VITE_AUTH_MODE="none"</code> and same-origin proxy exposed <code>/api/stats</code> as <code>200</code> anonymously.</td>
+                <td><span class="status done">Verified</span></td>
+              </tr>
+              <tr>
+                <td>Mitigation hardens production auth path</td>
+                <td>Backend ACA set to <code>AUTH_MODE=hybrid</code>, frontend ACA set to <code>VITE_AUTH_MODE=entra</code>, disabled placeholder for API proxy header.</td>
+                <td><span class="status done">Verified</span></td>
+              </tr>
+              <tr>
+                <td>Anonymous access blocked</td>
+                <td>Frontend proxy <code>/api/stats</code> and direct API <code>/api/stats</code> both return <code>401</code>.</td>
+                <td><span class="status done">Verified</span></td>
+              </tr>
+              <tr>
+                <td>Release still pending</td>
+                <td>PR #184, tag, release workflow, deploy, and final smoke not yet executed in this draft context.</td>
+                <td><span class="status partial">Pending</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <details open>
+          <summary>Evidence excerpts</summary>
+          <div class="details-body">
+            <pre><code>Regression: prod frontend runtime-config had VITE_AUTH_MODE="none", and same-origin https://pipelinehealer.canepro.me/api/stats returned 200 anonymously.
+
+Mitigation: backend ACA AUTH_MODE=hybrid with Entra validation, frontend ACA VITE_AUTH_MODE=entra, proxy API_AUTH_KEY placeholder disabled in Entra mode.
+
+Runtime check: anonymous frontend proxy /api/stats now returns 401. Direct API /api/stats without credentials returns 401.
+
+Infisical: production injection path now includes 44 names, with 12 Entra runtime names.
+
+Verification runs: pytest 55 passed in test_redeploy_azure_env_sync.py and test_phase2_security.py, frontend lint/test/build passed with 17 tests, bicep build and prod params build passed with dummy secrets, ruff pass, shellcheck pass, git diff --check pass.</code></pre>
+          </div>
+        </details>
+        <details>
+          <summary>References</summary>
+          <div class="details-body">
+            <ul>
+              <li><a href="https://github.com/Canepro/pipelinehealer/pull/184">Code hotfix PR #184</a></li>
+              <li><code>frontend/entrypoint.sh</code></li>
+              <li><code>frontend/nginx.conf</code></li>
+              <li><code>scripts/deploy/redeploy_azure_containerapps.sh</code></li>
+              <li><code>infra/main.bicep</code></li>
+              <li><code>infra/main.prod.bicepparam</code></li>
+              <li><code>backend/tests/test_redeploy_azure_env_sync.py</code></li>
+              <li><code>backend/tests/test_phase2_security.py</code></li>
+            </ul>
+          </div>
+        </details>
+      </section>
+    </div>
+
+    <footer class="footer">
+      Self-contained Codex HTML report. No external assets or network-only dependencies.
+    </footer>
+  </main>
+</body>
+</html>

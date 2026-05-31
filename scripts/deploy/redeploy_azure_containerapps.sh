@@ -596,7 +596,15 @@ for key in "${BACKEND_RUNTIME_ENV_KEYS[@]}"; do
 done
 
 add_frontend_env_var "BACKEND_UPSTREAM" "$BACKEND_URL"
-add_frontend_env_var "API_AUTH_KEY" "$API_AUTH_KEY"
+FRONTEND_AUTH_MODE="$(resolve_frontend_auth_mode)"
+if [[ "$FRONTEND_AUTH_MODE" == "entra" ]]; then
+  # Do not let the frontend proxy turn anonymous browser requests into
+  # authenticated backend calls. A non-secret placeholder keeps older images
+  # with the static nginx template bootable; current images omit the header.
+  add_frontend_env_var "API_AUTH_KEY" "disabled"
+else
+  add_frontend_env_var "API_AUTH_KEY" "$API_AUTH_KEY"
+fi
 for key in "${FRONTEND_RUNTIME_ENV_KEYS[@]}"; do
   # Keep deploy:env non-destructive for older env files: only sync keys explicitly present.
   if ! env_key_is_present "$key"; then
