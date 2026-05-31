@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from src.agents.base import NoopAgent, _resolve_model_for_task, create_cloud_agent
 from src.config import Settings
-from src.llm.codex_app_server import CodexAppServerAgent
+from src.llm.codex_app_server import CodexAppServerAgent, _extract_text
 from src.llm.providers import LLMProviderName, resolve_llm_provider
 
 
@@ -178,6 +178,35 @@ def test_create_cloud_agent_codex_app_server_returns_runtime_agent() -> None:
         settings=settings,
     )
     assert not isinstance(agent, NoopAgent)
+
+
+def test_codex_app_server_extracts_final_agent_message_before_user_prompt() -> None:
+    payload = {
+        "notifications": [
+            {
+                "method": "item/completed",
+                "params": {
+                    "item": {
+                        "type": "userMessage",
+                        "content": [{"type": "text", "text": "Reply with exactly OK."}],
+                    }
+                },
+            },
+            {
+                "method": "item/completed",
+                "params": {
+                    "item": {
+                        "type": "agentMessage",
+                        "phase": "final_answer",
+                        "text": '{"text":"OK"}',
+                    }
+                },
+            },
+            {"method": "turn/completed", "params": {"turn": {"status": "completed"}}},
+        ]
+    }
+
+    assert _extract_text(payload) == "OK"
 
 
 @pytest.mark.asyncio

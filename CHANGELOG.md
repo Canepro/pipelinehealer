@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 8817b54 -->
+<!-- LAST_VERIFIED: 6bd38bf -->
 
 All notable changes to this project will be documented in this file.
 
@@ -9,6 +9,12 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ## [Unreleased]
 
 - _No unreleased entries yet._
+
+## [v0.8.8] - 2026-05-31
+
+### Fixed
+
+- Fixed Codex App Server WebSocket output extraction so PipelineHealer reads the final `agentMessage` text envelope instead of the earlier user prompt notification.
 
 ## [v0.8.7] - 2026-05-31
 
