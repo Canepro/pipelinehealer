@@ -106,7 +106,7 @@ Direction update:
 - Keep OpenClaw, Hermes, Selene, and custom agents as specialist escalation lanes for security, SRE, host/runtime, policy-sensitive, or repeatedly failing cases.
 - Add a PipelineHealer MCP server so Codex App Server and external agents can use a stable tool/resource contract instead of one-off callback glue.
 - Add a remediation skill-pack layer that can select versioned skills such as `gh-fix-ci`, `ci-pipeline-triage`, `jenkins-sre`, `log-analyzer`, and platform-specific SRE skills based on the failure class.
-- Add token-budget governance for large logs and repo context. When available, helpers such as `tokenjuice` may compact evidence before model calls, but the raw evidence link, compaction boundary, and summary provenance must remain in the Activity audit trail.
+- Add token-budget governance for large logs and repo context. Do not reduce log collection just to fit model context; collect and retain full raw evidence, then use helpers such as `tokenjuice` to produce compacted, traceable analysis packets. The raw evidence link, selected ranges, compaction boundary, and summary provenance must remain in the Activity audit trail.
 
 Next slices:
 
