@@ -951,7 +951,7 @@ export default function AdminControlsForm({
                 PRs and still requires GitHub to report the PR mergeable.
               </p>
 
-              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4 space-y-4">
+              <div className="space-y-4 rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/22 p-4">
                 <div>
                   <p className="text-sm font-medium text-[var(--ph-text)]">
                     Jenkins Bridge Setup Assistant
@@ -1036,7 +1036,7 @@ export default function AdminControlsForm({
                             Copy Payload
                           </Button>
                         </div>
-                        <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
+                        <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border-subtle)] bg-slate-950/70 p-3 text-xs text-slate-100">
                           {jenkinsBridgeSamplePayload}
                         </pre>
                       </div>
@@ -1063,7 +1063,7 @@ export default function AdminControlsForm({
                             Copy Script
                           </Button>
                         </div>
-                        <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
+                        <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border-subtle)] bg-slate-950/70 p-3 text-xs text-slate-100">
                           {jenkinsBridgeSmokeScript ||
                             "# Enter a valid /webhook/jenkins URL to generate a signed smoke test."}
                         </pre>
@@ -1081,7 +1081,7 @@ export default function AdminControlsForm({
                 )}
               </div>
 
-              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4 space-y-4">
+              <div className="space-y-4 rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/22 p-4">
                 <div>
                   <p className="text-sm font-medium text-[var(--ph-text)]">
                     Notification Target Setup Assistant
@@ -1288,7 +1288,7 @@ export default function AdminControlsForm({
                           Copy Target
                         </Button>
                       </div>
-                      <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
+                      <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border-subtle)] bg-slate-950/70 p-3 text-xs text-slate-100">
                         {JSON.stringify(notificationTargetDraft, null, 2)}
                       </pre>
                     </div>
@@ -1314,7 +1314,7 @@ export default function AdminControlsForm({
                           Copy Env Block
                         </Button>
                       </div>
-                      <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
+                      <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border-subtle)] bg-slate-950/70 p-3 text-xs text-slate-100">
                         {notificationTargetEnvBlock}
                       </pre>
                       <p className="text-xs text-[var(--ph-muted)]">
@@ -1375,13 +1375,13 @@ export default function AdminControlsForm({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="azure_openai">
-                        azure_openai (recommended)
+                        azure_openai
                       </SelectItem>
                       <SelectItem value="openai_compatible">
                         openai_compatible
                       </SelectItem>
                       <SelectItem value="codex_app_server">
-                        codex_app_server
+                        codex_app_server (recommended)
                       </SelectItem>
                       <SelectItem value="custom">custom (scaffold)</SelectItem>
                     </SelectContent>
@@ -2071,7 +2071,7 @@ export default function AdminControlsForm({
                 </div>
               </div>
 
-              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4">
+              <div className="rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/22 p-4">
                 <p className="text-sm font-medium text-[var(--ph-text)]">
                   Startup-only dependency
                 </p>
@@ -2089,7 +2089,7 @@ export default function AdminControlsForm({
                   )}
               </div>
 
-              <div className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4 space-y-4">
+              <div className="space-y-4 rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/22 p-4">
                 <div>
                   <p className="text-sm font-medium text-[var(--ph-text)]">
                     Webhook Setup Assistant
@@ -2197,7 +2197,7 @@ export default function AdminControlsForm({
                           </Button>
                         </div>
                       </div>
-                      <pre className="overflow-x-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
+                      <pre className="overflow-x-auto rounded-md border border-[var(--ph-border-subtle)] bg-slate-950/70 p-3 text-xs text-slate-100">
                         {handoffSetupEnvBlock}
                       </pre>
                       <p className="text-xs text-[var(--ph-muted)]">
@@ -2230,7 +2230,7 @@ export default function AdminControlsForm({
                             Copy Payload
                           </Button>
                         </div>
-                        <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
+                        <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border-subtle)] bg-slate-950/70 p-3 text-xs text-slate-100">
                           {handoffSamplePayload}
                         </pre>
                       </div>
@@ -2256,7 +2256,7 @@ export default function AdminControlsForm({
                             Copy curl
                           </Button>
                         </div>
-                        <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border)] bg-slate-950/70 p-3 text-xs text-slate-100">
+                        <pre className="max-h-72 overflow-auto rounded-md border border-[var(--ph-border-subtle)] bg-slate-950/70 p-3 text-xs text-slate-100">
                           {handoffSmokeCurl}
                         </pre>
                         <p className="text-xs text-[var(--ph-muted)]">
@@ -2551,7 +2551,7 @@ export default function AdminControlsForm({
                   {mcpEffectivePolicies.map(({ tool, policy, effective }) => (
                     <div
                       key={tool.key}
-                      className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-surface)] px-3 py-2"
+                      className="rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-surface)] px-3 py-2"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>

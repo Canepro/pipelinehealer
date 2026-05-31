@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: 22efa6e -->
+<!-- LAST_VERIFIED: 3d754c5 -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -173,7 +173,7 @@ Optional runtime settings:
 
 Behavior:
 - If a task override is set, that model/deployment is used for the task.
-- If empty, PipelineHealer falls back to the provider default model (`azure_openai_deployment_name` or `openai_compatible_model`).
+- If empty, PipelineHealer falls back to the provider default model (`codex_app_server_model`, `azure_openai_deployment_name`, or `openai_compatible_model`).
 
 ## Audit Trail
 

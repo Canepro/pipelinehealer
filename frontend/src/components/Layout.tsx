@@ -90,11 +90,11 @@ export default function Layout() {
   return (
     <div className="min-h-screen flex">
       {/* Sidebar */}
-      <div className="hidden border-r border-[var(--ph-border)] bg-[var(--ph-surface)] md:flex md:w-[248px] md:flex-col">
+      <div className="hidden border-r border-[var(--ph-border-subtle)] bg-[var(--ph-surface)] md:flex md:w-[248px] md:flex-col">
         <div className="flex min-h-0 flex-grow flex-col overflow-y-auto">
-          <Link to="/" className="border-b border-[var(--ph-border)] px-5 py-5">
+          <Link to="/" className="border-b border-[var(--ph-border-subtle)] px-5 py-5">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]">
                 <Zap className="h-5 w-5 text-[var(--ph-accent)]" />
               </div>
               <div>
@@ -122,7 +122,7 @@ export default function Layout() {
                     to={item.href}
                     className={clsx(
                       isActive
-                        ? "border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] text-[var(--ph-text)]"
+                        ? "border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)] text-[var(--ph-text)]"
                         : "border-transparent text-[var(--ph-muted)] hover:bg-[var(--ph-bg-elevated)] hover:text-[var(--ph-text)]",
                       "group flex items-center rounded-md border px-3 py-2.5 text-sm font-medium transition-colors",
                     )}
@@ -142,14 +142,14 @@ export default function Layout() {
             </nav>
           </div>
 
-          <div className="border-t border-[var(--ph-border)] px-5 py-4">
+          <div className="border-t border-[var(--ph-border-subtle)] px-5 py-4">
             <p className="text-xs font-medium text-[var(--ph-text)]">
               OSS-first pipeline platform
             </p>
             <p className="mt-1 text-xs text-[var(--ph-muted)]">
               GitHub Actions and Jenkins bridge today.
             </p>
-            <div className="mt-3 border-t border-[var(--ph-border)] pt-3">
+            <div className="mt-3 border-t border-[var(--ph-border-subtle)] pt-3">
               <ReleaseStatus />
             </div>
           </div>
@@ -157,7 +157,7 @@ export default function Layout() {
       </div>
 
       {/* Mobile header */}
-      <div className="fixed left-0 right-0 top-0 z-20 flex h-14 items-center justify-between border-b border-[var(--ph-border)] bg-[var(--ph-surface)] px-3 pt-[env(safe-area-inset-top)] md:hidden">
+      <div className="fixed left-0 right-0 top-0 z-20 flex h-14 items-center justify-between border-b border-[var(--ph-border-subtle)] bg-[var(--ph-surface)] px-3 pt-[env(safe-area-inset-top)] md:hidden">
         <div className="flex items-center gap-2 min-w-0">
           <Link
             to="/"
@@ -210,7 +210,7 @@ export default function Layout() {
                       to={item.href}
                       className={clsx(
                         isActive
-                          ? "border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] text-[var(--ph-text)]"
+                          ? "border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)] text-[var(--ph-text)]"
                           : "border-transparent text-[var(--ph-muted)] hover:bg-[var(--ph-bg-elevated)] hover:text-[var(--ph-text)]",
                         "group flex items-center rounded-md border px-3 py-2.5 text-sm font-medium transition-colors",
                       )}
@@ -229,7 +229,7 @@ export default function Layout() {
                 );
               })}
             </nav>
-            <div className="mt-6 border-t border-[var(--ph-border)] pt-4">
+            <div className="mt-6 border-t border-[var(--ph-border-subtle)] pt-4">
               <ReleaseStatus />
             </div>
           </SheetContent>

@@ -101,15 +101,22 @@ export const normalizeHostnameInput = (value: string): string | null => {
   return candidate
 }
 
+const normalizeLlmProvider = (
+  provider: AppSettings['llm_provider'],
+): SettingsFormState['llm_provider'] => {
+  switch (provider) {
+    case 'azure_openai':
+    case 'openai_compatible':
+    case 'codex_app_server':
+    case 'custom':
+      return provider
+    default:
+      return 'codex_app_server'
+  }
+}
+
 export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
-  llm_provider:
-    data.llm_provider === 'openai_compatible'
-      ? 'openai_compatible'
-      : data.llm_provider === 'codex_app_server'
-        ? 'codex_app_server'
-      : data.llm_provider === 'custom'
-        ? 'custom'
-        : 'azure_openai',
+  llm_provider: normalizeLlmProvider(data.llm_provider),
   openai_compatible_base_url: data.openai_compatible_base_url ?? '',
   openai_compatible_model: data.openai_compatible_model ?? '',
   codex_app_server_transport:
@@ -298,7 +305,7 @@ export const SETTING_DESCRIPTIONS: Record<string, string> = {
   azure_openai_deployment_name:
     'The Azure OpenAI deployment name to use for AI analysis.',
   llm_provider:
-    'Model backend selector. azure_openai is production-ready, openai_compatible is available, codex_app_server uses the local Codex App Server runtime, and custom remains scaffolded.',
+    'Model backend selector. Codex App Server is the default runtime; azure_openai and openai_compatible remain supported provider routes, and custom is scaffolded.',
   openai_compatible_base_url:
     'Base URL for an OpenAI-compatible provider endpoint (example: https://api.openai.com/v1).',
   openai_compatible_model:

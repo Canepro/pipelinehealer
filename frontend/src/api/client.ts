@@ -281,6 +281,7 @@ export interface SetupStatus {
   secret_backend: SetupCheck
   llm_runtime: SetupCheck
   github_runtime: SetupCheck
+  jenkins_bridge: SetupCheck
   webhook_secrets: SetupCheck
 }
 

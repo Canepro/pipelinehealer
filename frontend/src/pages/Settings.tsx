@@ -45,7 +45,7 @@ export default function SettingsPage() {
   const [newHandoffHostInput, setNewHandoffHostInput] = useState("");
   const [secretDrafts, setSecretDrafts] = useState<Record<string, string>>({});
   const [form, setForm] = useState<SettingsFormState>({
-    llm_provider: "azure_openai",
+    llm_provider: "codex_app_server",
     openai_compatible_base_url: "",
     openai_compatible_model: "",
     codex_app_server_transport: "stdio",
@@ -452,7 +452,7 @@ export default function SettingsPage() {
       {confirmDialog}
       {/* Page header */}
       <div className="flex items-start gap-3.5">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]">
           <Settings2 className="h-5 w-5 text-[var(--ph-accent)]" />
         </div>
         <div>
@@ -522,17 +522,18 @@ export default function SettingsPage() {
                   </>
                 ) : (
                   <>
-                    Use either <code className="font-mono">X-Admin-Key</code>
-                    or a signed-in Entra role with admin permissions.
+                    Use either{" "}
+                    <code className="font-mono">X-Admin-Key</code> or a
+                    signed-in Entra role with admin permissions.
                   </>
                 )}
               </>
             ) : (
               <>
                 Session login is disabled in this deployment (
-                <code className="font-mono">VITE_AUTH_MODE=none</code>). Use
+                <code className="font-mono">VITE_AUTH_MODE=none</code>). Use{" "}
                 <code className="font-mono">X-Admin-Key</code> or set frontend
-                runtime
+                runtime{" "}
                 <code className="font-mono">VITE_ENTRA_*</code> values and
                 redeploy env.
               </>
@@ -691,6 +692,8 @@ export default function SettingsPage() {
                           data.llm_provider === "azure_openai"
                             ? data.azure_openai_deployment_name ||
                               "Not configured"
+                            : data.llm_provider === "codex_app_server"
+                              ? data.codex_app_server_model || "Not configured"
                             : data.openai_compatible_model || "Not configured",
                       },
                       { label: "Auth mode", value: data.auth_mode },
@@ -764,7 +767,7 @@ export default function SettingsPage() {
                         Secret values are managed separately and never returned to the browser after write.
                       </li>
                     </ul>
-                    <p className="border-t border-[var(--ph-border)]/50 pt-3 text-xs leading-5 text-[var(--ph-muted)]">
+                    <p className="border-t border-[var(--ph-border-subtle)] pt-3 text-xs leading-5 text-[var(--ph-muted)]">
                       Use env only for bootstrap wiring or forced overrides. Normal operator changes belong in this UI.
                     </p>
                   </div>
@@ -815,7 +818,7 @@ export default function SettingsPage() {
                       },
                     ]}
                   />
-                  <div className="mt-auto border-t border-[var(--ph-border)]/50 pt-4 text-sm text-[var(--ph-muted)]">
+                  <div className="mt-auto border-t border-[var(--ph-border-subtle)] pt-4 text-sm text-[var(--ph-muted)]">
                     <div className="font-semibold text-[var(--ph-text)]/90">
                       Operator workflow
                     </div>
@@ -894,14 +897,14 @@ function SettingsSummarySection({
       <div className="mb-3 text-sm font-semibold text-[var(--ph-text)]/90">
         {title}
       </div>
-      <div>
+      <div className={compact ? "space-y-2" : "space-y-2.5"}>
         {items.map((item) => (
           <div
             key={`${title}-${item.label}`}
             className={
               compact
-                ? "border-b border-[var(--ph-border)]/55 py-3 last:border-b-0 last:pb-0 first:pt-0"
-                : "flex items-start justify-between gap-4 border-b border-[var(--ph-border)]/55 py-3 last:border-b-0 last:pb-0 first:pt-0"
+                ? "rounded-md bg-[var(--ph-bg-elevated)]/28 px-3 py-2.5 shadow-[inset_0_0_0_1px_var(--ph-border-subtle)]"
+                : "flex items-start justify-between gap-4 rounded-md bg-[var(--ph-bg-elevated)]/28 px-3 py-2.5 shadow-[inset_0_0_0_1px_var(--ph-border-subtle)]"
             }
           >
             <span
@@ -1029,7 +1032,7 @@ export function RuntimeWiringCard({
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-md border border-[var(--ph-border)]/70 px-3 py-3">
+          <div className="rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/20 px-3 py-3">
             <SettingToggleField
               label="Verify webhook signatures"
               description="Keep this enabled in production unless you have a trusted intermediary in front of the webhook endpoint."
@@ -1050,7 +1053,7 @@ export function RuntimeWiringCard({
             />
           </div>
 
-          <div className="rounded-md border border-[var(--ph-border)]/70 px-3 py-3">
+          <div className="rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/20 px-3 py-3">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-medium text-[var(--ph-text)]">Jenkins bridge</div>
@@ -1062,7 +1065,7 @@ export function RuntimeWiringCard({
                 {data.settings_metadata?.jenkins_bridge_enabled?.source === "env" ? "Env override" : "Runtime"}
               </Badge>
             </div>
-            <div className="mt-3 space-y-3 border-t border-[var(--ph-border)]/55 pt-3">
+            <div className="mt-3 space-y-3 border-t border-[var(--ph-border-subtle)] pt-3">
               <SettingToggleField
                 label="Enabled"
                 description="Turn the Jenkins bridge runtime policy on or off."
@@ -1130,13 +1133,14 @@ function FieldHeader({ label, source }: { label: string; source?: string }) {
   );
 }
 
-function SetupChecklistCard({ status }: { status: { ready: boolean; storage_bootstrap: SetupCheck; auth_bootstrap: SetupCheck; secret_backend: SetupCheck; llm_runtime: SetupCheck; github_runtime: SetupCheck; webhook_secrets: SetupCheck } }) {
+function SetupChecklistCard({ status }: { status: { ready: boolean; storage_bootstrap: SetupCheck; auth_bootstrap: SetupCheck; secret_backend: SetupCheck; llm_runtime: SetupCheck; github_runtime: SetupCheck; jenkins_bridge: SetupCheck; webhook_secrets: SetupCheck } }) {
   const items = [
     ["Storage bootstrap", status.storage_bootstrap],
     ["Auth bootstrap", status.auth_bootstrap],
     ["Secret backend", status.secret_backend],
     ["LLM runtime", status.llm_runtime],
     ["GitHub runtime", status.github_runtime],
+    ["Jenkins bridge", status.jenkins_bridge],
     ["Webhook secrets", status.webhook_secrets],
   ] as const;
 
@@ -1154,7 +1158,7 @@ function SetupChecklistCard({ status }: { status: { ready: boolean; storage_boot
         {items.map(([label, check]) => (
           <div
             key={label}
-            className="grid gap-1 rounded-md border border-[var(--ph-border)]/70 px-3 py-2"
+            className="grid gap-1 rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/20 px-3 py-2"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-medium text-[var(--ph-text)]">{label}</div>
@@ -1211,7 +1215,7 @@ function SecretSettingsCard({
           {secrets.map((secret) => (
             <div
               key={secret.key}
-              className="flex flex-col rounded-md border border-[var(--ph-border)]/70 px-3 py-3"
+              className="flex flex-col rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/20 px-3 py-3"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -1235,7 +1239,7 @@ function SecretSettingsCard({
                     id={`secret-${secret.key}`}
                     value={values[secret.key] ?? ""}
                     onChange={(event) => onChange(secret.key, event.target.value)}
-                    className="min-h-28 w-full rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-3 py-2 text-sm text-[var(--ph-text)] outline-none placeholder:text-[var(--ph-muted)] focus-visible:ring-2 focus-visible:ring-[var(--ph-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ph-surface)]"
+                    className="min-h-28 w-full rounded-lg border border-[var(--ph-border-strong)] bg-[var(--ph-bg-elevated)] px-3 py-2 text-sm text-[var(--ph-text)] outline-none placeholder:text-[var(--ph-muted)] focus-visible:ring-2 focus-visible:ring-[var(--ph-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ph-surface)]"
                     placeholder="Paste the new secret value"
                   />
                 ) : (

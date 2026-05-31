@@ -23,7 +23,7 @@ export function EmptyState({
       )}
     >
       {icon ? (
-        <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] text-[var(--ph-muted)]">
+        <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)] text-[var(--ph-muted)]">
           {icon}
         </span>
       ) : null}

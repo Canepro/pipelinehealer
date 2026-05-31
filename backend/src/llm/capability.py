@@ -19,7 +19,7 @@ _CAPABILITY_SCAN_PAGE_SIZE = 200
 
 
 def _required_llm_config_present(settings: Any) -> bool:
-    provider = str(getattr(settings, "llm_provider", "azure_openai") or "").strip().lower()
+    provider = str(getattr(settings, "llm_provider", "codex_app_server") or "").strip().lower()
     if provider == "openai_compatible":
         return all(
             str(value or "").strip()
@@ -55,7 +55,7 @@ def _required_llm_config_present(settings: Any) -> bool:
 
 
 def _configured_models(settings: Any) -> set[str]:
-    provider = str(getattr(settings, "llm_provider", "azure_openai") or "").strip().lower()
+    provider = str(getattr(settings, "llm_provider", "codex_app_server") or "").strip().lower()
     if provider == "codex_app_server":
         model = str(getattr(settings, "codex_app_server_model", "") or "").strip()
         return {model} if model else set()

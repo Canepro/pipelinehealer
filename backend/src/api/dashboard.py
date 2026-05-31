@@ -573,6 +573,23 @@ def _build_setup_status(storage: ActivityStorage | None = None) -> SetupStatusVi
             detail="Configure a GitHub PAT for the current live GitHub API runtime path.",
         )
 
+    if settings.jenkins_bridge_enabled:
+        jenkins_ready = bool(settings.jenkins_bridge_shared_secret)
+        jenkins_bridge = SetupCheckView(
+            ready=jenkins_ready,
+            detail=(
+                "Jenkins bridge is enabled with signed webhook verification. "
+                f"PR output is {'allowed' if settings.jenkins_bridge_allow_pr else 'issue-first'}."
+                if jenkins_ready
+                else "Jenkins bridge is enabled, but JENKINS_BRIDGE_SHARED_SECRET is missing."
+            ),
+        )
+    else:
+        jenkins_bridge = SetupCheckView(
+            ready=True,
+            detail="Jenkins bridge is disabled. Enable it when you are ready to accept signed Jenkins webhook events.",
+        )
+
     webhook_ready = True
     webhook_messages: list[str] = []
     if settings.verify_webhook_signature and not settings.github_webhook_secret:
@@ -600,6 +617,7 @@ def _build_setup_status(storage: ActivityStorage | None = None) -> SetupStatusVi
             secret_backend_ready,
             llm_runtime,
             github_runtime,
+            jenkins_bridge,
             webhook_secrets,
         )
     )
@@ -610,6 +628,7 @@ def _build_setup_status(storage: ActivityStorage | None = None) -> SetupStatusVi
         secret_backend=secret_backend_ready,
         llm_runtime=llm_runtime,
         github_runtime=github_runtime,
+        jenkins_bridge=jenkins_bridge,
         webhook_secrets=webhook_secrets,
     )
 

@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 8817b54 -->
+<!-- LAST_VERIFIED: 3d754c5 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -797,7 +797,10 @@ configured value from effective provenance. Source values are portable, app-obse
   "github_app_configured": false,
   "github_auth_mode": "pat",
   "ph_allowed_repos": ["Canepro/pipelinehealer-demo"],
-  "llm_provider": "azure_openai",
+  "llm_provider": "codex_app_server",
+  "codex_app_server_transport": "stdio",
+  "codex_app_server_command": "codex app-server",
+  "codex_app_server_model": "gpt-5.4",
   "llm_model_analysis": "",
   "llm_model_diagnosis": "",
   "llm_model_remediation": "",
@@ -877,7 +880,7 @@ Notes:
 - `settings_metadata.<field>.sensitive=true` means the field is a presence-only or operator-safe projection of hidden sensitive startup configuration.
 - `settings_metadata.<field>.durable=false` means the current value exists only as an in-process runtime override and is not represented in durable runtime storage.
 - `computed` fields are derived status/projection values, not directly mutable settings.
-- `setup_status` groups readiness checks for bootstrap storage/auth wiring, runtime secret backend readiness, current LLM runtime inputs, current GitHub runtime inputs, and webhook-secret dependencies.
+- `setup_status` groups readiness checks for bootstrap storage/auth wiring, runtime secret backend readiness, current LLM runtime inputs, current GitHub runtime inputs, Jenkins bridge readiness, and webhook-secret dependencies.
 - Environment or env-file values remain the highest-precedence startup override for the same logical keys, even when durable runtime values also exist.
 - `github_auth_mode="app configured (inactive)"` means GitHub App inputs are present, but the current live GitHub API runtime still depends on a PAT.
 - `auto_merge_remediation_prs` is an explicit operator gate. With `auto_merge_strategy=github_auto_merge`, PipelineHealer requests GitHub native auto-merge. With `auto_merge_strategy=merge_when_clean`, PipelineHealer polls the generated PR head and only calls the GitHub merge endpoint after the PR is open, non-draft, mergeable, and GitHub reports the required merge gate clean. Optional failing app checks are recorded in `auto_merge.last_state.checks.optional_failures_ignored` when GitHub still reports `mergeable_state=clean`.
@@ -958,7 +961,7 @@ Changes take effect immediately. If the same logical key is also set through env
 | `agent_handoff_default_target` | string | `codex_app_server`, `openclaw`, `hermes`, or `custom` |
 | `agent_handoff_enabled_targets` | list[string] | Enabled external-agent handoff targets |
 | `azure_openai_deployment_name` | string | Non-empty; switches AI model deployment at runtime |
-| `llm_provider` | string | `azure_openai`, `openai_compatible`, `codex_app_server`, or `custom` |
+| `llm_provider` | string | `codex_app_server` by default; supported values are `azure_openai`, `openai_compatible`, `codex_app_server`, or `custom` |
 | `openai_compatible_base_url` | string | Required when `llm_provider=openai_compatible`; must be `http(s)://...` |
 | `openai_compatible_model` | string | Required when `llm_provider=openai_compatible` |
 | `codex_app_server_transport` | string | `stdio` or `websocket` |
@@ -1089,7 +1092,7 @@ Returns health/status for the currently selected LLM provider adapter.
 
 ```json
 {
-  "provider": "azure_openai",
+  "provider": "codex_app_server",
   "implemented": true,
   "configured": true,
   "available": true,
@@ -1099,10 +1102,10 @@ Returns health/status for the currently selected LLM provider adapter.
   "capability_state": "provider_ready",
   "capability_summary": "Provider readiness checks pass, but there is no recent live activity for the current model routing.",
   "reason": "ok",
-  "message": "Azure OpenAI provider configuration looks valid.",
-  "endpoint": "https://example.openai.azure.com/",
-  "deployment_name": "active-deployment",
-  "api_version": "2025-04-01-preview",
+  "message": "Codex App Server stdio provider configuration looks valid.",
+  "endpoint": "stdio",
+  "deployment_name": "gpt-5.4",
+  "api_version": "",
   "last_validated_at": null,
   "last_validation": null
 }

@@ -11,7 +11,7 @@ const buttonVariants = cva(
       variant: {
         default: 'bg-[var(--ph-accent)] text-white hover:bg-[var(--ph-accent-hover)] active:bg-[var(--ph-accent-hover)]',
         secondary:
-          'border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] text-[var(--ph-text)] hover:bg-[var(--ph-surface)] disabled:hover:bg-[var(--ph-bg-elevated)]',
+          'border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)] text-[var(--ph-text)] hover:bg-[var(--ph-surface)] disabled:hover:bg-[var(--ph-bg-elevated)]',
         destructive: 'bg-[var(--ph-danger-solid)] text-white hover:bg-[var(--ph-danger-solid-hover)]',
         ghost:
           'text-[var(--ph-text)] hover:bg-[var(--ph-bg-elevated)] disabled:hover:bg-transparent',

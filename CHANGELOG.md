@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 6bd38bf -->
+<!-- LAST_VERIFIED: 3d754c5 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -9,6 +9,23 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ## [Unreleased]
 
 - _No unreleased entries yet._
+
+## [v0.8.9] - 2026-05-31
+
+### Added
+
+- Added a first-class Jenkins bridge readiness check to setup status, Settings, and Control Center.
+- Added frontend regression coverage to ensure Azure OpenAI settings are preserved when operators save unrelated changes.
+
+### Changed
+
+- Made Codex App Server the default model provider route across backend config, settings registry, provider resolution, and Settings UI defaults.
+- Softened Settings and Control Center dark-mode surfaces to remove harsh divider lines while keeping dense operator layouts.
+
+### Fixed
+
+- Fixed Settings form loading so an existing Azure OpenAI deployment is not silently remapped to Codex App Server.
+- Fixed admin-access copy spacing around `X-Admin-Key` and frontend runtime setting names.
 
 ## [v0.8.8] - 2026-05-31
 

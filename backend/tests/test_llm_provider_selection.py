@@ -10,9 +10,9 @@ from src.llm.codex_app_server import CodexAppServerAgent, _extract_text
 from src.llm.providers import LLMProviderName, resolve_llm_provider
 
 
-def test_resolve_llm_provider_defaults_to_azure() -> None:
-    assert resolve_llm_provider(None) == LLMProviderName.AZURE_OPENAI
-    assert resolve_llm_provider("") == LLMProviderName.AZURE_OPENAI
+def test_resolve_llm_provider_defaults_to_codex_app_server() -> None:
+    assert resolve_llm_provider(None) == LLMProviderName.CODEX_APP_SERVER
+    assert resolve_llm_provider("") == LLMProviderName.CODEX_APP_SERVER
 
 
 def test_resolve_llm_provider_accepts_supported_values() -> None:

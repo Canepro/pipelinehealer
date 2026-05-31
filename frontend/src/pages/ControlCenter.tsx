@@ -580,7 +580,7 @@ function OverviewBlock({
         {items.map((item) => (
           <div
             key={`${title}-${item.label}`}
-            className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/40 px-3 py-2.5"
+            className="rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/35 px-3 py-2.5"
           >
             <div className="text-[11px] leading-tight text-[var(--ph-muted)]">
               {item.label}
@@ -607,7 +607,7 @@ function SummaryRows({
       {rows.map((row) => (
         <div
           key={`${row.label}-${row.value}`}
-          className="border-b border-[var(--ph-border)]/55 pb-2.5 last:border-b-0 last:pb-0"
+          className="rounded-md bg-[var(--ph-bg-elevated)]/24 px-3 py-2.5 shadow-[inset_0_0_0_1px_var(--ph-border-subtle)]"
         >
           <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--ph-muted)]">
             {row.label}
@@ -937,6 +937,15 @@ export default function ControlCenterPage() {
     return `${mcpWriteBlockedCount} write action(s) are blocked by policy.`;
   })();
 
+  const jenkinsBridgeSummary = (() => {
+    if (!settings) return "N/A";
+    if (!settings.jenkins_bridge_enabled) return "Disabled";
+    if (settings.auto_create_pr && settings.jenkins_bridge_allow_pr) {
+      return "Enabled, PR-capable after policy checks";
+    }
+    return "Enabled, issue-first";
+  })();
+
   const providerDefaultModel = (() => {
     if (!settings) return "";
     if (settings.llm_provider === "azure_openai") {
@@ -1049,7 +1058,7 @@ export default function ControlCenterPage() {
     <div className="space-y-6">
       {confirmDialog}
       <div className="flex items-start gap-3.5">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]">
           <ShieldCheck className="h-5 w-5 text-[var(--ph-accent)]" />
         </div>
         <div>
@@ -1128,7 +1137,13 @@ export default function ControlCenterPage() {
                 )}
               </>
             ) : (
-              "Session login is disabled in this deployment (VITE_AUTH_MODE=none). Use X-Admin-Key or set VITE_AUTH_MODE=entra in frontend runtime env and redeploy env."
+              <>
+                Session login is disabled in this deployment (
+                <code className="font-mono">VITE_AUTH_MODE=none</code>). Use{" "}
+                <code className="font-mono">X-Admin-Key</code> or set{" "}
+                <code className="font-mono">VITE_AUTH_MODE=entra</code> in
+                frontend runtime env and redeploy env.
+              </>
             )}
           </p>
         </CardContent>
@@ -1200,7 +1215,7 @@ export default function ControlCenterPage() {
                 }
                 className="w-full"
               >
-                <TabsList className="inline-flex h-auto min-h-0 w-full flex-wrap gap-1 rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/40 p-1 sm:w-auto">
+                <TabsList className="inline-flex h-auto min-h-0 w-full flex-wrap gap-1 rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/40 p-1 sm:w-auto">
                   {[
                     { value: "overview", label: "Governance Overview" },
                     { value: "learning_ops", label: "Learning & Ops" },
@@ -1210,7 +1225,7 @@ export default function ControlCenterPage() {
                     <TabsTrigger
                       key={tab.value}
                       value={tab.value}
-                      className="flex-1 whitespace-nowrap rounded-md border-b-0 px-4 py-2 text-sm font-medium text-[var(--ph-muted)] data-[state=active]:bg-[var(--ph-surface)] data-[state=active]:font-semibold data-[state=active]:shadow-sm sm:flex-none"
+                      className="flex-1 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium text-[var(--ph-muted)] data-[state=active]:bg-[var(--ph-surface)] data-[state=active]:font-semibold data-[state=active]:shadow-sm sm:flex-none"
                     >
                       {tab.label}
                     </TabsTrigger>
@@ -1371,6 +1386,10 @@ export default function ControlCenterPage() {
                           label: "MCP read-only",
                           value: settings.mcp_read_only ? "Yes" : "No",
                         },
+                        {
+                          label: "Jenkins bridge",
+                          value: jenkinsBridgeSummary,
+                        },
                       ]}
                     />
                     <OverviewBlock
@@ -1429,6 +1448,13 @@ export default function ControlCenterPage() {
                               ? "All repositories (no allowlist)"
                               : `${settings.ph_allowed_repos.length} allowlisted repository entries`,
                         },
+                        {
+                          label: "Jenkins ingress",
+                          value: jenkinsBridgeSummary,
+                          detail: settings.jenkins_bridge_enabled
+                            ? `Signed webhook: skew ${settings.jenkins_bridge_max_skew_seconds}s, replay TTL ${settings.jenkins_bridge_replay_ttl_seconds}s.`
+                            : "Enable the signed bridge in Settings before connecting Jenkins jobs.",
+                        },
                       ]}
                     />
                   </CardContent>
@@ -1445,7 +1471,7 @@ export default function ControlCenterPage() {
                     {mcpToolRows.map((row) => (
                       <div
                         key={row.key}
-                        className="grid grid-cols-1 gap-2 rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3 text-sm lg:grid-cols-[180px_minmax(0,1fr)_160px]"
+                        className="grid grid-cols-1 gap-2 rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/28 p-3 text-sm lg:grid-cols-[180px_minmax(0,1fr)_160px]"
                       >
                         <div className="font-medium text-[var(--ph-text)]">
                           {row.label}
@@ -1499,7 +1525,7 @@ export default function ControlCenterPage() {
                       {taskModelPreview.map((task) => (
                         <div
                           key={task.key}
-                          className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3"
+                          className="rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/28 p-3"
                         >
                           <div className="text-sm font-medium text-[var(--ph-text)]">
                             {task.label}
@@ -1635,7 +1661,7 @@ export default function ControlCenterPage() {
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-3">
-                    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3">
+                    <div className="rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/28 p-3">
                       <p className="text-xs font-medium uppercase tracking-wide text-[var(--ph-muted)]">
                         Active playbooks
                       </p>
@@ -1646,7 +1672,7 @@ export default function ControlCenterPage() {
                         Candidate guidance currently eligible for live injection.
                       </p>
                     </div>
-                    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3">
+                    <div className="rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/28 p-3">
                       <p className="text-xs font-medium uppercase tracking-wide text-[var(--ph-muted)]">
                         Promotion ready
                       </p>
@@ -1657,7 +1683,7 @@ export default function ControlCenterPage() {
                         Candidates already meeting activation gates.
                       </p>
                     </div>
-                    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/30 p-3">
+                    <div className="rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/28 p-3">
                       <p className="text-xs font-medium uppercase tracking-wide text-[var(--ph-muted)]">
                         Pending review
                       </p>
@@ -1907,7 +1933,7 @@ export default function ControlCenterPage() {
                       {reviewQueue.map((item) => (
                         <div
                           key={`${item.activity.id}-${item.title}`}
-                          className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4"
+                          className="rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/22 p-4"
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
@@ -1972,7 +1998,7 @@ export default function ControlCenterPage() {
                     {trustMetrics.map((metric) => (
                       <div
                         key={metric.label}
-                        className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4"
+                        className="rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/22 p-4"
                       >
                         <p className="text-xs font-medium uppercase tracking-wide text-[var(--ph-muted)]">
                           {metric.label}
@@ -2015,7 +2041,7 @@ export default function ControlCenterPage() {
                       .map(([failureType, count]) => (
                         <div
                           key={failureType}
-                          className="flex items-center justify-between rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 px-3 py-3"
+                          className="flex items-center justify-between rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/22 px-3 py-3"
                         >
                           <div>
                             <p className="text-sm font-medium text-[var(--ph-text)]">
@@ -2133,7 +2159,7 @@ function CommandScopeBlock({
   onCopy: (command: string) => void;
 }) {
   return (
-    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/20 p-3">
+    <div className="rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/20 p-3">
       <div className="mb-2">
         <p className="text-sm font-medium text-[var(--ph-text)]">{title}</p>
         <p className="text-xs text-[var(--ph-muted)]">{description}</p>
@@ -2142,7 +2168,7 @@ function CommandScopeBlock({
         {commands.map((item) => (
           <div
             key={`${item.scope}-${item.label}-${item.command}`}
-            className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-surface)] px-3 py-2"
+            className="rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-surface)] px-3 py-2"
           >
             <div className="mb-1 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -2193,7 +2219,7 @@ function LearningQueueItemRow({
   onRetire: () => void;
 }) {
   return (
-    <div className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/25 p-4">
+    <div className="rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/22 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="break-words font-medium text-[var(--ph-text)]">
@@ -2289,7 +2315,7 @@ function LearningQueueItemRow({
                 <Link
                   key={activityId}
                   to={`/app/activities/${activityId}`}
-                  className="inline-flex items-center rounded-md border border-[var(--ph-border)] px-2 py-1 text-[11px] text-[var(--ph-accent)] hover:opacity-80"
+                  className="inline-flex items-center rounded-md border border-[var(--ph-border-subtle)] px-2 py-1 text-[11px] text-[var(--ph-accent)] hover:opacity-80"
                 >
                   Sample {activityId.slice(0, 8)}
                 </Link>

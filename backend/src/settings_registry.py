@@ -22,7 +22,7 @@ class SettingSpec:
 
 
 RUNTIME_SETTING_SPECS: tuple[SettingSpec, ...] = (
-    SettingSpec("llm_provider", "LLM_PROVIDER", "string", False, False, False, "llm", "provider", "azure_openai"),
+    SettingSpec("llm_provider", "LLM_PROVIDER", "string", False, False, False, "llm", "provider", "codex_app_server"),
     SettingSpec("azure_openai_endpoint", "AZURE_OPENAI_ENDPOINT", "string", False, False, False, "llm", "provider", ""),
     SettingSpec("azure_openai_deployment_name", "AZURE_OPENAI_DEPLOYMENT_NAME", "string", False, False, False, "llm", "provider", ""),
     SettingSpec("azure_openai_api_version", "AZURE_OPENAI_API_VERSION", "string", False, False, False, "llm", "provider", "2025-04-01-preview"),

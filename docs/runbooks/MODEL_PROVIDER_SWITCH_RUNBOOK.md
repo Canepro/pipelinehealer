@@ -1,12 +1,13 @@
 # Model Provider Switch Runbook
 
-<!-- LAST_VERIFIED: 044aa39 -->
+<!-- LAST_VERIFIED: 3d754c5 -->
 
 This runbook covers safe switching between model providers and fast rollback.
 
 ## Supported Runtime Providers
 
-- `azure_openai` (default)
+- `codex_app_server` (default)
+- `azure_openai`
 - `openai_compatible`
 - `custom` (scaffold/no-op path)
 
@@ -19,14 +20,32 @@ Before switching:
 3. Verify current state:
 
 ```bash
-bash scripts/ph.sh settings:check | jq '.llm_provider,.azure_openai_deployment_name,.openai_compatible_base_url,.openai_compatible_model'
+bash scripts/ph.sh settings:check | jq '.llm_provider,.codex_app_server_model,.codex_app_server_transport,.azure_openai_deployment_name,.openai_compatible_base_url,.openai_compatible_model'
 ```
 
 ## Switch via Settings API (Recommended for auditable runtime change)
 
 Use an explicit request ID so the change is traceable in audit logs.
 
-### 1) Switch to OpenAI-compatible
+### 1) Switch to Codex App Server
+
+```bash
+curl -sS -X PATCH "$PH_BACKEND_URL/api/settings" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_AUTH_KEY" \
+  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H "X-Request-Id: provider-switch-codex-app-server-$(date +%s)" \
+  -d '{
+    "llm_provider": "codex_app_server",
+    "codex_app_server_transport": "stdio",
+    "codex_app_server_model": "gpt-5.4",
+    "llm_model_analysis": "",
+    "llm_model_diagnosis": "",
+    "llm_model_remediation": ""
+  }'
+```
+
+### 2) Switch to OpenAI-compatible
 
 ```bash
 curl -sS -X PATCH "$PH_BACKEND_URL/api/settings" \
@@ -41,7 +60,7 @@ curl -sS -X PATCH "$PH_BACKEND_URL/api/settings" \
   }'
 ```
 
-### 2) Optional: sync to startup env if you want the provider choice to survive as an env override
+### 3) Optional: sync to startup env if you want the provider choice to survive as an env override
 
 ```bash
 bash scripts/ph.sh settings:persist --from-settings
@@ -51,16 +70,16 @@ Notes:
 - the `PATCH /api/settings` call above already applied the runtime change and persisted it durably
 - run `settings:persist --from-settings` only if you intentionally want local `backend/.env` sync and the deprecated compatibility audit/redeploy flow
 
-### 3) Verify health + runtime
+### 4) Verify health + runtime
 
 ```bash
-bash scripts/ph.sh settings:check | jq '.llm_provider,.openai_compatible_base_url,.openai_compatible_model'
+bash scripts/ph.sh settings:check | jq '.llm_provider,.codex_app_server_model,.openai_compatible_base_url,.openai_compatible_model'
 curl -sS "$PH_BACKEND_URL/api/settings/llm/provider-health" \
   -H "X-API-Key: $API_AUTH_KEY" \
   -H "X-Admin-Key: $ADMIN_API_KEY" | jq
 ```
 
-## Rollback (OpenAI-compatible -> Azure)
+## Rollback (Codex/OpenAI-compatible -> Azure)
 
 ```bash
 curl -sS -X PATCH "$PH_BACKEND_URL/api/settings" \

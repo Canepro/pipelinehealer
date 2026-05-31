@@ -118,10 +118,11 @@ class Settings(BaseSettings):
         description="File containing a Codex App Server WebSocket shared secret",
     )
     llm_provider: str = Field(
-        default=LLMProviderName.AZURE_OPENAI.value,
+        default=LLMProviderName.CODEX_APP_SERVER.value,
         description=(
             "LLM provider backend. "
-            "Current production path is azure_openai; other values are scaffolded for future expansion."
+            "Codex App Server is the default runtime; Azure OpenAI and OpenAI-compatible "
+            "providers remain supported routes."
         ),
     )
     mcp_enabled: bool = Field(

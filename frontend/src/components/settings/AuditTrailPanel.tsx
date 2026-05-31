@@ -124,7 +124,7 @@ export default function AuditTrailPanel({
             return (
               <div
                 key={`${entry.timestamp}-${entry.request_id ?? 'none'}`}
-                className="rounded-lg border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/40 p-3"
+                className="rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/35 p-3"
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="space-y-1">
@@ -167,7 +167,7 @@ export default function AuditTrailPanel({
                   ))}
                 </div>
 
-                <details className="mt-3 rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] p-2">
+                <details className="mt-3 rounded-md border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)] p-2">
                   <summary className="cursor-pointer text-xs font-medium text-[var(--ph-muted)]">
                     View value changes ({effectiveChanges.length})
                   </summary>
@@ -217,7 +217,7 @@ export default function AuditTrailPanel({
       )}
 
       {isExpanded && visibleEntries && visibleEntries.length === 0 && (
-        <div className="mt-4 rounded-lg border border-[var(--ph-border)] p-4">
+        <div className="mt-4 rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/20 p-4">
           <p className="text-sm font-medium text-[var(--ph-text)]">{EMPTY_STATES.audit.title}</p>
           <p className="mt-1 text-sm text-[var(--ph-muted)]">{EMPTY_STATES.audit.body}</p>
         </div>

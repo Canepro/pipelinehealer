@@ -26,7 +26,7 @@ const PILL: Record<Tone, string> = {
   warn: "border-[var(--ph-warning-border)] bg-[var(--ph-warning-bg)] text-[var(--ph-warning)]",
   bad: "border-[var(--ph-danger-border)] bg-[var(--ph-danger-bg)] text-[var(--ph-danger)]",
   info: "border-[var(--ph-info-border)] bg-[var(--ph-info-bg)] text-[var(--ph-info)]",
-  neutral: "border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] text-[var(--ph-muted)]",
+  neutral: "border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)] text-[var(--ph-muted)]",
 };
 
 export function StatusDot({
@@ -83,7 +83,7 @@ export function StatTile({
   return (
     <div
       className={cn(
-        "flex flex-col gap-1.5 rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/40 px-3.5 py-3",
+        "flex flex-col gap-1.5 rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/40 px-3.5 py-3",
         className,
       )}
       {...rest}

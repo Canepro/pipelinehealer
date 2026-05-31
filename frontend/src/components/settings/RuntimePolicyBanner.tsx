@@ -165,7 +165,7 @@ function PolicyFact({
   tone?: PolicyTone;
 }) {
   return (
-    <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/45 px-3.5 py-3">
+    <div className="flex flex-col gap-1.5 rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/40 px-3.5 py-3">
       <div className="flex items-center gap-2">
         <span
           className={`h-2 w-2 shrink-0 rounded-full ${POLICY_DOT[tone]}`}

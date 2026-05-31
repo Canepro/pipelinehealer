@@ -10,7 +10,7 @@ export function Panel({
   return (
     <div
       className={cn(
-        "rounded-xl border border-[var(--ph-border)] bg-[var(--ph-surface)] shadow-[var(--ph-shadow-md)]",
+        "rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-surface)] shadow-[var(--ph-shadow-md)]",
         className,
       )}
       {...props}
@@ -34,7 +34,7 @@ export function PanelHeader({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-start justify-between gap-3 border-b border-[var(--ph-border)] px-5 py-3.5",
+        "flex flex-wrap items-start justify-between gap-3 border-b border-[var(--ph-border-subtle)] px-5 py-3.5",
         className,
       )}
     >

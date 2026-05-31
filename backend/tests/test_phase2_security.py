@@ -393,7 +393,7 @@ async def test_settings_endpoint_returns_non_secret_fields(monkeypatch, tmp_path
 
     data = response.json()
     assert data["azure_openai_deployment_name"] == "gpt-5-mini"
-    assert data["llm_provider"] == "azure_openai"
+    assert data["llm_provider"] == "codex_app_server"
     assert data["llm_model_analysis"] == ""
     assert data["llm_model_diagnosis"] == ""
     assert data["llm_model_remediation"] == ""
@@ -411,6 +411,8 @@ async def test_settings_endpoint_returns_non_secret_fields(monkeypatch, tmp_path
     )
     assert data["settings_metadata"]["openai_compatible_api_key_configured"]["sensitive"] is True
     assert data["setup_status"]["storage_bootstrap"]["ready"] is True
+    assert data["setup_status"]["jenkins_bridge"]["ready"] is True
+    assert "Jenkins bridge is disabled" in data["setup_status"]["jenkins_bridge"]["detail"]
     assert "azure_openai_api_key" not in data
 
 
@@ -1005,6 +1007,7 @@ async def test_admin_patch_rejects_invalid_llm_provider(monkeypatch) -> None:
 async def test_settings_exposes_llm_provider_health(monkeypatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ADMIN_API_KEY", "admin-secret")
+    monkeypatch.setenv("LLM_PROVIDER", "azure_openai")
     monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com/")
     monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5-mini")
     reset_settings()

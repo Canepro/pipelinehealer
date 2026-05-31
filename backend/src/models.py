@@ -618,6 +618,7 @@ class SetupStatusView(BaseModel):
     secret_backend: SetupCheckView = Field(default_factory=SetupCheckView)
     llm_runtime: SetupCheckView = Field(default_factory=SetupCheckView)
     github_runtime: SetupCheckView = Field(default_factory=SetupCheckView)
+    jenkins_bridge: SetupCheckView = Field(default_factory=SetupCheckView)
     webhook_secrets: SetupCheckView = Field(default_factory=SetupCheckView)
 
 

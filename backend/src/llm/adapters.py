@@ -1,4 +1,4 @@
-"""LLM provider adapters (phase 2 scaffold, Azure-first behavior)."""
+"""LLM provider adapters for runtime health and introspection."""
 
 from dataclasses import dataclass
 from shutil import which
@@ -25,7 +25,7 @@ class LLMProviderAdapter(Protocol):
 
 @dataclass(frozen=True)
 class AzureOpenAIProviderAdapter:
-    """Current production provider adapter."""
+    """Azure OpenAI provider adapter."""
 
     name: LLMProviderName = LLMProviderName.AZURE_OPENAI
 
@@ -305,7 +305,7 @@ class OpenAICompatibleProviderAdapter:
 
 def get_llm_provider_adapter(settings: Any) -> LLMProviderAdapter:
     """Return adapter for current runtime provider selection."""
-    provider = resolve_llm_provider(getattr(settings, "llm_provider", "azure_openai"))
+    provider = resolve_llm_provider(getattr(settings, "llm_provider", "codex_app_server"))
     if provider == LLMProviderName.AZURE_OPENAI:
         return AzureOpenAIProviderAdapter()
     if provider == LLMProviderName.OPENAI_COMPATIBLE:

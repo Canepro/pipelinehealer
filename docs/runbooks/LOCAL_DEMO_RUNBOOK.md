@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: caeed6a -->
+<!-- LAST_VERIFIED: 3d754c5 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -79,7 +79,7 @@ Before you start, make sure you have:
 - **[GitHub CLI](https://cli.github.com/)** — `gh auth status` (must be logged in)
 - **Docker or Podman** (optional, for containerized setup only) — `docker --version` or `podman --version`
 - **jq** (optional, only for pretty-filtered JSON examples) — `jq --version`
-- **An LLM provider credential** (Azure OpenAI or OpenAI-compatible) — see Step 1 below
+- **An LLM provider route** (Codex App Server default, Azure OpenAI, or OpenAI-compatible) — see Step 1 below
 - **A GitHub Personal Access Token** with `repo` and `workflow` scopes — [create one here](https://github.com/settings/tokens)
 
 ---
@@ -135,21 +135,32 @@ Read this as a capability requirement, not a loose preference:
 - but diagnosis/remediation quality is degraded and the product is no longer operating at full value
 - `GET /api/settings/llm/provider-health` only confirms provider readiness, not live model-operation compatibility
 
-### Option A (Hackathon default): Azure OpenAI
+### Option A (default): Codex App Server
 
-### 1.1 Create an Azure OpenAI resource
+New local installs default to Codex App Server with `gpt-5.4`:
+
+```dotenv
+LLM_PROVIDER=codex_app_server
+CODEX_APP_SERVER_TRANSPORT=stdio
+CODEX_APP_SERVER_COMMAND=codex app-server
+CODEX_APP_SERVER_MODEL=gpt-5.4
+```
+
+Use this route when the operator already has Codex available on the host or a managed Codex App Server bridge configured. It avoids provisioning a separate Azure/OpenAI model deployment for local diagnosis and remediation work.
+
+### Option B: Azure OpenAI
 
 - Go to the [Azure Portal](https://portal.azure.com) → search for *Azure OpenAI* → click **Create**.
 - Pick any region (`East US 2` and `Sweden Central` usually have the widest model availability).
 - Pricing tier: `Standard S0` is fine for development.
 
-### 1.2 Deploy a model
+#### Deploy a model
 
 - Open your new resource → **Model deployments** → **Manage Deployments** (this opens Azure AI Foundry).
 - Click **Deploy model** → **Deploy base model** → select a chat model (for example `gpt-4o` or `gpt-4o-mini`).
 - Give it a deployment name you'll remember (for example `gpt-4o`). You'll need this name later.
 
-### 1.3 Gather your credentials
+#### Gather your credentials
 
 In the Azure Portal, open your OpenAI resource page → **Keys and Endpoint**:
 
@@ -167,7 +178,7 @@ Important routing limit:
 - mixed-provider routing is not
 - one runtime uses one active provider at a time
 
-### Option B: OpenAI-compatible provider (portable path)
+### Option C: OpenAI-compatible provider (portable path)
 
 If you are not using Azure OpenAI, configure:
 
@@ -488,6 +499,12 @@ Open the URL printed by Vite (usually `http://127.0.0.1:5173`). You should see a
 ---
 
 ## Step 5 — Verify Model Connection (Recommended)
+
+If you are using `LLM_PROVIDER=codex_app_server`, verify provider values through `settings:check`:
+
+```bash
+bash scripts/ph.sh settings:check | jq '.llm_provider,.codex_app_server_transport,.codex_app_server_model'
+```
 
 If you are using `LLM_PROVIDER=openai_compatible`, verify provider values through `settings:check`:
 

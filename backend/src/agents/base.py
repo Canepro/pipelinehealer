@@ -292,7 +292,7 @@ def create_cloud_agent(
     if settings is None:
         settings = get_settings()
 
-    provider = resolve_llm_provider(getattr(settings, "llm_provider", "azure_openai"))
+    provider = resolve_llm_provider(getattr(settings, "llm_provider", "codex_app_server"))
     effective_model = _resolve_model_for_task(
         settings=settings,
         provider=provider,

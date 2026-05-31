@@ -31,7 +31,7 @@ export function ConfirmDialog({
     >
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-[var(--ph-border)] bg-[var(--ph-surface)] p-5 shadow-[var(--ph-shadow-lg)] focus:outline-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-surface)] p-5 shadow-[var(--ph-shadow-lg)] focus:outline-none">
           <div className="flex items-start gap-3">
             {options.destructive ? (
               <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--ph-danger-border)] bg-[var(--ph-danger-bg)] text-[var(--ph-danger)]">

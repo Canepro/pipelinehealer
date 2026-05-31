@@ -33,7 +33,7 @@ const SheetContent = React.forwardRef<
     <SheetPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed inset-y-0 right-0 z-50 h-full w-[280px] border-l border-[var(--ph-border)] bg-[color:var(--ph-bg-elevated)] p-4 shadow-lg',
+        'fixed inset-y-0 right-0 z-50 h-full w-[280px] border-l border-[var(--ph-border-subtle)] bg-[color:var(--ph-bg-elevated)] p-4 shadow-lg',
         className
       )}
       {...props}

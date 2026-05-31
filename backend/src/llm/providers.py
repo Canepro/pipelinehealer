@@ -16,7 +16,7 @@ def resolve_llm_provider(value: str | None) -> LLMProviderName:
     """Resolve a provider string into a supported enum value."""
     normalized = (value or "").strip().lower()
     if not normalized:
-        return LLMProviderName.AZURE_OPENAI
+        return LLMProviderName.CODEX_APP_SERVER
     try:
         return LLMProviderName(normalized)
     except ValueError as exc:
