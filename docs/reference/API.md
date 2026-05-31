@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 17c3243 -->
+<!-- LAST_VERIFIED: 8817b54 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -880,7 +880,7 @@ Notes:
 - `setup_status` groups readiness checks for bootstrap storage/auth wiring, runtime secret backend readiness, current LLM runtime inputs, current GitHub runtime inputs, and webhook-secret dependencies.
 - Environment or env-file values remain the highest-precedence startup override for the same logical keys, even when durable runtime values also exist.
 - `github_auth_mode="app configured (inactive)"` means GitHub App inputs are present, but the current live GitHub API runtime still depends on a PAT.
-- `auto_merge_remediation_prs` is an explicit operator gate. With `auto_merge_strategy=github_auto_merge`, PipelineHealer requests GitHub native auto-merge. With `auto_merge_strategy=merge_when_clean`, PipelineHealer polls the generated PR head and only calls the GitHub merge endpoint after the PR is mergeable and checks satisfy `auto_merge_require_clean_checks`.
+- `auto_merge_remediation_prs` is an explicit operator gate. With `auto_merge_strategy=github_auto_merge`, PipelineHealer requests GitHub native auto-merge. With `auto_merge_strategy=merge_when_clean`, PipelineHealer polls the generated PR head and only calls the GitHub merge endpoint after the PR is open, non-draft, mergeable, and GitHub reports the required merge gate clean. Optional failing app checks are recorded in `auto_merge.last_state.checks.optional_failures_ignored` when GitHub still reports `mergeable_state=clean`.
 
 #### `PATCH /api/settings`
 

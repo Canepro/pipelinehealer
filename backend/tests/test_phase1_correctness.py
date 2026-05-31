@@ -395,8 +395,15 @@ class FakeGitHubToolsCapturePR(FakeGitHubToolsWithFiles):
 
 
 class FakeGitHubToolsAutoMerge(FakeGitHubToolsCapturePR):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        mergeable_state: str = "clean",
+        check_summary: dict[str, object] | None = None,
+    ) -> None:
         super().__init__(files={"README.md": "hello\n"})
+        self.mergeable_state = mergeable_state
+        self.check_summary = check_summary
         self.merge_calls: list[dict[str, object]] = []
 
     async def create_pull_request(
@@ -426,12 +433,14 @@ class FakeGitHubToolsAutoMerge(FakeGitHubToolsCapturePR):
             "state": "open",
             "draft": False,
             "mergeable": True,
-            "mergeable_state": "clean",
+            "mergeable_state": self.mergeable_state,
             "head": {"ref": "fix/dependency-run-901", "sha": "abc123"},
         }
 
     async def get_commit_check_summary(self, owner: str, repo: str, ref: str):
         _ = owner, repo, ref
+        if self.check_summary is not None:
+            return dict(self.check_summary)
         return {
             "ref": ref,
             "state": "success",
@@ -1885,10 +1894,107 @@ async def test_create_pr_auto_merges_when_clean(monkeypatch: pytest.MonkeyPatch)
     assert gh.merge_calls[0]["merge_method"] == "squash"
     assert "Remediation fingerprint" in str(gh.merge_calls[0]["commit_message"])
     assert any(
-        "PipelineHealer merged this remediation PR after checks passed."
+        "PipelineHealer merged this remediation PR after required checks passed."
         in str(call["body"])
         for call in gh.issue_comment_calls
     )
+
+
+@pytest.mark.asyncio
+async def test_create_pr_auto_merges_when_required_checks_clean_with_optional_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AUTO_MERGE_REMEDIATION_PRS", "true")
+    monkeypatch.setenv("AUTO_MERGE_STRATEGY", "merge_when_clean")
+    monkeypatch.setenv("AUTO_MERGE_POLL_SECONDS", "0")
+    reset_settings()
+
+    gh = FakeGitHubToolsAutoMerge(
+        mergeable_state="clean",
+        check_summary={
+            "ref": "abc123",
+            "state": "failure",
+            "has_checks": True,
+            "status_total": 0,
+            "check_runs_total": 2,
+            "pending": [],
+            "failing": ["optional-review"],
+            "successful": ["build"],
+        },
+    )
+    agent = RemediationAgent(github_tools=gh)
+    plan = RemediationPlan(
+        action=RemediationAction.CREATE_PR,
+        description="Install missing dependency",
+        branch_name="fix/dependency",
+        pr_title="[PipelineHealer] dependency fix",
+        pr_body="body",
+        file_changes=[{"file": "README.md", "content": "updated"}],
+    )
+
+    result = await agent._create_pull_request(
+        plan=plan,
+        owner="octo",
+        repo="demo",
+        base_branch="main",
+        workflow_run_id=901,
+    )
+
+    auto_merge = result.details.get("auto_merge")
+    assert isinstance(auto_merge, dict)
+    assert auto_merge["merged"] is True
+    checks = auto_merge["last_state"]["checks"]
+    assert checks["state"] == "failure"
+    assert checks["merge_gate"] == "github_required_checks_clean"
+    assert checks["optional_failures_ignored"] == ["optional-review"]
+    assert len(gh.merge_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_create_pr_auto_merge_does_not_ignore_failures_when_github_not_clean(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AUTO_MERGE_REMEDIATION_PRS", "true")
+    monkeypatch.setenv("AUTO_MERGE_STRATEGY", "merge_when_clean")
+    monkeypatch.setenv("AUTO_MERGE_POLL_SECONDS", "0")
+    reset_settings()
+
+    gh = FakeGitHubToolsAutoMerge(
+        mergeable_state="unstable",
+        check_summary={
+            "ref": "abc123",
+            "state": "failure",
+            "has_checks": True,
+            "status_total": 0,
+            "check_runs_total": 2,
+            "pending": [],
+            "failing": ["required-ci"],
+            "successful": ["build"],
+        },
+    )
+    agent = RemediationAgent(github_tools=gh)
+    plan = RemediationPlan(
+        action=RemediationAction.CREATE_PR,
+        description="Install missing dependency",
+        branch_name="fix/dependency",
+        pr_title="[PipelineHealer] dependency fix",
+        pr_body="body",
+        file_changes=[{"file": "README.md", "content": "updated"}],
+    )
+
+    result = await agent._create_pull_request(
+        plan=plan,
+        owner="octo",
+        repo="demo",
+        base_branch="main",
+        workflow_run_id=901,
+    )
+
+    auto_merge = result.details.get("auto_merge")
+    assert isinstance(auto_merge, dict)
+    assert auto_merge["merged"] is False
+    assert auto_merge["error"] == "Timed out waiting for mergeable PR with clean checks"
+    assert gh.merge_calls == []
 
 
 # ---------------------------------------------------------------------------
