@@ -1,0 +1,764 @@
+<!doctype html>
+<!-- Codex HTML Report Template v0.5.0: dark editorial report, layered surfaces, refined typography, gated status, timestamped, evidence-oriented. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PipelineHealer Public-safe init bootstrap closeout</title>
+  <style>
+    :root {
+      color-scheme: dark;
+
+      /* Elevation: the page is darkest; surfaces step up toward the reader. */
+      --bg: #0b0d11;
+      --bg-tint: #0f1117;
+      --surface-1: #15171f;   /* sections */
+      --surface-2: #1c1f29;   /* insets, table heads, cards */
+      --surface-3: #242836;   /* hover */
+      --pre-bg: #090a0d;
+
+      /* Ink */
+      --ink: #f4efe4;
+      --muted: #aab1be;
+      --soft: #868e9c;
+
+      /* Hairlines */
+      --line: rgba(255, 255, 255, 0.085);
+      --line-2: rgba(255, 255, 255, 0.16);
+
+      /* Accent: restrained graphite + amber */
+      --accent: #d6aa5c;
+      --accent-bright: #ecc379;
+      --accent-soft: rgba(214, 170, 92, 0.14);
+      --accent-line: rgba(214, 170, 92, 0.55);
+
+      /* Status */
+      --good: #87cc8b;
+      --warn: #e2b45e;
+      --bad: #e58b7d;
+      --info: #93b8df;
+      --neutral: #abb4c1;
+
+      --shadow: 0 18px 42px -26px rgba(0, 0, 0, 0.8), 0 2px 6px rgba(0, 0, 0, 0.35);
+      --shadow-lg: 0 44px 90px -46px rgba(0, 0, 0, 0.85);
+
+      --radius: 14px;
+      --radius-sm: 9px;
+
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.6;
+      background:
+        radial-gradient(1100px 420px at 50% -160px, rgba(214, 170, 92, 0.10), transparent 70%),
+        linear-gradient(180deg, var(--bg-tint), var(--bg) 460px);
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover {
+      color: var(--accent-bright);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .shell {
+      width: min(1120px, 100% - 40px);
+      margin: 0 auto;
+      padding: 26px 0 72px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      color: var(--ink);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .mark {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      border: 1px solid var(--accent-line);
+      background: linear-gradient(180deg, rgba(214, 170, 92, 0.22), rgba(214, 170, 92, 0.04));
+      color: var(--accent-bright);
+      font-family: var(--serif);
+      font-weight: 700;
+    }
+    .topbar time { color: var(--ink); font-weight: 600; }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 46px 46px 40px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        radial-gradient(620px 200px at 8% -30px, rgba(214, 170, 92, 0.16), transparent 72%),
+        linear-gradient(180deg, var(--surface-2), var(--surface-1));
+      box-shadow: var(--shadow-lg);
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      left: 46px;
+      right: 46px;
+      bottom: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-line), transparent);
+    }
+    .kicker {
+      margin: 0 0 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--accent);
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .kicker::before { content: ""; width: 24px; height: 1px; background: var(--accent-line); }
+
+    h1, h2, h3 { margin: 0; }
+    h1 {
+      max-width: 21ch;
+      font-family: var(--serif);
+      font-weight: 600;
+      font-size: 2.05rem;
+      line-height: 1.08;
+      letter-spacing: -0.01em;
+      text-wrap: balance;
+    }
+    .lede {
+      max-width: 66ch;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 1.08rem;
+      line-height: 1.62;
+    }
+
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 16px 0 6px;
+    }
+    .fact {
+      position: relative;
+      padding: 16px 16px 16px 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent), var(--surface-1);
+      box-shadow: var(--shadow);
+    }
+    .fact::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 15px;
+      bottom: 15px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: var(--accent);
+      opacity: 0.85;
+    }
+    .fact .value { margin-top: 9px; font-size: 1.05rem; font-weight: 650; line-height: 1.3; }
+
+    .label, .eyebrow {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .label { color: var(--soft); }
+    .eyebrow { display: block; margin-bottom: 9px; color: var(--accent); letter-spacing: 0.14em; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 11px 4px 9px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      font-weight: 650;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+    .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .done    { color: var(--good);    background: rgba(135, 204, 139, 0.12); border-color: rgba(135, 204, 139, 0.42); }
+    .partial { color: var(--warn);    background: rgba(226, 180, 94, 0.13);  border-color: rgba(226, 180, 94, 0.42); }
+    .blocked, .risk, .gated { color: var(--bad); background: rgba(229, 139, 125, 0.13); border-color: rgba(229, 139, 125, 0.42); }
+    .info    { color: var(--info);    background: rgba(147, 184, 223, 0.13); border-color: rgba(147, 184, 223, 0.42); }
+    .neutral { color: var(--neutral); background: rgba(171, 180, 193, 0.12); border-color: rgba(171, 180, 193, 0.40); }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin: 20px 0 22px;
+      padding: 10px 0;
+      background: rgba(11, 13, 17, 0.8);
+      backdrop-filter: blur(10px) saturate(140%);
+      border-bottom: 1px solid var(--line);
+    }
+    nav a {
+      padding: 7px 13px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-1);
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 600;
+    }
+    nav a:hover, nav a:focus-visible {
+      color: var(--ink);
+      border-color: var(--accent-line);
+      background: var(--surface-2);
+      text-decoration: none;
+    }
+
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+    .section {
+      grid-column: span 12;
+      padding: 26px 28px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.022), transparent 140px), var(--surface-1);
+      box-shadow: var(--shadow);
+      scroll-margin-top: 82px;
+    }
+    .span-7 { grid-column: span 7; }
+    .span-6 { grid-column: span 6; }
+    .span-5 { grid-column: span 5; }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    h2 {
+      font-family: var(--serif);
+      font-weight: 600;
+      font-size: 1.4rem;
+      line-height: 1.16;
+      letter-spacing: -0.005em;
+    }
+
+    .section p { margin: 0; color: var(--muted); }
+    .section p + p { margin-top: 12px; }
+    .section > p, .section .table-wrap, .section .cards, .section .timeline { margin-top: 16px; }
+
+    .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .card {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+    }
+    .card strong { display: block; margin-bottom: 8px; font-size: 0.95rem; color: var(--ink); }
+    .card p { font-size: 0.95rem; }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-1);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    th, td { padding: 12px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th {
+      background: var(--surface-2);
+      color: var(--soft);
+      font-size: 0.71rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+    td:first-child { color: var(--ink); font-weight: 550; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    code {
+      font-family: var(--mono);
+      font-size: 0.88em;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      color: var(--ink);
+    }
+    code.path, code.hash { overflow-wrap: anywhere; word-break: break-word; }
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--pre-bg);
+      color: #e9efe9;
+      line-height: 1.55;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+    pre code { padding: 0; border: 0; background: none; font-size: 0.86rem; color: inherit; }
+
+    .timeline { display: grid; gap: 0; }
+    .event {
+      display: grid;
+      grid-template-columns: 142px minmax(0, 1fr);
+      gap: 18px;
+      padding: 16px 0;
+      border-top: 1px solid var(--line);
+    }
+    .event:first-child { border-top: 0; padding-top: 2px; }
+    .time { color: var(--muted); font-family: var(--mono); font-size: 0.82rem; }
+    .time time { display: block; color: var(--ink); font-weight: 650; }
+    .time span { display: block; margin-top: 3px; color: var(--soft); }
+    .event-body { position: relative; padding-left: 24px; }
+    .event-body::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 6px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+    .event-body::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 19px;
+      bottom: -32px;
+      width: 1px;
+      background: var(--line-2);
+    }
+    .event:last-child .event-body::after { display: none; }
+    .event-body strong { color: var(--ink); }
+    .event-body p { margin-top: 5px; }
+
+    details {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-1);
+      overflow: hidden;
+    }
+    details + details { margin-top: 10px; }
+    summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 14px 16px;
+      font-weight: 650;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    summary:hover { background: var(--surface-2); }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; color: var(--accent); font-size: 1.15rem; font-weight: 700; line-height: 1; }
+    details[open] summary { border-bottom: 1px solid var(--line); }
+    details[open] summary::after { content: "−"; }
+    .details-body { padding: 14px 16px 16px; color: var(--muted); }
+    .details-body ul { margin: 0; padding-left: 18px; }
+    .details-body li { margin: 4px 0; }
+    .details-body pre { margin-top: 0; }
+
+    .footer {
+      margin-top: 26px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--soft);
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 920px) {
+      .facts { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 720px) {
+      .shell { width: min(100% - 24px, 1120px); padding-top: 18px; }
+      .hero { padding: 28px 22px 26px; }
+      .hero::after { left: 22px; right: 22px; }
+      .grid { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr; }
+      .facts { grid-template-columns: 1fr; }
+      .section { padding: 20px 18px; }
+      .event { grid-template-columns: 1fr; gap: 4px; }
+      .event-body { padding-left: 0; }
+      .event-body::before, .event-body::after { display: none; }
+      .topbar { flex-direction: column; align-items: flex-start; gap: 6px; }
+      table { min-width: 560px; }
+    }
+    @media (min-width: 721px) { h1 { font-size: 2.6rem; } h2 { font-size: 1.5rem; } }
+    @media (min-width: 1080px) { h1 { font-size: 3.05rem; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="mark" aria-hidden="true">P</span> PipelineHealer</div>
+      <div>Generated <time datetime="2026-05-31">2026-05-31</time></div>
+    </header>
+
+    <section class="hero" aria-labelledby="report-title">
+      <p class="kicker">Implementation closeout</p>
+      <h1 id="report-title">Public-safe init bootstrap landed for PipelineHealer</h1>
+      <p class="lede">PR #192 landed to main on 2026-05-31. This report records what was changed, what was verified, and the remaining gaps before production deployment or runtime migration work.</p>
+    </section>
+
+    <section class="facts" aria-label="Report summary">
+      <div class="fact">
+        <div class="label">Status</div>
+        <div class="value"><span class="status done">Done</span></div>
+      </div>
+      <div class="fact">
+        <div class="label">Report type</div>
+        <div class="value">Implementation closeout</div>
+      </div>
+      <div class="fact">
+        <div class="label">Merge reference</div>
+        <div class="value"><code class="hash">7de0993cb7672d072de9494456003b7d4cb9d752</code></div>
+      </div>
+      <div class="fact">
+        <div class="label">Next step</div>
+        <div class="value">Plan release/deployment as a separate operator task</div>
+      </div>
+    </section>
+
+    <nav aria-label="Report sections">
+      <a href="#outcome">Outcome</a>
+      <a href="#next-action">Next</a>
+      <a href="#gates">Gates</a>
+      <a href="#changes">Changes</a>
+      <a href="#verification">Verification</a>
+      <a href="#timeline">Timeline</a>
+      <a href="#risks">Risks</a>
+      <a href="#evidence">Evidence</a>
+    </nav>
+
+    <div class="grid">
+      <section class="section span-7" id="outcome">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Outcome</span>
+            <h2>Plain-English verdict</h2>
+          </div>
+          <span class="status done">Done</span>
+        </div>
+        <p>Public-safe bootstrap work is implemented and merged. PR <a href="https://github.com/Canepro/pipelinehealer/pull/192">#192</a> moved into <code>main</code> at <code>2026-05-31T12:45:40Z</code> with merge commit <code>7de0993cb7672d072de9494456003b7d4cb9d752</code>, bringing public-facing bootstrap behavior into a non-maintainer profile.</p>
+        <p>All requested bootstrap scope items are in place: new <code>bash scripts/ph.sh init</code> path, safe local secret generation and handling, and explicit operator-required values for Azure resource wiring and demo repo/asset inputs.</p>
+        <p>Review posture is clean for closeout. Subagent Volta reported three blockers and all were resolved with tests before merge.</p>
+      </section>
+
+      <section class="section span-5" id="next-action">
+        <span class="eyebrow">Recommended next action</span>
+        <h2>Best next move</h2>
+        <p>Execute a controlled production rollout or release pipeline from this merged state, and then perform existing ACA runtime migration/secret cutover separately where allowed by operator runbook windows.</p>
+      </section>
+
+      <section class="section" id="gates">
+        <span class="eyebrow">Gate checklist</span>
+        <h2>What must be true before next production moves</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Gate</th>
+                <th>Current state</th>
+                <th>Required proof</th>
+                <th>Stop condition</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Functional bootstrap change</td>
+                <td><span class="status done">Satisfied</span></td>
+                <td>PR #192 merged to main and corresponding changesets present in requested files.</td>
+                <td>If merge artifacts differ from branch intent.</td>
+              </tr>
+              <tr>
+                <td>Security boundary</td>
+                <td><span class="status done">Satisfied</span></td>
+                <td>Redacted init smoke completed; no secret values printed, moved, or committed.</td>
+                <td>Any visible secret value in output or tracked file.</td>
+              </tr>
+              <tr>
+                <td>Deployment readiness</td>
+                <td><span class="status partial">Pending</span></td>
+                <td>Explicit operator decision to release and run production rollout tasks.</td>
+                <td>Unplanned production change without approval.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="changes">
+        <span class="eyebrow">Changes</span>
+        <h2>What changed</h2>
+        <div class="cards">
+          <article class="card">
+            <strong>Operator bootstrap behavior</strong>
+            <p>Added <code>bash scripts/ph.sh init</code>, created redacted local bootstrap output flow, and made public installs default to Codex App Server <code>gpt-5.4</code>.</p>
+          </article>
+          <article class="card">
+            <strong>Setup and scripts</strong>
+            <p>Moved setup continuation to <code>/app/settings</code>, removed maintainer Azure/demo defaults from CLI, deploy and demo scripts, and required operator-provided values via env/flags for <code>PH_RG</code>, <code>PH_BACKEND_APP</code>, <code>PH_FRONTEND_APP</code>, <code>PH_ACR_NAME</code>/<code>ACR_NAME</code>, and <code>DEMO_REPO</code>.</p>
+          </article>
+          <article class="card">
+            <strong>Governance and migration readiness</strong>
+            <p>Updated public Infisical examples from <code>/personal/pipelinehealer</code> to <code>/pipelinehealer/dev</code>, rewrote active runbooks for operator placeholders, and added <code>backend/tests/test_ph_init.py</code>.</p>
+          </article>
+        </div>
+
+        <div class="table-wrap" style="margin-top: 16px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Changed file</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code class="path">/Users/canepro/src/pipelinehealer/README.md</code></td></tr>
+              <tr><td><code class="path">/Users/canepro/src/pipelinehealer/docs/reference/CLI.md</code></td></tr>
+              <tr><td><code class="path">/Users/canepro/src/pipelinehealer/docs/runbooks/DEMO_SCRIPT.md</code></td></tr>
+              <tr><td><code class="path">/Users/canepro/src/pipelinehealer/docs/runbooks/LOCAL_DEMO_RUNBOOK.md</code></td></tr>
+              <tr><td><code class="path">/Users/canepro/src/pipelinehealer/docs/runbooks/PREDEPLOY_PLACEHOLDER_AUDIT.md</code></td></tr>
+              <tr><td><code class="path">/Users/canepro/src/pipelinehealer/docs/runbooks/PRODUCTION_PROMOTION_RUNBOOK.md</code></td></tr>
+              <tr><td><code class="path">/Users/canepro/src/pipelinehealer/docs/runbooks/RELEASE_RUNBOOK.md</code></td></tr>
+              <tr><td><code class="path">/Users/canepro/src/pipelinehealer/scripts/demo/run_e2e_azure.sh</code></td></tr>
+              <tr><td><code class="path">/Users/canepro/src/pipelinehealer/scripts/deploy/redeploy_azure_containerapps.sh</code></td></tr>
+              <tr><td><code class="path">/Users/canepro/src/pipelinehealer/scripts/infisical_runtime_migration.py</code></td></tr>
+              <tr><td><code class="path">/Users/canepro/src/pipelinehealer/scripts/ph.sh</code></td></tr>
+              <tr><td><code class="path">/Users/canepro/src/pipelinehealer/backend/tests/test_ph_init.py</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section span-6" id="verification">
+        <span class="eyebrow">Verification</span>
+        <h2>Checks run</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Check</th>
+                <th>Result</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>bash -n scripts/ph.sh scripts/deploy/redeploy_azure_containerapps.sh scripts/demo/run_e2e_azure.sh</code></td>
+                <td><span class="status done">Passed</span></td>
+                <td>Syntax check only.</td>
+              </tr>
+              <tr>
+                <td>ShellCheck across scripts/ph.sh, deploy/demo scripts, release.sh, check_version_sync.sh</td>
+                <td><span class="status done">Passed</span></td>
+                <td>Static analysis with no shell safety warnings in scope.</td>
+              </tr>
+              <tr>
+                <td><code>cd backend &amp;&amp; ../.venv/bin/ruff check tests/test_ph_init.py tests/test_redeploy_azure_env_sync.py</code></td>
+                <td><span class="status done">Passed</span></td>
+                <td>Lint/test-style check reported no blocking findings.</td>
+              </tr>
+              <tr>
+                <td><code>cd backend &amp;&amp; ../.venv/bin/pytest -q tests/test_ph_init.py tests/test_redeploy_azure_env_sync.py</code></td>
+                <td><span class="status done">Passed</span></td>
+                <td><code>14 passed</code>.</td>
+              </tr>
+              <tr>
+                <td><code>git diff --check</code></td>
+                <td><span class="status done">Passed</span></td>
+                <td>No whitespace or merge-marker issues.</td>
+              </tr>
+              <tr>
+                <td>GitHub CI on PR #192</td>
+                <td><span class="status done">Passed</span></td>
+                <td>ShellCheck Scripts, Version Sync, Backend Tests and Types, Frontend Lint and Build.</td>
+              </tr>
+              <tr>
+                <td>Manual smoke: redacted init run</td>
+                <td><span class="status done">Passed</span></td>
+                <td>Temp <code>backend.env</code> created with <code>chmod 600</code>; output excluded generated secrets and maintainer production identifiers.</td>
+              </tr>
+              <tr>
+                <td>Peer review state</td>
+                <td><span class="status done">Passed</span></td>
+                <td>Subagent Volta reported 3 blockers, all fixed; no PR comments, reviews, or threads remained before merge.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section span-6" id="timeline">
+        <span class="eyebrow">Timeline</span>
+        <h2>Work sequence</h2>
+        <div class="timeline">
+          <div class="event">
+            <div class="time"><time datetime="2026-05-31T00:00:00Z">2026-05-31</time><span>PR merge</span></div>
+            <div class="event-body"><strong>Branch merged.</strong><p>PR <a href="https://github.com/Canepro/pipelinehealer/pull/192">#192</a> was merged into <code>main</code> at <code>2026-05-31T12:45:40Z</code>. Original commit noted as <code>a5db313</code>.</p></div>
+          </div>
+          <div class="event">
+            <div class="time"><time datetime="2026-05-31T00:00:00Z">2026-05-31</time><span>Local verification</span></div>
+            <div class="event-body"><strong>Checks completed.</strong><p>Syntax, shell, lint, pytest, and diff checks were executed against the merged work and reported pass outcomes.</p></div>
+          </div>
+          <div class="event">
+            <div class="time"><time datetime="2026-05-31T00:00:00Z">2026-05-31</time><span>CI and review closeout</span></div>
+            <div class="event-body"><strong>Release-grade signals complete.</strong><p>GitHub CI workflows passed for all listed jobs and no blocking review comments remained before merge.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="risks">
+        <span class="eyebrow">Risks</span>
+        <h2>Residual uncertainty</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Risk</th>
+                <th>Impact</th>
+                <th>Mitigation / next step</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>No new production release deployed by this change</td>
+                <td>Medium</td>
+                <td>Run the existing release/prod promotion runbooks and validate deployment separately.</td>
+              </tr>
+              <tr>
+                <td>Existing ACA runtime secrets not migrated</td>
+                <td>Medium</td>
+                <td>Use explicit migration path and operator-owned secret rotation plan outside this PR.</td>
+              </tr>
+              <tr>
+                <td>No secret rotation performed</td>
+                <td>Medium</td>
+                <td>Plan a maintenance window if rotation is required by policy.</td>
+              </tr>
+              <tr>
+                <td>Exact blocker resolution timestamps not provided in source evidence</td>
+                <td>Low</td>
+                <td>Keep PR review log if replay needed.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="evidence">
+        <span class="eyebrow">Evidence</span>
+        <h2>Proof rail</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Claim</th>
+                <th>Evidence</th>
+                <th>Result</th>
+                <th>Raw block</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Public-safe init landed in main</td>
+                <td>PR #192 merge metadata from GitHub with merge commit and branch name.</td>
+                <td><span class="status done">Verified</span></td>
+                <td>PR and commit IDs</td>
+              </tr>
+              <tr>
+                <td>Scope changes were implemented</td>
+                <td>Provided changed file list and change summaries.</td>
+                <td><span class="status done">Verified</span></td>
+                <td>Changed paths inventory</td>
+              </tr>
+              <tr>
+                <td>Verifications passed</td>
+                <td>Shell checks, lint checks, pytest counts, CI workflow names.</td>
+                <td><span class="status done">Verified</span></td>
+                <td>Check table entries</td>
+              </tr>
+              <tr>
+                <td>Secret boundary not crossed</td>
+                <td>Provided redacted smoke and explicit boundary statement.</td>
+                <td><span class="status done">Verified</span></td>
+                <td>Smoke notes and boundary note</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <details open>
+          <summary>Command evidence</summary>
+          <div class="details-body">
+            <pre><code>bash -n scripts/ph.sh scripts/deploy/redeploy_azure_containerapps.sh scripts/demo/run_e2e_azure.sh -- passed
+ShellCheck (scripts and release/version sync scope) -- passed
+cd backend &amp;&amp; ../.venv/bin/ruff check tests/test_ph_init.py tests/test_redeploy_azure_env_sync.py -- passed
+cd backend &amp;&amp; ../.venv/bin/pytest -q tests/test_ph_init.py tests/test_redeploy_azure_env_sync.py -- 14 passed
+GitHub CI: ShellCheck Scripts, Version Sync, Backend Tests and Types, Frontend Lint and Build -- passed
+Redacted init smoke: temp backend.env created at chmod 600, output omitted secret assignment values. No secret values were read, printed, committed, or moved.
+</code></pre>
+          </div>
+        </details>
+        <details>
+          <summary>Files and sources</summary>
+          <div class="details-body">
+            <ul>
+              <li><a href="https://github.com/Canepro/pipelinehealer/pull/192">https://github.com/Canepro/pipelinehealer/pull/192</a></li>
+              <li><code class="path">/Users/canepro/src/pipelinehealer/README.md</code></li>
+              <li><code class="path">/Users/canepro/src/pipelinehealer/docs/reference/CLI.md</code></li>
+              <li><code class="path">/Users/canepro/src/pipelinehealer/docs/runbooks/DEMO_SCRIPT.md</code></li>
+              <li><code class="path">/Users/canepro/src/pipelinehealer/docs/runbooks/LOCAL_DEMO_RUNBOOK.md</code></li>
+              <li><code class="path">/Users/canepro/src/pipelinehealer/scripts/ph.sh</code></li>
+              <li><code class="path">/Users/canepro/src/pipelinehealer/backend/tests/test_ph_init.py</code></li>
+            </ul>
+          </div>
+        </details>
+      </section>
+    </div>
+
+    <footer class="footer">
+      Self-contained Codex HTML report. Embedded CSS only, no external scripts, fonts, or CDN dependencies.
+    </footer>
+  </main>
+</body>
+</html>
