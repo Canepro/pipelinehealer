@@ -1,6 +1,6 @@
 # Pre-Deploy Placeholder Audit
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 044aa39 -->
 
 Use this checklist before `azd up`, before major public demos, and before final submission recording.
 
@@ -122,7 +122,7 @@ Applied environment:
 - Resource group: `rg-canepro-ph-dev-eus`
 - Backend app: `ca-canepro-ph-backend`
 - Frontend app: `ca-canepro-ph-frontend`
-- Azure OpenAI deployment: `gpt-5-mini`
+- Azure OpenAI deployment: operator-owned deployment name
 - Backend mode: `ENVIRONMENT=production`
 - Heal mode: `safe`
 - Log noise: Azure Cosmos/Identity/Core SDK loggers suppressed to WARNING

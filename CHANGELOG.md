@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 50ba6f3 -->
+<!-- LAST_VERIFIED: 044aa39 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -9,6 +9,25 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ## [Unreleased]
 
 - _No unreleased entries yet._
+
+## [v0.8.5] - 2026-05-31
+
+### Fixed
+
+- Defaulted the managed Azure AI/OpenAI deployment SKU to `GlobalStandard` so the Bicep default stays compatible with the `gpt-5.4` model.
+
+## [v0.8.4] - 2026-05-31
+
+### Fixed
+
+- Aligned the default managed Azure AI/OpenAI `gpt-5.4` Bicep model version with the current Azure model catalog.
+
+## [v0.8.3] - 2026-05-31
+
+### Fixed
+
+- Fixed Codex App Server model routing so task-level Azure/OpenAI overrides cannot leak stale `gpt-5-mini` or `gpt-5.1-codex-mini` labels into diagnosis, capability checks, Settings, or Control Center when Codex App Server is the selected runtime.
+- Updated production runtime defaults and docs to use `gpt-5.4` for Codex App Server and keep generic task overrides blank.
 
 ## [v0.8.2] - 2026-05-31
 

@@ -49,8 +49,8 @@ export default function SettingsPage() {
     openai_compatible_base_url: "",
     openai_compatible_model: "",
     codex_app_server_transport: "stdio",
-    codex_app_server_command: "codex",
-    codex_app_server_model: "gpt-5.1-codex",
+    codex_app_server_command: "codex app-server",
+    codex_app_server_model: "gpt-5.4",
     codex_app_server_turn_timeout_ms: 120000,
     codex_app_server_ws_url: "",
     codex_app_server_ws_allow_remote: false,
@@ -243,6 +243,7 @@ export default function SettingsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const codexRuntimeSelected = form.llm_provider === "codex_app_server";
       const payload: Record<string, unknown> = {
         llm_provider: form.llm_provider,
         openai_compatible_base_url: form.openai_compatible_base_url.trim(),
@@ -255,9 +256,15 @@ export default function SettingsPage() {
         codex_app_server_ws_url: form.codex_app_server_ws_url.trim(),
         codex_app_server_ws_allow_remote:
           form.codex_app_server_ws_allow_remote,
-        llm_model_analysis: form.llm_model_analysis.trim(),
-        llm_model_diagnosis: form.llm_model_diagnosis.trim(),
-        llm_model_remediation: form.llm_model_remediation.trim(),
+        llm_model_analysis: codexRuntimeSelected
+          ? ""
+          : form.llm_model_analysis.trim(),
+        llm_model_diagnosis: codexRuntimeSelected
+          ? ""
+          : form.llm_model_diagnosis.trim(),
+        llm_model_remediation: codexRuntimeSelected
+          ? ""
+          : form.llm_model_remediation.trim(),
         mcp_enabled: form.mcp_enabled,
         mcp_provider: form.mcp_provider,
         mcp_read_only: form.mcp_read_only,
@@ -961,7 +968,7 @@ export function RuntimeWiringCard({
             onChange={(event) =>
               setForm((current) => ({ ...current, azure_openai_deployment_name: event.target.value }))
             }
-            placeholder="gpt-5-mini"
+            placeholder="Azure deployment name"
           />
 
           <div className="grid gap-3 sm:grid-cols-2">

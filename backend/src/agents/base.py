@@ -221,6 +221,9 @@ class ObservedAgent:
 
 def _resolve_model_for_task(*, settings: Any, provider: LLMProviderName, task: LLMTaskName) -> str:
     """Resolve effective model/deployment for a task with fallback to provider default."""
+    if provider == LLMProviderName.CODEX_APP_SERVER:
+        return str(getattr(settings, "codex_app_server_model", "") or "").strip()
+
     override_attr_by_task: dict[LLMTaskName, str] = {
         "analysis": "llm_model_analysis",
         "diagnosis": "llm_model_diagnosis",
@@ -238,8 +241,6 @@ def _resolve_model_for_task(*, settings: Any, provider: LLMProviderName, task: L
 
     if provider == LLMProviderName.OPENAI_COMPATIBLE:
         return str(getattr(settings, "openai_compatible_model", "") or "").strip()
-    if provider == LLMProviderName.CODEX_APP_SERVER:
-        return str(getattr(settings, "codex_app_server_model", "") or "").strip()
     return str(getattr(settings, "azure_openai_deployment_name", "") or "").strip()
 
 

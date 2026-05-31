@@ -60,16 +60,25 @@ param createAzureOpenAi bool = true
 param azureOpenAiAccountKind string = 'AIServices'
 
 @description('Azure AI/OpenAI deployment name exposed to the backend when createAzureOpenAi is true, or an existing deployment name when using an external account.')
-param azureOpenAiDeploymentName string = 'gpt-5-mini'
+param azureOpenAiDeploymentName string = 'gpt-5.4'
 
 @description('Azure AI/OpenAI base model name for the managed deployment.')
-param azureOpenAiModelName string = 'gpt-5-mini'
+param azureOpenAiModelName string = 'gpt-5.4'
 
 @description('Azure AI/OpenAI model version for the managed deployment.')
-param azureOpenAiModelVersion string = '2025-08-07'
+param azureOpenAiModelVersion string = '2026-03-05'
 
 @description('Azure AI/OpenAI deployment capacity for the managed deployment.')
 param azureOpenAiDeploymentCapacity int = 100
+
+@description('Azure AI/OpenAI deployment SKU for the managed model.')
+@allowed([
+  'Standard'
+  'GlobalStandard'
+  'DataZoneStandard'
+  'ProvisionedManaged'
+])
+param azureOpenAiDeploymentSkuName string = 'GlobalStandard'
 
 @description('Existing Azure AI/OpenAI endpoint to expose when createAzureOpenAi is false. Leave empty when the selected LLM provider does not need Azure OpenAI.')
 param azureOpenAiEndpoint string = ''
@@ -204,7 +213,7 @@ resource managedModelDeployment 'Microsoft.CognitiveServices/accounts/deployment
   parent: openAiAccount
   name: azureOpenAiDeploymentName
   sku: {
-    name: 'Standard'
+    name: azureOpenAiDeploymentSkuName
     capacity: azureOpenAiDeploymentCapacity
   }
   properties: {

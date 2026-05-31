@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 2c862a3 -->
+<!-- LAST_VERIFIED: 044aa39 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -157,9 +157,9 @@ In the Azure Portal, open your OpenAI resource page → **Keys and Endpoint**:
 
 > **Note:** If your endpoint uses the `cognitiveservices.azure.com` domain, that works too. PipelineHealer prefers the Azure Responses API first and falls back to Chat only when a deployment rejects Responses.
 
-Validated Azure combinations as of `v0.8.0`:
-- stable default path: `https://<resource>.openai.azure.com/` with `gpt-5-mini`
-- validated stronger diagnosis/remediation path: `https://<resource>.cognitiveservices.azure.com/` with `gpt-5.1-codex-mini`
+Azure model names are deployment names owned by the operator. Do not copy old
+example model labels from this repo into production. Validate your selected
+endpoint and deployment as one bundle with `bash scripts/ph.sh aoai:check`.
 
 Important routing limit:
 - task-level model routing is supported
@@ -173,7 +173,7 @@ If you are not using Azure OpenAI, configure:
 ```dotenv
 LLM_PROVIDER=openai_compatible
 OPENAI_COMPATIBLE_BASE_URL=https://api.openai.com/v1
-OPENAI_COMPATIBLE_MODEL=gpt-5-mini
+OPENAI_COMPATIBLE_MODEL=provider-model-name
 OPENAI_COMPATIBLE_API_KEY=sk-...
 ```
 
@@ -209,12 +209,12 @@ AZURE_OPENAI_API_KEY=your-key-here         # Key 1 or Key 2 from step 1.3
 # OR
 # LLM_PROVIDER=openai_compatible
 # OPENAI_COMPATIBLE_BASE_URL=https://api.openai.com/v1
-# OPENAI_COMPATIBLE_MODEL=gpt-5-mini
+# OPENAI_COMPATIBLE_MODEL=provider-model-name
 # OPENAI_COMPATIBLE_API_KEY=sk-...
 # Optional per-task model overrides (empty => provider default):
-# LLM_MODEL_ANALYSIS=gpt-5-mini-fast
-# LLM_MODEL_DIAGNOSIS=gpt-5-mini-reasoner
-# LLM_MODEL_REMEDIATION=gpt-5-mini
+# LLM_MODEL_ANALYSIS=analysis-deployment
+# LLM_MODEL_DIAGNOSIS=diagnosis-deployment
+# LLM_MODEL_REMEDIATION=remediation-deployment
 
 # GitHub
 GITHUB_PERSONAL_ACCESS_TOKEN=ghp_xxxxxxxxx # your PAT with repo + workflow scopes
