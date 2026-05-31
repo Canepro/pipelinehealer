@@ -40,7 +40,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatTile, type Tone } from "@/components/ui/status";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useConfirm } from "@/components/ui/use-confirm";
 
 type ControlCenterSection =
   | "overview"
@@ -640,64 +642,16 @@ function SummaryRows({
   );
 }
 
-type HealthTone = "ok" | "warn" | "bad" | "info" | "muted";
-
-const HEALTH_DOT: Record<HealthTone, string> = {
-  ok: "bg-[var(--ph-success)]",
-  warn: "bg-[var(--ph-warning)]",
-  bad: "bg-[var(--ph-danger)]",
-  info: "bg-[var(--ph-info)]",
-  muted: "bg-[var(--ph-muted)]",
-};
-
-const HEALTH_TEXT: Record<HealthTone, string> = {
-  ok: "text-[var(--ph-success)]",
-  warn: "text-[var(--ph-warning)]",
-  bad: "text-[var(--ph-danger)]",
-  info: "text-[var(--ph-text)]",
-  muted: "text-[var(--ph-muted)]",
-};
-
-function HealthStat({
-  label,
-  value,
-  tone = "muted",
-  detail,
-}: {
-  label: string;
-  value: string;
-  tone?: HealthTone;
-  detail?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]/40 px-4 py-3.5">
-      <div className="flex items-center gap-2">
-        <span
-          className={`h-2 w-2 shrink-0 rounded-full ${HEALTH_DOT[tone]}`}
-          aria-hidden="true"
-        />
-        <span className="truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ph-muted)]">
-          {label}
-        </span>
-      </div>
-      <span className={`text-sm font-semibold ${HEALTH_TEXT[tone]}`} title={value}>
-        {value}
-      </span>
-      {detail ? (
-        <span className="text-xs leading-4 text-[var(--ph-muted)]">{detail}</span>
-      ) : null}
-    </div>
-  );
-}
-
 function toHealthTone(
   tone: "default" | "ok" | "warn" | "bad" | "muted" | undefined,
-): HealthTone {
-  return tone && tone !== "default" ? tone : "muted";
+): Tone {
+  if (tone === "ok" || tone === "warn" || tone === "bad") return tone;
+  return "neutral";
 }
 
 export default function ControlCenterPage() {
   const queryClient = useQueryClient();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const isApiAuthReady = useApiAuthReady();
   const [adminKeyInput, setAdminKeyInput] = useState("");
   const [adminKey, setAdminKey] = useState("");
@@ -1088,6 +1042,7 @@ export default function ControlCenterPage() {
 
   return (
     <div className="space-y-6">
+      {confirmDialog}
       <div className="flex items-start gap-3.5">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]">
           <ShieldCheck className="h-5 w-5 text-[var(--ph-accent)]" />
@@ -1274,22 +1229,22 @@ export default function ControlCenterPage() {
             <div className="space-y-4">
               <Card>
                 <CardContent className="grid grid-cols-2 gap-3 py-4 sm:grid-cols-3 xl:grid-cols-6">
-                  <HealthStat
+                  <StatTile
                     label="Heal mode"
                     value={settings.heal_mode}
                     tone={settings.heal_mode === "safe" ? "ok" : "warn"}
                   />
-                  <HealthStat
+                  <StatTile
                     label="Remediation"
                     value={settings.auto_apply_remediation ? "Automated" : "Plan-only"}
-                    tone={settings.auto_apply_remediation ? "ok" : "muted"}
+                    tone={settings.auto_apply_remediation ? "ok" : "neutral"}
                   />
-                  <HealthStat
+                  <StatTile
                     label="LLM"
                     value={llmLoading ? "Checking..." : llmCapabilitySummary.summary}
-                    tone={llmLoading ? "muted" : toHealthTone(llmCapabilitySummary.tone)}
+                    tone={llmLoading ? "neutral" : toHealthTone(llmCapabilitySummary.tone)}
                   />
-                  <HealthStat
+                  <StatTile
                     label="MCP"
                     value={
                       mcpLoading
@@ -1299,15 +1254,15 @@ export default function ControlCenterPage() {
                           : "Unavailable"
                     }
                     tone={
-                      mcpLoading ? "muted" : mcpHealth?.available ? "ok" : "bad"
+                      mcpLoading ? "neutral" : mcpHealth?.available ? "ok" : "bad"
                     }
                   />
-                  <HealthStat
+                  <StatTile
                     label="Receiver"
                     value={handoffIntegrationSummary.summary}
                     tone={toHealthTone(handoffIntegrationSummary.tone)}
                   />
-                  <HealthStat
+                  <StatTile
                     label="Safety gated"
                     value={
                       statsLoading
@@ -1743,10 +1698,14 @@ export default function ControlCenterPage() {
                             action: "activate",
                           })
                         }
-                        onForceActivate={() => {
-                          const ok = window.confirm(
-                            "Force-activate this playbook candidate? This bypasses readiness gates and will be audit logged.",
-                          );
+                        onForceActivate={async () => {
+                          const ok = await confirm({
+                            title: "Force-activate this playbook?",
+                            description:
+                              "This bypasses readiness gates and will be audit logged.",
+                            confirmLabel: "Force activate",
+                            destructive: true,
+                          });
                           if (!ok) return;
                           decideLearningMutation.mutate({
                             candidateId: item.id,
