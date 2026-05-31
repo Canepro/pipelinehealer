@@ -1,6 +1,6 @@
 # Production Promotion Runbook
 
-<!-- LAST_VERIFIED: c978e74 -->
+<!-- LAST_VERIFIED: 3d44e0a -->
 
 This runbook promotes a reviewed PipelineHealer release to the production Azure Container Apps lane for `pipelinehealer.canepro.me` and `api.pipelinehealer.canepro.me`.
 
