@@ -455,7 +455,7 @@
     <section class="hero" aria-labelledby="report-title">
       <p class="kicker">Production closeout</p>
       <h1 id="report-title">PipelineHealer v0.8.9 Production Closeout</h1>
-      <p class="lede">Version 0.8.9 is deployed to production on 2026-05-31. Changes are complete, verified in local checks and production smoke, and documented with the provided evidence links and run artifacts.</p>
+      <p class="lede">Version 0.8.9 is deployed to production on 2026-05-31. Changes are complete, verified in local checks and production authentication checks, and documented with the provided evidence links and run artifacts.</p>
     </section>
 
     <section class="facts" aria-label="Report summary">
@@ -473,7 +473,7 @@
       </div>
       <div class="fact">
         <div class="label">Next step</div>
-        <div class="value">Review residual risks and close manual smoke</div>
+        <div class="value">Track workflow runtime maintenance</div>
       </div>
     </section>
 
@@ -506,7 +506,7 @@
       <section class="section span-5" id="next-action">
         <span class="eyebrow">Recommended next action</span>
         <h2>Best next move</h2>
-        <p>Run the manual Microsoft Entra sign-in smoke once with a user account to confirm interactive auth end-to-end behavior, then track workflow Node.js runtime maintenance in a technical debt issue.</p>
+        <p>Track the GitHub workflow Node.js runtime annotation in maintenance work. The Microsoft Entra signed-in path is now verified with Mira's Entra account.</p>
       </section>
 
       <section class="section" id="gates">
@@ -537,9 +537,9 @@
               </tr>
               <tr>
                 <td>Production safety</td>
-                <td><span class="status partial">One manual step</span></td>
-                <td>Entra sign-in smoke with real user token.</td>
-                <td>No manual authentication proof for signed-in path.</td>
+                <td><span class="status done">Pass</span></td>
+                <td>Mira Entra account signed in and loaded authenticated Settings data.</td>
+                <td>Signed-in path fails, settings data is unavailable, or unauthenticated gate is bypassed.</td>
               </tr>
             </tbody>
           </table>
@@ -660,6 +660,13 @@
               <p>Health checks, API auth boundaries, and dark-mode browser checks were run and artifacts captured in <code>output/playwright/2026-05-31-prod-goal</code> and <code>.../prod-goal</code>.</p>
             </div>
           </div>
+          <div class="event">
+            <div class="time"><time datetime="2026-05-31">2026-05-31</time><span>Auth verification</span></div>
+            <div class="event-body">
+              <strong>Mira Entra account completed production sign-in verification.</strong>
+              <p>Settings loaded with the signed-in session, no unauthenticated access gate, no settings failure banner, and settings data present.</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -676,8 +683,8 @@
             <p>Issues <strong>#18 <code>[agentics] Failed runs</code></strong> and <strong>#24 <code>[agentics] No-Op Runs</code></strong> remain intentionally open. Their body text indicates they are auto-managed parent tracker issues and should not be manually closed.</p>
           </article>
           <article class="card">
-            <strong>Manual smoke gap</strong>
-            <p>The remaining gap is interactive Microsoft sign-in validation in production. Headless QA covered unauthenticated boundaries only.</p>
+            <strong>Entra verification closed</strong>
+            <p>The signed-in Microsoft Entra path is now verified in production with Mira's Entra account. Unauthenticated boundary checks still return 401.</p>
           </article>
         </div>
       </section>
@@ -735,11 +742,6 @@
             </thead>
             <tbody>
               <tr>
-                <td>Interactive Microsoft Entra sign-in not manually exercised with Vincent account in production</td>
-                <td>Medium. Boundaries may pass only for unauthenticated path today.</td>
-                <td>Run one signed-in smoke through the secure UI flow and confirm data appears under authenticated sessions.</td>
-              </tr>
-              <tr>
                 <td>GitHub release workflow annotation warns on Node.js runtime</td>
                 <td>Low. No failure observed in this release.</td>
                 <td>Track migration of workflow actions from Node.js 20 to Node.js 24 in maintenance work.</td>
@@ -789,6 +791,12 @@
                 <td>Both returned 401.</td>
               </tr>
               <tr>
+                <td>Signed-in Entra path in production</td>
+                <td>Mira Entra account sign-in and Settings page verification</td>
+                <td><span class="status done">Verified</span></td>
+                <td>Settings loaded with the signed-in session, no access gate, no failure banner, and settings data present.</td>
+              </tr>
+              <tr>
                 <td>UI checks and screenshot proof</td>
                 <td>Screenshot set under output/playwright with desktop and mobile variants</td>
                 <td><span class="status done">Verified</span></td>
@@ -806,6 +814,7 @@
 /Users/canepro/src/pipelinehealer/output/playwright/2026-05-31-prod-goal/control-center-dark-1440.png
 /Users/canepro/src/pipelinehealer/output/playwright/2026-05-31-prod-goal/control-center-dark-390.png
 /Users/canepro/src/pipelinehealer/output/playwright/2026-05-31-prod-goal/prod-app-dark-1440.png
+/Users/canepro/src/pipelinehealer/output/playwright/2026-05-31-prod-goal/prod-entra-mira-settings-loaded-1440.png
 </code></pre>
             <p>Local verification outputs:</p>
             <pre><code>check_version_sync.sh: Version sync OK: 0.8.9
