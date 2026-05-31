@@ -1,0 +1,840 @@
+<!doctype html>
+<!-- Codex HTML Report Template v0.5.0: dark editorial report, layered surfaces, refined typography, gated status, timestamped, evidence-oriented. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PipelineHealer Production Closeout - v0.8.8</title>
+  <style>
+    :root {
+      color-scheme: dark;
+
+      /* Elevation: the page is darkest; surfaces step up toward the reader. */
+      --bg: #0b0d11;
+      --bg-tint: #0f1117;
+      --surface-1: #15171f;
+      --surface-2: #1c1f29;
+      --surface-3: #242836;
+      --pre-bg: #090a0d;
+
+      --ink: #f4efe4;
+      --muted: #aab1be;
+      --soft: #868e9c;
+
+      --line: rgba(255, 255, 255, 0.085);
+      --line-2: rgba(255, 255, 255, 0.16);
+
+      --accent: #d6aa5c;
+      --accent-bright: #ecc379;
+      --accent-soft: rgba(214, 170, 92, 0.14);
+      --accent-line: rgba(214, 170, 92, 0.55);
+
+      --good: #87cc8b;
+      --warn: #e2b45e;
+      --bad: #e58b7d;
+      --info: #93b8df;
+      --neutral: #abb4c1;
+
+      --shadow: 0 18px 42px -26px rgba(0, 0, 0, 0.8), 0 2px 6px rgba(0, 0, 0, 0.35);
+      --shadow-lg: 0 44px 90px -46px rgba(0, 0, 0, 0.85);
+
+      --radius: 14px;
+      --radius-sm: 9px;
+
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.6;
+      background:
+        radial-gradient(1100px 420px at 50% -160px, rgba(214, 170, 92, 0.10), transparent 70%),
+        linear-gradient(180deg, var(--bg-tint), var(--bg) 460px);
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover {
+      color: var(--accent-bright);
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    .shell {
+      width: min(1120px, 100% - 40px);
+      margin: 0 auto;
+      padding: 26px 0 72px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      color: var(--ink);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .mark {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      border: 1px solid var(--accent-line);
+      background: linear-gradient(180deg, rgba(214, 170, 92, 0.22), rgba(214, 170, 92, 0.04));
+      color: var(--accent-bright);
+      font-family: var(--serif);
+      font-weight: 700;
+    }
+    .topbar time { color: var(--ink); font-weight: 600; }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 46px 46px 40px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        radial-gradient(620px 200px at 8% -30px, rgba(214, 170, 92, 0.16), transparent 72%),
+        linear-gradient(180deg, var(--surface-2), var(--surface-1));
+      box-shadow: var(--shadow-lg);
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      left: 46px;
+      right: 46px;
+      bottom: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-line), transparent);
+    }
+    .kicker {
+      margin: 0 0 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--accent);
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .kicker::before { content: ""; width: 24px; height: 1px; background: var(--accent-line); }
+
+    h1, h2, h3 { margin: 0; }
+    h1 {
+      max-width: 25ch;
+      font-family: var(--serif);
+      font-weight: 600;
+      font-size: 2.05rem;
+      line-height: 1.08;
+      letter-spacing: -0.01em;
+      text-wrap: balance;
+    }
+    .lede {
+      max-width: 70ch;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 1.08rem;
+      line-height: 1.62;
+    }
+
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 16px 0 6px;
+    }
+    .fact {
+      position: relative;
+      padding: 16px 16px 16px 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent), var(--surface-1);
+      box-shadow: var(--shadow);
+    }
+    .fact::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 15px;
+      bottom: 15px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: var(--accent);
+      opacity: 0.85;
+    }
+    .fact .value { margin-top: 9px; font-size: 1.05rem; font-weight: 650; line-height: 1.3; }
+
+    .label, .eyebrow {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .label { color: var(--soft); }
+    .eyebrow { display: block; margin-bottom: 9px; color: var(--accent); letter-spacing: 0.14em; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 11px 4px 9px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      font-weight: 650;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+    .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .done { color: var(--good); background: rgba(135, 204, 139, 0.12); border-color: rgba(135, 204, 139, 0.42); }
+    .partial { color: var(--warn); background: rgba(226, 180, 94, 0.13); border-color: rgba(226, 180, 94, 0.42); }
+    .blocked, .risk { color: var(--bad); background: rgba(229, 139, 125, 0.13); border-color: rgba(229, 139, 125, 0.42); }
+    .info { color: var(--info); background: rgba(147, 184, 223, 0.13); border-color: rgba(147, 184, 223, 0.42); }
+    .neutral { color: var(--neutral); background: rgba(171, 180, 193, 0.12); border-color: rgba(171, 180, 193, 0.40); }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin: 20px 0 22px;
+      padding: 10px 0;
+      background: rgba(11, 13, 17, 0.8);
+      backdrop-filter: blur(10px) saturate(140%);
+      border-bottom: 1px solid var(--line);
+    }
+    nav a {
+      padding: 7px 13px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-1);
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 600;
+    }
+    nav a:hover, nav a:focus-visible {
+      color: var(--ink);
+      border-color: var(--accent-line);
+      background: var(--surface-2);
+      text-decoration: none;
+    }
+
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+    .section {
+      grid-column: span 12;
+      padding: 26px 28px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.022), transparent 140px), var(--surface-1);
+      box-shadow: var(--shadow);
+      scroll-margin-top: 82px;
+    }
+    .span-7 { grid-column: span 7; }
+    .span-6 { grid-column: span 6; }
+    .span-5 { grid-column: span 5; }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    h2 {
+      font-family: var(--serif);
+      font-weight: 600;
+      font-size: 1.4rem;
+      line-height: 1.16;
+      letter-spacing: -0.005em;
+    }
+    h3 { font-size: 0.96rem; font-weight: 700; }
+
+    .section p { margin: 0; color: var(--muted); }
+    .section p + p { margin-top: 12px; }
+    .section > p, .section .table-wrap, .section .cards, .section .timeline { margin-top: 16px; }
+
+    .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .card {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+    }
+    .card strong { display: block; margin-bottom: 8px; font-size: 0.95rem; color: var(--ink); }
+    .card p { font-size: 0.95rem; }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-1);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    th, td { padding: 12px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th {
+      background: var(--surface-2);
+      color: var(--soft);
+      font-size: 0.71rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+    td:first-child { color: var(--ink); font-weight: 550; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    code {
+      font-family: var(--mono);
+      font-size: 0.88em;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      color: var(--ink);
+    }
+    code.path, code.hash { overflow-wrap: anywhere; word-break: break-word; }
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--pre-bg);
+      color: #e9efe9;
+      line-height: 1.55;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+    pre code { padding: 0; border: 0; background: none; font-size: 0.86rem; color: inherit; }
+
+    .timeline { display: grid; gap: 0; }
+    .event {
+      display: grid;
+      grid-template-columns: 142px minmax(0, 1fr);
+      gap: 18px;
+      padding: 16px 0;
+      border-top: 1px solid var(--line);
+    }
+    .event:first-child { border-top: 0; padding-top: 2px; }
+    .time { color: var(--muted); font-family: var(--mono); font-size: 0.82rem; }
+    .time time { display: block; color: var(--ink); font-weight: 650; }
+    .time span { display: block; margin-top: 3px; color: var(--soft); }
+    .event-body { position: relative; padding-left: 24px; }
+    .event-body::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 6px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+    .event-body::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 19px;
+      bottom: -32px;
+      width: 1px;
+      background: var(--line-2);
+    }
+    .event:last-child .event-body::after { display: none; }
+    .event-body strong { color: var(--ink); }
+    .event-body p { margin-top: 5px; }
+
+    details {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-1);
+      overflow: hidden;
+    }
+    details + details { margin-top: 10px; }
+    summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 14px 16px;
+      font-weight: 650;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    summary:hover { background: var(--surface-2); }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; color: var(--accent); font-size: 1.15rem; font-weight: 700; line-height: 1; }
+    details[open] summary { border-bottom: 1px solid var(--line); }
+    details[open] summary::after { content: "\2212"; }
+    .details-body { padding: 14px 16px 16px; color: var(--muted); }
+    .details-body ul { margin: 0; padding-left: 18px; }
+    .details-body li { margin: 4px 0; }
+
+    .footer {
+      margin-top: 26px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--soft);
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 920px) {
+      .facts { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 720px) {
+      .shell { width: min(100% - 24px, 1120px); padding-top: 18px; }
+      .hero { padding: 28px 22px 26px; }
+      .hero::after { left: 22px; right: 22px; }
+      .grid { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr; }
+      .facts { grid-template-columns: 1fr; }
+      .section { padding: 20px 18px; }
+      .event { grid-template-columns: 1fr; gap: 4px; }
+      .event-body { padding-left: 0; }
+      .event-body::before, .event-body::after { display: none; }
+      .topbar { flex-direction: column; align-items: flex-start; gap: 6px; }
+      table { min-width: 560px; }
+    }
+    @media (min-width: 721px) { h1 { font-size: 2.6rem; } h2 { font-size: 1.5rem; } }
+    @media (min-width: 1080px) { h1 { font-size: 3.05rem; } }
+
+    @media print {
+      body { background: #fff; color: #111; }
+      nav { display: none; }
+      .topbar, .hero, .fact, .section, .card, .table-wrap, table, details, summary {
+        background: #fff !important;
+        color: #111;
+        box-shadow: none;
+        border-color: #ddd;
+      }
+      a { color: #1a4f8f; }
+      .kicker, .eyebrow { color: #8a6d2f; }
+      h1, h2, h3, .brand, .topbar time, td:first-child, .event-body strong, summary { color: #111; }
+      .label, .lede, .section p, .details-body, .footer, .time, .time span, .card p, .value { color: #444; }
+      th { background: #f3f3f3 !important; color: #333; }
+      code { background: #f1f1f1; color: #111; border-color: #ddd; }
+      pre { background: #f6f6f6 !important; color: #111 !important; border-color: #ddd; }
+      .hero::after, .event-body::after { display: none; }
+      details { break-inside: avoid; }
+      .status { border: 1px solid #999; background: #fff; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="mark" aria-hidden="true">C</span> PipelineHealer closeout</div>
+      <div>Generated <time datetime="2026-05-31">2026-05-31</time></div>
+    </header>
+
+    <section class="hero" aria-labelledby="report-title">
+      <p class="kicker">Production release closeout</p>
+      <h1 id="report-title">PipelineHealer v0.8.8 production validation complete</h1>
+      <p class="lede">Production now reports as v0.8.8 on Azure Container Apps with Cosmos DB preservation and no secret values in this report. The release stream includes PRs #188, #189, and #190, and the requested CI, diagnostic, and runtime behavior evidence is captured below.</p>
+    </section>
+
+    <section class="facts" aria-label="Report summary">
+      <div class="fact">
+        <div class="label">Status</div>
+        <div class="value"><span class="status done">Done</span></div>
+      </div>
+      <div class="fact">
+        <div class="label">Report type</div>
+        <div class="value">Production closeout</div>
+      </div>
+      <div class="fact">
+        <div class="label">Gate</div>
+        <div class="value">No blocking risk recorded</div>
+      </div>
+      <div class="fact">
+        <div class="label">Next step</div>
+        <div class="value">Monitor optional Copilot reviewer state</div>
+      </div>
+    </section>
+
+    <nav aria-label="Report sections">
+      <a href="#outcome">Outcome</a>
+      <a href="#next-action">Next</a>
+      <a href="#gates">Gates</a>
+      <a href="#changes">Changes</a>
+      <a href="#verification">Verification</a>
+      <a href="#timeline">Timeline</a>
+      <a href="#risks">Risks</a>
+      <a href="#evidence">Evidence</a>
+    </nav>
+
+    <div class="grid">
+      <section class="section span-7" id="outcome">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Outcome</span>
+            <h2>Production deployment and runtime status</h2>
+          </div>
+          <span class="status done">Done</span>
+        </div>
+        <p>Production is currently on PipelineHealer v0.8.8 in Azure Container Apps. The live health state is version <code>0.8.8</code>, environment <code>production</code>, and storage backend <code>cosmos_db</code>. Cosmos DB is preserved. Entra/runtime auth was preserved with <code>public settings 401</code> and runtime auth mode <code>entra</code>. Infisical CLI update is recorded at <code>0.43.89</code> with Infisical production path usage, with secret values redacted.</p>
+        <p>The deployment run chain includes PR <code>#188</code> (v0.8.6), PR <code>#189</code> (v0.8.7), and PR <code>#190</code> (v0.8.8), each marked as merged and deployed in sequence, with v0.8.8 delivering the Codex App Server final agent message extraction work.</p>
+      </section>
+
+      <section class="section span-5" id="next-action">
+        <span class="eyebrow">Recommended next action</span>
+        <h2>Best next move</h2>
+        <p>Keep optional Copilot reviewer optional behavior explicitly enabled and track any future required-check drift. If the optional reviewer remains pending, keep it in the normal queue while maintaining the no-blocking posture for production operations.</p>
+      </section>
+
+      <section class="section" id="gates">
+        <span class="eyebrow">Gate checklist</span>
+        <h2>What must hold before post-close operations</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Gate</th>
+                <th>Current state</th>
+                <th>Required proof</th>
+                <th>Stop condition</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Production deploy target</td>
+                <td><span class="status done">Done</span></td>
+                <td>Version <code>0.8.8</code> health in production and storage backend <code>cosmos_db</code>.</td>
+                <td>No confirmed prod health signal.</td>
+              </tr>
+              <tr>
+                <td>Auth model preserved</td>
+                <td><span class="status done">Done</span></td>
+                <td><code>public settings 401</code> and runtime auth mode <code>entra</code>.</td>
+                <td>Non-401 public settings response or auth mode regression.</td>
+              </tr>
+              <tr>
+                <td>Configuration posture</td>
+                <td><span class="status done">Done</span></td>
+                <td><code>auto_create_pr=true</code>, <code>auto_merge_remediation_prs=true</code>, <code>auto_merge_strategy=merge_when_clean</code>, <code>poll=240</code>, <code>require_clean_checks=true</code>.</td>
+                <td>Unplanned default change that drops a release gate.</td>
+              </tr>
+              <tr>
+                <td>LLM stack post-v0.8.8</td>
+                <td><span class="status done">Done</span></td>
+                <td>Provider <code>codex_app_server</code> and model <code>gpt-5.4</code> with <code>full_capability</code>.</td>
+                <td>Runtime provider or model mismatch.</td>
+              </tr>
+              <tr>
+                <td>Release notes scope</td>
+                <td><span class="status partial">Needs follow-up</span></td>
+                <td>Optional Copilot reviewer task is tracked as optional/pending and recorded.</td>
+                <td>Optional path incorrectly treated as required.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="changes">
+        <span class="eyebrow">Changes</span>
+        <h2>What changed</h2>
+        <div class="cards">
+          <article class="card">
+            <strong>Release stream</strong>
+            <p>Delivered production release progression from <code>#188</code> (v0.8.6) through <code>#190</code> (v0.8.8). v0.8.6 had auto-merge remediation PR behavior, v0.8.7 handled optional Copilot reviewer handling, and v0.8.8 finalized Codex App Server final agent message extraction. All listed PRs were merged and deployed.</p>
+          </article>
+          <article class="card">
+            <strong>Runtime and auth</strong>
+            <p>Auth behavior remained Entra-based. Public settings enforced <code>401</code> status behavior and runtime auth mode is still <code>entra</code>. This aligns with current non-development enforcement expectations.</p>
+          </article>
+          <article class="card">
+            <strong>Operational controls</strong>
+            <p>LLM path is set to <code>provider=codex_app_server</code>, model <code>gpt-5.4</code>, and capability level <code>full_capability</code>. Merge and remediation controls are enabled and strict enough for clean-check requirements.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section span-6" id="verification">
+        <span class="eyebrow">Verification</span>
+        <h2>Checks recorded</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Check</th>
+                <th>Result</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Prod health after v0.8.8</td>
+                <td><span class="status done">Verified locally</span></td>
+                <td><code>curl</code> confirmed service <code>PipelineHealer</code>, version <code>0.8.8</code>, environment <code>production</code>, backend <code>cosmos_db</code>.</td>
+              </tr>
+              <tr>
+                <td>Dependency remediation chain</td>
+                <td><span class="status done">Verified locally</span></td>
+                <td>Run <code>26711712845</code> to activity <code>676b2495-85c4-433f-9de7-3fe62063a319</code> to PR <code>#180</code> and issue <code>#179</code>.</td>
+              </tr>
+              <tr>
+                <td>Lint diagnosis and remediation chain</td>
+                <td><span class="status done">Verified locally</span></td>
+                <td>Run <code>26712043289</code> to activity <code>ceff1824-b993-434f-b48b-64080afc9e87</code> recorded <code>diagnosis_source=llm</code>, <code>provider=codex_app_server</code>, <code>model=gpt-5.4</code>, <code>fallback_used=false</code>, <code>error_count=0</code>.</td>
+              </tr>
+              <tr>
+                <td>CI success states</td>
+                <td><span class="status done">Verified locally</span></td>
+                <td>Main CI runs <code>26711762726</code> and <code>26712105044</code> were successful.</td>
+              </tr>
+              <tr>
+                <td>Secret handling</td>
+                <td><span class="status done">Verified by redacted metadata</span></td>
+                <td><code>infisical --version</code> returned <code>0.43.89</code>; provider-health check used <code>infisical run</code> with injected names only and printed no secret values.</td>
+              </tr>
+              <tr>
+                <td>Auth and provider health</td>
+                <td><span class="status done">Verified locally</span></td>
+                <td>Unauthenticated settings returned <code>401</code>; runtime config reported <code>VITE_AUTH_MODE="entra"</code> and empty API key; provider health reported <code>full_capability</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section span-6" id="timeline">
+        <span class="eyebrow">Timeline</span>
+        <h2>Work sequence</h2>
+        <div class="timeline">
+          <div class="event">
+            <div class="time"><time datetime="2026-05-31">2026-05-31</time><span>Evidence sequence</span></div>
+            <div class="event-body"><strong>Pre-release evidence.</strong><p>Dependency run <code>26711712845</code> and lint run <code>26712043289</code> provided run and activity IDs, PRs, and success states for deployment confidence.</p></div>
+          </div>
+          <div class="event">
+            <div class="time"><time datetime="2026-05-31">2026-05-31</time><span>Release delivery</span></div>
+            <div class="event-body"><strong>Release PR chain merged.</strong><p>PR <code>#188</code> (v0.8.6), <code>#189</code> (v0.8.7), and <code>#190</code> (v0.8.8) merged and were deployed.</p></div>
+          </div>
+          <div class="event">
+            <div class="time"><time datetime="2026-05-31">2026-05-31</time><span>Post-closeout snapshot</span></div>
+            <div class="event-body"><strong>Production state captured.</strong><p>Live health confirmed as <code>version 0.8.8</code>, <code>environment production</code>, <code>storage_backend cosmos_db</code>.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="risks">
+        <span class="eyebrow">Risks</span>
+        <h2>Residual uncertainty</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Risk</th>
+                <th>Impact</th>
+                <th>Mitigation / next step</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Node 20 deprecation annotation</td>
+                <td>Low</td>
+                <td>Record and monitor. It is a GitHub Action deprecation signal only.</td>
+              </tr>
+              <tr>
+                <td>Optional Copilot reviewer state</td>
+                <td>Low</td>
+                <td>Documented as optional/pending and remains recorded in release context.</td>
+              </tr>
+              <tr>
+                <td>Direct Codex App Server tool execution</td>
+                <td>Low</td>
+                <td>Current production write and merge actions use backend GitHub PAT/tools. Codex App Server is the diagnosis/model runtime in this release.</td>
+              </tr>
+              <tr>
+                <td>Older closed PRs in scope</td>
+                <td>Low</td>
+                <td>Superseded <code>#177</code> and <code>#176</code> were closed and are not active.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="evidence">
+        <span class="eyebrow">Evidence</span>
+        <h2>Proof rail and raw blocks</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Claim</th>
+                <th>Evidence</th>
+                <th>Result</th>
+                <th>Raw block</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>v0.8.8 is live on production</td>
+                <td>Production health snapshot</td>
+                <td><span class="status done">Verified</span></td>
+                <td>See block A</td>
+              </tr>
+              <tr>
+                <td>Dependency run CI path</td>
+                <td>Run and activity IDs, PR/issue, CI status</td>
+                <td><span class="status done">Verified</span></td>
+                <td>See block B</td>
+              </tr>
+              <tr>
+                <td>Lint run CI path</td>
+                <td>Run/activity IDs, diagnosis metadata, PR/issue, CI status</td>
+                <td><span class="status done">Verified</span></td>
+                <td>See block C</td>
+              </tr>
+              <tr>
+                <td>Config and controls preserved</td>
+                <td>Release settings values provided</td>
+                <td><span class="status done">Verified</span></td>
+                <td>See block D</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <details open>
+          <summary>Block A. Production health after v0.8.8</summary>
+          <div class="details-body">
+            <pre><code>{
+  "service": "PipelineHealer",
+  "environment": "production",
+  "version": "0.8.8",
+  "storage_backend": "cosmos_db"
+}
+
+settings_noauth_http=401
+
+runtime_config:
+  VITE_AUTH_MODE: "entra"
+  VITE_API_AUTH_KEY: ""</code></pre>
+          </div>
+        </details>
+
+        <details>
+          <summary>Block B. Dependency run chain</summary>
+          <div class="details-body">
+            <pre><code>run_id: 26711712845
+activity_id: 676b2495-85c4-433f-9de7-3fe62063a319
+remediation_pr: #180
+merge_commit: cb0d791f6524b3b2a912d69ee39a6ed16260113f
+issue: #179 closed
+main_ci: 26711762726
+status: success</code></pre>
+          </div>
+        </details>
+
+        <details>
+          <summary>Block C. Lint run chain</summary>
+          <div class="details-body">
+            <pre><code>run_id: 26712043289
+activity_id: ceff1824-b993-434f-b48b-64080afc9e87
+diagnosis_source: llm
+llm_provider: codex_app_server
+llm_model: gpt-5.4
+fallback_used: false
+error_count: 0
+remediation_pr: #182
+merge_commit: 814f4868f09bb5005c5ede3ec1478c598070930e
+issue: #181 closed
+main_ci: 26712105044
+status: success</code></pre>
+          </div>
+        </details>
+
+        <details>
+          <summary>Block D. Runtime settings and release notes</summary>
+          <div class="details-body">
+            <pre><code>repository: /Users/canepro/src/pipelinehealer
+release: v0.8.8
+platform: Azure Container Apps
+infisical_cli: 0.43.89
+infisical_prod_path: /pipelinehealer/prod (values redacted)
+settings:
+  auto_create_pr: true
+  auto_merge_remediation_prs: true
+  auto_merge_strategy: merge_when_clean
+  poll: 240
+  require_clean_checks: true
+llm:
+  provider: codex_app_server
+  model: gpt-5.4
+  capability: full_capability
+release_prs:
+  - 188 => v0.8.6 (merged, deployed)
+  - 189 => v0.8.7 (copilot-reviewer optional, required-check clean gate, merged and deployed)
+  - 190 => v0.8.8 (agent final message extraction, merged and deployed)
+other:
+  older_prs_closed: [#177, #176]
+  notes:
+    - Optional copilot reviewer remains optional/pending and is recorded.
+    - GitHub PAT/tools continue write/merge actions.
+    - Codex App Server is current diagnosis/model runtime.</code></pre>
+          </div>
+        </details>
+
+        <details>
+          <summary>Block E. Provider-health and Infisical proof</summary>
+          <div class="details-body">
+            <pre><code>infisical --version:
+  infisical version 0.43.89
+
+provider_health:
+  provider: codex_app_server
+  deployment_name: gpt-5.4
+  available: true
+  provider_ready: true
+  operation_compatible: true
+  full_capability: true
+  capability_state: full_capability
+
+secret_values_printed: false</code></pre>
+          </div>
+        </details>
+
+        <details>
+          <summary>Block F. Known residual annotation</summary>
+          <div class="details-body">
+            <pre><code>ci_annotation: "GitHub action Node 20 deprecation"
+severity: low
+scope: warning
+status: noted</code></pre>
+          </div>
+        </details>
+      </section>
+    </div>
+
+    <footer class="footer">
+      Self-contained Codex HTML report. No external assets, no secret values. Evidence-first structure preserved from the canonical template v0.5.0.
+    </footer>
+  </main>
+</body>
+</html>
