@@ -485,6 +485,7 @@
       <a href="#verification">Verification</a>
       <a href="#timeline">Timeline</a>
       <a href="#issues">Issue status</a>
+      <a href="#rollback">Rollback</a>
       <a href="#risks">Residual risks</a>
       <a href="#evidence">Evidence</a>
     </nav>
@@ -677,6 +678,45 @@
           <article class="card">
             <strong>Manual smoke gap</strong>
             <p>The remaining gap is interactive Microsoft sign-in validation in production. Headless QA covered unauthenticated boundaries only.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="rollback">
+        <span class="eyebrow">Rollback</span>
+        <h2>Production rollback notes</h2>
+        <p>Rollback is image-only unless a separate incident review identifies a data or configuration fault. Preserve Cosmos DB, environment variables, ACA secret references, and Infisical-backed secret bindings.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Current v0.8.9 image</th>
+                <th>Prior rollback image</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Backend</td>
+                <td><code>caneprophacrprod01.azurecr.io/pipelinehealer-backend@sha256:27b75354cf8d35d236fdd3ac36ba6d20128230312e332cce8307d52e9e671e2b</code></td>
+                <td><code>caneprophacrprod01.azurecr.io/pipelinehealer-backend@sha256:942fd9a242644db05b83a95fe7e94808195465ee63e90ca90bce0eb3df648392</code></td>
+              </tr>
+              <tr>
+                <td>Frontend</td>
+                <td><code>caneprophacrprod01.azurecr.io/pipelinehealer-frontend@sha256:7872210f50be71c6f9ce3e8ee2bb46775dc71af456b3e077bd443425e82e99f4</code></td>
+                <td><code>caneprophacrprod01.azurecr.io/pipelinehealer-frontend@sha256:f9633e94355e5e57becaf23b8f09799d36cfbe77d70611ed97d211883a12ac62</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cards">
+          <article class="card">
+            <strong>Rollback action</strong>
+            <p>Update the backend and frontend ACA apps to the prior image digests only. Do not change storage mode, database name, secret refs, runtime settings, or custom domains during the rollback.</p>
+          </article>
+          <article class="card">
+            <strong>Post-rollback verification</strong>
+            <p>Confirm ACA revision health, <code>/health</code> status and version, unauthenticated <code>/api/settings</code> returns 401 on both API and frontend domains, and the frontend Entra gate still renders before settings data loads.</p>
           </article>
         </div>
       </section>
