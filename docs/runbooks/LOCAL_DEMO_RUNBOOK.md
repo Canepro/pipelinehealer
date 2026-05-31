@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 8817b54 -->
+<!-- LAST_VERIFIED: caeed6a -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -16,7 +16,7 @@ For dedicated feature-by-feature docs, see `docs/features/README.md`.
 
 Use this path if you are new and want the least setup friction:
 
-1. Copy env template: `cp backend/.env.example backend/.env`
+1. Bootstrap env metadata: `bash scripts/ph.sh init`
 2. Fill only required values:
    - one LLM path (`AZURE_OPENAI_*` or `OPENAI_COMPATIBLE_*`)
    - `GITHUB_PERSONAL_ACCESS_TOKEN`
@@ -46,19 +46,20 @@ After migration, keep only Infisical metadata in `backend/.env`:
 SETTINGS_SECRET_BACKEND=infisical
 INFISICAL_PROJECT_ID=<infisical-project-id>
 INFISICAL_ENVIRONMENT=dev
-INFISICAL_SECRET_PATH=/personal/pipelinehealer
+INFISICAL_SECRET_PATH=/pipelinehealer/dev
 ```
 
 If bootstrap values such as `API_AUTH_KEY`, `ADMIN_API_KEY`, or `AUDIT_SALT` were migrated too, start local commands through Infisical:
 
 ```bash
-infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- <command>
+infisical run --env dev --path /pipelinehealer/dev --projectId <infisical-project-id> -- <command>
 ```
 
 For Azure Container Apps, use the same process-injection pattern with secret refs:
 
 ```bash
-infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- \
+PH_RG=<resource-group> PH_BACKEND_APP=<backend-app> PH_FRONTEND_APP=<frontend-app> PH_ACR_NAME=<acr-name> \
+infisical run --env dev --path /pipelinehealer/dev --projectId <infisical-project-id> -- \
   bash scripts/ph.sh deploy --secure-secrets
 ```
 
@@ -588,7 +589,7 @@ If your backend is running on a remote VM or cluster and `127.0.0.1:8000` only e
    - **Events**: select **Let me select individual events** → check only **Workflow runs**
    - Click **Add webhook**
 
-> **Tip:** You can use the included demo repo at `Canepro/pipelinehealer-demo`, or set up your own repo using the fixtures in the `demo-repo/` folder.
+> **Tip:** Set up a demo repo using the fixtures in the `demo-repo/` folder, then pass it explicitly with `--repo owner/repo`.
 
 ---
 
@@ -602,7 +603,7 @@ gh workflow run ci.yml -R <owner>/<repo> -f failure_type=dependency
 gh workflow run ci.yml -R <owner>/<repo> -f failure_type=lint
 ```
 
-Replace `<owner>/<repo>` with your demo repo (for example `Canepro/pipelinehealer-demo`).
+Replace `<owner>/<repo>` with your demo repo.
 If the workflow filename is not `ci.yml` in your repo, use the name returned by `gh workflow list`.
 
 For an approved end-to-end auto-fix demo, enable `AUTO_CREATE_PR=true` and `AUTO_MERGE_REMEDIATION_PRS=true` for a narrow `PH_ALLOWED_REPOS` list. Keep `AUTO_MERGE_REQUIRE_CLEAN_CHECKS=true`; PipelineHealer records the PR URL, merge strategy, check summary, optional ignored app-check failures, and merge result in the Activity remediation details.

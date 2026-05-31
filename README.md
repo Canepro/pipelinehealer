@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 6bd38bf -->
+<!-- LAST_VERIFIED: caeed6a -->
 
 > OSS-first, policy-aware remediation for failed CI/CD pipelines.
 
@@ -59,7 +59,15 @@ Prerequisites:
 Create local env metadata:
 
 ```bash
-cp backend/.env.example backend/.env
+bash scripts/ph.sh init
+```
+
+`init` creates `backend/.env` when it is missing, generates local bootstrap secrets without printing them, defaults new installs to Codex App Server (`gpt-5.4`), and points the operator to the Settings UI for provider keys, repo scope, auto-fix policy, handoff targets, and write-only secrets.
+
+For an approved repo where PipelineHealer may create and safely merge remediation PRs after clean checks:
+
+```bash
+bash scripts/ph.sh init --auto-fix --repos owner/repo --llm-provider codex_app_server
 ```
 
 For secrets, prefer Infisical. Do not commit secret values.
@@ -75,7 +83,7 @@ Keep only metadata in `backend/.env` after migration:
 SETTINGS_SECRET_BACKEND=infisical
 INFISICAL_PROJECT_ID=<infisical-project-id>
 INFISICAL_ENVIRONMENT=dev
-INFISICAL_SECRET_PATH=/personal/pipelinehealer
+INFISICAL_SECRET_PATH=/pipelinehealer/dev
 ```
 
 Start the backend:
@@ -85,7 +93,7 @@ cd backend
 uv venv .venv
 source .venv/bin/activate
 uv pip install -e ".[dev]"
-infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- uvicorn src.main:app --reload --port 8000
+infisical run --env dev --path /pipelinehealer/dev --projectId <infisical-project-id> -- uvicorn src.main:app --reload --port 8000
 ```
 
 Start the frontend:
@@ -119,24 +127,34 @@ Rules:
 
 Steps:
 1. Read AGENTS.md, README.md, docs/reference/CLI.md, and docs/runbooks/LOCAL_DEMO_RUNBOOK.md.
-2. Install backend deps with: cd backend && uv pip install -e ".[dev]".
-3. Install frontend deps with: cd frontend && bun install.
-4. Configure backend/.env from backend/.env.example.
+2. Run: bash scripts/ph.sh init.
+3. Install backend deps with: cd backend && uv pip install -e ".[dev]".
+4. Install frontend deps with: cd frontend && bun install.
 5. Migrate or inject secrets with Infisical. Use redacted proof only.
-6. Start backend with infisical run and uvicorn.
-7. Start frontend with bun run dev.
-8. Verify /health, /api/settings, frontend load, and at least one activity or handoff path if test data exists.
-9. Report exact commands run, pass/fail status, and any blocked secrets or provider setup.
+6. Finish model, GitHub, repo allowlist, auto-fix, handoff, and write-only secret setup in /app/settings.
+7. Start backend with infisical run and uvicorn.
+8. Start frontend with bun run dev.
+9. Verify /health, /api/settings, frontend load, and at least one activity or handoff path if test data exists.
+10. Report exact commands run, pass/fail status, and any blocked secrets or provider setup.
 ```
 
 ## Azure Container Apps Deploy
 
 The reference deployment uses `scripts/ph.sh`, Azure Container Registry, and Azure Container Apps.
 
+Set your Azure target explicitly. The public CLI does not carry maintainer production names:
+
+```bash
+export PH_RG=<resource-group>
+export PH_BACKEND_APP=<backend-container-app>
+export PH_FRONTEND_APP=<frontend-container-app>
+export PH_ACR_NAME=<container-registry-name>
+```
+
 Recommended Infisical-backed deploy:
 
 ```bash
-infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- \
+infisical run --env dev --path /pipelinehealer/dev --projectId <infisical-project-id> -- \
   bash scripts/ph.sh deploy --secure-secrets
 ```
 
@@ -145,7 +163,7 @@ If Docker or Podman is not running locally, add `--remote-build` to build the im
 Env-only update:
 
 ```bash
-infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- \
+infisical run --env dev --path /pipelinehealer/dev --projectId <infisical-project-id> -- \
   bash scripts/ph.sh deploy:env --secure-secrets
 ```
 
@@ -164,7 +182,7 @@ bash scripts/ph.sh logs
 
 The deploy adapter stores sensitive values as Container App secrets and binds them through `secretref`. It reads process env first, so `infisical run` can inject values without restoring them to `backend/.env`.
 
-For the production lane, follow [docs/runbooks/PRODUCTION_PROMOTION_RUNBOOK.md](docs/runbooks/PRODUCTION_PROMOTION_RUNBOOK.md). Production promotion uses reviewed release images, Infisical-injected secrets, Azure `what-if`, and the `rg-canepro-ph-prod-eus2` Container Apps lane.
+For production lanes, follow [docs/runbooks/PRODUCTION_PROMOTION_RUNBOOK.md](docs/runbooks/PRODUCTION_PROMOTION_RUNBOOK.md). Production promotion uses reviewed release images, Infisical-injected secrets, Azure `what-if`, and operator-supplied Container Apps target names.
 
 ## Kubernetes And Local Containers
 
@@ -216,6 +234,7 @@ Security policy: [SECURITY.md](SECURITY.md)
 
 ```bash
 bash scripts/ph.sh help
+bash scripts/ph.sh init
 bash scripts/ph.sh status
 bash scripts/ph.sh settings:check
 bash scripts/ph.sh deploy:release --release-version vX.Y.Z

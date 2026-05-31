@@ -1,8 +1,8 @@
 # Production Promotion Runbook
 
-<!-- LAST_VERIFIED: 044aa39 -->
+<!-- LAST_VERIFIED: caeed6a -->
 
-This runbook promotes a reviewed PipelineHealer release to the production Azure Container Apps lane for `pipelinehealer.canepro.me` and `api.pipelinehealer.canepro.me`.
+This runbook promotes a reviewed PipelineHealer release to an operator-owned production Azure Container Apps lane.
 
 Production is not a rename of the current dev deployment. It needs its own resource group, Container Apps, runtime configuration, secret injection, domain bindings, and smoke proof.
 
@@ -22,14 +22,14 @@ Recommended initial production lane:
 
 | Resource | Value |
 | --- | --- |
-| Resource group | `rg-canepro-ph-prod-eus2` |
+| Resource group | `<prod-resource-group>` |
 | Bicep parameters | `infra/main.prod.bicepparam` |
-| Container Apps environment | `cae-canepro-ph-prod-eus2` |
-| Backend app | `ca-canepro-ph-prod-backend` |
-| Frontend app | `ca-canepro-ph-prod-frontend` |
-| ACR | `caneprophacrprod01` |
-| Backend domain | `api.pipelinehealer.canepro.me` |
-| Frontend domain | `pipelinehealer.canepro.me` |
+| Container Apps environment | `<prod-container-apps-environment>` |
+| Backend app | `<prod-backend-app>` |
+| Frontend app | `<prod-frontend-app>` |
+| ACR | `<prod-acr-name>` |
+| Backend domain | `<api-domain>` |
+| Frontend domain | `<frontend-domain>` |
 | Secret source | Infisical `prod` environment |
 
 The first prod lane uses a separate production ACR. The release workflow still publishes public images to GHCR, so production promotion imports the reviewed GHCR release images into the prod ACR before running `deploy:release`.
@@ -40,8 +40,8 @@ Existing production history is in the current Cosmos DB lane:
 
 | Resource | Value |
 | --- | --- |
-| Resource group | `rg-canepro-ph-dev-eus` |
-| Cosmos account | `pipelinehealerdev-cosmos-zarrajklt3i5u` |
+| Resource group | `<existing-cosmos-resource-group>` |
+| Cosmos account | `<existing-cosmos-account>` |
 | Database | `pipelinehealer` |
 | Containers | `activities`, `workflow_runs` |
 | Partition key | `/repositoryId` |
@@ -59,20 +59,20 @@ After the production backend app exists, grant its identity access to the existi
 
 ```bash
 PROD_BACKEND_PRINCIPAL_ID="$(az containerapp show \
-  --resource-group rg-canepro-ph-prod-eus2 \
-  --name ca-canepro-ph-prod-backend \
+  --resource-group <prod-resource-group> \
+  --name <prod-backend-app> \
   --query identity.principalId \
   --output tsv)"
 
 COSMOS_CONTRIBUTOR_ROLE_ID="$(az cosmosdb sql role definition list \
-  --resource-group rg-canepro-ph-dev-eus \
-  --account-name pipelinehealerdev-cosmos-zarrajklt3i5u \
+  --resource-group <existing-cosmos-resource-group> \
+  --account-name <existing-cosmos-account> \
   --query "[?roleName=='Cosmos DB Built-in Data Contributor'].id | [0]" \
   --output tsv)"
 
 az cosmosdb sql role assignment create \
-  --resource-group rg-canepro-ph-dev-eus \
-  --account-name pipelinehealerdev-cosmos-zarrajklt3i5u \
+  --resource-group <existing-cosmos-resource-group> \
+  --account-name <existing-cosmos-account> \
   --role-definition-id "$COSMOS_CONTRIBUTOR_ROLE_ID" \
   --scope "/" \
   --principal-id "$PROD_BACKEND_PRINCIPAL_ID"
@@ -82,7 +82,7 @@ Set these values in the production Infisical environment before `deploy:release`
 
 ```env
 STORAGE_MODE=cosmos
-COSMOS_DB_ENDPOINT=https://pipelinehealerdev-cosmos-zarrajklt3i5u.documents.azure.com:443/
+COSMOS_DB_ENDPOINT=https://<existing-cosmos-account>.documents.azure.com:443/
 COSMOS_DB_DATABASE=pipelinehealer
 ```
 
@@ -92,12 +92,12 @@ Before pointing Cloudflare DNS at the new frontend/backend, verify the backend i
 
 ```bash
 az containerapp show \
-  --resource-group rg-canepro-ph-prod-eus2 \
-  --name ca-canepro-ph-prod-backend \
+  --resource-group <prod-resource-group> \
+  --name <prod-backend-app> \
   --query "properties.template.containers[0].env[?name=='COSMOS_DB_ENDPOINT' || name=='COSMOS_DB_DATABASE' || name=='STORAGE_MODE']"
 ```
 
-Do not delete, reinitialize, or rename the existing Cosmos account during this release. If a later release migrates data into `rg-canepro-ph-prod-eus2`, use a separate migration PR/runbook and capture pre/post counts for both containers.
+Do not delete, reinitialize, or rename the existing Cosmos account during this release. If a later release migrates data into the production resource group, use a separate migration PR/runbook and capture pre/post counts for both containers.
 
 ## Model Runtime
 
@@ -186,39 +186,39 @@ bash scripts/release_verify.sh v0.8.5
 Create the resource group if it does not exist:
 
 ```bash
-az group create --name rg-canepro-ph-prod-eus2 --location eastus2
+az group create --name <prod-resource-group> --location <azure-region>
 ```
 
 Preview the Azure changes first:
 
 ```bash
 az deployment group what-if \
-  --resource-group rg-canepro-ph-prod-eus2 \
+  --resource-group <prod-resource-group> \
   --template-file infra/acr.bicep \
-  --parameters acrName=caneprophacrprod01
+  --parameters acrName=<prod-acr-name>
 ```
 
 Create or update the production ACR:
 
 ```bash
 az deployment group create \
-  --resource-group rg-canepro-ph-prod-eus2 \
+  --resource-group <prod-resource-group> \
   --template-file infra/acr.bicep \
-  --parameters acrName=caneprophacrprod01
+  --parameters acrName=<prod-acr-name>
 ```
 
 Import the reviewed release images from public GHCR into the prod ACR:
 
 ```bash
 az acr import \
-  --name caneprophacrprod01 \
-  --source ghcr.io/canepro/pipelinehealer-backend:v0.8.5 \
+  --name <prod-acr-name> \
+  --source ghcr.io/<owner>/pipelinehealer-backend:v0.8.5 \
   --image pipelinehealer-backend:v0.8.5 \
   --force
 
 az acr import \
-  --name caneprophacrprod01 \
-  --source ghcr.io/canepro/pipelinehealer-frontend:v0.8.5 \
+  --name <prod-acr-name> \
+  --source ghcr.io/<owner>/pipelinehealer-frontend:v0.8.5 \
   --image pipelinehealer-frontend:v0.8.5 \
   --force
 ```
@@ -231,7 +231,7 @@ infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-proj
 
 infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-project-id> -- \
   az deployment group what-if \
-    --resource-group rg-canepro-ph-prod-eus2 \
+    --resource-group <prod-resource-group> \
     --template-file infra/main.bicep \
     --parameters infra/main.prod.bicepparam
 ```
@@ -244,7 +244,7 @@ infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-proj
 
 infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-project-id> -- \
   az deployment group create \
-    --resource-group rg-canepro-ph-prod-eus2 \
+    --resource-group <prod-resource-group> \
     --template-file infra/main.bicep \
     --parameters infra/main.prod.bicepparam
 ```
@@ -265,14 +265,14 @@ infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-proj
   for key in API_AUTH_KEY ADMIN_API_KEY GITHUB_WEBHOOK_SECRET GITHUB_PERSONAL_ACCESS_TOKEN CODEX_APP_SERVER_WS_BEARER_TOKEN; do
     if [ -n "${!key:-}" ]; then printf "%s=%s\n" "$key" "${!key}" >>"$release_env"; fi
   done
-  PH_RG=rg-canepro-ph-prod-eus2 \
-  PH_BACKEND_APP=ca-canepro-ph-prod-backend \
-  PH_FRONTEND_APP=ca-canepro-ph-prod-frontend \
+  PH_RG=<prod-resource-group> \
+  PH_BACKEND_APP=<prod-backend-app> \
+  PH_FRONTEND_APP=<prod-frontend-app> \
   bash scripts/ph.sh deploy:release \
-    --resource-group rg-canepro-ph-prod-eus2 \
-    --acr-name caneprophacrprod01 \
-    --backend-app ca-canepro-ph-prod-backend \
-    --frontend-app ca-canepro-ph-prod-frontend \
+    --resource-group <prod-resource-group> \
+    --acr-name <prod-acr-name> \
+    --backend-app <prod-backend-app> \
+    --frontend-app <prod-frontend-app> \
     --release-version v0.8.5 \
     --env-file "$release_env" \
     --secure-secrets
@@ -286,9 +286,9 @@ After Container Apps have stable FQDNs, bind Cloudflare-backed custom domains th
 Minimum smoke proof:
 
 ```bash
-curl -fsS https://api.pipelinehealer.canepro.me/health
-curl -fsS https://pipelinehealer.canepro.me/runtime-config.js
-PH_RG=rg-canepro-ph-prod-eus2 PH_BACKEND_APP=ca-canepro-ph-prod-backend PH_FRONTEND_APP=ca-canepro-ph-prod-frontend bash scripts/ph.sh status
+curl -fsS https://<api-domain>/health
+curl -fsS https://<frontend-domain>/runtime-config.js
+PH_RG=<prod-resource-group> PH_BACKEND_APP=<prod-backend-app> PH_FRONTEND_APP=<prod-frontend-app> bash scripts/ph.sh status
 ```
 
 Expected:
@@ -314,14 +314,14 @@ infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-proj
   for key in API_AUTH_KEY ADMIN_API_KEY GITHUB_WEBHOOK_SECRET GITHUB_PERSONAL_ACCESS_TOKEN; do
     if [ -n "${!key:-}" ]; then printf "%s=%s\n" "$key" "${!key}" >>"$release_env"; fi
   done
-  PH_RG=rg-canepro-ph-prod-eus2 \
-  PH_BACKEND_APP=ca-canepro-ph-prod-backend \
-  PH_FRONTEND_APP=ca-canepro-ph-prod-frontend \
+  PH_RG=<prod-resource-group> \
+  PH_BACKEND_APP=<prod-backend-app> \
+  PH_FRONTEND_APP=<prod-frontend-app> \
   bash scripts/ph.sh deploy:release \
-    --resource-group rg-canepro-ph-prod-eus2 \
-    --acr-name caneprophacrprod01 \
-    --backend-app ca-canepro-ph-prod-backend \
-    --frontend-app ca-canepro-ph-prod-frontend \
+    --resource-group <prod-resource-group> \
+    --acr-name <prod-acr-name> \
+    --backend-app <prod-backend-app> \
+    --frontend-app <prod-frontend-app> \
     --release-version v0.7.2 \
     --env-file "$release_env" \
     --secure-secrets

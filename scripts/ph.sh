@@ -13,16 +13,14 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-AZ_RESOURCE_GROUP="${PH_RG:-rg-canepro-ph-dev-eus}"
-BACKEND_APP="${PH_BACKEND_APP:-ca-canepro-ph-backend}"
-FRONTEND_APP="${PH_FRONTEND_APP:-ca-canepro-ph-frontend}"
+AZ_RESOURCE_GROUP="${PH_RG:-}"
+BACKEND_APP="${PH_BACKEND_APP:-}"
+FRONTEND_APP="${PH_FRONTEND_APP:-}"
 
 # Namespace background deploy state files by resource group to avoid collisions
 # between concurrent runs, different users, or multiple repos.
-_deploy_state_dir="/tmp/ph-deploy-${AZ_RESOURCE_GROUP}"
-mkdir -p "$_deploy_state_dir" 2>/dev/null || true
-DEPLOY_LOG="${PH_DEPLOY_LOG:-$_deploy_state_dir/redeploy.log}"
-DEPLOY_PID="${PH_DEPLOY_PID:-$_deploy_state_dir/redeploy.pid}"
+DEPLOY_LOG="${PH_DEPLOY_LOG:-}"
+DEPLOY_PID="${PH_DEPLOY_PID:-}"
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -36,6 +34,7 @@ Usage:
   bash scripts/ph.sh <command> [options]
 
 Commands:
+  init              Bootstrap local/dev env and print the UI-first setup path
   deploy            Full Azure redeploy (build/push/update/verify)
   deploy:release    Azure redeploy from existing ACR release images (no local build)
   deploy:env        Update runtime env vars only (backend + frontend, no image rebuild)
@@ -47,7 +46,7 @@ Commands:
   webhook:disable   Disable Azure webhook for one repo
   rollout:canary    Configure issue-only canary mode for selected repos and attach webhooks
   demo:e2e          Run scripted Azure E2E demo flow with CI-signal verification
-  demo:proof        Show latest CI runs, PRs, and issues for a repo (default demo repo)
+  demo:proof        Show latest CI runs, PRs, and issues for an explicit repo
   demo:reset        Reset demo fixture repo for dependency/lint failures
   warm              Set backend/frontend min-replicas to 1
   lowcost           Set backend/frontend min-replicas to 0
@@ -67,6 +66,8 @@ Commands:
   help              Show this help
 
 Examples:
+  bash scripts/ph.sh init
+  bash scripts/ph.sh init --auto-fix --repos owner/repo --llm-provider codex_app_server
   bash scripts/ph.sh deploy
   bash scripts/ph.sh deploy --secure-secrets
   bash scripts/ph.sh deploy:release --release-version vX.Y.Z
@@ -77,8 +78,8 @@ Examples:
   bash scripts/ph.sh urls
   bash scripts/ph.sh webhook:add --repo owner/repo
   bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
-  bash scripts/ph.sh demo:e2e --skip-webhook-sync
-  bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180 --strict
+  bash scripts/ph.sh demo:e2e --repo owner/repo --skip-webhook-sync
+  bash scripts/ph.sh demo:e2e --repo owner/repo --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180 --strict
   bash scripts/ph.sh demo:proof --repo owner/repo
   bash scripts/ph.sh settings:persist --from-settings
   bash scripts/ph.sh settings:persist:verify --from-settings
@@ -103,8 +104,8 @@ Local mode:
   Commands that work locally: settings:check, settings:audit, audit:proof,
   aoai:check, backfill, logs, logs:raw, logs:grep, demo:proof, demo:reset, help.
 
-  Azure-only commands (deploy, deploy:release, warm, lowcost, status, urls, webhook:*,
-  rollout:canary, demo:e2e) print a clear error when PH_BACKEND_URL is set.
+  Azure-only commands require PH_RG and app-name env vars or equivalent flags.
+  They also print a clear error when PH_BACKEND_URL is set.
 EOF
 }
 
@@ -128,7 +129,7 @@ require_arg() {
 
 env_file() {
   # Single source of truth for runtime settings used by helper commands.
-  echo "$REPO_ROOT/backend/.env"
+  echo "${PH_ENV_FILE:-$REPO_ROOT/backend/.env}"
 }
 
 read_env_key() {
@@ -169,6 +170,237 @@ upsert_env_key() {
   chmod 600 "$file"
 }
 
+random_secret() {
+  need_cmd python3
+  python3 - <<'PY'
+import secrets
+
+print(secrets.token_urlsafe(32))
+PY
+}
+
+cmd_init() {
+  local mode="local"
+  local llm_provider="codex_app_server"
+  local repos_csv=""
+  local auto_fix="0"
+  local force_env="0"
+  local skip_env="0"
+  local infisical_project_id="${INFISICAL_PROJECT_ID:-}"
+  local infisical_environment="${INFISICAL_ENVIRONMENT:-dev}"
+  local infisical_secret_path="${INFISICAL_SECRET_PATH:-/pipelinehealer/dev}"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --mode)
+        require_arg "$1" "${2-}"
+        mode="$2"
+        shift 2
+        ;;
+      --mode=*)
+        mode="${1#*=}"
+        shift
+        ;;
+      --llm-provider)
+        require_arg "$1" "${2-}"
+        llm_provider="$2"
+        shift 2
+        ;;
+      --llm-provider=*)
+        llm_provider="${1#*=}"
+        shift
+        ;;
+      --repos)
+        require_arg "$1" "${2-}"
+        repos_csv="$2"
+        shift 2
+        ;;
+      --repos=*)
+        repos_csv="${1#*=}"
+        shift
+        ;;
+      --auto-fix)
+        auto_fix="1"
+        shift
+        ;;
+      --force-env)
+        force_env="1"
+        shift
+        ;;
+      --skip-env)
+        skip_env="1"
+        shift
+        ;;
+      --infisical-project-id)
+        require_arg "$1" "${2-}"
+        infisical_project_id="$2"
+        shift 2
+        ;;
+      --infisical-project-id=*)
+        infisical_project_id="${1#*=}"
+        shift
+        ;;
+      --infisical-env)
+        require_arg "$1" "${2-}"
+        infisical_environment="$2"
+        shift 2
+        ;;
+      --infisical-env=*)
+        infisical_environment="${1#*=}"
+        shift
+        ;;
+      --infisical-path)
+        require_arg "$1" "${2-}"
+        infisical_secret_path="$2"
+        shift 2
+        ;;
+      --infisical-path=*)
+        infisical_secret_path="${1#*=}"
+        shift
+        ;;
+      --yes)
+        shift
+        ;;
+      *)
+        echo "Unknown argument for init: $1" >&2
+        exit 2
+        ;;
+    esac
+  done
+
+  case "${mode,,}" in
+    local|azure|prod|production) ;;
+    *)
+      echo "Invalid --mode '$mode' (expected local, azure, prod, or production)." >&2
+      exit 2
+      ;;
+  esac
+
+  case "${llm_provider,,}" in
+    azure_openai|openai_compatible|codex_app_server|custom) ;;
+    *)
+      echo "Invalid --llm-provider '$llm_provider'." >&2
+      exit 2
+      ;;
+  esac
+
+  local env_path env_created
+  env_path="$(env_file)"
+  env_created="0"
+
+  echo "PipelineHealer init"
+  echo "  mode: ${mode,,}"
+  echo "  env:  $env_path"
+  echo
+
+  local required_cmds=(bash python3 curl git)
+  local optional_cmds=(uv bun docker podman az gh infisical)
+  local cmd missing_required=0
+  echo "Dependency check:"
+  for cmd in "${required_cmds[@]}"; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+      echo "  ok       $cmd"
+    else
+      echo "  missing  $cmd (required)"
+      missing_required=1
+    fi
+  done
+  for cmd in "${optional_cmds[@]}"; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+      echo "  ok       $cmd"
+    else
+      echo "  optional $cmd"
+    fi
+  done
+  if [[ "$missing_required" == "1" ]]; then
+    echo "Install missing required commands and rerun init." >&2
+    exit 1
+  fi
+  echo
+
+  if [[ "$skip_env" == "1" ]]; then
+    echo "Env scaffold skipped (--skip-env)."
+  elif [[ -f "$env_path" && "$force_env" != "1" ]]; then
+    echo "Env file already exists. Leaving values unchanged."
+    echo "Use --force-env to recreate it from backend/.env.example."
+  else
+    mkdir -p "$(dirname "$env_path")"
+    cp "$REPO_ROOT/backend/.env.example" "$env_path"
+    chmod 600 "$env_path"
+    env_created="1"
+
+    upsert_env_key "API_AUTH_KEY" "$(random_secret)"
+    upsert_env_key "ADMIN_API_KEY" "$(random_secret)"
+    upsert_env_key "AUDIT_SALT" "$(random_secret)"
+    upsert_env_key "GITHUB_WEBHOOK_SECRET" "$(random_secret)"
+    upsert_env_key "SETTINGS_DB_ENCRYPTION_KEY" "$(random_secret)"
+    upsert_env_key "LLM_PROVIDER" "${llm_provider,,}"
+    upsert_env_key "CODEX_APP_SERVER_MODEL" "gpt-5.4"
+
+    if [[ "${mode,,}" == "local" ]]; then
+      upsert_env_key "ENVIRONMENT" "development"
+      upsert_env_key "STORAGE_MODE" "memory"
+      upsert_env_key "AUTH_MODE" "api_key"
+      upsert_env_key "VITE_AUTH_MODE" "none"
+    else
+      upsert_env_key "ENVIRONMENT" "production"
+      upsert_env_key "AUTH_MODE" "hybrid"
+      upsert_env_key "VITE_AUTH_MODE" "entra"
+    fi
+
+    if [[ -n "${repos_csv:-}" ]]; then
+      upsert_env_key "PH_ALLOWED_REPOS" "$(echo "$repos_csv" | tr -d '[:space:]')"
+    fi
+
+    if [[ "$auto_fix" == "1" ]]; then
+      upsert_env_key "AUTO_APPLY_REMEDIATION" "true"
+      upsert_env_key "AUTO_CREATE_PR" "true"
+      upsert_env_key "AUTO_CREATE_ISSUE" "true"
+      upsert_env_key "AUTO_RETRY_WORKFLOW" "false"
+      upsert_env_key "AUTO_MERGE_REMEDIATION_PRS" "true"
+      upsert_env_key "AUTO_MERGE_STRATEGY" "merge_when_clean"
+      upsert_env_key "AUTO_MERGE_REQUIRE_CLEAN_CHECKS" "true"
+    fi
+
+    if [[ -n "${infisical_project_id:-}" ]]; then
+      upsert_env_key "SETTINGS_SECRET_BACKEND" "infisical"
+      upsert_env_key "INFISICAL_PROJECT_ID" "$infisical_project_id"
+      upsert_env_key "INFISICAL_ENVIRONMENT" "$infisical_environment"
+      upsert_env_key "INFISICAL_SECRET_PATH" "$infisical_secret_path"
+    fi
+
+    echo "Created env scaffold with generated local secrets. Values were not printed."
+  fi
+
+  echo
+  echo "Next commands:"
+  echo "  backend:  cd backend && uv pip install -e '.[dev]' && uvicorn src.main:app --reload"
+  echo "  frontend: cd frontend && bun install && bun run dev"
+  if [[ -n "${infisical_project_id:-}" ]]; then
+    echo "  deploy:   infisical run --env $infisical_environment --path $infisical_secret_path --projectId <project-id> -- bash scripts/ph.sh deploy --secure-secrets"
+  else
+    echo "  deploy:   bash scripts/ph.sh deploy --secure-secrets"
+  fi
+  echo
+  echo "Finish setup in the UI:"
+  echo "  local dev:      http://127.0.0.1:5173/app/settings"
+  echo "  local container: http://127.0.0.1:3000/app/settings"
+  if [[ -n "${PH_FRONTEND_URL:-}" ]]; then
+    echo "  deployed:       ${PH_FRONTEND_URL%/}/app/settings"
+  else
+    echo "  deployed:       set PH_FRONTEND_URL to print your deployed Settings URL"
+  fi
+  echo
+  echo "UI-first fields already supported: model provider, Codex App Server, GitHub token presence, repo allowlist, auto-fix policy, MCP policy, handoff targets, and write-only secrets."
+  if [[ "$auto_fix" == "1" && -z "${repos_csv:-}" ]]; then
+    echo
+    echo "Warning: --auto-fix was enabled without --repos. Set PH_ALLOWED_REPOS before wiring production webhooks."
+  fi
+  if [[ "$env_created" == "1" ]]; then
+    echo "Env scaffold complete."
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Local vs Azure mode
 # ---------------------------------------------------------------------------
@@ -195,6 +427,72 @@ require_azure() {
   fi
 }
 
+require_azure_app_config() {
+  local command_name="$1"
+  local -a missing=()
+  [[ -n "${AZ_RESOURCE_GROUP:-}" ]] || missing+=("PH_RG")
+  [[ -n "${BACKEND_APP:-}" ]] || missing+=("PH_BACKEND_APP")
+  [[ -n "${FRONTEND_APP:-}" ]] || missing+=("PH_FRONTEND_APP")
+  if [[ "${#missing[@]}" -gt 0 ]]; then
+    echo "Error: '$command_name' needs Azure Container Apps target env vars: ${missing[*]}." >&2
+    echo "Example:" >&2
+    echo "  PH_RG=<resource-group> PH_BACKEND_APP=<backend-app> PH_FRONTEND_APP=<frontend-app> bash scripts/ph.sh $command_name" >&2
+    exit 2
+  fi
+}
+
+require_backend_app_config() {
+  local command_name="$1"
+  local -a missing=()
+  [[ -n "${AZ_RESOURCE_GROUP:-}" ]] || missing+=("PH_RG")
+  [[ -n "${BACKEND_APP:-}" ]] || missing+=("PH_BACKEND_APP")
+  if [[ "${#missing[@]}" -gt 0 ]]; then
+    echo "Error: '$command_name' needs Azure backend target env vars: ${missing[*]}." >&2
+    echo "Example:" >&2
+    echo "  PH_RG=<resource-group> PH_BACKEND_APP=<backend-app> bash scripts/ph.sh $command_name" >&2
+    exit 2
+  fi
+}
+
+resource_group_from_args() {
+  local rg="${AZ_RESOURCE_GROUP:-}"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --resource-group)
+        if [[ -n "${2-}" && "${2-}" != --* ]]; then
+          rg="$2"
+          shift 2
+        else
+          break
+        fi
+        ;;
+      --resource-group=*)
+        rg="${1#*=}"
+        shift
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+  printf '%s\n' "$rg"
+}
+
+prepare_deploy_state_paths() {
+  local command_name="$1"
+  shift
+  local rg
+  rg="$(resource_group_from_args "$@")"
+  if [[ -z "${rg:-}" ]]; then
+    echo "Error: '$command_name' needs --resource-group or PH_RG for deploy state files." >&2
+    exit 2
+  fi
+  local deploy_state_dir="/tmp/ph-deploy-${rg}"
+  mkdir -p "$deploy_state_dir"
+  DEPLOY_LOG="${PH_DEPLOY_LOG:-$deploy_state_dir/redeploy.log}"
+  DEPLOY_PID="${PH_DEPLOY_PID:-$deploy_state_dir/redeploy.pid}"
+}
+
 resolve_backend_url() {
   if is_local_mode; then
     # Strip trailing slash for consistency
@@ -207,6 +505,7 @@ resolve_backend_url() {
     echo "$local_url"
   else
     need_cmd az
+    require_backend_app_config "resolve-backend-url"
     local fqdn
     fqdn="$(az containerapp show \
       -g "$AZ_RESOURCE_GROUP" \
@@ -227,6 +526,7 @@ resolve_backend_fqdn() {
     exit 1
   fi
   need_cmd az
+  require_backend_app_config "resolve-backend-fqdn"
   local fqdn
   fqdn="$(az containerapp show \
     -g "$AZ_RESOURCE_GROUP" \
@@ -243,6 +543,7 @@ resolve_backend_fqdn() {
 resolve_frontend_fqdn() {
   require_azure "urls"
   need_cmd az
+  require_azure_app_config "urls"
   local fqdn
   fqdn="$(az containerapp show \
     -g "$AZ_RESOURCE_GROUP" \
@@ -283,12 +584,13 @@ sync_repo_webhook() {
   local repo="$1"
   local mode="$2"  # add|disable
   need_cmd gh
-  need_cmd az
 
   if [[ -z "${repo:-}" || "$repo" != */* ]]; then
     echo "Invalid repo value: '$repo' (expected owner/name)" >&2
     exit 2
   fi
+  require_backend_app_config "webhook:$mode"
+  need_cmd az
 
   local backend_fqdn backend_url webhook_secret
   backend_fqdn="$(resolve_backend_fqdn)"
@@ -460,6 +762,12 @@ cmd_rollout_canary() {
     exit 2
   fi
 
+  if [[ "$apply_env" == "1" ]]; then
+    require_azure_app_config "rollout:canary"
+  else
+    require_backend_app_config "rollout:canary"
+  fi
+
   # Canary defaults: constrain scope and keep remediation conservative.
   # Keep explicit toggles so behavior stays stable even when policy gates evolve.
   upsert_env_key "PH_ALLOWED_REPOS" "$normalized_csv"
@@ -502,6 +810,7 @@ cmd_rollout_canary() {
 
 scale_mode() {
   local min="$1"
+  require_azure_app_config "scale"
   need_cmd az
   az containerapp update -g "$AZ_RESOURCE_GROUP" -n "$BACKEND_APP" --min-replicas "$min" >/dev/null
   az containerapp update -g "$AZ_RESOURCE_GROUP" -n "$FRONTEND_APP" --min-replicas "$min" >/dev/null
@@ -637,7 +946,7 @@ audit_proof() {
 
 cmd_demo_proof() {
   need_cmd gh
-  local repo="${DEMO_REPO:-Canepro/pipelinehealer-demo}"
+  local repo="${DEMO_REPO:-}"
   local limit="10"
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -646,8 +955,8 @@ cmd_demo_proof() {
           repo="$2"
           shift 2
         else
-          echo "Warning: --repo was provided without a value or was followed by another flag; falling back to $repo" >&2
-          shift 1
+          echo "Error: --repo requires a value." >&2
+          exit 2
         fi
         ;;
       --limit)
@@ -665,6 +974,11 @@ cmd_demo_proof() {
         ;;
     esac
   done
+  if [[ -z "${repo:-}" ]]; then
+    echo "Usage: bash scripts/ph.sh demo:proof --repo owner/repo" >&2
+    echo "Set DEMO_REPO=owner/repo if you want a shell default." >&2
+    exit 2
+  fi
   echo "Recent CI runs:"
   gh run list -R "$repo" --workflow CI --limit "$limit"
   echo
@@ -681,6 +995,7 @@ cmd_demo_proof() {
 
 show_urls() {
   require_azure "urls"
+  require_azure_app_config "urls"
   local backend_fqdn frontend_fqdn
   backend_fqdn="$(resolve_backend_fqdn)"
   frontend_fqdn="$(resolve_frontend_fqdn)"
@@ -690,6 +1005,7 @@ show_urls() {
 
 show_status() {
   require_azure "status"
+  require_azure_app_config "status"
   need_cmd az
   az containerapp list \
     -g "$AZ_RESOURCE_GROUP" \
@@ -703,6 +1019,7 @@ show_status() {
 
 deploy_bg() {
   need_cmd nohup
+  prepare_deploy_state_paths "deploy:bg" "$@"
   nohup bash "$SCRIPT_DIR/deploy/redeploy_azure_containerapps.sh" "$@" >"$DEPLOY_LOG" 2>&1 &
   local pid="$!"
   echo "$pid" > "$DEPLOY_PID"
@@ -720,6 +1037,7 @@ deploy_bg() {
 }
 
 deploy_status() {
+  prepare_deploy_state_paths "deploy:status" "$@"
   if [[ ! -f "$DEPLOY_PID" ]]; then
     echo "No deploy pid file found: $DEPLOY_PID"
     return 0
@@ -777,6 +1095,7 @@ cmd_logs() {
       | grep -v "x-ms-" \
       || true
   else
+    require_backend_app_config "logs"
     need_cmd az
     az containerapp logs show \
       -n "$BACKEND_APP" \
@@ -823,6 +1142,7 @@ cmd_logs_raw() {
     fi
     $compose_cmd --env-file "$REPO_ROOT/backend/.env" logs --tail "$tail_count" backend 2>/dev/null || true
   else
+    require_backend_app_config "logs:raw"
     need_cmd az
     az containerapp logs show \
       -n "$BACKEND_APP" \
@@ -867,6 +1187,7 @@ cmd_logs_grep() {
       | grep -iE "$pattern" \
       || true
   else
+    require_backend_app_config "logs:grep"
     need_cmd az
     az containerapp logs show \
       -n "$BACKEND_APP" \
@@ -2175,6 +2496,9 @@ case "$COMMAND" in
   help|-h|--help)
     usage
     ;;
+  init)
+    cmd_init "$@"
+    ;;
   deploy)
     require_azure "deploy"
     bash "$SCRIPT_DIR/deploy/redeploy_azure_containerapps.sh" "$@"
@@ -2206,6 +2530,7 @@ case "$COMMAND" in
     ;;
   deploy:logs)
     require_azure "deploy:logs"
+    prepare_deploy_state_paths "deploy:logs" "$@"
     if [[ ! -f "$DEPLOY_LOG" ]]; then
       echo "No log file yet: $DEPLOY_LOG"
       exit 0
@@ -2214,7 +2539,7 @@ case "$COMMAND" in
     ;;
   deploy:status)
     require_azure "deploy:status"
-    deploy_status
+    deploy_status "$@"
     ;;
   urls)
     show_urls

@@ -19,10 +19,10 @@ Usage:
   scripts/deploy/redeploy_azure_containerapps.sh [options]
 
 Options:
-  --resource-group <name>   Azure resource group (default: rg-canepro-ph-dev-eus)
-  --acr-name <name>         Azure Container Registry name (default: caneprophacr01)
-  --backend-app <name>      Backend Container App (default: ca-canepro-ph-backend)
-  --frontend-app <name>     Frontend Container App (default: ca-canepro-ph-frontend)
+  --resource-group <name>   Azure resource group (or PH_RG)
+  --acr-name <name>         Azure Container Registry name (or PH_ACR_NAME / ACR_NAME)
+  --backend-app <name>      Backend Container App (or PH_BACKEND_APP)
+  --frontend-app <name>     Frontend Container App (or PH_FRONTEND_APP)
   --engine <podman|docker>  Force container engine (default: auto-detect)
   --remote-build            Build images with ACR Tasks instead of local Docker/Podman
   --env-file <path>         Backend env file (default: <repo>/backend/.env)
@@ -44,11 +44,12 @@ EOF
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-AZ_RESOURCE_GROUP="rg-canepro-ph-dev-eus"
-ACR_NAME="caneprophacr01"
-BACKEND_APP="ca-canepro-ph-backend"
-FRONTEND_APP="ca-canepro-ph-frontend"
-ENV_FILE="$REPO_ROOT/backend/.env"
+AZ_RESOURCE_GROUP="${PH_RG:-}"
+ACR_NAME_ENV="${ACR_NAME:-}"
+ACR_NAME="${PH_ACR_NAME:-$ACR_NAME_ENV}"
+BACKEND_APP="${PH_BACKEND_APP:-}"
+FRONTEND_APP="${PH_FRONTEND_APP:-}"
+ENV_FILE="${PH_ENV_FILE:-$REPO_ROOT/backend/.env}"
 IMAGE_TAG="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)"
 CONTAINER_ENGINE="auto"
 COMPOSE_ENV_FILE=""
@@ -297,6 +298,20 @@ done
 
 if [[ "$ENV_FILE" != /* ]]; then
   ENV_FILE="$REPO_ROOT/$ENV_FILE"
+fi
+
+missing_config=()
+[[ -n "${AZ_RESOURCE_GROUP:-}" ]] || missing_config+=("--resource-group or PH_RG")
+[[ -n "${BACKEND_APP:-}" ]] || missing_config+=("--backend-app or PH_BACKEND_APP")
+[[ -n "${FRONTEND_APP:-}" ]] || missing_config+=("--frontend-app or PH_FRONTEND_APP")
+if [[ "$MODE" == "full" || "$MODE" == "release" ]]; then
+  [[ -n "${ACR_NAME:-}" ]] || missing_config+=("--acr-name or PH_ACR_NAME/ACR_NAME")
+fi
+if [[ "${#missing_config[@]}" -gt 0 ]]; then
+  echo "Missing Azure deployment target configuration:" >&2
+  printf '  %s\n' "${missing_config[@]}" >&2
+  echo "Provide these with flags or environment variables; the public CLI has no built-in production defaults." >&2
+  exit 2
 fi
 
 for cmd in az curl tr grep cut sed; do

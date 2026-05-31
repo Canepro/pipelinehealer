@@ -17,9 +17,9 @@ Usage:
   scripts/demo/run_e2e_azure.sh [options]
 
 Options:
-  --repo <owner/repo>         Demo repo (default: Canepro/pipelinehealer-demo)
-  --resource-group <name>     Azure resource group (default: rg-canepro-ph-dev-eus)
-  --backend-app <name>        Azure backend Container App (default: ca-canepro-ph-backend)
+  --repo <owner/repo>         Demo repo (or DEMO_REPO)
+  --resource-group <name>     Azure resource group (or PH_RG)
+  --backend-app <name>        Azure backend Container App (or PH_BACKEND_APP)
   --demo-repo-dir <path>      Local checkout of demo repo (default: ./demo-repo)
   --wait-seconds <n>          Max seconds to wait for activity terminal status (default: 180)
   --ci-signal-wait-seconds <n> Extra seconds to wait for CI doctor signal (default: 180)
@@ -36,9 +36,9 @@ EOF
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-DEMO_REPO="Canepro/pipelinehealer-demo"
-AZ_RESOURCE_GROUP="rg-canepro-ph-dev-eus"
-BACKEND_APP="ca-canepro-ph-backend"
+DEMO_REPO="${DEMO_REPO:-}"
+AZ_RESOURCE_GROUP="${PH_RG:-}"
+BACKEND_APP="${PH_BACKEND_APP:-}"
 DEMO_REPO_DIR="$REPO_ROOT/demo-repo"
 WAIT_SECONDS="180"
 CI_SIGNAL_WAIT_SECONDS="180"
@@ -112,6 +112,17 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+missing_config=()
+[[ -n "${DEMO_REPO:-}" ]] || missing_config+=("--repo or DEMO_REPO")
+[[ -n "${AZ_RESOURCE_GROUP:-}" ]] || missing_config+=("--resource-group or PH_RG")
+[[ -n "${BACKEND_APP:-}" ]] || missing_config+=("--backend-app or PH_BACKEND_APP")
+if [[ "${#missing_config[@]}" -gt 0 ]]; then
+  echo "Missing Azure demo target configuration:" >&2
+  printf '  %s\n' "${missing_config[@]}" >&2
+  echo "Provide these with flags or environment variables; the public CLI has no built-in production defaults." >&2
+  exit 2
+fi
 
 for cmd in gh az curl; do
   if ! command -v "$cmd" >/dev/null 2>&1; then

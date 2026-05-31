@@ -1,6 +1,6 @@
 # Pre-Deploy Placeholder Audit
 
-<!-- LAST_VERIFIED: 044aa39 -->
+<!-- LAST_VERIFIED: caeed6a -->
 
 Use this checklist before `azd up`, before major public demos, and before final submission recording.
 
@@ -100,8 +100,8 @@ curl -sS http://127.0.0.1:8000/health
 curl -sS -H "X-API-Key: $API_AUTH_KEY" "http://127.0.0.1:8000/api/activities?limit=20"
 
 # Open remediation outputs in demo repo
-gh pr list -R Canepro/pipelinehealer-demo
-gh issue list -R Canepro/pipelinehealer-demo --state open
+gh pr list -R owner/demo-repo
+gh issue list -R owner/demo-repo --state open
 ```
 
 ## 8) Sign-Off
@@ -119,9 +119,9 @@ Mark this audit complete when all stop-ship checks pass:
 
 Applied environment:
 
-- Resource group: `rg-canepro-ph-dev-eus`
-- Backend app: `ca-canepro-ph-backend`
-- Frontend app: `ca-canepro-ph-frontend`
+- Resource group: operator-supplied `PH_RG`
+- Backend app: operator-supplied `PH_BACKEND_APP`
+- Frontend app: operator-supplied `PH_FRONTEND_APP`
 - Azure OpenAI deployment: operator-owned deployment name
 - Backend mode: `ENVIRONMENT=production`
 - Heal mode: `safe`

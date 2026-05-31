@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 17c3243 -->
+<!-- LAST_VERIFIED: caeed6a -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -30,6 +30,9 @@ Important: execute with `bash scripts/...`, never `source` or `. scripts/...`.
 Quick examples:
 
 ```bash
+# Bootstrap local/dev env and continue setup in the UI
+bash scripts/ph.sh init
+
 # Backend API scope (local OR any reachable backend URL)
 PH_BACKEND_URL=http://127.0.0.1:8000 bash scripts/ph.sh settings:check
 
@@ -110,6 +113,43 @@ PowerShell-only environments (no bash): run the same GitHub checks with `gh`, an
 
 ## Commands
 
+### Init
+
+| Command | Description |
+|---------|-------------|
+| `init` | Bootstrap first-run env, dependency checks, Codex App Server defaults, and UI handoff |
+
+```bash
+bash scripts/ph.sh init
+bash scripts/ph.sh init --auto-fix --repos owner/repo --llm-provider codex_app_server
+bash scripts/ph.sh init --mode prod --infisical-project-id <project-id> --infisical-env prod --infisical-path /pipelinehealer/prod
+```
+
+`init` is safe to rerun. If the env file already exists, it leaves values unchanged unless `--force-env` is provided. Use `PH_ENV_FILE=/path/to/env` to target a different env file.
+
+What it does:
+- checks required local tools (`bash`, `python3`, `curl`, `git`) and reports optional tooling (`uv`, `bun`, Docker/Podman, `az`, `gh`, `infisical`)
+- creates `backend/.env` from `backend/.env.example` when missing
+- generates local bootstrap secrets for API/admin auth, audit salt, webhook signing, and encrypted DB storage without printing values
+- defaults new installs to `LLM_PROVIDER=codex_app_server` and `CODEX_APP_SERVER_MODEL=gpt-5.4`
+- can set `PH_ALLOWED_REPOS` and safe auto-merge policy with `--auto-fix --repos owner/repo`
+- can write Infisical metadata (`SETTINGS_SECRET_BACKEND=infisical`, project id, environment, path) without reading or printing secret values
+- prints local dev, local container, and production Settings UI URLs so operators can finish provider keys, GitHub access, handoff targets, and write-only secrets in the UI
+
+Flags:
+
+| Flag | Values | Description |
+|------|--------|-------------|
+| `--mode` | `local`, `azure`, `prod`, `production` | Select local or production-oriented bootstrap defaults |
+| `--llm-provider` | `azure_openai`, `openai_compatible`, `codex_app_server`, `custom` | Initial model provider |
+| `--repos` | CSV | Initial `PH_ALLOWED_REPOS` value |
+| `--auto-fix` | — | Enables PR creation and `merge_when_clean` auto-merge policy in the generated env |
+| `--infisical-project-id` | string | Writes Infisical project metadata only |
+| `--infisical-env` | string | Infisical environment metadata, default `dev` |
+| `--infisical-path` | string | Infisical secret path metadata, default `/pipelinehealer/dev` |
+| `--force-env` | — | Recreate the env file from the template |
+| `--skip-env` | — | Run checks and print next steps without writing env |
+
 ### Deploy
 
 | Command | Description |
@@ -139,6 +179,15 @@ bash scripts/ph.sh deploy --engine podman
 bash scripts/ph.sh deploy --acr-retain-tags 50
 bash scripts/ph.sh deploy --skip-acr-prune
 bash scripts/ph.sh deploy --skip-local-image-prune
+```
+
+Azure-only deploy commands require the target to be supplied through flags or environment variables. The public CLI has no maintainer production defaults:
+
+```bash
+export PH_RG=<resource-group>
+export PH_BACKEND_APP=<backend-container-app>
+export PH_FRONTEND_APP=<frontend-container-app>
+export PH_ACR_NAME=<container-registry-name>
 ```
 
 Important:
@@ -206,15 +255,16 @@ bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2 --skip-env-syn
 | `demo:reset` | Reset demo fixture repo for dependency/lint failures |
 
 ```bash
-bash scripts/ph.sh demo:e2e
-bash scripts/ph.sh demo:e2e --skip-webhook-sync
-bash scripts/ph.sh demo:e2e --triggers dependency,lint,test --wait-seconds 180
-bash scripts/ph.sh demo:e2e --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180 --strict
+bash scripts/ph.sh demo:e2e --repo owner/repo
+bash scripts/ph.sh demo:e2e --repo owner/repo --skip-webhook-sync
+bash scripts/ph.sh demo:e2e --repo owner/repo --triggers dependency,lint,test --wait-seconds 180
+bash scripts/ph.sh demo:e2e --repo owner/repo --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180 --strict
 bash scripts/ph.sh demo:proof --repo owner/repo --limit 10
 bash scripts/ph.sh demo:reset
 ```
 
 `demo:e2e` notes:
+- It requires `--repo owner/repo` or `DEMO_REPO=owner/repo`, plus the same Azure backend target variables used by `status`/`urls`.
 - Default activity settle wait is now `180s` (override with `--wait-seconds <n>`).
 - It performs a best-effort on-demand diagnostics backfill before final activity summary (disable with `--skip-backfill`).
 - It checks for at least one CI doctor-style workflow signal after dispatch (`CI Failure Doctor`/`ci-doctor`) using `--ci-signal-wait-seconds <n>`; queued/in-progress/completed runs all count as signal observed.
@@ -250,12 +300,14 @@ bash scripts/ph.sh urls
 bash scripts/ph.sh status
 ```
 
+`urls`, `status`, `warm`, and `lowcost` require `PH_RG`, `PH_BACKEND_APP`, and `PH_FRONTEND_APP`.
+
 Infisical-backed ACA deploys can inject values into the deploy process and keep `backend/.env` value-free:
 
 ```bash
-infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- \
+infisical run --env dev --path /pipelinehealer/dev --projectId <infisical-project-id> -- \
   bash scripts/ph.sh deploy --secure-secrets
-infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- \
+infisical run --env dev --path /pipelinehealer/dev --projectId <infisical-project-id> -- \
   bash scripts/ph.sh deploy:env --secure-secrets
 ```
 
@@ -507,7 +559,7 @@ The same action is available in the UI via the "Backfill Diagnostics" button on 
 ## Error Handling
 
 - **Missing flag values**: All `--flag value` arguments are guarded by `require_arg`. Running `--repo` without a value produces `Error: --repo requires a value argument.` (exit 2) instead of a shell crash.
-- **`demo:proof` repo fallback**: `demo:proof` defaults to `${DEMO_REPO}` when exported, otherwise `Canepro/pipelinehealer-demo`. If `--repo` is passed with an empty shell expansion (for example `--repo "$DEMO_REPO"` when `DEMO_REPO` is unset), the command warns and falls back to that default repo.
+- **`demo:proof` repo selection**: `demo:proof` requires `--repo owner/repo` or an exported `DEMO_REPO=owner/repo`. If `--repo` is missing or empty, the command exits 2 instead of assuming a maintainer demo repo.
 - **Unknown arguments**: Unrecognized flags produce a clear message and exit 2.
 - **Enum validation**: `--heal-mode`, `--auto-apply-remediation`, `--auto-create-pr`, `--auto-create-issue`, `--auto-retry-workflow`, `--gh-aw-tools-enabled`, `--gh-aw-ingestion-mode`, and `--mcp-provider` validate against allowed values before proceeding.
 - **Strict mode**: `set -euo pipefail` is enabled throughout. Log grep pipelines use `|| true` to remain tolerant of empty results.
@@ -574,9 +626,10 @@ unset PH_BACKEND_URL
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PH_BACKEND_URL` | *(unset — Azure mode)* | Set to target a local backend (for example `http://127.0.0.1:8000`) |
-| `PH_RG` | `rg-canepro-ph-dev-eus` | Azure resource group |
-| `PH_BACKEND_APP` | `ca-canepro-ph-backend` | Backend Container App name |
-| `PH_FRONTEND_APP` | `ca-canepro-ph-frontend` | Frontend Container App name |
+| `PH_RG` | *(unset)* | Azure resource group for Azure-only commands |
+| `PH_BACKEND_APP` | *(unset)* | Backend Container App name for Azure-only commands |
+| `PH_FRONTEND_APP` | *(unset)* | Frontend Container App name for Azure-only commands |
+| `PH_ACR_NAME` / `ACR_NAME` | *(unset)* | Azure Container Registry name for full/release deploys |
 | `PH_DEPLOY_LOG` | `/tmp/ph-deploy-<rg>/redeploy.log` | Background deploy log path |
 | `PH_DEPLOY_PID` | `/tmp/ph-deploy-<rg>/redeploy.pid` | Background deploy PID path |
 

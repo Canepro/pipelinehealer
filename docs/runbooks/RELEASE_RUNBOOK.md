@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: 50ba6f3 -->
+<!-- LAST_VERIFIED: caeed6a -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -45,7 +45,7 @@ GitHub requirements:
 
 Optional repository variable:
 
-- `ACR_NAME` (defaults to `caneprophacr01`)
+- `ACR_NAME` (target Azure Container Registry for optional ACR mirroring; no public default)
 
 ## Azure Prerequisites (Optional, ACR Mirror + Azure Promotion)
 
