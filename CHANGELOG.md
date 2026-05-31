@@ -8,6 +8,10 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
+- _No unreleased entries yet._
+
+## [v0.8.10] - 2026-05-31
+
 ### Changed
 
 - Tightened public documentation and Azure reference defaults so generated
@@ -19,6 +23,8 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
   (`691e298`, `7c74b67`, `e1a9ae4`, `e004b56`, `bd24039`).
 - Clarified the public product north star and healing contract across the
   README, docs index, architecture contract, and demo runbook.
+- Reworked the landing page around PipelineHealer's agent-control-plane
+  workflow, cloud-agnostic product direction, and current healing paths.
 
 ## [v0.8.9] - 2026-05-31
 
