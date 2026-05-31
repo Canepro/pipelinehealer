@@ -1,6 +1,6 @@
 # Release Runbook
 
-<!-- LAST_VERIFIED: c183a90 -->
+<!-- LAST_VERIFIED: 50ba6f3 -->
 
 End-to-end release procedure for PipelineHealer using the repo release helpers.
 
@@ -72,6 +72,7 @@ Important:
 - release frontend images are runtime-configurable for `VITE_*` values.
 - `deploy:env` only syncs frontend `VITE_*` keys that are explicitly present in your env file; omitted keys keep their existing Container App values.
 - when frontend auth resolves to `VITE_AUTH_MODE=entra`, deploy tooling validates required Entra runtime keys and fails fast if they are missing from both env input and current frontend app config.
+- when frontend auth resolves to `VITE_AUTH_MODE=entra`, deploy tooling binds a disabled placeholder for the frontend proxy API key. The browser must use the Entra bearer token path; anonymous same-origin `/api/*` calls should return 401.
 - if a `VITE_*` key is omitted on first deployment, frontend entrypoint defaults still apply (for example `VITE_AUTH_MODE=none`).
 
 ## 1) Preflight (Required)

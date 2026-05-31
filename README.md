@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 3d44e0a -->
+<!-- LAST_VERIFIED: 50ba6f3 -->
 
 > OSS-first, policy-aware remediation for failed CI/CD pipelines.
 
@@ -28,8 +28,8 @@ Native ingress is GitHub Actions. Jenkins is supported through the signed bridge
 - Model providers: Azure OpenAI, OpenAI-compatible, Codex App Server, custom scaffold
 - Storage: PostgreSQL, Cosmos DB, in-memory local mode
 - Secret stores: Infisical, encrypted DB, optional Azure Key Vault
-- Current production release: `v0.8.1`
-- Latest published release: [`v0.8.1`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.8.1)
+- Current production release: `v0.8.2`
+- Latest published release: [`v0.8.2`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.8.2)
 
 ## Core Workflow
 
