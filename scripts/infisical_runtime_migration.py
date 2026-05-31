@@ -91,7 +91,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env-file", default="backend/.env")
     parser.add_argument("--env", default=os.getenv("INFISICAL_ENVIRONMENT", "dev"))
-    parser.add_argument("--path", default=os.getenv("INFISICAL_SECRET_PATH", "/personal/pipelinehealer"))
+    parser.add_argument("--path", default=os.getenv("INFISICAL_SECRET_PATH", "/pipelinehealer/dev"))
     parser.add_argument("--project-id", default=os.getenv("INFISICAL_PROJECT_ID", ""))
     parser.add_argument("--domain", default=os.getenv("INFISICAL_API_URL", ""))
     parser.add_argument("--token", default=os.getenv("INFISICAL_TOKEN", ""))
