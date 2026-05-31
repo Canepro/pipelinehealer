@@ -144,6 +144,27 @@ def test_resolve_model_for_task_uses_codex_app_server_model() -> None:
     assert model == "gpt-5.4"
 
 
+def test_resolve_model_for_task_ignores_task_overrides_for_codex_app_server() -> None:
+    settings = Settings(
+        _env_file=None,
+        llm_provider="codex_app_server",
+        codex_app_server_model="gpt-5.4",
+        llm_model_analysis="gpt-5-mini",
+        llm_model_diagnosis="gpt-5.1-codex-mini",
+        llm_model_remediation="gpt-5.1-codex-mini",
+    )
+
+    for task in ("analysis", "diagnosis", "remediation", "patch_drafting"):
+        assert (
+            _resolve_model_for_task(
+                settings=settings,
+                provider=LLMProviderName.CODEX_APP_SERVER,
+                task=task,  # type: ignore[arg-type]
+            )
+            == "gpt-5.4"
+        )
+
+
 def test_create_cloud_agent_codex_app_server_returns_runtime_agent() -> None:
     settings = Settings(
         _env_file=None,

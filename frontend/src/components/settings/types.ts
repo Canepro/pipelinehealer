@@ -110,8 +110,8 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
   openai_compatible_model: data.openai_compatible_model ?? '',
   codex_app_server_transport:
     data.codex_app_server_transport === 'websocket' ? 'websocket' : 'stdio',
-  codex_app_server_command: data.codex_app_server_command ?? 'codex',
-  codex_app_server_model: data.codex_app_server_model ?? 'gpt-5.1-codex',
+  codex_app_server_command: data.codex_app_server_command ?? 'codex app-server',
+  codex_app_server_model: data.codex_app_server_model ?? 'gpt-5.4',
   codex_app_server_turn_timeout_ms: data.codex_app_server_turn_timeout_ms ?? 120000,
   codex_app_server_ws_url: data.codex_app_server_ws_url ?? '',
   codex_app_server_ws_allow_remote: data.codex_app_server_ws_allow_remote ?? false,
@@ -279,7 +279,7 @@ export const SETTING_DESCRIPTIONS: Record<string, string> = {
   max_remediation_attempts:
     'Maximum number of times PipelineHealer will retry fixing a single failure before giving up.',
   azure_openai_deployment_name:
-    'The Azure OpenAI model deployment to use for AI analysis (e.g. gpt-4o, gpt-5-mini).',
+    'The Azure OpenAI deployment name to use for AI analysis.',
   llm_provider:
     'Model backend selector. azure_openai is production-ready, openai_compatible is available, codex_app_server uses the local Codex App Server runtime, and custom remains scaffolded.',
   openai_compatible_base_url:
@@ -291,7 +291,7 @@ export const SETTING_DESCRIPTIONS: Record<string, string> = {
   codex_app_server_command:
     'Executable used for stdio Codex App Server access.',
   codex_app_server_model:
-    'Model label requested from Codex App Server for diagnosis and remediation work.',
+    'Model label requested from Codex App Server for diagnosis and remediation work. Production defaults to gpt-5.4.',
   codex_app_server_turn_timeout_ms:
     'Timeout budget for one Codex App Server turn.',
   codex_app_server_ws_url:

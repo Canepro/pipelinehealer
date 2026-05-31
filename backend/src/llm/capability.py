@@ -56,6 +56,10 @@ def _required_llm_config_present(settings: Any) -> bool:
 
 def _configured_models(settings: Any) -> set[str]:
     provider = str(getattr(settings, "llm_provider", "azure_openai") or "").strip().lower()
+    if provider == "codex_app_server":
+        model = str(getattr(settings, "codex_app_server_model", "") or "").strip()
+        return {model} if model else set()
+
     models = {
         str(getattr(settings, "llm_model_analysis", "") or "").strip(),
         str(getattr(settings, "llm_model_diagnosis", "") or "").strip(),

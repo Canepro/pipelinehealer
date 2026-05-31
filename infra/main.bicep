@@ -60,10 +60,10 @@ param createAzureOpenAi bool = true
 param azureOpenAiAccountKind string = 'AIServices'
 
 @description('Azure AI/OpenAI deployment name exposed to the backend when createAzureOpenAi is true, or an existing deployment name when using an external account.')
-param azureOpenAiDeploymentName string = 'gpt-5-mini'
+param azureOpenAiDeploymentName string = 'gpt-5.4'
 
 @description('Azure AI/OpenAI base model name for the managed deployment.')
-param azureOpenAiModelName string = 'gpt-5-mini'
+param azureOpenAiModelName string = 'gpt-5.4'
 
 @description('Azure AI/OpenAI model version for the managed deployment.')
 param azureOpenAiModelVersion string = '2025-08-07'

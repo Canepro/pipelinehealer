@@ -1,6 +1,6 @@
 # Kubernetes Helm Runbook
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: 044aa39 -->
 
 This runbook adds Kubernetes as a secondary deployment target while keeping Azure Container Apps as the current reference managed path.
 
@@ -167,7 +167,7 @@ backend:
     # ENTRA_ADMIN_ROLES: "PipelineHealer.Admin"
     LLM_PROVIDER: azure_openai
     AZURE_OPENAI_ENDPOINT: https://<resource>.openai.azure.com/
-    AZURE_OPENAI_DEPLOYMENT_NAME: gpt-5-mini
+    AZURE_OPENAI_DEPLOYMENT_NAME: my-azure-deployment
     PH_ALLOWED_REPOS: owner/repo1,owner/repo2
   secretEnv:
     API_AUTH_KEY: <set-me>
@@ -353,7 +353,7 @@ Azure endpoint formatting:
 
 Model compatibility note:
 - `cognitiveservices.azure.com` deployments may support the Azure Responses API while rejecting Chat Completions for the same model
-- if you use a Responses-only model such as `gpt-5.1-codex-mini`, validate the live model path with `bash scripts/ph.sh aoai:check`
+- if you use a Responses-only deployment, validate the live model path with `bash scripts/ph.sh aoai:check`
 - on older releases that still force `chat/completions` for this endpoint family, deployment/webhook/remediation can still work while LLM diagnosis falls back to low-confidence issue creation
 
 ## Operational Notes

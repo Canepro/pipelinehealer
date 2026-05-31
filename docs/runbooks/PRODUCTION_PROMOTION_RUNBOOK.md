@@ -1,6 +1,6 @@
 # Production Promotion Runbook
 
-<!-- LAST_VERIFIED: 50ba6f3 -->
+<!-- LAST_VERIFIED: 044aa39 -->
 
 This runbook promotes a reviewed PipelineHealer release to the production Azure Container Apps lane for `pipelinehealer.canepro.me` and `api.pipelinehealer.canepro.me`.
 
@@ -46,7 +46,7 @@ Existing production history is in the current Cosmos DB lane:
 | Containers | `activities`, `workflow_runs` |
 | Partition key | `/repositoryId` |
 
-Do not treat the new production lane as a clean database unless you explicitly want to discard the previous operational history. The safe default for `v0.8.2` is continuity:
+Do not treat the new production lane as a clean database unless you explicitly want to discard the previous operational history. The safe default for `v0.8.3` is continuity:
 
 1. Keep the existing Cosmos account as the source of record during the first production cutover.
 2. Grant the new production backend managed identity Cosmos DB data-plane access to that existing account.
@@ -164,21 +164,21 @@ Do not run `infisical secrets get`, `infisical export`, or value-copy commands u
 Prepare and review:
 
 ```bash
-git switch -c release/v0.8.2
-bash scripts/release.sh 0.8.2
+git switch -c release/v0.8.3
+bash scripts/release.sh 0.8.3
 bash scripts/check_version_sync.sh
 cd frontend && bun install --frozen-lockfile && bun run lint && bun run test && bun run build
 cd ../backend && pytest -q
-git push origin release/v0.8.2
-gh pr create --base main --head release/v0.8.2 --title "chore(release): v0.8.2"
+git push origin release/v0.8.3
+gh pr create --base main --head release/v0.8.3 --title "chore(release): v0.8.3"
 ```
 
 Wait for attached review agents and CI. Address comments, resolve review threads, and rerun checks. Tag only the reviewed branch commit:
 
 ```bash
-git tag -a v0.8.2 -m "Release v0.8.2"
-git push origin v0.8.2
-bash scripts/release_verify.sh v0.8.2
+git tag -a v0.8.3 -m "Release v0.8.3"
+git push origin v0.8.3
+bash scripts/release_verify.sh v0.8.3
 ```
 
 ## Provision Or Update Production
@@ -212,14 +212,14 @@ Import the reviewed release images from public GHCR into the prod ACR:
 ```bash
 az acr import \
   --name caneprophacrprod01 \
-  --source ghcr.io/canepro/pipelinehealer-backend:v0.8.2 \
-  --image pipelinehealer-backend:v0.8.2 \
+  --source ghcr.io/canepro/pipelinehealer-backend:v0.8.3 \
+  --image pipelinehealer-backend:v0.8.3 \
   --force
 
 az acr import \
   --name caneprophacrprod01 \
-  --source ghcr.io/canepro/pipelinehealer-frontend:v0.8.2 \
-  --image pipelinehealer-frontend:v0.8.2 \
+  --source ghcr.io/canepro/pipelinehealer-frontend:v0.8.3 \
+  --image pipelinehealer-frontend:v0.8.3 \
   --force
 ```
 
@@ -273,7 +273,7 @@ infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-proj
     --acr-name caneprophacrprod01 \
     --backend-app ca-canepro-ph-prod-backend \
     --frontend-app ca-canepro-ph-prod-frontend \
-    --release-version v0.8.2 \
+    --release-version v0.8.3 \
     --env-file "$release_env" \
     --secure-secrets
 '

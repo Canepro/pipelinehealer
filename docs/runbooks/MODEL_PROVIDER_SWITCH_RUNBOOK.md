@@ -1,6 +1,6 @@
 # Model Provider Switch Runbook
 
-<!-- LAST_VERIFIED: 97abf04 -->
+<!-- LAST_VERIFIED: 044aa39 -->
 
 This runbook covers safe switching between model providers and fast rollback.
 
@@ -37,7 +37,7 @@ curl -sS -X PATCH "$PH_BACKEND_URL/api/settings" \
   -d '{
     "llm_provider": "openai_compatible",
     "openai_compatible_base_url": "https://api.openai.com/v1",
-    "openai_compatible_model": "gpt-5-mini"
+    "openai_compatible_model": "provider-model-name"
   }'
 ```
 
@@ -70,7 +70,7 @@ curl -sS -X PATCH "$PH_BACKEND_URL/api/settings" \
   -H "X-Request-Id: provider-rollback-azure-$(date +%s)" \
   -d '{
     "llm_provider": "azure_openai",
-    "azure_openai_deployment_name": "gpt-5-mini"
+    "azure_openai_deployment_name": "my-azure-deployment"
   }'
 
 bash scripts/ph.sh settings:persist --from-settings

@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 50ba6f3 -->
+<!-- LAST_VERIFIED: 044aa39 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -338,8 +338,8 @@ bash scripts/ph.sh settings:persist --external-diagnostics-wait-seconds 60 --ext
 bash scripts/ph.sh settings:persist --mcp-enabled true --mcp-provider github --mcp-read-only true
 bash scripts/ph.sh settings:persist --mcp-tool-policies "fetch_failure_context=read_only,fetch_runbook_context=read_only,publish_artifact=write_with_approval,rerun_pipeline=write_with_approval"
 bash scripts/ph.sh settings:persist --mcp-repo-allowlist owner/repo1,owner/repo2
-bash scripts/ph.sh settings:persist --azure-openai-deployment-name gpt-4o --skip-redeploy
-bash scripts/ph.sh settings:persist --llm-model-analysis gpt-5-mini-fast --llm-model-diagnosis gpt-5-mini-reasoner --llm-model-remediation gpt-5-mini
+bash scripts/ph.sh settings:persist --azure-openai-deployment-name my-azure-deployment --skip-redeploy
+bash scripts/ph.sh settings:persist --llm-model-analysis analysis-deployment --llm-model-diagnosis diagnosis-deployment --llm-model-remediation remediation-deployment
 bash scripts/ph.sh settings:persist --clear-repos
 bash scripts/ph.sh settings:persist --clear-mcp-repo-allowlist
 ```
@@ -381,6 +381,10 @@ Recommended use:
 | `--llm-model-diagnosis` | string | Set `LLM_MODEL_DIAGNOSIS` |
 | `--llm-model-remediation` | string | Set `LLM_MODEL_REMEDIATION` |
 | `--skip-redeploy` | — | Write `.env` only, skip Azure env sync |
+
+Task model overrides apply to Azure OpenAI and OpenAI-compatible providers. When
+`LLM_PROVIDER=codex_app_server`, PipelineHealer uses `CODEX_APP_SERVER_MODEL`
+for all model-backed tasks.
 
 Enum values are validated before writing. Invalid values exit with a clear error.
 For `--mcp-tool-policies`, allowed policy modes are `disabled`, `read_only`, `write_with_approval`, and `auto`.

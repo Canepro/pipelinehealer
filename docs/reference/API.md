@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 2c862a3 -->
+<!-- LAST_VERIFIED: 044aa39 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -340,8 +340,8 @@ Returns activity records with optional filtering and pagination.
       "remediation_matches": []
     },
     "llm_model_path": {
-      "provider": "azure_openai",
-      "model": "gpt-5-mini",
+      "provider": "codex_app_server",
+      "model": "gpt-5.4",
       "fallback_used": false,
       "call_count": 2,
       "total_latency_ms": 742.11,
@@ -407,7 +407,7 @@ Returns activity records with optional filtering and pagination.
             "root_cause": "The dependency check simulates a missing module by requiring left-pad...",
             "recommended_actions": "- [x] Add left-pad as a dependency in package.json.",
             "doctor_engine": "copilot",
-            "doctor_model": "gpt-5.1-codex-mini",
+            "doctor_model": "provider-selected",
             "doctor_run_url": "https://github.com/Canepro/pipelinehealer-demo/actions/runs/22045687770"
           }
         },
@@ -824,7 +824,7 @@ configured value from effective provenance. Source values are portable, app-obse
   "cors_allowed_origins": ["http://localhost:3000", "http://localhost:5173"],
   "cors_allow_origin_regex": "https://.*\\.azurecontainerapps\\.io",
   "azure_openai_endpoint": "https://your-resource.cognitiveservices.azure.com/",
-  "azure_openai_deployment_name": "gpt-5-mini",
+  "azure_openai_deployment_name": "my-azure-deployment",
   "azure_openai_api_version": "2025-04-01-preview",
   "azure_openai_chat_api_version": "2024-12-01-preview",
   "openai_compatible_base_url": "",
@@ -906,9 +906,9 @@ Changes take effect immediately. If the same logical key is also set through env
   "log_prompt_max_chars": 20000,
   "log_prompt_head_chars": 10000,
   "log_prompt_tail_chars": 10000,
-  "llm_model_analysis": "gpt-5-mini-fast",
-  "llm_model_diagnosis": "gpt-5-mini-reasoner",
-  "llm_model_remediation": "gpt-5-mini"
+  "llm_model_analysis": "analysis-deployment",
+  "llm_model_diagnosis": "diagnosis-deployment",
+  "llm_model_remediation": "remediation-deployment"
 }
 ```
 
@@ -950,13 +950,13 @@ Changes take effect immediately. If the same logical key is also set through env
 | `openai_compatible_model` | string | Required when `llm_provider=openai_compatible` |
 | `codex_app_server_transport` | string | `stdio` or `websocket` |
 | `codex_app_server_command` | string | Command for stdio transport |
-| `codex_app_server_model` | string | Model requested from Codex App Server |
+| `codex_app_server_model` | string | Model requested from Codex App Server; production default is `gpt-5.4` |
 | `codex_app_server_turn_timeout_ms` | int | 1,000-900,000 |
 | `codex_app_server_ws_url` | string | Required for WebSocket transport |
 | `codex_app_server_ws_allow_remote` | bool | Permit non-loopback WebSocket URL when explicitly configured |
-| `llm_model_analysis` | string | Optional per-task model/deployment override for analysis |
-| `llm_model_diagnosis` | string | Optional per-task model/deployment override for diagnosis |
-| `llm_model_remediation` | string | Optional per-task model/deployment override for remediation |
+| `llm_model_analysis` | string | Optional per-task model/deployment override for analysis; ignored when `llm_provider=codex_app_server` |
+| `llm_model_diagnosis` | string | Optional per-task model/deployment override for diagnosis; ignored when `llm_provider=codex_app_server` |
+| `llm_model_remediation` | string | Optional per-task model/deployment override for remediation; ignored when `llm_provider=codex_app_server` |
 | `mcp_enabled` | bool | Enable MCP provider integration hooks |
 | `mcp_provider` | string | `disabled`, `github`, `azure_monitor`, or `custom` |
 | `mcp_read_only` | bool | Restrict MCP actions to read-only mode |
@@ -1088,7 +1088,7 @@ Returns health/status for the currently selected LLM provider adapter.
   "reason": "ok",
   "message": "Azure OpenAI provider configuration looks valid.",
   "endpoint": "https://example.openai.azure.com/",
-  "deployment_name": "gpt-5-mini",
+  "deployment_name": "active-deployment",
   "api_version": "2025-04-01-preview",
   "last_validated_at": null,
   "last_validation": null
@@ -1634,7 +1634,7 @@ When `status` is `available` and the ci-doctor issue body contains structured se
 | `ai_self_improvement` | string | AI team learning notes |
 | `trigger` | string | Workflow trigger type (e.g. `workflow_dispatch`) |
 | `doctor_engine` | string | ci-doctor engine (e.g. `copilot`) |
-| `doctor_model` | string | ci-doctor model (e.g. `gpt-5.1-codex-mini`) |
+| `doctor_model` | string | ci-doctor model reported by the external diagnostic workflow |
 | `doctor_run_url` | string | URL to the ci-doctor workflow run |
 
 All fields are optional; only sections present in the issue body are included. Internal boilerplate (HTML comments, setup hints, expiry markers, temp-file paths) is stripped before storage.

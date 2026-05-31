@@ -524,6 +524,7 @@ export default function AdminControlsForm({
       : form.llm_provider === "codex_app_server"
         ? form.codex_app_server_model.trim()
         : form.openai_compatible_model.trim();
+  const codexRuntimeSelected = form.llm_provider === "codex_app_server";
   const resolvedLlmCapability =
     llmCapabilitySummary ?? describeLlmCapability(llmProviderHealth);
   const llmValidationLabel = formatLlmValidationLabel(llmProviderHealth);
@@ -537,17 +538,17 @@ export default function AdminControlsForm({
     {
       key: "analysis",
       label: "Analysis",
-      override: form.llm_model_analysis.trim(),
+      override: codexRuntimeSelected ? "" : form.llm_model_analysis.trim(),
     },
     {
       key: "diagnosis",
       label: "Diagnosis",
-      override: form.llm_model_diagnosis.trim(),
+      override: codexRuntimeSelected ? "" : form.llm_model_diagnosis.trim(),
     },
     {
       key: "remediation",
       label: "Remediation",
-      override: form.llm_model_remediation.trim(),
+      override: codexRuntimeSelected ? "" : form.llm_model_remediation.trim(),
     },
   ];
 
@@ -1284,6 +1285,13 @@ export default function AdminControlsForm({
                       setForm((prev) => ({
                         ...prev,
                         llm_provider: v as SettingsFormState["llm_provider"],
+                        ...(v === "codex_app_server"
+                          ? {
+                              llm_model_analysis: "",
+                              llm_model_diagnosis: "",
+                              llm_model_remediation: "",
+                            }
+                          : {}),
                       }))
                     }
                   >
@@ -1341,10 +1349,10 @@ export default function AdminControlsForm({
                     }
                     placeholder={
                       form.llm_provider === "azure_openai"
-                        ? "e.g. gpt-4o, gpt-5-mini"
+                        ? "Azure deployment name"
                         : form.llm_provider === "codex_app_server"
-                          ? "e.g. gpt-5.1-codex"
-                        : "e.g. gpt-4o-mini, claude-compatible-model"
+                          ? "gpt-5.4"
+                        : "Provider model name"
                     }
                   />
                 </FieldGroup>
@@ -1418,7 +1426,7 @@ export default function AdminControlsForm({
                           codex_app_server_command: e.target.value,
                         }))
                       }
-                      placeholder="codex"
+                      placeholder="codex app-server"
                     />
                   </FieldGroup>
                   <FieldGroup
@@ -1511,7 +1519,7 @@ export default function AdminControlsForm({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <ReadOnlyField
                     label="Runtime"
-                    value={`${data.codex_app_server_transport} via ${data.codex_app_server_command || "codex"}`}
+                    value={`${data.codex_app_server_transport} via ${data.codex_app_server_command || "codex app-server"}`}
                     metadata={data.settings_metadata?.codex_app_server_transport}
                   />
                   <ReadOnlyField
@@ -1586,13 +1594,16 @@ export default function AdminControlsForm({
                   Task Model Routing (Optional Overrides)
                 </p>
                 <p className="text-xs text-[var(--ph-muted)]">
-                  Leave blank to use the provider default model/deployment.
+                  {codexRuntimeSelected
+                    ? "Codex App Server uses the Codex Model above for all tasks."
+                    : "Leave blank to use the provider default model/deployment."}
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   <FieldGroup label="Analysis Model" field="llm_model_analysis">
                     <Input
                       type="text"
-                      value={form.llm_model_analysis}
+                      value={codexRuntimeSelected ? "" : form.llm_model_analysis}
+                      disabled={codexRuntimeSelected}
                       onChange={(e) =>
                         setForm((prev) => ({
                           ...prev,
@@ -1610,7 +1621,8 @@ export default function AdminControlsForm({
                   >
                     <Input
                       type="text"
-                      value={form.llm_model_diagnosis}
+                      value={codexRuntimeSelected ? "" : form.llm_model_diagnosis}
+                      disabled={codexRuntimeSelected}
                       onChange={(e) =>
                         setForm((prev) => ({
                           ...prev,
@@ -1628,7 +1640,8 @@ export default function AdminControlsForm({
                   >
                     <Input
                       type="text"
-                      value={form.llm_model_remediation}
+                      value={codexRuntimeSelected ? "" : form.llm_model_remediation}
+                      disabled={codexRuntimeSelected}
                       onChange={(e) =>
                         setForm((prev) => ({
                           ...prev,

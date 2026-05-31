@@ -939,10 +939,15 @@ export default function ControlCenterPage() {
 
   const providerDefaultModel = (() => {
     if (!settings) return "";
-    return settings.llm_provider === "azure_openai"
-      ? settings.azure_openai_deployment_name
-      : settings.openai_compatible_model;
+    if (settings.llm_provider === "azure_openai") {
+      return settings.azure_openai_deployment_name;
+    }
+    if (settings.llm_provider === "codex_app_server") {
+      return settings.codex_app_server_model;
+    }
+    return settings.openai_compatible_model;
   })();
+  const codexRuntimeSelected = settings?.llm_provider === "codex_app_server";
 
   const taskModelPreview = settings
     ? [
@@ -950,7 +955,7 @@ export default function ControlCenterPage() {
           key: "analysis",
           label: "Analysis",
           model:
-            settings.llm_model_analysis ||
+            (codexRuntimeSelected ? "" : settings.llm_model_analysis) ||
             providerDefaultModel ||
             "Not configured",
         },
@@ -958,7 +963,7 @@ export default function ControlCenterPage() {
           key: "diagnosis",
           label: "Diagnosis",
           model:
-            settings.llm_model_diagnosis ||
+            (codexRuntimeSelected ? "" : settings.llm_model_diagnosis) ||
             providerDefaultModel ||
             "Not configured",
         },
@@ -966,7 +971,7 @@ export default function ControlCenterPage() {
           key: "remediation",
           label: "Remediation",
           model:
-            settings.llm_model_remediation ||
+            (codexRuntimeSelected ? "" : settings.llm_model_remediation) ||
             providerDefaultModel ||
             "Not configured",
         },

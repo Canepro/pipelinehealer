@@ -1,6 +1,6 @@
 # LLM and Agent Runtime
 
-<!-- LAST_VERIFIED: 4055ae3 -->
+<!-- LAST_VERIFIED: 044aa39 -->
 
 This document is the operator-facing contract for how PipelineHealer uses LLMs and agents at runtime.
 
@@ -27,10 +27,16 @@ Today, one LLM provider is active per runtime:
 - `codex_app_server`
 - `custom` (scaffold only; not production-capable)
 
-Task-level routing is supported inside that active provider:
+Task-level routing is supported inside Azure OpenAI and OpenAI-compatible
+providers:
 - `LLM_MODEL_ANALYSIS`
 - `LLM_MODEL_DIAGNOSIS`
 - `LLM_MODEL_REMEDIATION`
+
+Codex App Server intentionally ignores the generic task override fields. It uses
+`CODEX_APP_SERVER_MODEL` for all model-backed tasks so stale Azure or
+OpenAI-compatible overrides cannot shadow the app-server route in telemetry,
+health checks, or Activity records.
 
 Internal role note:
 - `patch_drafting` is now a distinct internal role for bounded single-file drafts
@@ -127,34 +133,29 @@ Practical interpretation:
 - without a working LLM path, PipelineHealer is still an explainable incident-ingestion control plane
 - but it is not meeting its primary diagnosis/remediation promise
 
-## Validated Azure Behavior
+## Azure Fallback Behavior
 
-Validated on `v0.7.2`:
+Azure OpenAI remains a supported fallback/reference provider. Production is currently
+configured for Codex App Server with `CODEX_APP_SERVER_MODEL=gpt-5.4`.
 
-1. `https://<resource>.cognitiveservices.azure.com/`
-- `gpt-5.1-codex-mini`
-- Responses-first runtime path
-- validated on Helm and ACA with successful diagnosis and PR remediation
+When using Azure OpenAI:
+- use an operator-owned deployment name, not a hardcoded example from this repo
+- prefer `https://<resource>.cognitiveservices.azure.com/` for Responses-first validation
+- keep per-task overrides empty until the exact deployment has passed a live canary
+- validate the selected deployment with `bash scripts/ph.sh aoai:check` and one known canary activity
 
-2. `https://<resource>.openai.azure.com/`
-- `gpt-5-mini`
-- validated as the stable default path
-
-Observed caution:
-- routing diagnosis/remediation to `gpt-5.1-codex-mini` while ACA still pointed at the older `openai.azure.com` endpoint produced degraded behavior in production validation
-- switching ACA to the `cognitiveservices.azure.com` base endpoint resolved that gap
-
-Operator rule:
-- if you want `gpt-5.1-codex-mini` for diagnosis/remediation on Azure, use the validated `cognitiveservices.azure.com` base endpoint and verify with a live canary
+Observed caution from earlier ACA validation: mixing a newer Responses-only
+deployment with an older endpoint shape degraded diagnosis/remediation behavior.
+Treat endpoint, API version, and deployment as one tested bundle.
 
 ## Recommended Azure Routing
 
 Current recommended Azure setup:
-- default deployment: `gpt-5-mini`
-- analysis: `gpt-5-mini`
-- diagnosis: `gpt-5.1-codex-mini`
-- remediation: `gpt-5.1-codex-mini`
-- patch_drafting: `gpt-5.1-codex-mini` (currently via the remediation override/path)
+- default deployment: the operator-owned deployment that passed canary validation
+- analysis: leave empty unless a cheaper validated deployment is available
+- diagnosis: leave empty unless a stronger validated deployment is available
+- remediation: leave empty unless a stronger validated deployment is available
+- patch_drafting: currently reuses the remediation override/path
 
 Reasoning:
 - analysis is the best place to save latency/cost

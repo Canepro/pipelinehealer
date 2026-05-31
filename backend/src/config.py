@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     )
     azure_openai_deployment_name: str = Field(
         default="",
-        description="Azure OpenAI deployment name (e.g. gpt-4o, gpt-5-mini)",
+        description="Azure OpenAI deployment name",
     )
     azure_openai_api_version: str = Field(
         default="2025-04-01-preview",
@@ -91,7 +91,7 @@ class Settings(BaseSettings):
     )
     codex_app_server_model: str = Field(
         default="gpt-5.4",
-        description="Codex model requested when LLM_PROVIDER=codex_app_server",
+        description="Codex App Server model requested when LLM_PROVIDER=codex_app_server",
     )
     codex_app_server_turn_timeout_ms: int = Field(
         default=120000,
