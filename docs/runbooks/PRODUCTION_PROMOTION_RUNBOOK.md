@@ -1,6 +1,6 @@
 # Production Promotion Runbook
 
-<!-- LAST_VERIFIED: caeed6a -->
+<!-- LAST_VERIFIED: e004b56 -->
 
 This runbook promotes a reviewed PipelineHealer release to an operator-owned production Azure Container Apps lane.
 
@@ -158,6 +158,23 @@ INFISICAL_TOKEN
 ```
 
 Do not run `infisical secrets get`, `infisical export`, or value-copy commands unless the current operator explicitly approves value handling for that task.
+
+### Redacted Secret Verification
+
+Production reports must not include plaintext secret values. That is an
+intentional control, not a residual risk by itself.
+
+Acceptable proof:
+
+- the configured secret backend and Infisical metadata path
+- required secret names present in the expected environment
+- Azure Container App `secretref` bindings for sensitive runtime env vars
+- `/api/settings/secrets` metadata showing backend/source/presence only
+- live consumer checks such as `/health`, provider health, webhook delivery, or
+  signed callback tests
+
+A residual risk should be recorded only when one of those consumers cannot be
+verified, not because the report avoided secret values.
 
 ## Release Sequence
 
