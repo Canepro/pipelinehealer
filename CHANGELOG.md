@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 2c862a3 -->
+<!-- LAST_VERIFIED: c978e74 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -9,6 +9,21 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ## [Unreleased]
 
 - _No unreleased entries yet._
+
+## [v0.8.1] - 2026-05-31
+
+### Added
+
+- Added production Bicep switches for external model runtimes, including Codex App Server WebSocket routing and optional bearer-token wiring.
+
+### Changed
+
+- Set the production Azure Container Apps parameters to use Codex App Server as the LLM provider and preserve the existing Cosmos DB account as the production data source without creating a replacement prod Cosmos account.
+- Updated the production runbook for the `v0.8.1` release path, Codex App Server runtime settings, and expanded Infisical preflight checks.
+
+### Fixed
+
+- Fixed production Azure what-if/deploy blocking on the deprecated `gpt-4o` managed Azure OpenAI deployment by making managed Azure AI provisioning optional for the prod lane.
 
 ## [v0.8.0] - 2026-05-30
 

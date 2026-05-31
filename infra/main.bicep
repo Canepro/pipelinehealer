@@ -31,17 +31,95 @@ param frontendImageName string = 'pipelinehealer-frontend'
 @description('Image tag for backend/frontend images')
 param imageTag string = 'latest'
 
+@description('Storage backend mode exposed to the backend. Empty keeps the app default: memory in dev, Cosmos DB otherwise.')
+@allowed([
+  ''
+  'memory'
+  'cosmos'
+  'postgres'
+])
+param storageMode string = ''
+
+@description('Create a managed Cosmos DB account and containers. Disable when production must preserve and use an existing Cosmos DB account.')
+param createCosmosDb bool = true
+
+@description('Cosmos DB database name used by PipelineHealer.')
+param cosmosDbDatabaseName string = 'pipelinehealer'
+
+@description('Existing Cosmos DB endpoint override. Leave empty to use the Cosmos account created by this deployment.')
+param cosmosDbEndpointOverride string = ''
+
+@description('Create a managed Azure AI/OpenAI account and model deployment. Disable when an external provider such as Codex App Server is the production model route.')
+param createAzureOpenAi bool = true
+
+@description('Managed Azure AI/OpenAI account kind when createAzureOpenAi is true.')
+@allowed([
+  'AIServices'
+  'OpenAI'
+])
+param azureOpenAiAccountKind string = 'AIServices'
+
+@description('Azure AI/OpenAI deployment name exposed to the backend when createAzureOpenAi is true, or an existing deployment name when using an external account.')
+param azureOpenAiDeploymentName string = 'gpt-5-mini'
+
+@description('Azure AI/OpenAI base model name for the managed deployment.')
+param azureOpenAiModelName string = 'gpt-5-mini'
+
+@description('Azure AI/OpenAI model version for the managed deployment.')
+param azureOpenAiModelVersion string = '2025-08-07'
+
+@description('Azure AI/OpenAI deployment capacity for the managed deployment.')
+param azureOpenAiDeploymentCapacity int = 100
+
+@description('Existing Azure AI/OpenAI endpoint to expose when createAzureOpenAi is false. Leave empty when the selected LLM provider does not need Azure OpenAI.')
+param azureOpenAiEndpoint string = ''
+
+@description('Backend LLM provider route.')
+@allowed([
+  'azure_openai'
+  'openai_compatible'
+  'codex_app_server'
+  'custom'
+])
+param llmProvider string = 'azure_openai'
+
+@description('Codex App Server transport used when llmProvider is codex_app_server.')
+@allowed([
+  'stdio'
+  'websocket'
+])
+param codexAppServerTransport string = 'stdio'
+
+@description('Command used when Codex App Server transport is stdio.')
+param codexAppServerCommand string = 'codex app-server'
+
+@description('Codex model requested from Codex App Server.')
+param codexAppServerModel string = 'gpt-5.4'
+
+@description('Codex App Server turn timeout in milliseconds.')
+param codexAppServerTurnTimeoutMs int = 120000
+
+@description('Codex App Server WebSocket URL used when transport is websocket.')
+param codexAppServerWsUrl string = ''
+
+@description('Allow non-loopback Codex App Server WebSocket URLs. Required for ACA to call an external bridge.')
+param codexAppServerWsAllowRemote bool = false
+
+@secure()
+@description('Optional bearer token for the Codex App Server WebSocket bridge.')
+param codexAppServerWsBearerToken string = ''
+
 @secure()
 @description('API key for X-API-Key protected /api/* routes')
-param apiAuthKey string = 'replace_me_api_auth_key'
+param apiAuthKey string = ''
 
 @secure()
 @description('Admin API key for X-Admin-Key protected /api/settings* routes')
-param adminApiKey string = 'replace_me_admin_api_key'
+param adminApiKey string = ''
 
 @secure()
 @description('GitHub webhook secret used to validate webhook signatures')
-param githubWebhookSecret string = 'replace_me_webhook_secret'
+param githubWebhookSecret string = ''
 
 @secure()
 @description('GitHub PAT for API access (leave empty when using GitHub App auth only)')
@@ -60,12 +138,12 @@ var frontendImage = '${acrName}.azurecr.io/${frontendImageName}:${imageTag}'
 var keyVaultName = take('${baseName}kv${uniqueSuffix}', 24)
 
 // ============================================================================
-// Azure OpenAI Service
+// Azure AI/OpenAI Service
 // ============================================================================
-resource openAiAccount 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
+resource openAiAccount 'Microsoft.CognitiveServices/accounts@2024-10-01' = if (createAzureOpenAi) {
   name: '${resourceBaseName}-openai-${uniqueSuffix}'
   location: location
-  kind: 'OpenAI'
+  kind: azureOpenAiAccountKind
   sku: {
     name: 'S0'
   }
@@ -75,19 +153,20 @@ resource openAiAccount 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
   }
 }
 
-// GPT-4o deployment for agent reasoning
-resource gpt4oDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+// Optional managed deployment for agent reasoning. Production can disable this
+// when the model route is Codex App Server or another external provider.
+resource managedModelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (createAzureOpenAi) {
   parent: openAiAccount
-  name: 'gpt-4o'
+  name: azureOpenAiDeploymentName
   sku: {
     name: 'Standard'
-    capacity: 30
+    capacity: azureOpenAiDeploymentCapacity
   }
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'gpt-4o'
-      version: '2024-08-06'
+      name: azureOpenAiModelName
+      version: azureOpenAiModelVersion
     }
   }
 }
@@ -95,7 +174,7 @@ resource gpt4oDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-
 // ============================================================================
 // Azure Cosmos DB (for agent state and activity logs)
 // ============================================================================
-resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
+resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = if (createCosmosDb) {
   name: '${resourceBaseName}-cosmos-${uniqueSuffix}'
   location: location
   kind: 'GlobalDocumentDB'
@@ -119,17 +198,17 @@ resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
   }
 }
 
-resource cosmosDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15' = {
+resource cosmosDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15' = if (createCosmosDb) {
   parent: cosmosDbAccount
-  name: 'pipelinehealer'
+  name: cosmosDbDatabaseName
   properties: {
     resource: {
-      id: 'pipelinehealer'
+      id: cosmosDbDatabaseName
     }
   }
 }
 
-resource activitiesContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
+resource activitiesContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = if (createCosmosDb) {
   parent: cosmosDatabase
   name: 'activities'
   properties: {
@@ -147,7 +226,7 @@ resource activitiesContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases
   }
 }
 
-resource workflowRunsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = {
+resource workflowRunsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = if (createCosmosDb) {
   parent: cosmosDatabase
   name: 'workflow_runs'
   properties: {
@@ -302,6 +381,14 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
                 name: 'github-personal-access-token'
                 value: githubPersonalAccessToken
               }
+            ],
+        empty(codexAppServerWsBearerToken)
+          ? []
+          : [
+              {
+                name: 'codex-app-server-ws-bearer-token'
+                value: codexAppServerWsBearerToken
+              }
             ]
       )
     }
@@ -320,20 +407,52 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: environmentName == 'prod' ? 'production' : 'development'
             }
             {
+              name: 'STORAGE_MODE'
+              value: storageMode
+            }
+            {
+              name: 'LLM_PROVIDER'
+              value: llmProvider
+            }
+            {
               name: 'AZURE_OPENAI_ENDPOINT'
-              value: openAiAccount.properties.endpoint
+              value: createAzureOpenAi ? openAiAccount!.properties.endpoint : azureOpenAiEndpoint
             }
             {
               name: 'AZURE_OPENAI_DEPLOYMENT_NAME'
-              value: gpt4oDeployment.name
+              value: createAzureOpenAi ? managedModelDeployment.name : azureOpenAiDeploymentName
+            }
+            {
+              name: 'CODEX_APP_SERVER_TRANSPORT'
+              value: codexAppServerTransport
+            }
+            {
+              name: 'CODEX_APP_SERVER_COMMAND'
+              value: codexAppServerCommand
+            }
+            {
+              name: 'CODEX_APP_SERVER_MODEL'
+              value: codexAppServerModel
+            }
+            {
+              name: 'CODEX_APP_SERVER_TURN_TIMEOUT_MS'
+              value: string(codexAppServerTurnTimeoutMs)
+            }
+            {
+              name: 'CODEX_APP_SERVER_WS_URL'
+              value: codexAppServerWsUrl
+            }
+            {
+              name: 'CODEX_APP_SERVER_WS_ALLOW_REMOTE'
+              value: codexAppServerWsAllowRemote ? 'true' : 'false'
             }
             {
               name: 'COSMOS_DB_ENDPOINT'
-              value: cosmosDbAccount.properties.documentEndpoint
+              value: empty(cosmosDbEndpointOverride) ? cosmosDbAccount!.properties.documentEndpoint : cosmosDbEndpointOverride
             }
             {
               name: 'COSMOS_DB_DATABASE'
-              value: cosmosDatabase.name
+              value: cosmosDbDatabaseName
             }
             {
               name: 'KEY_VAULT_URL'
@@ -361,6 +480,14 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
                   {
                     name: 'GITHUB_PERSONAL_ACCESS_TOKEN'
                     secretRef: 'github-personal-access-token'
+                  }
+                ])
+            ...(empty(codexAppServerWsBearerToken)
+              ? []
+              : [
+                  {
+                    name: 'CODEX_APP_SERVER_WS_BEARER_TOKEN'
+                    secretRef: 'codex-app-server-ws-bearer-token'
                   }
                 ])
           ]
@@ -444,7 +571,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
 // ============================================================================
 
 // Backend App -> Cosmos DB Data Contributor
-resource backendCosmosRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = {
+resource backendCosmosRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = if (createCosmosDb) {
   parent: cosmosDbAccount
   name: guid(backendApp.id, cosmosDbAccount.id, 'cosmos-contributor')
   properties: {
@@ -466,7 +593,7 @@ resource backendKeyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@
 }
 
 // Backend App -> Azure OpenAI User
-resource backendOpenAiRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource backendOpenAiRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (createAzureOpenAi) {
   name: guid(backendApp.id, openAiAccount.id, 'openai-user')
   scope: openAiAccount
   properties: {
@@ -487,7 +614,7 @@ output backendAppName string = backendApp.name
 output backendUrl string = 'https://${backendApp.properties.configuration.ingress.fqdn}'
 output frontendAppName string = frontendApp.name
 output frontendUrl string = 'https://${frontendApp.properties.configuration.ingress.fqdn}'
-output openAiEndpoint string = openAiAccount.properties.endpoint
-output cosmosDbEndpoint string = cosmosDbAccount.properties.documentEndpoint
+output openAiEndpoint string = createAzureOpenAi ? openAiAccount!.properties.endpoint : azureOpenAiEndpoint
+output cosmosDbEndpoint string = empty(cosmosDbEndpointOverride) ? cosmosDbAccount!.properties.documentEndpoint : cosmosDbEndpointOverride
 output keyVaultUrl string = keyVault.properties.vaultUri
 output appInsightsConnectionString string = appInsights.properties.ConnectionString
