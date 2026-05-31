@@ -436,13 +436,13 @@
     <section class="hero" aria-labelledby="report-title">
       <p class="kicker">Production access control hotfix</p>
       <h1 id="report-title">PipelineHealer Entra production auth regression closeout</h1>
-      <p class="lede">A production regression caused anonymous access to <code>/api/stats</code> through frontend proxy behavior. The hotfix re-enabled Entra auth mode in production runtime config, removed insecure proxy key injection in that mode, and aligned frontend and backend settings through deploy scripts and infra. Direct API and proxy paths are now returning 401 in unauthenticated scenarios. Release steps remain pending.</p>
+      <p class="lede">A production regression caused anonymous access to <code>/api/stats</code> through frontend proxy behavior. The hotfix re-enabled Entra auth mode in production runtime config, removed insecure proxy key injection in that mode, and aligned frontend and backend settings through deploy scripts and infra. Anonymous direct and proxy access now return <code>401</code>, and the fix has been released and deployed to production as <code>v0.8.2</code>.</p>
     </section>
 
     <section class="facts" aria-label="Report summary">
       <div class="fact">
         <div class="label">Status</div>
-        <div class="value"><span class="status partial">Mitigation in production, release pending</span></div>
+        <div class="value"><span class="status done">Completed and deployed</span></div>
       </div>
       <div class="fact">
         <div class="label">Release target</div>
@@ -478,14 +478,14 @@
           </div>
           <span class="status done">Core access gap fixed</span>
         </div>
-        <p>The production frontend runtime config was accidentally set to <code>VITE_AUTH_MODE="none"</code>, so Entra login was skipped. This created a serious access control issue because frontend proxying could pass an injected backend API key and return <code>200</code> from <code>https://pipelinehealer.canepro.me/api/stats</code> anonymously.</p>
-        <p>Live mitigation is now in place. Backend ACA is configured with <code>AUTH_MODE=hybrid</code> plus Entra validation values, and frontend ACA uses <code>VITE_AUTH_MODE=entra</code>. API proxy auth header injection is now disabled in production via non-secret placeholder behavior. The runtime configuration now reports Entra mode. Both anonymous frontend proxy <code>/api/stats</code> and unauthenticated direct <code>/api/stats</code> now return <code>401</code>. Infisical break-glass key and admin checks still work.</p>
+        <p>Production rollout is complete. The previous anonymous path issue from <code>VITE_AUTH_MODE="none"</code> has been corrected with production runtime now set to <code>VITE_AUTH_MODE=entra</code> and backend configured as <code>AUTH_MODE=hybrid</code>.</p>
+        <p>Backend and frontend images for <code>v0.8.2</code> have been imported into production ACR and deployed. Final production health is <code>healthy</code>, <code>version 0.8.2</code>, <code>environment production</code>, and <code>storage_backend cosmos_db</code>. Both anonymous endpoints, <code>https://pipelinehealer.canepro.me/api/stats</code> and <code>https://api.pipelinehealer.canepro.me/api/stats</code>, now return <code>401</code> without credentials, while Entra and break-glass/admin paths remain functional.</p>
       </section>
 
       <section class="section span-5" id="next-action">
-        <span class="eyebrow">Recommended next action</span>
-        <h2>Finish release controls, then deploy</h2>
-        <p>Prioritize PR merge and CI completion first, then tag <code>v0.8.2</code>, run release workflow, deploy the hotfix, and perform the final post-deploy smoke pass against production endpoints.</p>
+      <span class="eyebrow">Recommended next action</span>
+        <h2>Closeout tasks now complete</h2>
+        <p>Keep a short post-deploy watch for Entra auth signal stability and ACA drift while normal operations continue. No further rollout action is required for this hotfix sequence.</p>
       </section>
 
       <section class="section" id="gates">
@@ -516,21 +516,21 @@
               </tr>
               <tr>
                 <td>PR and checks</td>
-                <td><span class="status partial">Pending</span></td>
+                <td><span class="status done">Passed</span></td>
                 <td>PR #184 merged after all required checks complete.</td>
-                <td>Merges blocked by failing check.</td>
+                <td>Any failed merge precheck or rollback required if checks regress.</td>
               </tr>
               <tr>
                 <td>Tag and release</td>
-                <td><span class="status partial">Pending</span></td>
+                <td><span class="status done">Passed</span></td>
                 <td>Git tag <code>v0.8.2</code> and release workflow completed.</td>
                 <td>Release not cut or failed deploy checks.</td>
               </tr>
               <tr>
                 <td>Post-deploy smoke</td>
-                <td><span class="status partial">Pending</span></td>
+                <td><span class="status done">Passed</span></td>
                 <td>Production smoke confirms no anonymous bypass and Entra sign in path remains stable.</td>
-                <td>Any fail in production auth smoke.</td>
+                <td>Any return to anonymous access or auth drift.</td>
               </tr>
             </tbody>
           </table>
@@ -551,7 +551,11 @@
           </article>
           <article class="card">
             <strong>Validation and release metadata</strong>
-            <p>Tests were updated in <code>backend/tests/test_redeploy_azure_env_sync.py</code>, and release documentation metadata was updated for v0.8.2. Infisical prod path now injects 44 names, including 12 Entra runtime names.</p>
+            <p>Tests were updated in <code>backend/tests/test_redeploy_azure_env_sync.py</code>, and release metadata was aligned for <code>v0.8.2</code>. Final Infisical prod path injection now reports 45 names, including Entra runtime keys.</p>
+          </article>
+          <article class="card">
+            <strong>Release and deployment</strong>
+            <p>PR <a href="https://github.com/Canepro/pipelinehealer/pull/184">#184</a> merged at <code>1ee0e5eb104d7ae8975c4fbde0301a18ca691e46</code>, tag <code>v0.8.2</code> was pushed, and <a href="https://github.com/Canepro/pipelinehealer/actions/runs/26702008838">release workflow 26702008838</a> succeeded. Production deployment used <code>bash scripts/ph.sh deploy:release --release-version v0.8.2 --secure-secrets</code> under <code>infisical run</code>.</p>
           </article>
         </div>
       </section>
@@ -607,12 +611,27 @@
               <tr>
                 <td>Runtime regression probe</td>
                 <td><span class="status done">Pass</span></td>
-                <td>Anonymous proxy <code>/api/stats</code> and direct <code>/api/stats</code> now return <code>401</code>.</td>
+                <td>Anonymous proxy <code>https://pipelinehealer.canepro.me/api/stats</code> and direct <code>https://api.pipelinehealer.canepro.me/api/stats</code> return <code>401</code> with missing credentials message.</td>
               </tr>
               <tr>
                 <td>Infisical prod runtime</td>
                 <td><span class="status done">Pass</span></td>
-                <td>Prod path now injects 44 names with 12 Entra runtime names.</td>
+                <td>Prod path now injects 45 names through the corrected <code>production</code> environment in Infisical.</td>
+              </tr>
+              <tr>
+                <td>Release verification</td>
+                <td><span class="status done">Pass</span></td>
+                <td><code>release_verify</code> passed. Backend digest <code>sha256:97cc55e5071b19b94e63fc86f58d066cb2ecd6e9993d2052feb993cfc4eed541</code>, frontend digest <code>sha256:640583b52a1ff14d33e7fcf3727f9fb2f8a942a2c8e1106f88a4feb6382c0e83</code>.</td>
+              </tr>
+              <tr>
+                <td>Deployment and runtime health</td>
+                <td><span class="status done">Pass</span></td>
+                <td>Backend ACA <code>ca-canepro-ph-prod-backend--0000004</code> and frontend ACA <code>ca-canepro-ph-prod-frontend--0000004</code> both <code>latestReady</code>, healthy with <code>ENVIRONMENT=production</code> and <code>VITE_AUTH_MODE=entra</code>.</td>
+              </tr>
+              <tr>
+                <td>Provider health</td>
+                <td><span class="status done">Pass</span></td>
+                <td>Provider <code>codex_app_server</code> reports <code>available true</code> and reason <code>ok</code>.</td>
               </tr>
             </tbody>
           </table>
@@ -646,11 +665,21 @@
           <div class="event">
             <div class="time">
               <time datetime="2026-05-31">2026-05-31</time>
-              <span>Validation complete</span>
+              <span>Release complete</span>
             </div>
             <div class="event-body">
-              <strong>Local checks passed and residual release tasks were marked.</strong>
-              <p>Regression checks and test suites passed. Remaining items were tracked as pending: PR checks, merge, tag, release workflow, deploy, and post-deploy smoke.</p>
+              <strong>PR merged, release tagged, and production deployment completed.</strong>
+              <p>Merge commit <code>1ee0e5eb104d7ae8975c4fbde0301a18ca691e46</code> was recorded to main, <code>v0.8.2</code> was pushed, release workflow <code>26702008838</code> succeeded, and deployed with secure secret injection.</p>
+            </div>
+          </div>
+          <div class="event">
+            <div class="time">
+              <time datetime="2026-05-31">2026-05-31</time>
+              <span>Post-deploy verification</span>
+            </div>
+            <div class="event-body">
+              <strong>Production smoke and runtime config verified.</strong>
+              <p>Final checks confirm <code>healthy</code> status, <code>0.8.2</code> versions, Entra runtime config, and blocked anonymous stats access.</p>
             </div>
           </div>
         </div>
@@ -670,9 +699,9 @@
             </thead>
             <tbody>
               <tr>
-                <td>Pending release and deployment sequence</td>
-                <td>High operational risk if delayed</td>
-                <td>Complete PR merge, run release workflow, and perform final smoke checks before declaring rollout complete.</td>
+                <td>None blocking</td>
+                <td>Low</td>
+                <td>Keep standard monitoring and drift checks in place for production auth mode and provider health.</td>
               </tr>
               <tr>
                 <td>Configuration drift after deployment</td>
@@ -713,9 +742,9 @@
                 <td><span class="status done">Verified</span></td>
               </tr>
               <tr>
-                <td>Release still pending</td>
-                <td>PR #184, tag, release workflow, deploy, and final smoke not yet executed in this draft context.</td>
-                <td><span class="status partial">Pending</span></td>
+                <td>Release and production deployment completed</td>
+                <td>PR #184 merged, <code>v0.8.2</code> released, release workflow passed, deployment completed, and anonymous auth smoke passed.</td>
+                <td><span class="status done">Verified</span></td>
               </tr>
             </tbody>
           </table>
@@ -723,15 +752,22 @@
         <details open>
           <summary>Evidence excerpts</summary>
           <div class="details-body">
-            <pre><code>Regression: prod frontend runtime-config had VITE_AUTH_MODE="none", and same-origin https://pipelinehealer.canepro.me/api/stats returned 200 anonymously.
-
-Mitigation: backend ACA AUTH_MODE=hybrid with Entra validation, frontend ACA VITE_AUTH_MODE=entra, proxy API_AUTH_KEY placeholder disabled in Entra mode.
-
-Runtime check: anonymous frontend proxy /api/stats now returns 401. Direct API /api/stats without credentials returns 401.
-
-Infisical: production injection path now includes 44 names, with 12 Entra runtime names.
-
-Verification runs: pytest 55 passed in test_redeploy_azure_env_sync.py and test_phase2_security.py, frontend lint/test/build passed with 17 tests, bicep build and prod params build passed with dummy secrets, ruff pass, shellcheck pass, git diff --check pass.</code></pre>
+            <pre><code>Release complete:
+- PR #184 merged to main at commit 1ee0e5eb104d7ae8975c4fbde0301a18ca691e46.
+- v0.8.2 tag pushed and GitHub Release workflow 26702008838 succeeded.
+- release_verify passed.
+- Backend digest: sha256:97cc55e5071b19b94e63fc86f58d066cb2ecd6e9993d2052feb993cfc4eed541
+- Frontend digest: sha256:640583b52a1ff14d33e7fcf3727f9fb2f8a942a2c8e1106f88a4feb6382c0e83
+- Images imported into production ACR and deployed via:
+  bash scripts/ph.sh deploy:release --release-version v0.8.2 --secure-secrets
+- ENVIRONMENT corrected to production in Infisical prod path, now injecting 45 names.
+- Final health: healthy, version 0.8.2, environment production, storage_backend cosmos_db.
+- Runtime config: VITE_AUTH_MODE=entra, VITE_API_AUTH_KEY empty, redirect URI https://pipelinehealer.canepro.me/app.
+- Anonymous /api/stats endpoints return 401 missing credentials for both proxy and api domains.
+- Break-glass key and admin paths verified through Infisical injection.
+- Backend ACA latestReady ca-canepro-ph-prod-backend--0000004 digest backend above, ENVIRONMENT=production, AUTH_MODE=hybrid, LLM_PROVIDER=codex_app_server.
+- Frontend ACA latestReady ca-canepro-ph-prod-frontend--0000004 digest frontend above, VITE_AUTH_MODE=entra.
+- Provider health codex_app_server available=true reason=ok.</code></pre>
           </div>
         </details>
         <details>
