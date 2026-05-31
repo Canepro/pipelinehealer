@@ -30,10 +30,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useConfirm } from "@/components/ui/use-confirm";
 import { SettingToggleField } from "../components/settings/SettingToggleField";
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const isApiAuthReady = useApiAuthReady();
   const [adminKeyInput, setAdminKeyInput] = useState("");
   const [adminKey, setAdminKey] = useState("");
@@ -361,33 +363,45 @@ export default function SettingsPage() {
     },
   });
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     if (
       data?.environment === "production" &&
       data.heal_mode === "safe" &&
       ["demo", "freestyle"].includes(form.heal_mode) &&
-      !window.confirm(
-        "Enable a more aggressive healing mode in production? This increases autonomous write actions.",
-      )
+      !(await confirm({
+        title: "Enable aggressive healing in production?",
+        description:
+          "This increases autonomous write actions in a production environment.",
+        confirmLabel: "Enable",
+        destructive: true,
+      }))
     ) {
       return;
     }
     if (
       data?.verify_webhook_signature &&
       !form.verify_webhook_signature &&
-      !window.confirm(
-        "Disable webhook signature verification? Incoming webhook authenticity checks will be removed.",
-      )
+      !(await confirm({
+        title: "Disable webhook signature verification?",
+        description: "Incoming webhook authenticity checks will be removed.",
+        confirmLabel: "Disable",
+        destructive: true,
+      }))
     ) {
       return;
     }
     saveMutation.mutate();
   };
 
-  const handleSecretAction = (secret: SecretSetting, clear = false) => {
+  const handleSecretAction = async (secret: SecretSetting, clear = false) => {
     if (
       clear &&
-      !window.confirm(`Clear ${formatSecretLabel(secret.key)}? Dependent integrations may stop working immediately.`)
+      !(await confirm({
+        title: `Clear ${formatSecretLabel(secret.key)}?`,
+        description: "Dependent integrations may stop working immediately.",
+        confirmLabel: "Clear secret",
+        destructive: true,
+      }))
     ) {
       return;
     }
@@ -396,7 +410,11 @@ export default function SettingsPage() {
       !clear &&
       secret.configured &&
       (secretDrafts[secret.key] ?? "").trim() &&
-      !window.confirm("Rotate the Assign-to-Agent destination URL? Future deliveries will go to the new host.")
+      !(await confirm({
+        title: "Rotate the Assign-to-Agent destination URL?",
+        description: "Future deliveries will go to the new host.",
+        confirmLabel: "Rotate",
+      }))
     ) {
       return;
     }
@@ -416,6 +434,7 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      {confirmDialog}
       {/* Page header */}
       <div className="flex items-start gap-3.5">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)]">
