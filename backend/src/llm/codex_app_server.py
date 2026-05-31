@@ -7,7 +7,7 @@ import ipaddress
 import json
 from collections.abc import Callable
 from contextlib import suppress
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 
 
@@ -262,11 +262,60 @@ def _extract_thread_id(payload: Any) -> str:
 
 
 def _extract_text(payload: Any) -> str:
-    if isinstance(payload, str):
-        return payload.strip()
+    agent_message_text = _extract_agent_message_text(payload)
+    if agent_message_text:
+        return agent_message_text
+
+    return _extract_text_generic(payload)
+
+
+def _decode_text_envelope(value: str) -> str:
+    text = value.strip()
+    if not text.startswith("{"):
+        return text
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return text
+    if (
+        isinstance(parsed, dict)
+        and set(parsed) == {"text"}
+        and isinstance(parsed.get("text"), str)
+    ):
+        parsed_text = cast(str, parsed["text"])
+        return parsed_text.strip()
+    return text
+
+
+def _extract_agent_message_text(payload: Any) -> str:
     if isinstance(payload, list):
         for item in payload:
-            text = _extract_text(item)
+            text = _extract_agent_message_text(item)
+            if text:
+                return text
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+
+    item = payload.get("item")
+    if isinstance(item, dict) and item.get("type") == "agentMessage":
+        raw_text = item.get("text")
+        if isinstance(raw_text, str) and raw_text.strip():
+            return _decode_text_envelope(raw_text)
+
+    for key in ("params", "turn", "items", "notifications"):
+        text = _extract_agent_message_text(payload.get(key))
+        if text:
+            return text
+    return ""
+
+
+def _extract_text_generic(payload: Any) -> str:
+    if isinstance(payload, str):
+        return _decode_text_envelope(payload)
+    if isinstance(payload, list):
+        for item in payload:
+            text = _extract_text_generic(item)
             if text:
                 return text
         return ""
@@ -293,11 +342,11 @@ def _extract_text(payload: Any) -> str:
             structured_text = value.get("text")
             if isinstance(structured_text, str):
                 return structured_text.strip()
-        text = _extract_text(value)
+        text = _extract_text_generic(value)
         if text:
             return text
     for key in ("params", "turn", "items", "notifications"):
-        text = _extract_text(payload.get(key))
+        text = _extract_text_generic(payload.get(key))
         if text:
             return text
     return ""
