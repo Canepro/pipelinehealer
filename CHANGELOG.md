@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 17c3243 -->
+<!-- LAST_VERIFIED: 8817b54 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -9,6 +9,16 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 ## [Unreleased]
 
 - _No unreleased entries yet._
+
+## [v0.8.7] - 2026-05-31
+
+### Changed
+
+- Adjusted `merge_when_clean` so PipelineHealer treats GitHub's `mergeable_state=clean` as the required-check signal and records optional failing checks instead of blocking safe merges.
+
+### Fixed
+
+- Fixed remediation PR auto-merge getting stuck behind optional app checks such as Copilot review when GitHub branch protection and CI already report the PR clean.
 
 ## [v0.8.6] - 2026-05-31
 

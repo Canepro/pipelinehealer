@@ -1074,10 +1074,19 @@ class RemediationAgent:
                         repo,
                         head_sha,
                     )
-                    checks_ready = (
-                        check_summary.get("state") == "success"
-                        and bool(check_summary.get("has_checks"))
-                    )
+                    has_checks = bool(check_summary.get("has_checks"))
+                    has_successful_check = bool(check_summary.get("successful") or [])
+                    if check_summary.get("state") == "success" and has_checks:
+                        checks_ready = True
+                        check_summary["merge_gate"] = "all_checks_clean"
+                    elif mergeable_state == "clean" and has_checks and has_successful_check:
+                        checks_ready = True
+                        check_summary["merge_gate"] = "github_required_checks_clean"
+                        check_summary["optional_failures_ignored"] = list(
+                            check_summary.get("failing") or []
+                        )
+                    else:
+                        checks_ready = False
 
             ready = (
                 state == "open"
@@ -1119,7 +1128,7 @@ class RemediationAgent:
                     repo=repo,
                     pr_number=pr_number,
                     body=(
-                        "PipelineHealer merged this remediation PR after checks passed.\n\n"
+                        "PipelineHealer merged this remediation PR after required checks passed.\n\n"
                         f"- Source workflow run: https://github.com/{owner}/{repo}/actions/runs/{workflow_run_id}\n"
                         f"- Head SHA: `{head_sha or 'unknown'}`\n"
                         f"- Remediation fingerprint: `{remediation_fingerprint}`"

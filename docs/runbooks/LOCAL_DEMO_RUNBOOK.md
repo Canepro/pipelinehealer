@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 17c3243 -->
+<!-- LAST_VERIFIED: 8817b54 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -605,7 +605,7 @@ gh workflow run ci.yml -R <owner>/<repo> -f failure_type=lint
 Replace `<owner>/<repo>` with your demo repo (for example `Canepro/pipelinehealer-demo`).
 If the workflow filename is not `ci.yml` in your repo, use the name returned by `gh workflow list`.
 
-For an approved end-to-end auto-fix demo, enable `AUTO_CREATE_PR=true` and `AUTO_MERGE_REMEDIATION_PRS=true` for a narrow `PH_ALLOWED_REPOS` list. Keep `AUTO_MERGE_REQUIRE_CLEAN_CHECKS=true`; PipelineHealer records the PR URL, merge strategy, check summary, and merge result in the Activity remediation details.
+For an approved end-to-end auto-fix demo, enable `AUTO_CREATE_PR=true` and `AUTO_MERGE_REMEDIATION_PRS=true` for a narrow `PH_ALLOWED_REPOS` list. Keep `AUTO_MERGE_REQUIRE_CLEAN_CHECKS=true`; PipelineHealer records the PR URL, merge strategy, check summary, optional ignored app-check failures, and merge result in the Activity remediation details.
 
 **Wait about 30-60 seconds** for the workflow to run and fail. You should see webhook events arriving in the smee terminal.
 
