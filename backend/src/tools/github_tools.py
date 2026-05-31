@@ -602,6 +602,163 @@ class GitHubTools:
         )
         return cast(list[dict[str, Any]], response.json())
 
+    async def enable_pull_request_auto_merge(
+        self,
+        *,
+        pull_request_id: str,
+        expected_head_oid: str | None = None,
+        merge_method: str = "SQUASH",
+        client_mutation_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Ask GitHub to merge a PR automatically when branch requirements pass."""
+        normalized_method = merge_method.strip().upper() or "SQUASH"
+        if normalized_method not in {"MERGE", "SQUASH", "REBASE"}:
+            raise ValueError("merge_method must be one of: MERGE, SQUASH, REBASE")
+
+        mutation = """
+        mutation EnablePullRequestAutoMerge($input: EnablePullRequestAutoMergeInput!) {
+          enablePullRequestAutoMerge(input: $input) {
+            clientMutationId
+            pullRequest {
+              id
+              number
+              url
+              autoMergeRequest {
+                enabledAt
+                mergeMethod
+              }
+            }
+          }
+        }
+        """
+        input_payload: dict[str, Any] = {
+            "pullRequestId": pull_request_id,
+            "mergeMethod": normalized_method,
+        }
+        if expected_head_oid:
+            input_payload["expectedHeadOid"] = expected_head_oid
+        if client_mutation_id:
+            input_payload["clientMutationId"] = client_mutation_id
+
+        response = await self._request(
+            "POST",
+            "/graphql",
+            json={"query": mutation, "variables": {"input": input_payload}},
+        )
+        payload = cast(dict[str, Any], response.json())
+        errors = payload.get("errors")
+        if isinstance(errors, list) and errors:
+            messages = [
+                str(error.get("message", "")).strip()
+                for error in errors
+                if isinstance(error, dict)
+            ]
+            raise RuntimeError("; ".join(message for message in messages if message) or str(errors))
+        data = cast(dict[str, Any], payload.get("data") or {})
+        result = data.get("enablePullRequestAutoMerge")
+        if not isinstance(result, dict):
+            raise RuntimeError("GitHub auto-merge response did not include mutation result")
+        return result
+
+    async def get_commit_check_summary(
+        self,
+        owner: str,
+        repo: str,
+        ref: str,
+    ) -> dict[str, Any]:
+        """Return a compact status/check-run summary for a commit ref."""
+        status_response = await self._request(
+            "GET",
+            f"/repos/{owner}/{repo}/commits/{ref}/status",
+        )
+        status_payload = cast(dict[str, Any], status_response.json())
+        statuses = cast(list[dict[str, Any]], status_payload.get("statuses") or [])
+        status_total = int(status_payload.get("total_count") or len(statuses))
+
+        check_response = await self._request(
+            "GET",
+            f"/repos/{owner}/{repo}/commits/{ref}/check-runs",
+            params={"per_page": 100},
+        )
+        check_payload = cast(dict[str, Any], check_response.json())
+        check_runs = cast(list[dict[str, Any]], check_payload.get("check_runs") or [])
+
+        pending: list[str] = []
+        failing: list[str] = []
+        successful: list[str] = []
+
+        if status_total:
+            combined_state = str(status_payload.get("state") or "").lower()
+            if combined_state in {"failure", "error"}:
+                failing.append("commit status")
+            elif combined_state == "pending":
+                pending.append("commit status")
+            elif combined_state == "success":
+                successful.append("commit status")
+
+        passing_check_conclusions = {"success", "neutral", "skipped"}
+        for check in check_runs:
+            name = str(check.get("name") or check.get("external_id") or "check-run")
+            status = str(check.get("status") or "").lower()
+            conclusion = str(check.get("conclusion") or "").lower()
+            if status != "completed":
+                pending.append(name)
+            elif conclusion in passing_check_conclusions:
+                successful.append(name)
+            else:
+                failing.append(name)
+
+        has_checks = bool(status_total or check_runs)
+        if failing:
+            state = "failure"
+        elif pending:
+            state = "pending"
+        elif has_checks and successful:
+            state = "success"
+        else:
+            state = "none"
+
+        return {
+            "ref": ref,
+            "state": state,
+            "has_checks": has_checks,
+            "status_total": status_total,
+            "check_runs_total": len(check_runs),
+            "pending": pending,
+            "failing": failing,
+            "successful": successful[:20],
+        }
+
+    async def merge_pull_request(
+        self,
+        owner: str,
+        repo: str,
+        pr_number: int,
+        *,
+        commit_title: str | None = None,
+        commit_message: str | None = None,
+        sha: str | None = None,
+        merge_method: str = "squash",
+    ) -> dict[str, Any]:
+        """Merge a pull request using GitHub's REST merge endpoint."""
+        normalized_method = merge_method.strip().lower() or "squash"
+        if normalized_method not in {"merge", "squash", "rebase"}:
+            raise ValueError("merge_method must be one of: merge, squash, rebase")
+        payload: dict[str, Any] = {"merge_method": normalized_method}
+        if commit_title:
+            payload["commit_title"] = commit_title
+        if commit_message:
+            payload["commit_message"] = commit_message
+        if sha:
+            payload["sha"] = sha
+
+        response = await self._request(
+            "PUT",
+            f"/repos/{owner}/{repo}/pulls/{pr_number}/merge",
+            json=payload,
+        )
+        return cast(dict[str, Any], response.json())
+
     async def list_pull_requests(
         self,
         owner: str,

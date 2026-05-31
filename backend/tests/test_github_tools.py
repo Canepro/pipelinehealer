@@ -73,6 +73,48 @@ async def test_get_pull_request_files_uses_pulls_files_endpoint() -> None:
 
 
 @pytest.mark.asyncio
+async def test_enable_pull_request_auto_merge_uses_graphql_mutation() -> None:
+    gh = GitHubTools(token="test-token")
+    captured: dict[str, Any] = {}
+
+    async def fake_request(method: str, url: str, **kwargs: Any) -> _FakeResponse:
+        captured["method"] = method
+        captured["url"] = url
+        captured["kwargs"] = kwargs
+        return _FakeResponse(
+            {
+                "data": {
+                    "enablePullRequestAutoMerge": {
+                        "clientMutationId": "ph-123",
+                        "pullRequest": {"number": 42},
+                    }
+                }
+            }
+        )
+
+    gh._request = fake_request  # type: ignore[method-assign]
+
+    result = await gh.enable_pull_request_auto_merge(
+        pull_request_id="PR_node_42",
+        expected_head_oid="abc123",
+        merge_method="SQUASH",
+        client_mutation_id="ph-123",
+    )
+
+    assert result["clientMutationId"] == "ph-123"
+    assert captured["method"] == "POST"
+    assert captured["url"] == "/graphql"
+    body = captured["kwargs"]["json"]
+    assert "enablePullRequestAutoMerge" in body["query"]
+    assert body["variables"]["input"] == {
+        "pullRequestId": "PR_node_42",
+        "mergeMethod": "SQUASH",
+        "expectedHeadOid": "abc123",
+        "clientMutationId": "ph-123",
+    }
+
+
+@pytest.mark.asyncio
 async def test_get_recent_commits_passes_since_parameter() -> None:
     gh = GitHubTools(token="test-token")
     captured: dict[str, Any] = {}

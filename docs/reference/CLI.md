@@ -1,6 +1,6 @@
 # PipelineHealer CLI Reference
 
-<!-- LAST_VERIFIED: 044aa39 -->
+<!-- LAST_VERIFIED: 17c3243 -->
 
 Canonical reference for `scripts/ph.sh` — the one-command operator interface for PipelineHealer.
 
@@ -361,6 +361,10 @@ Recommended use:
 | `--auto-create-pr` | `true`, `false` | Set `AUTO_CREATE_PR` |
 | `--auto-create-issue` | `true`, `false` | Set `AUTO_CREATE_ISSUE` |
 | `--auto-retry-workflow` | `true`, `false` | Set `AUTO_RETRY_WORKFLOW` |
+| `--auto-merge-remediation-prs` | `true`, `false` | Set `AUTO_MERGE_REMEDIATION_PRS` |
+| `--auto-merge-strategy` | `github_auto_merge`, `merge_when_clean` | Set `AUTO_MERGE_STRATEGY` |
+| `--auto-merge-poll-seconds` | float | Set `AUTO_MERGE_POLL_SECONDS` |
+| `--auto-merge-require-clean-checks` | `true`, `false` | Set `AUTO_MERGE_REQUIRE_CLEAN_CHECKS` |
 | `--max-remediation-attempts` | int | Set `MAX_REMEDIATION_ATTEMPTS` |
 | `--pipeline-step-timeout-seconds` | float | Set `PIPELINE_STEP_TIMEOUT_SECONDS` |
 | `--external-diagnostics-wait-seconds` | float | Set `EXTERNAL_DIAGNOSTICS_WAIT_SECONDS` |

@@ -394,6 +394,80 @@ class FakeGitHubToolsCapturePR(FakeGitHubToolsWithFiles):
         return {"number": 321, "html_url": f"https://github.com/{owner}/{repo}/pull/321"}
 
 
+class FakeGitHubToolsAutoMerge(FakeGitHubToolsCapturePR):
+    def __init__(self) -> None:
+        super().__init__(files={"README.md": "hello\n"})
+        self.merge_calls: list[dict[str, object]] = []
+
+    async def create_pull_request(
+        self,
+        owner: str,
+        repo: str,
+        title: str,
+        body: str,
+        head: str,
+        base: str,
+        draft: bool = False,
+    ):
+        await super().create_pull_request(owner, repo, title, body, head, base, draft)
+        return {
+            "number": 321,
+            "node_id": "PR_node_321",
+            "html_url": f"https://github.com/{owner}/{repo}/pull/321",
+            "head": {"ref": head, "sha": "abc123"},
+        }
+
+    async def get_pull_request(self, owner: str, repo: str, pr_number: int):
+        _ = owner, repo
+        return {
+            "number": pr_number,
+            "node_id": f"PR_node_{pr_number}",
+            "html_url": f"https://github.com/{owner}/{repo}/pull/{pr_number}",
+            "state": "open",
+            "draft": False,
+            "mergeable": True,
+            "mergeable_state": "clean",
+            "head": {"ref": "fix/dependency-run-901", "sha": "abc123"},
+        }
+
+    async def get_commit_check_summary(self, owner: str, repo: str, ref: str):
+        _ = owner, repo, ref
+        return {
+            "ref": ref,
+            "state": "success",
+            "has_checks": True,
+            "status_total": 0,
+            "check_runs_total": 1,
+            "pending": [],
+            "failing": [],
+            "successful": ["CI"],
+        }
+
+    async def merge_pull_request(
+        self,
+        owner: str,
+        repo: str,
+        pr_number: int,
+        *,
+        commit_title: str | None = None,
+        commit_message: str | None = None,
+        sha: str | None = None,
+        merge_method: str = "squash",
+    ):
+        self.merge_calls.append(
+            {
+                "owner": owner,
+                "repo": repo,
+                "pr_number": pr_number,
+                "commit_title": commit_title,
+                "commit_message": commit_message,
+                "sha": sha,
+                "merge_method": merge_method,
+            }
+        )
+        return {"merged": True, "sha": "merge123", "message": "Pull Request successfully merged"}
+
+
 class FakeGitHubToolsExistingGeneratedIssue(FakeGitHubTools):
     def __init__(self) -> None:
         super().__init__()
@@ -1768,6 +1842,53 @@ async def test_create_pr_records_patch_drafting_trace(
     assert traces[0]["file"] == "eslint.config.js"
     assert traces[0]["outcome"] == "drafted"
     assert traces[0]["used_fallback"] is False
+
+
+@pytest.mark.asyncio
+async def test_create_pr_auto_merges_when_clean(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AUTO_MERGE_REMEDIATION_PRS", "true")
+    monkeypatch.setenv("AUTO_MERGE_STRATEGY", "merge_when_clean")
+    monkeypatch.setenv("AUTO_MERGE_POLL_SECONDS", "0")
+    reset_settings()
+
+    gh = FakeGitHubToolsAutoMerge()
+    agent = RemediationAgent(github_tools=gh)
+    plan = RemediationPlan(
+        action=RemediationAction.CREATE_PR,
+        description="Install missing dependency",
+        branch_name="fix/dependency",
+        pr_title="[PipelineHealer] dependency fix",
+        pr_body="body",
+        file_changes=[{"file": "README.md", "content": "updated"}],
+    )
+
+    result = await agent._create_pull_request(
+        plan=plan,
+        owner="octo",
+        repo="demo",
+        base_branch="main",
+        workflow_run_id=901,
+    )
+
+    assert result.success is True
+    assert result.action_taken == RemediationAction.CREATE_PR
+    auto_merge = result.details.get("auto_merge")
+    assert isinstance(auto_merge, dict)
+    assert auto_merge["requested"] is True
+    assert auto_merge["strategy"] == "merge_when_clean"
+    assert auto_merge["merged"] is True
+    assert auto_merge["last_state"]["checks"]["state"] == "success"
+    assert len(gh.merge_calls) == 1
+    assert gh.merge_calls[0]["pr_number"] == 321
+    assert gh.merge_calls[0]["commit_title"] == "fix: merge PipelineHealer remediation #321"
+    assert gh.merge_calls[0]["sha"] == "abc123"
+    assert gh.merge_calls[0]["merge_method"] == "squash"
+    assert "Remediation fingerprint" in str(gh.merge_calls[0]["commit_message"])
+    assert any(
+        "PipelineHealer merged this remediation PR after checks passed."
+        in str(call["body"])
+        for call in gh.issue_comment_calls
+    )
 
 
 # ---------------------------------------------------------------------------

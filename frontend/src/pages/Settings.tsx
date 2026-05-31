@@ -76,6 +76,10 @@ export default function SettingsPage() {
     auto_create_issue: true,
     auto_retry_workflow: true,
     auto_create_tracking_issue_for_prs: true,
+    auto_merge_remediation_prs: false,
+    auto_merge_strategy: "merge_when_clean",
+    auto_merge_poll_seconds: 90,
+    auto_merge_require_clean_checks: true,
     max_remediation_attempts: 3,
     verify_webhook_signature: true,
     verify_webhook_signature_in_development: false,
@@ -280,6 +284,10 @@ export default function SettingsPage() {
         auto_retry_workflow: form.auto_retry_workflow,
         auto_create_tracking_issue_for_prs:
           form.auto_create_tracking_issue_for_prs,
+        auto_merge_remediation_prs: form.auto_merge_remediation_prs,
+        auto_merge_strategy: form.auto_merge_strategy,
+        auto_merge_poll_seconds: form.auto_merge_poll_seconds,
+        auto_merge_require_clean_checks: form.auto_merge_require_clean_checks,
         max_remediation_attempts: form.max_remediation_attempts,
         verify_webhook_signature: form.verify_webhook_signature,
         verify_webhook_signature_in_development:
@@ -646,6 +654,12 @@ export default function SettingsPage() {
                       {
                         label: "Auto-retry workflow",
                         value: data.auto_retry_workflow ? "Yes" : "No",
+                      },
+                      {
+                        label: "Auto-merge PRs",
+                        value: data.auto_merge_remediation_prs
+                          ? data.auto_merge_strategy
+                          : "No",
                       },
                       {
                         label: "Max attempts",

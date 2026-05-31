@@ -1248,6 +1248,10 @@ async def test_admin_patch_accepts_freestyle_and_runtime_action_toggles(monkeypa
             "jenkins_bridge_allow_pr": True,
             "auto_create_issue": True,
             "auto_retry_workflow": False,
+            "auto_merge_remediation_prs": True,
+            "auto_merge_strategy": "merge_when_clean",
+            "auto_merge_poll_seconds": 45,
+            "auto_merge_require_clean_checks": True,
         },
         headers={"X-Admin-Key": "admin-secret"},
     )
@@ -1259,6 +1263,10 @@ async def test_admin_patch_accepts_freestyle_and_runtime_action_toggles(monkeypa
     assert body["jenkins_bridge_allow_pr"] is True
     assert body["auto_create_issue"] is True
     assert body["auto_retry_workflow"] is False
+    assert body["auto_merge_remediation_prs"] is True
+    assert body["auto_merge_strategy"] == "merge_when_clean"
+    assert body["auto_merge_poll_seconds"] == 45
+    assert body["auto_merge_require_clean_checks"] is True
 
 
 @pytest.mark.asyncio

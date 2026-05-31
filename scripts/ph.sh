@@ -942,6 +942,26 @@ _persist_parse_args() {
         _sp_auto_retry_workflow="$2"
         shift 2
         ;;
+      --auto-merge-remediation-prs)
+        require_arg "$1" "${2-}"
+        _sp_auto_merge_remediation_prs="$2"
+        shift 2
+        ;;
+      --auto-merge-strategy)
+        require_arg "$1" "${2-}"
+        _sp_auto_merge_strategy="$2"
+        shift 2
+        ;;
+      --auto-merge-poll-seconds)
+        require_arg "$1" "${2-}"
+        _sp_auto_merge_poll_seconds="$2"
+        shift 2
+        ;;
+      --auto-merge-require-clean-checks)
+        require_arg "$1" "${2-}"
+        _sp_auto_merge_require_clean_checks="$2"
+        shift 2
+        ;;
       --max-remediation-attempts)
         require_arg "$1" "${2-}"
         _sp_max_remediation_attempts="$2"
@@ -1050,12 +1070,14 @@ _persist_parse_args() {
 
 _persist_validate() {
   # Check that the flag combination is valid and normalize values.
-  if [[ "$_sp_from_settings" != "1" && "$_sp_clear_repos" != "1" && "$_sp_clear_mcp_repo_allowlist" != "1" && -z "${_sp_repos_add_csv:-}" && -z "${_sp_repos_remove_csv:-}" && -z "${_sp_repos_replace_csv:-}" && -z "${_sp_heal_mode:-}" && -z "${_sp_auto_apply_remediation:-}" && -z "${_sp_auto_create_pr:-}" && -z "${_sp_auto_create_issue:-}" && -z "${_sp_auto_retry_workflow:-}" && -z "${_sp_max_remediation_attempts:-}" && -z "${_sp_pipeline_step_timeout_seconds:-}" && -z "${_sp_external_diagnostics_wait_seconds:-}" && -z "${_sp_external_diagnostics_poll_interval_seconds:-}" && -z "${_sp_gh_aw_tools_enabled:-}" && -z "${_sp_gh_aw_ingestion_mode:-}" && -z "${_sp_gh_aw_known_workflows:-}" && -z "${_sp_mcp_enabled:-}" && -z "${_sp_mcp_provider:-}" && -z "${_sp_mcp_read_only:-}" && -z "${_sp_mcp_timeout_seconds:-}" && -z "${_sp_mcp_max_retries:-}" && -z "${_sp_mcp_tool_policies:-}" && -z "${_sp_mcp_repo_allowlist:-}" && -z "${_sp_azure_openai_deployment_name:-}" && -z "${_sp_llm_model_analysis:-}" && -z "${_sp_llm_model_diagnosis:-}" && -z "${_sp_llm_model_remediation:-}" ]]; then
+  if [[ "$_sp_from_settings" != "1" && "$_sp_clear_repos" != "1" && "$_sp_clear_mcp_repo_allowlist" != "1" && -z "${_sp_repos_add_csv:-}" && -z "${_sp_repos_remove_csv:-}" && -z "${_sp_repos_replace_csv:-}" && -z "${_sp_heal_mode:-}" && -z "${_sp_auto_apply_remediation:-}" && -z "${_sp_auto_create_pr:-}" && -z "${_sp_auto_create_issue:-}" && -z "${_sp_auto_retry_workflow:-}" && -z "${_sp_auto_merge_remediation_prs:-}" && -z "${_sp_auto_merge_strategy:-}" && -z "${_sp_auto_merge_poll_seconds:-}" && -z "${_sp_auto_merge_require_clean_checks:-}" && -z "${_sp_max_remediation_attempts:-}" && -z "${_sp_pipeline_step_timeout_seconds:-}" && -z "${_sp_external_diagnostics_wait_seconds:-}" && -z "${_sp_external_diagnostics_poll_interval_seconds:-}" && -z "${_sp_gh_aw_tools_enabled:-}" && -z "${_sp_gh_aw_ingestion_mode:-}" && -z "${_sp_gh_aw_known_workflows:-}" && -z "${_sp_mcp_enabled:-}" && -z "${_sp_mcp_provider:-}" && -z "${_sp_mcp_read_only:-}" && -z "${_sp_mcp_timeout_seconds:-}" && -z "${_sp_mcp_max_retries:-}" && -z "${_sp_mcp_tool_policies:-}" && -z "${_sp_mcp_repo_allowlist:-}" && -z "${_sp_azure_openai_deployment_name:-}" && -z "${_sp_llm_model_analysis:-}" && -z "${_sp_llm_model_diagnosis:-}" && -z "${_sp_llm_model_remediation:-}" ]]; then
     echo "Usage: bash scripts/ph.sh settings:persist --from-settings [--skip-redeploy]" >&2
     echo "   or: bash scripts/ph.sh settings:persist <flags...> [--skip-redeploy]" >&2
     echo "" >&2
     echo "Direct flags: --repos-add CSV [alias: --repos]  --repos-remove CSV  --repos-replace CSV  --clear-repos  --heal-mode MODE" >&2
     echo "  --auto-apply-remediation true|false  --auto-create-pr true|false  --auto-create-issue true|false  --auto-retry-workflow true|false" >&2
+    echo "  --auto-merge-remediation-prs true|false  --auto-merge-strategy github_auto_merge|merge_when_clean" >&2
+    echo "  --auto-merge-poll-seconds N  --auto-merge-require-clean-checks true|false" >&2
     echo "  --max-remediation-attempts N" >&2
     echo "  --pipeline-step-timeout-seconds N  --gh-aw-tools-enabled true|false" >&2
     echo "  --external-diagnostics-wait-seconds N  --external-diagnostics-poll-interval-seconds N" >&2
@@ -1070,7 +1092,7 @@ _persist_validate() {
 
   if [[ "$_sp_from_settings" == "1" ]]; then
     local has_direct="0"
-    [[ "$_sp_clear_repos" == "1" || -n "${_sp_repos_add_csv:-}" || -n "${_sp_repos_remove_csv:-}" || -n "${_sp_repos_replace_csv:-}" || -n "${_sp_gh_aw_tools_enabled:-}" || -n "${_sp_gh_aw_ingestion_mode:-}" || -n "${_sp_gh_aw_known_workflows:-}" || -n "${_sp_external_diagnostics_wait_seconds:-}" || -n "${_sp_external_diagnostics_poll_interval_seconds:-}" || -n "${_sp_mcp_enabled:-}" || -n "${_sp_mcp_provider:-}" || -n "${_sp_mcp_read_only:-}" || -n "${_sp_mcp_timeout_seconds:-}" || -n "${_sp_mcp_max_retries:-}" || -n "${_sp_mcp_tool_policies:-}" || -n "${_sp_mcp_repo_allowlist:-}" || "$_sp_clear_mcp_repo_allowlist" == "1" || -n "${_sp_azure_openai_deployment_name:-}" || -n "${_sp_llm_model_analysis:-}" || -n "${_sp_llm_model_diagnosis:-}" || -n "${_sp_llm_model_remediation:-}" || -n "${_sp_heal_mode:-}" || -n "${_sp_auto_apply_remediation:-}" || -n "${_sp_auto_create_pr:-}" || -n "${_sp_auto_create_issue:-}" || -n "${_sp_auto_retry_workflow:-}" || -n "${_sp_max_remediation_attempts:-}" || -n "${_sp_pipeline_step_timeout_seconds:-}" ]] && has_direct="1"
+    [[ "$_sp_clear_repos" == "1" || -n "${_sp_repos_add_csv:-}" || -n "${_sp_repos_remove_csv:-}" || -n "${_sp_repos_replace_csv:-}" || -n "${_sp_gh_aw_tools_enabled:-}" || -n "${_sp_gh_aw_ingestion_mode:-}" || -n "${_sp_gh_aw_known_workflows:-}" || -n "${_sp_external_diagnostics_wait_seconds:-}" || -n "${_sp_external_diagnostics_poll_interval_seconds:-}" || -n "${_sp_mcp_enabled:-}" || -n "${_sp_mcp_provider:-}" || -n "${_sp_mcp_read_only:-}" || -n "${_sp_mcp_timeout_seconds:-}" || -n "${_sp_mcp_max_retries:-}" || -n "${_sp_mcp_tool_policies:-}" || -n "${_sp_mcp_repo_allowlist:-}" || "$_sp_clear_mcp_repo_allowlist" == "1" || -n "${_sp_azure_openai_deployment_name:-}" || -n "${_sp_llm_model_analysis:-}" || -n "${_sp_llm_model_diagnosis:-}" || -n "${_sp_llm_model_remediation:-}" || -n "${_sp_heal_mode:-}" || -n "${_sp_auto_apply_remediation:-}" || -n "${_sp_auto_create_pr:-}" || -n "${_sp_auto_create_issue:-}" || -n "${_sp_auto_retry_workflow:-}" || -n "${_sp_auto_merge_remediation_prs:-}" || -n "${_sp_auto_merge_strategy:-}" || -n "${_sp_auto_merge_poll_seconds:-}" || -n "${_sp_auto_merge_require_clean_checks:-}" || -n "${_sp_max_remediation_attempts:-}" || -n "${_sp_pipeline_step_timeout_seconds:-}" ]] && has_direct="1"
     if [[ "$has_direct" == "1" ]]; then
       echo "Use --from-settings by itself (optionally with --skip-redeploy)." >&2
       exit 2
@@ -1137,6 +1159,27 @@ _persist_validate() {
     case "${_sp_auto_retry_workflow,,}" in
       true|false) _sp_auto_retry_workflow="${_sp_auto_retry_workflow,,}" ;;
       *) echo "Invalid --auto-retry-workflow value: $_sp_auto_retry_workflow (expected true|false)" >&2; exit 2 ;;
+    esac
+  fi
+
+  if [[ -n "${_sp_auto_merge_remediation_prs:-}" ]]; then
+    case "${_sp_auto_merge_remediation_prs,,}" in
+      true|false) _sp_auto_merge_remediation_prs="${_sp_auto_merge_remediation_prs,,}" ;;
+      *) echo "Invalid --auto-merge-remediation-prs value: $_sp_auto_merge_remediation_prs (expected true|false)" >&2; exit 2 ;;
+    esac
+  fi
+
+  if [[ -n "${_sp_auto_merge_strategy:-}" ]]; then
+    case "${_sp_auto_merge_strategy,,}" in
+      github_auto_merge|merge_when_clean) _sp_auto_merge_strategy="${_sp_auto_merge_strategy,,}" ;;
+      *) echo "Invalid --auto-merge-strategy value: $_sp_auto_merge_strategy (expected github_auto_merge|merge_when_clean)" >&2; exit 2 ;;
+    esac
+  fi
+
+  if [[ -n "${_sp_auto_merge_require_clean_checks:-}" ]]; then
+    case "${_sp_auto_merge_require_clean_checks,,}" in
+      true|false) _sp_auto_merge_require_clean_checks="${_sp_auto_merge_require_clean_checks,,}" ;;
+      *) echo "Invalid --auto-merge-require-clean-checks value: $_sp_auto_merge_require_clean_checks (expected true|false)" >&2; exit 2 ;;
     esac
   fi
 
@@ -1211,6 +1254,10 @@ _persist_hydrate_from_live() {
   _sp_auto_create_issue="$(echo "$settings_json" | jq -r '.auto_create_issue | if . then "true" else "false" end')"
   _sp_auto_retry_workflow="$(echo "$settings_json" | jq -r '.auto_retry_workflow | if . then "true" else "false" end')"
   _sp_auto_create_tracking_issue_for_prs="$(echo "$settings_json" | jq -r '.auto_create_tracking_issue_for_prs | if . then "true" else "false" end')"
+  _sp_auto_merge_remediation_prs="$(echo "$settings_json" | jq -r '.auto_merge_remediation_prs | if . then "true" else "false" end')"
+  _sp_auto_merge_strategy="$(echo "$settings_json" | jq -r '.auto_merge_strategy')"
+  _sp_auto_merge_poll_seconds="$(echo "$settings_json" | jq -r '.auto_merge_poll_seconds')"
+  _sp_auto_merge_require_clean_checks="$(echo "$settings_json" | jq -r '.auto_merge_require_clean_checks | if . then "true" else "false" end')"
   _sp_max_remediation_attempts="$(echo "$settings_json" | jq -r '.max_remediation_attempts')"
   _sp_verify_webhook_signature_in_development="$(echo "$settings_json" | jq -r '.verify_webhook_signature_in_development | if . then "true" else "false" end')"
   _sp_pipeline_step_timeout_seconds="$(echo "$settings_json" | jq -r '.pipeline_step_timeout_seconds')"
@@ -1375,6 +1422,10 @@ _persist_build_patch_payload_json() {
   SP_AUTO_CREATE_PR="${_sp_auto_create_pr:-}" \
   SP_AUTO_CREATE_ISSUE="${_sp_auto_create_issue:-}" \
   SP_AUTO_RETRY_WORKFLOW="${_sp_auto_retry_workflow:-}" \
+  SP_AUTO_MERGE_REMEDIATION_PRS="${_sp_auto_merge_remediation_prs:-}" \
+  SP_AUTO_MERGE_STRATEGY="${_sp_auto_merge_strategy:-}" \
+  SP_AUTO_MERGE_POLL_SECONDS="${_sp_auto_merge_poll_seconds:-}" \
+  SP_AUTO_MERGE_REQUIRE_CLEAN_CHECKS="${_sp_auto_merge_require_clean_checks:-}" \
   SP_MAX_REMEDIATION_ATTEMPTS="${_sp_max_remediation_attempts:-}" \
   SP_PIPELINE_STEP_TIMEOUT_SECONDS="${_sp_pipeline_step_timeout_seconds:-}" \
   SP_EXTERNAL_DIAGNOSTICS_WAIT_SECONDS="${_sp_external_diagnostics_wait_seconds:-}" \
@@ -1471,6 +1522,22 @@ if auto_create_issue is not None:
 auto_retry_workflow = parse_bool(os.getenv("SP_AUTO_RETRY_WORKFLOW", ""))
 if auto_retry_workflow is not None:
     payload["auto_retry_workflow"] = auto_retry_workflow
+
+auto_merge_remediation_prs = parse_bool(os.getenv("SP_AUTO_MERGE_REMEDIATION_PRS", ""))
+if auto_merge_remediation_prs is not None:
+    payload["auto_merge_remediation_prs"] = auto_merge_remediation_prs
+
+auto_merge_strategy = (os.getenv("SP_AUTO_MERGE_STRATEGY", "") or "").strip().lower()
+if auto_merge_strategy:
+    payload["auto_merge_strategy"] = auto_merge_strategy
+
+auto_merge_poll_seconds = parse_float(os.getenv("SP_AUTO_MERGE_POLL_SECONDS", ""))
+if auto_merge_poll_seconds is not None:
+    payload["auto_merge_poll_seconds"] = auto_merge_poll_seconds
+
+auto_merge_require_clean_checks = parse_bool(os.getenv("SP_AUTO_MERGE_REQUIRE_CLEAN_CHECKS", ""))
+if auto_merge_require_clean_checks is not None:
+    payload["auto_merge_require_clean_checks"] = auto_merge_require_clean_checks
 
 max_remediation_attempts = parse_int(os.getenv("SP_MAX_REMEDIATION_ATTEMPTS", ""))
 if max_remediation_attempts is not None:
@@ -1663,6 +1730,10 @@ _persist_write_env() {
   _write_if_set "AUTO_CREATE_ISSUE" "${_sp_auto_create_issue:-}"
   _write_if_set "AUTO_RETRY_WORKFLOW" "${_sp_auto_retry_workflow:-}"
   _write_if_set "AUTO_CREATE_TRACKING_ISSUE_FOR_PRS" "${_sp_auto_create_tracking_issue_for_prs:-}"
+  _write_if_set "AUTO_MERGE_REMEDIATION_PRS" "${_sp_auto_merge_remediation_prs:-}"
+  _write_if_set "AUTO_MERGE_STRATEGY" "${_sp_auto_merge_strategy:-}"
+  _write_if_set "AUTO_MERGE_POLL_SECONDS" "${_sp_auto_merge_poll_seconds:-}"
+  _write_if_set "AUTO_MERGE_REQUIRE_CLEAN_CHECKS" "${_sp_auto_merge_require_clean_checks:-}"
   _write_if_set "MAX_REMEDIATION_ATTEMPTS" "${_sp_max_remediation_attempts:-}"
   _write_if_set "VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT" "${_sp_verify_webhook_signature_in_development:-}"
   _write_if_set "PIPELINE_STEP_TIMEOUT_SECONDS" "${_sp_pipeline_step_timeout_seconds:-}"
@@ -1713,6 +1784,10 @@ _persist_print_summary() {
     echo "  AUTO_CREATE_ISSUE=${_sp_auto_create_issue:-<unchanged>}"
     echo "  AUTO_RETRY_WORKFLOW=${_sp_auto_retry_workflow:-<unchanged>}"
     echo "  AUTO_CREATE_TRACKING_ISSUE_FOR_PRS=${_sp_auto_create_tracking_issue_for_prs:-<unchanged>}"
+    echo "  AUTO_MERGE_REMEDIATION_PRS=${_sp_auto_merge_remediation_prs:-<unchanged>}"
+    echo "  AUTO_MERGE_STRATEGY=${_sp_auto_merge_strategy:-<unchanged>}"
+    echo "  AUTO_MERGE_POLL_SECONDS=${_sp_auto_merge_poll_seconds:-<unchanged>}"
+    echo "  AUTO_MERGE_REQUIRE_CLEAN_CHECKS=${_sp_auto_merge_require_clean_checks:-<unchanged>}"
     echo "  MAX_REMEDIATION_ATTEMPTS=${_sp_max_remediation_attempts:-<unchanged>}"
     echo "  VERIFY_WEBHOOK_SIGNATURE_IN_DEVELOPMENT=${_sp_verify_webhook_signature_in_development:-<unchanged>}"
     echo "  PIPELINE_STEP_TIMEOUT_SECONDS=${_sp_pipeline_step_timeout_seconds:-<unchanged>}"
@@ -1752,6 +1827,10 @@ _persist_print_summary() {
     [[ -n "${_sp_auto_create_pr:-}" ]] && echo "  AUTO_CREATE_PR=${_sp_auto_create_pr}"
     [[ -n "${_sp_auto_create_issue:-}" ]] && echo "  AUTO_CREATE_ISSUE=${_sp_auto_create_issue}"
     [[ -n "${_sp_auto_retry_workflow:-}" ]] && echo "  AUTO_RETRY_WORKFLOW=${_sp_auto_retry_workflow}"
+    [[ -n "${_sp_auto_merge_remediation_prs:-}" ]] && echo "  AUTO_MERGE_REMEDIATION_PRS=${_sp_auto_merge_remediation_prs}"
+    [[ -n "${_sp_auto_merge_strategy:-}" ]] && echo "  AUTO_MERGE_STRATEGY=${_sp_auto_merge_strategy}"
+    [[ -n "${_sp_auto_merge_poll_seconds:-}" ]] && echo "  AUTO_MERGE_POLL_SECONDS=${_sp_auto_merge_poll_seconds}"
+    [[ -n "${_sp_auto_merge_require_clean_checks:-}" ]] && echo "  AUTO_MERGE_REQUIRE_CLEAN_CHECKS=${_sp_auto_merge_require_clean_checks}"
     [[ -n "${_sp_max_remediation_attempts:-}" ]] && echo "  MAX_REMEDIATION_ATTEMPTS=${_sp_max_remediation_attempts}"
     [[ -n "${_sp_pipeline_step_timeout_seconds:-}" ]] && echo "  PIPELINE_STEP_TIMEOUT_SECONDS=${_sp_pipeline_step_timeout_seconds}"
     [[ -n "${_sp_external_diagnostics_wait_seconds:-}" ]] && echo "  EXTERNAL_DIAGNOSTICS_WAIT_SECONDS=${_sp_external_diagnostics_wait_seconds}"
@@ -1811,6 +1890,10 @@ cmd_settings_persist() {
   _sp_auto_create_issue=""
   _sp_auto_retry_workflow=""
   _sp_auto_create_tracking_issue_for_prs=""
+  _sp_auto_merge_remediation_prs=""
+  _sp_auto_merge_strategy=""
+  _sp_auto_merge_poll_seconds=""
+  _sp_auto_merge_require_clean_checks=""
   _sp_max_remediation_attempts=""
   _sp_verify_webhook_signature_in_development=""
   _sp_pipeline_step_timeout_seconds=""

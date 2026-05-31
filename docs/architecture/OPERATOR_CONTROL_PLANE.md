@@ -1,4 +1,4 @@
-<!-- LAST_VERIFIED: 4055ae3 -->
+<!-- LAST_VERIFIED: 17c3243 -->
 
 # Operator Control Plane
 
@@ -206,6 +206,7 @@ Should answer:
 - What is effective right now?
 - What still depends on external wiring?
 - What requires restart or redeploy?
+- Whether remediation PRs may be auto-merged, and which safety strategy is active (`github_auto_merge` or `merge_when_clean`).
 
 ### Control Center
 

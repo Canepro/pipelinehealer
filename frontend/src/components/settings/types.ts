@@ -27,6 +27,10 @@ export type SettingsFormState = {
   auto_create_issue: boolean
   auto_retry_workflow: boolean
   auto_create_tracking_issue_for_prs: boolean
+  auto_merge_remediation_prs: boolean
+  auto_merge_strategy: 'github_auto_merge' | 'merge_when_clean'
+  auto_merge_poll_seconds: number
+  auto_merge_require_clean_checks: boolean
   max_remediation_attempts: number
   verify_webhook_signature: boolean
   verify_webhook_signature_in_development: boolean
@@ -179,6 +183,11 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
   auto_create_issue: data.auto_create_issue,
   auto_retry_workflow: data.auto_retry_workflow,
   auto_create_tracking_issue_for_prs: data.auto_create_tracking_issue_for_prs,
+  auto_merge_remediation_prs: data.auto_merge_remediation_prs ?? false,
+  auto_merge_strategy:
+    data.auto_merge_strategy === 'github_auto_merge' ? 'github_auto_merge' : 'merge_when_clean',
+  auto_merge_poll_seconds: data.auto_merge_poll_seconds ?? 90,
+  auto_merge_require_clean_checks: data.auto_merge_require_clean_checks ?? true,
   max_remediation_attempts: data.max_remediation_attempts,
   verify_webhook_signature: data.verify_webhook_signature,
   verify_webhook_signature_in_development: data.verify_webhook_signature_in_development,
@@ -276,6 +285,14 @@ export const SETTING_DESCRIPTIONS: Record<string, string> = {
     'Allows PipelineHealer to trigger retry of failed workflow jobs when remediation selects retry_workflow.',
   auto_create_tracking_issue_for_prs:
     'Creates a GitHub issue to track each PR-based remediation and auto-closes it when the PR merges (requires Auto-Create Issues).',
+  auto_merge_remediation_prs:
+    'Allows PipelineHealer to merge its own remediation PRs after GitHub reports them mergeable and checks are clean.',
+  auto_merge_strategy:
+    'github_auto_merge asks GitHub to merge when branch requirements pass; merge_when_clean polls checks and merges once the PR is clean.',
+  auto_merge_poll_seconds:
+    'Maximum time PipelineHealer waits for remediation PR checks before leaving the PR open with a traceable timeout.',
+  auto_merge_require_clean_checks:
+    'Requires at least one successful GitHub status/check run and no failing checks before PipelineHealer merges a remediation PR.',
   max_remediation_attempts:
     'Maximum number of times PipelineHealer will retry fixing a single failure before giving up.',
   azure_openai_deployment_name:
