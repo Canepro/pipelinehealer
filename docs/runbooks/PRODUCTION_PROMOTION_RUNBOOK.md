@@ -1,6 +1,6 @@
 # Production Promotion Runbook
 
-<!-- LAST_VERIFIED: 2c862a3 -->
+<!-- LAST_VERIFIED: c978e74 -->
 
 This runbook promotes a reviewed PipelineHealer release to the production Azure Container Apps lane for `pipelinehealer.canepro.me` and `api.pipelinehealer.canepro.me`.
 
@@ -46,12 +46,14 @@ Existing production history is in the current Cosmos DB lane:
 | Containers | `activities`, `workflow_runs` |
 | Partition key | `/repositoryId` |
 
-Do not treat the new production lane as a clean database unless you explicitly want to discard the previous operational history. The safe default for `v0.8.0` is continuity:
+Do not treat the new production lane as a clean database unless you explicitly want to discard the previous operational history. The safe default for `v0.8.1` is continuity:
 
 1. Keep the existing Cosmos account as the source of record during the first production cutover.
 2. Grant the new production backend managed identity Cosmos DB data-plane access to that existing account.
 3. Override the production backend runtime env to use the existing Cosmos endpoint and `COSMOS_DB_DATABASE=pipelinehealer`.
 4. Only move data into a new prod Cosmos account after a separate export/import plan, count comparison, and rollback checkpoint.
+
+`infra/main.prod.bicepparam` sets `createCosmosDb=false`, so the production infrastructure deployment does not create a replacement Cosmos account during this cutover.
 
 After the production backend app exists, grant its identity access to the existing Cosmos account:
 
@@ -97,6 +99,25 @@ az containerapp show \
 
 Do not delete, reinitialize, or rename the existing Cosmos account during this release. If a later release migrates data into `rg-canepro-ph-prod-eus2`, use a separate migration PR/runbook and capture pre/post counts for both containers.
 
+## Model Runtime
+
+Production uses Codex App Server as the first LLM route for cost control:
+
+```env
+LLM_PROVIDER=codex_app_server
+CODEX_APP_SERVER_TRANSPORT=websocket
+CODEX_APP_SERVER_MODEL=gpt-5.4
+CODEX_APP_SERVER_WS_URL=<wss-url>
+CODEX_APP_SERVER_WS_ALLOW_REMOTE=true
+CODEX_APP_SERVER_WS_BEARER_TOKEN=<secret-if-required>
+```
+
+`infra/main.prod.bicepparam` disables managed Azure AI/OpenAI creation for production. This avoids provisioning a billable Azure model deployment when the app should call a Codex App Server bridge instead.
+
+Azure Container Apps cannot rely on the local `codex app-server` stdio path unless the production image includes the Codex binary and has a production-safe auth bootstrap. Use WebSocket transport for ACA production and keep the bridge URL and bearer token in Infisical. The backend refuses non-loopback WebSocket URLs unless `CODEX_APP_SERVER_WS_ALLOW_REMOTE=true`, so that production opt-in is intentional and visible.
+
+If Codex App Server is unavailable, rollback is a configuration action: set `LLM_PROVIDER=azure_openai` or `LLM_PROVIDER=openai_compatible` with the matching provider secrets and redeploy the same release image.
+
 ## Infisical Boundary
 
 Use metadata in Git and secret values in Infisical.
@@ -118,17 +139,17 @@ ADMIN_API_KEY
 GITHUB_WEBHOOK_SECRET
 AUDIT_SALT
 SETTINGS_DB_ENCRYPTION_KEY
-AZURE_OPENAI_API_KEY
 AGENT_HANDOFF_CALLBACK_SECRET
+CODEX_APP_SERVER_WS_BEARER_TOKEN
 ```
 
 Optional names depend on enabled providers:
 
 ```text
+AZURE_OPENAI_API_KEY
 GITHUB_PERSONAL_ACCESS_TOKEN
 GITHUB_APP_PRIVATE_KEY
 OPENAI_COMPATIBLE_API_KEY
-CODEX_APP_SERVER_WS_BEARER_TOKEN
 CODEX_APP_SERVER_HANDOFF_URL
 OPENCLAW_HANDOFF_URL
 HERMES_HANDOFF_URL
@@ -143,21 +164,21 @@ Do not run `infisical secrets get`, `infisical export`, or value-copy commands u
 Prepare and review:
 
 ```bash
-git switch -c release/v0.8.0
-bash scripts/release.sh 0.8.0
+git switch -c release/v0.8.1
+bash scripts/release.sh 0.8.1
 bash scripts/check_version_sync.sh
 cd frontend && bun install --frozen-lockfile && bun run lint && bun run test && bun run build
 cd ../backend && pytest -q
-git push origin release/v0.8.0
-gh pr create --base main --head release/v0.8.0 --title "chore(release): v0.8.0"
+git push origin release/v0.8.1
+gh pr create --base main --head release/v0.8.1 --title "chore(release): v0.8.1"
 ```
 
 Wait for attached review agents and CI. Address comments, resolve review threads, and rerun checks. Tag only the reviewed branch commit:
 
 ```bash
-git tag -a v0.8.0 -m "Release v0.8.0"
-git push origin v0.8.0
-bash scripts/release_verify.sh v0.8.0
+git tag -a v0.8.1 -m "Release v0.8.1"
+git push origin v0.8.1
+bash scripts/release_verify.sh v0.8.1
 ```
 
 ## Provision Or Update Production
@@ -191,14 +212,14 @@ Import the reviewed release images from public GHCR into the prod ACR:
 ```bash
 az acr import \
   --name caneprophacrprod01 \
-  --source ghcr.io/canepro/pipelinehealer-backend:v0.8.0 \
-  --image pipelinehealer-backend:v0.8.0 \
+  --source ghcr.io/canepro/pipelinehealer-backend:v0.8.1 \
+  --image pipelinehealer-backend:v0.8.1 \
   --force
 
 az acr import \
   --name caneprophacrprod01 \
-  --source ghcr.io/canepro/pipelinehealer-frontend:v0.8.0 \
-  --image pipelinehealer-frontend:v0.8.0 \
+  --source ghcr.io/canepro/pipelinehealer-frontend:v0.8.1 \
+  --image pipelinehealer-frontend:v0.8.1 \
   --force
 ```
 
@@ -206,7 +227,7 @@ Preview the application infrastructure changes:
 
 ```bash
 infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-project-id> -- \
-  bash -c 'for key in API_AUTH_KEY ADMIN_API_KEY GITHUB_WEBHOOK_SECRET; do test -n "${!key:-}" || { echo "missing $key" >&2; exit 1; }; done'
+  bash -c 'for key in API_AUTH_KEY ADMIN_API_KEY GITHUB_WEBHOOK_SECRET STORAGE_MODE COSMOS_DB_ENDPOINT COSMOS_DB_DATABASE LLM_PROVIDER CODEX_APP_SERVER_TRANSPORT CODEX_APP_SERVER_WS_URL; do test -n "${!key:-}" || { echo "missing $key" >&2; exit 1; }; done'
 
 infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-project-id> -- \
   az deployment group what-if \
@@ -219,7 +240,7 @@ Apply only after the `what-if` output is expected:
 
 ```bash
 infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-project-id> -- \
-  bash -c 'for key in API_AUTH_KEY ADMIN_API_KEY GITHUB_WEBHOOK_SECRET; do test -n "${!key:-}" || { echo "missing $key" >&2; exit 1; }; done'
+  bash -c 'for key in API_AUTH_KEY ADMIN_API_KEY GITHUB_WEBHOOK_SECRET STORAGE_MODE COSMOS_DB_ENDPOINT COSMOS_DB_DATABASE LLM_PROVIDER CODEX_APP_SERVER_TRANSPORT CODEX_APP_SERVER_WS_URL; do test -n "${!key:-}" || { echo "missing $key" >&2; exit 1; }; done'
 
 infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-project-id> -- \
   az deployment group create \
@@ -241,7 +262,7 @@ infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-proj
   umask 077
   release_env="$(mktemp)"
   trap "rm -f \"$release_env\"" EXIT
-  for key in API_AUTH_KEY ADMIN_API_KEY GITHUB_WEBHOOK_SECRET GITHUB_PERSONAL_ACCESS_TOKEN; do
+  for key in API_AUTH_KEY ADMIN_API_KEY GITHUB_WEBHOOK_SECRET GITHUB_PERSONAL_ACCESS_TOKEN CODEX_APP_SERVER_WS_BEARER_TOKEN; do
     if [ -n "${!key:-}" ]; then printf "%s=%s\n" "$key" "${!key}" >>"$release_env"; fi
   done
   PH_RG=rg-canepro-ph-prod-eus2 \
@@ -252,7 +273,7 @@ infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-proj
     --acr-name caneprophacrprod01 \
     --backend-app ca-canepro-ph-prod-backend \
     --frontend-app ca-canepro-ph-prod-frontend \
-    --release-version v0.8.0 \
+    --release-version v0.8.1 \
     --env-file "$release_env" \
     --secure-secrets
 '
@@ -272,7 +293,7 @@ PH_RG=rg-canepro-ph-prod-eus2 PH_BACKEND_APP=ca-canepro-ph-prod-backend PH_FRONT
 
 Expected:
 
-- `/health` reports `version: "0.8.0"`
+- `/health` reports `version: "0.8.1"`
 - `/health` reports `environment: "production"`
 - storage is `cosmos_db` or `postgres`, not `in_memory`
 - frontend runtime config points at the production API
