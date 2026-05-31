@@ -3097,7 +3097,7 @@ export default function AdminControlsForm({
         )}
 
         {/* ── Save / Discard Bar ── */}
-        <Card>
+        <Card className="sticky bottom-4 z-20 shadow-[var(--ph-shadow-lg)]">
           <CardContent className="py-4 px-6">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
