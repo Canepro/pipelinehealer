@@ -10,6 +10,12 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - _No unreleased entries yet._
 
+## [v0.8.5] - 2026-05-31
+
+### Fixed
+
+- Defaulted the managed Azure AI/OpenAI deployment SKU to `GlobalStandard` so the Bicep default stays compatible with the `gpt-5.4` model.
+
 ## [v0.8.4] - 2026-05-31
 
 ### Fixed

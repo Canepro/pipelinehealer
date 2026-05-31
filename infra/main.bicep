@@ -71,6 +71,15 @@ param azureOpenAiModelVersion string = '2026-03-05'
 @description('Azure AI/OpenAI deployment capacity for the managed deployment.')
 param azureOpenAiDeploymentCapacity int = 100
 
+@description('Azure AI/OpenAI deployment SKU for the managed model.')
+@allowed([
+  'Standard'
+  'GlobalStandard'
+  'DataZoneStandard'
+  'ProvisionedManaged'
+])
+param azureOpenAiDeploymentSkuName string = 'GlobalStandard'
+
 @description('Existing Azure AI/OpenAI endpoint to expose when createAzureOpenAi is false. Leave empty when the selected LLM provider does not need Azure OpenAI.')
 param azureOpenAiEndpoint string = ''
 
@@ -204,7 +213,7 @@ resource managedModelDeployment 'Microsoft.CognitiveServices/accounts/deployment
   parent: openAiAccount
   name: azureOpenAiDeploymentName
   sku: {
-    name: 'Standard'
+    name: azureOpenAiDeploymentSkuName
     capacity: azureOpenAiDeploymentCapacity
   }
   properties: {

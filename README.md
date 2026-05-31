@@ -28,8 +28,8 @@ Native ingress is GitHub Actions. Jenkins is supported through the signed bridge
 - Model providers: Azure OpenAI, OpenAI-compatible, Codex App Server, custom scaffold
 - Storage: PostgreSQL, Cosmos DB, in-memory local mode
 - Secret stores: Infisical, encrypted DB, optional Azure Key Vault
-- Current production release: `v0.8.4`
-- Latest published release: [`v0.8.4`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.8.4)
+- Current production release: `v0.8.5`
+- Latest published release: [`v0.8.5`](https://github.com/Canepro/pipelinehealer/releases/tag/v0.8.5)
 
 ## Core Workflow
 
