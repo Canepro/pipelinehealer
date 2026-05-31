@@ -228,10 +228,22 @@ infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-proj
     --parameters infra/main.prod.bicepparam
 ```
 
-Promote the reviewed release images:
+Promote the reviewed release images. `deploy:release` reads secret values from
+an env file (`--secure-secrets` then binds them as Container App secrets), so on
+an Infisical-only host the snippet below materializes a short-lived env file from
+the injected process env and removes it on exit. The whole command is wrapped in
+`bash -c` so `infisical run -- ...` invokes an executable rather than a leading
+env assignment:
 
 ```bash
-infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-project-id> -- \
+infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-project-id> -- bash -c '
+  set -euo pipefail
+  umask 077
+  release_env="$(mktemp)"
+  trap "rm -f \"$release_env\"" EXIT
+  for key in API_AUTH_KEY ADMIN_API_KEY GITHUB_WEBHOOK_SECRET GITHUB_PERSONAL_ACCESS_TOKEN; do
+    if [ -n "${!key:-}" ]; then printf "%s=%s\n" "$key" "${!key}" >>"$release_env"; fi
+  done
   PH_RG=rg-canepro-ph-prod-eus2 \
   PH_BACKEND_APP=ca-canepro-ph-prod-backend \
   PH_FRONTEND_APP=ca-canepro-ph-prod-frontend \
@@ -241,7 +253,9 @@ infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-proj
     --backend-app ca-canepro-ph-prod-backend \
     --frontend-app ca-canepro-ph-prod-frontend \
     --release-version v0.8.0 \
+    --env-file "$release_env" \
     --secure-secrets
+'
 ```
 
 ## Domain And Smoke Proof
@@ -271,7 +285,14 @@ Expected:
 Rollback by redeploying the last known good release image:
 
 ```bash
-infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-project-id> -- \
+infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-project-id> -- bash -c '
+  set -euo pipefail
+  umask 077
+  release_env="$(mktemp)"
+  trap "rm -f \"$release_env\"" EXIT
+  for key in API_AUTH_KEY ADMIN_API_KEY GITHUB_WEBHOOK_SECRET GITHUB_PERSONAL_ACCESS_TOKEN; do
+    if [ -n "${!key:-}" ]; then printf "%s=%s\n" "$key" "${!key}" >>"$release_env"; fi
+  done
   PH_RG=rg-canepro-ph-prod-eus2 \
   PH_BACKEND_APP=ca-canepro-ph-prod-backend \
   PH_FRONTEND_APP=ca-canepro-ph-prod-frontend \
@@ -281,7 +302,9 @@ infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-proj
     --backend-app ca-canepro-ph-prod-backend \
     --frontend-app ca-canepro-ph-prod-frontend \
     --release-version v0.7.2 \
+    --env-file "$release_env" \
     --secure-secrets
+'
 ```
 
 Record the rollback reason, release tag, backend revision, frontend revision, and health response in the release PR or incident record.
