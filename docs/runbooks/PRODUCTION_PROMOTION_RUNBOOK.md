@@ -46,7 +46,7 @@ Existing production history is in the current Cosmos DB lane:
 | Containers | `activities`, `workflow_runs` |
 | Partition key | `/repositoryId` |
 
-Do not treat the new production lane as a clean database unless you explicitly want to discard the previous operational history. The safe default for `v0.8.3` is continuity:
+Do not treat the new production lane as a clean database unless you explicitly want to discard the previous operational history. The safe default for `v0.8.4` is continuity:
 
 1. Keep the existing Cosmos account as the source of record during the first production cutover.
 2. Grant the new production backend managed identity Cosmos DB data-plane access to that existing account.
@@ -164,21 +164,21 @@ Do not run `infisical secrets get`, `infisical export`, or value-copy commands u
 Prepare and review:
 
 ```bash
-git switch -c release/v0.8.3
-bash scripts/release.sh 0.8.3
+git switch -c release/v0.8.4
+bash scripts/release.sh 0.8.4
 bash scripts/check_version_sync.sh
 cd frontend && bun install --frozen-lockfile && bun run lint && bun run test && bun run build
 cd ../backend && pytest -q
-git push origin release/v0.8.3
-gh pr create --base main --head release/v0.8.3 --title "chore(release): v0.8.3"
+git push origin release/v0.8.4
+gh pr create --base main --head release/v0.8.4 --title "chore(release): v0.8.4"
 ```
 
 Wait for attached review agents and CI. Address comments, resolve review threads, and rerun checks. Tag only the reviewed branch commit:
 
 ```bash
-git tag -a v0.8.3 -m "Release v0.8.3"
-git push origin v0.8.3
-bash scripts/release_verify.sh v0.8.3
+git tag -a v0.8.4 -m "Release v0.8.4"
+git push origin v0.8.4
+bash scripts/release_verify.sh v0.8.4
 ```
 
 ## Provision Or Update Production
@@ -212,14 +212,14 @@ Import the reviewed release images from public GHCR into the prod ACR:
 ```bash
 az acr import \
   --name caneprophacrprod01 \
-  --source ghcr.io/canepro/pipelinehealer-backend:v0.8.3 \
-  --image pipelinehealer-backend:v0.8.3 \
+  --source ghcr.io/canepro/pipelinehealer-backend:v0.8.4 \
+  --image pipelinehealer-backend:v0.8.4 \
   --force
 
 az acr import \
   --name caneprophacrprod01 \
-  --source ghcr.io/canepro/pipelinehealer-frontend:v0.8.3 \
-  --image pipelinehealer-frontend:v0.8.3 \
+  --source ghcr.io/canepro/pipelinehealer-frontend:v0.8.4 \
+  --image pipelinehealer-frontend:v0.8.4 \
   --force
 ```
 
@@ -273,7 +273,7 @@ infisical run --env prod --path /pipelinehealer/prod --projectId <infisical-proj
     --acr-name caneprophacrprod01 \
     --backend-app ca-canepro-ph-prod-backend \
     --frontend-app ca-canepro-ph-prod-frontend \
-    --release-version v0.8.3 \
+    --release-version v0.8.4 \
     --env-file "$release_env" \
     --secure-secrets
 '
@@ -293,7 +293,7 @@ PH_RG=rg-canepro-ph-prod-eus2 PH_BACKEND_APP=ca-canepro-ph-prod-backend PH_FRONT
 
 Expected:
 
-- `/health` reports `version: "0.8.1"`
+- `/health` reports `version: "0.8.4"`
 - `/health` reports `environment: "production"`
 - storage is `cosmos_db` or `postgres`, not `in_memory`
 - frontend runtime config points at the production API

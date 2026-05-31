@@ -66,7 +66,7 @@ param azureOpenAiDeploymentName string = 'gpt-5.4'
 param azureOpenAiModelName string = 'gpt-5.4'
 
 @description('Azure AI/OpenAI model version for the managed deployment.')
-param azureOpenAiModelVersion string = '2025-08-07'
+param azureOpenAiModelVersion string = '2026-03-05'
 
 @description('Azure AI/OpenAI deployment capacity for the managed deployment.')
 param azureOpenAiDeploymentCapacity int = 100

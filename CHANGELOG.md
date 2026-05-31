@@ -10,6 +10,12 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 - _No unreleased entries yet._
 
+## [v0.8.4] - 2026-05-31
+
+### Fixed
+
+- Aligned the default managed Azure AI/OpenAI `gpt-5.4` Bicep model version with the current Azure model catalog.
+
 ## [v0.8.3] - 2026-05-31
 
 ### Fixed
