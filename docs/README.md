@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: bd24039 -->
+<!-- LAST_VERIFIED: 38487c0 -->
 
 Use this index to find the canonical doc quickly. If a topic appears in both an active doc and `docs/archive/`, the active doc wins.
 
