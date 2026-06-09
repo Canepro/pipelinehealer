@@ -188,6 +188,7 @@ export interface AppSettings {
   auto_create_issue: boolean
   auto_retry_workflow: boolean
   auto_create_tracking_issue_for_prs: boolean
+  auto_close_on_workflow_success: boolean
   auto_merge_remediation_prs: boolean
   auto_merge_strategy: 'github_auto_merge' | 'merge_when_clean'
   auto_merge_poll_seconds: number
@@ -432,6 +433,7 @@ export interface AdminSettingsUpdate {
   auto_create_issue?: boolean
   auto_retry_workflow?: boolean
   auto_create_tracking_issue_for_prs?: boolean
+  auto_close_on_workflow_success?: boolean
   auto_merge_remediation_prs?: boolean
   auto_merge_strategy?: 'github_auto_merge' | 'merge_when_clean'
   auto_merge_poll_seconds?: number

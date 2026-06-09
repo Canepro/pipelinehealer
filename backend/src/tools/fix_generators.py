@@ -134,12 +134,13 @@ class FixGenerators:
         affected_files = (
             "\n".join(f"- `{f}`" for f in diagnosis.affected_files) or "None identified"
         )
+        failure_context = self._derive_failure_context_section(diagnosis, repository_info)
         issue = f"""## CI/CD Failure Analysis
 
 **Failure Type:** {diagnosis.failure_type.value}
 **Confidence:** {diagnosis.confidence:.0%}
 
-### Root Cause
+{failure_context}### Root Cause
 {diagnosis.root_cause}
 
 ### Affected Files
@@ -240,6 +241,46 @@ class FixGenerators:
         if not cleaned:
             return fallback
         return "\n".join(f"- `{item}`" for item in cleaned)
+
+    @staticmethod
+    def _derive_failing_step_label(diagnosis: Diagnosis, repository_info: dict[str, Any]) -> str:
+        """Return the best available failing step/job label for issue titles and bodies."""
+        details = diagnosis.error_details if isinstance(diagnosis.error_details, dict) else {}
+        for key in ("failing_step", "failed_job", "failed_step", "job_name", "step_name"):
+            value = str(details.get(key) or repository_info.get(key) or "").strip()
+            if value:
+                return value[:120]
+        workflow_name = str(repository_info.get("workflow_name") or repository_info.get("name") or "").strip()
+        if workflow_name:
+            return workflow_name[:120]
+        return ""
+
+    def _derive_failure_context_section(
+        self,
+        diagnosis: Diagnosis,
+        repository_info: dict[str, Any],
+    ) -> str:
+        """Render structured failure context when diagnosis evidence is partial."""
+        details = diagnosis.error_details if isinstance(diagnosis.error_details, dict) else {}
+        failing_step = self._derive_failing_step_label(diagnosis, repository_info)
+        failing_command = str(details.get("failing_command") or details.get("command") or "").strip()
+        workflow_name = str(repository_info.get("workflow_name") or "").strip()
+        head_branch = str(repository_info.get("head_branch") or "").strip()
+        lines = ["### Failure Context", ""]
+        if workflow_name:
+            lines.append(f"- **Workflow:** `{workflow_name}`")
+        if head_branch:
+            lines.append(f"- **Branch:** `{head_branch}`")
+        if failing_step:
+            lines.append(f"- **Failing step/job:** `{failing_step}`")
+        if failing_command:
+            lines.append(f"- **Failing command:** `{failing_command[:240]}`")
+        failure_scope = str(details.get("failure_scope") or "").strip()
+        if failure_scope:
+            lines.append(f"- **Failure scope:** `{failure_scope}`")
+        if len(lines) <= 2:
+            return ""
+        return "\n".join(lines) + "\n\n"
 
     @staticmethod
     def _display_linter_name(linter: str) -> str:
@@ -671,13 +712,15 @@ This PR adds an auto-fix workflow for {linter} issues.
         )
         display_linter = self._display_linter_name(str(linter))
         has_structured_violations = bool(violations)
-        issue_title = (
-            f"[PipelineHealer] {display_linter} type-check failure"
-            if str(linter).strip().lower() == "mypy" and not has_structured_violations
-            else f"[PipelineHealer] {display_linter} check failed"
-            if not has_structured_violations
-            else f"[PipelineHealer] Fix {display_linter} violations ({len(violations)} issues)"
-        )
+        failing_step = self._derive_failing_step_label(diagnosis, repository_info)
+        if has_structured_violations:
+            issue_title = f"[PipelineHealer] Fix {display_linter} violations ({len(violations)} issues)"
+        elif str(linter).strip().lower() == "mypy":
+            issue_title = f"[PipelineHealer] {display_linter} type-check failure"
+        elif failing_step:
+            issue_title = f"[PipelineHealer] {display_linter} failure in {failing_step[:60]}"
+        else:
+            issue_title = f"[PipelineHealer] {display_linter} check failed"
         issue_heading = "## Static Analysis Failure" if not has_structured_violations else "## Lint Violations"
         suggested_fix = diagnosis.suggested_fix or (
             f"Run `{fix_command}` locally to fix these issues."
@@ -787,12 +830,17 @@ The following test(s) appear to be flaky (intermittent failures):
         error_details_str = "\n\n".join(
             f"**{test}**\n```\n{error}\n```" for test, error in list(test_errors.items())[:5]
         )
+        failing_step = self._derive_failing_step_label(diagnosis, repository_info)
         issue_title = (
             "[PipelineHealer] Workflow step failure (non-test)"
             if workflow_step_failure
             else "[PipelineHealer] Test collection/import failure"
             if collection_failure
-            else f"[PipelineHealer] Test failures: {len(failed_tests)} test(s) failed"
+            else f"[PipelineHealer] Test failure in {failed_tests[0][:60]}"
+            if failed_tests
+            else f"[PipelineHealer] CI failure in step: {failing_step[:60]}"
+            if failing_step
+            else "[PipelineHealer] CI workflow failure (details in body)"
         )
         heading = (
             "## Workflow Step Failure"

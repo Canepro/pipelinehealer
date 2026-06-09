@@ -615,12 +615,50 @@ class RemediationAgent:
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
 
     @staticmethod
+    def _normalize_title_for_signature(title: str) -> str:
+        """Normalize issue titles so cross-run dedup ignores noisy counters."""
+        normalized = re.sub(r"\s+", " ", str(title or "").strip().lower())
+        normalized = re.sub(r"\d+\s+test\(s\)\s+failed", "n tests failed", normalized)
+        normalized = re.sub(r"\(\d+\s+issues\)", "(n issues)", normalized)
+        normalized = re.sub(r":\s*\d+\s+violation", ": n violation", normalized)
+        return normalized
+
+    @staticmethod
+    def _signature_for_plan(plan: RemediationPlan) -> str:
+        """Return a cross-run failure signature (excludes workflow run id)."""
+        payload = {
+            "action": plan.action.value,
+            "branch_name": plan.branch_name or "",
+            "issue_title": RemediationAgent._normalize_title_for_signature(plan.issue_title or ""),
+            "description": plan.description,
+            "files": sorted(
+                str(change.get("file", "")) for change in plan.file_changes if change.get("file")
+            ),
+        }
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
+    @staticmethod
     def _fingerprint_marker(fingerprint: str) -> str:
         return f"<!-- pipelinehealer:fingerprint:{fingerprint} -->"
 
     @staticmethod
+    def _signature_marker(signature: str) -> str:
+        return f"<!-- pipelinehealer:signature:{signature} -->"
+
+    @staticmethod
     def _workflow_run_marker(workflow_run_id: int) -> str:
         return f"<!-- pipelinehealer:workflow-run:{workflow_run_id} -->"
+
+    @staticmethod
+    def _workflow_name_marker(workflow_name: str) -> str:
+        normalized = re.sub(r"[^a-z0-9_-]+", "-", str(workflow_name or "").strip().lower()) or "workflow"
+        return f"<!-- pipelinehealer:workflow-name:{normalized} -->"
+
+    @staticmethod
+    def _head_branch_marker(head_branch: str) -> str:
+        normalized = re.sub(r"[^a-z0-9_./-]+", "-", str(head_branch or "").strip().lower()) or "unknown"
+        return f"<!-- pipelinehealer:head-branch:{normalized} -->"
 
     @staticmethod
     def _generated_issue_kind_marker(kind: str) -> str:
@@ -744,11 +782,12 @@ class RemediationAgent:
         workflow_run_id: int,
         kind: str,
         title: str,
+        signature_marker: str | None = None,
     ) -> dict[str, Any] | None:
         """Find an existing open generated issue for this workflow run and artifact kind."""
         run_marker = self._workflow_run_marker(workflow_run_id)
         kind_marker = self._generated_issue_kind_marker(kind)
-        normalized_title = str(title or "").strip()
+        normalized_title = self._normalize_title_for_signature(title)
         issues = await self._github_tools.list_issues(
             owner=owner,
             repo=repo,
@@ -760,8 +799,17 @@ class RemediationAgent:
             body = str(issue.get("body", "") or "")
             if marker in body:
                 return issue
-            issue_title = str(issue.get("title", "") or "").strip()
+            if signature_marker and signature_marker in body:
+                return issue
+            issue_title = self._normalize_title_for_signature(str(issue.get("title", "") or ""))
             if run_marker in body and kind_marker in body and issue_title == normalized_title:
+                return issue
+            if (
+                signature_marker
+                and kind_marker in body
+                and issue_title == normalized_title
+                and "auto-fix tracking" not in str(issue.get("title", "") or "").lower()
+            ):
                 return issue
         return None
 
@@ -771,10 +819,12 @@ class RemediationAgent:
         owner: str,
         repo: str,
         workflow_run_id: int,
+        signature: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Find open review-only generated issues for the same workflow run."""
+        """Find open review-only generated issues superseded by a concrete PR."""
         run_marker = self._workflow_run_marker(workflow_run_id)
         kind_marker = self._generated_issue_kind_marker("review")
+        signature_marker = self._signature_marker(signature) if signature else None
         issues = await self._github_tools.list_issues(
             owner=owner,
             repo=repo,
@@ -782,12 +832,20 @@ class RemediationAgent:
             labels="pipelinehealer",
             per_page=100,
         )
-        return [
-            issue
-            for issue in issues
-            if run_marker in str(issue.get("body", "") or "")
-            and kind_marker in str(issue.get("body", "") or "")
-        ]
+        superseded: list[dict[str, Any]] = []
+        for issue in issues:
+            body = str(issue.get("body", "") or "")
+            title = str(issue.get("title", "") or "").lower()
+            if "auto-fix tracking" in title:
+                continue
+            if kind_marker not in body:
+                continue
+            if run_marker in body:
+                superseded.append(issue)
+                continue
+            if signature_marker and signature_marker in body:
+                superseded.append(issue)
+        return superseded
 
     async def _link_generated_issue_to_pull_requests(
         self,
@@ -884,6 +942,125 @@ class RemediationAgent:
             state="closed",
             state_reason="completed",
         )
+
+    async def _close_generated_issue_with_reason(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        issue_number: int,
+        reason: str,
+    ) -> None:
+        """Close a generated issue after writing an operator-visible audit comment."""
+        await self._github_tools.add_issue_comment(
+            owner=owner,
+            repo=repo,
+            issue_number=issue_number,
+            body=reason,
+        )
+        await self._github_tools.update_issue(
+            owner=owner,
+            repo=repo,
+            issue_number=issue_number,
+            state="closed",
+            state_reason="completed",
+        )
+
+    def _artifact_trace_markers(
+        self,
+        *,
+        plan: RemediationPlan,
+        workflow_run_id: int,
+        repository_info: dict[str, Any] | None,
+        kind: str = "review",
+    ) -> str:
+        """Return HTML markers used for dedup, lifecycle close, and audit traceability."""
+        remediation_fp = self._fingerprint_for_plan(plan, workflow_run_id)
+        signature = self._signature_for_plan(plan)
+        workflow_name = str((repository_info or {}).get("workflow_name") or "").strip()
+        head_branch = str((repository_info or {}).get("head_branch") or "").strip()
+        markers = [
+            self._generated_issue_kind_marker(kind),
+            self._workflow_run_marker(workflow_run_id),
+            self._fingerprint_marker(remediation_fp),
+            self._signature_marker(signature),
+        ]
+        if workflow_name:
+            markers.append(self._workflow_name_marker(workflow_name))
+        if head_branch:
+            markers.append(self._head_branch_marker(head_branch))
+        return "\n".join(markers)
+
+    async def close_issues_on_workflow_success(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        workflow_name: str,
+        head_branch: str | None,
+        workflow_run_id: int,
+        head_sha: str,
+    ) -> dict[str, Any]:
+        """Close open review issues when a tracked workflow succeeds."""
+        if not self._settings.auto_close_on_workflow_success:
+            return {"status": "skipped", "reason": "auto_close_on_workflow_success disabled"}
+        if not self._settings.auto_apply_remediation:
+            return {"status": "skipped", "reason": "auto_apply_remediation disabled"}
+
+        workflow_marker = self._workflow_name_marker(workflow_name)
+        branch_marker = self._head_branch_marker(head_branch) if head_branch else None
+        review_kind_marker = self._generated_issue_kind_marker("review")
+        closed_issue_numbers: list[int] = []
+
+        issues = await self._github_tools.list_issues(
+            owner=owner,
+            repo=repo,
+            state="open",
+            labels="pipelinehealer",
+            per_page=100,
+        )
+        for issue in issues:
+            issue_number = issue.get("number")
+            if not isinstance(issue_number, int):
+                continue
+            title = str(issue.get("title", "") or "")
+            if "auto-fix tracking" in title.lower():
+                continue
+            body = str(issue.get("body", "") or "")
+            if review_kind_marker not in body:
+                continue
+            if workflow_marker not in body:
+                continue
+            if branch_marker and branch_marker not in body:
+                continue
+            try:
+                await self._close_generated_issue_with_reason(
+                    owner=owner,
+                    repo=repo,
+                    issue_number=issue_number,
+                    reason=(
+                        "Closed automatically because the tracked workflow succeeded.\n\n"
+                        f"- Workflow: `{workflow_name}`\n"
+                        f"- Successful run: #{workflow_run_id}\n"
+                        f"- Commit: `{head_sha or 'unknown'}`\n"
+                        f"- Branch: `{head_branch or 'unknown'}`"
+                    ),
+                )
+                closed_issue_numbers.append(issue_number)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to auto-close generated issue #%s in %s/%s after success: %s",
+                    issue_number,
+                    owner,
+                    repo,
+                    exc,
+                )
+
+        return {
+            "status": "completed",
+            "closed_issue_numbers": closed_issue_numbers,
+            "workflow_run_id": workflow_run_id,
+        }
 
     @staticmethod
     def _extract_pr_number(pr: dict[str, Any]) -> int | None:
@@ -1233,6 +1410,7 @@ class RemediationAgent:
             tracking_issue_url: str | None = None
             base_run_branch_name = self._branch_name_for_run(plan.branch_name, workflow_run_id)
             remediation_fp = self._fingerprint_for_plan(plan, workflow_run_id)
+            signature = self._signature_for_plan(plan)
             fp_marker = self._fingerprint_marker(remediation_fp)
             expected_files = {
                 str(change.get("file", ""))
@@ -1493,6 +1671,7 @@ class RemediationAgent:
                 owner=owner,
                 repo=repo,
                 workflow_run_id=workflow_run_id,
+                signature=signature,
             )
             closed_superseded_issue_numbers: list[int] = []
             for issue in superseded_issues:
@@ -2029,6 +2208,8 @@ class RemediationAgent:
         try:
             remediation_fp = self._fingerprint_for_plan(plan, workflow_run_id)
             fp_marker = self._fingerprint_marker(remediation_fp)
+            signature = self._signature_for_plan(plan)
+            sig_marker = self._signature_marker(signature)
             existing_issue = await self._find_existing_generated_issue(
                 owner=owner,
                 repo=repo,
@@ -2036,6 +2217,7 @@ class RemediationAgent:
                 workflow_run_id=workflow_run_id,
                 kind="review",
                 title=plan.issue_title or "[PipelineHealer] CI Failure Analysis",
+                signature_marker=sig_marker,
             )
             pull_request_numbers = [
                 int(number)
@@ -2062,6 +2244,7 @@ class RemediationAgent:
                         "issue_number": issue_number,
                         "reused_existing_issue": True,
                         "remediation_fingerprint": remediation_fp,
+                        "remediation_signature": signature,
                         "linked_pull_request_numbers": reused_issue_linked_pr_numbers,
                     },
                 )
@@ -2070,11 +2253,12 @@ class RemediationAgent:
             body = (plan.issue_body or "").rstrip()
             body += (
                 "\n\n"
-                + self._generated_issue_kind_marker("review")
-                + "\n"
-                + self._workflow_run_marker(workflow_run_id)
-                + "\n"
-                + fp_marker
+                + self._artifact_trace_markers(
+                    plan=plan,
+                    workflow_run_id=workflow_run_id,
+                    repository_info=repository_info,
+                    kind="review",
+                )
             )
             body += f"\n\n**Workflow Run:** https://github.com/{owner}/{repo}/actions/runs/{workflow_run_id}"
             includes_proposed_fix = "### Proposed Fix (For Review Only)" in body
@@ -2114,6 +2298,7 @@ class RemediationAgent:
                     "not_auto_reason_code": not_auto_reason_code,
                     "not_auto_reason_detail": not_auto_reason_detail,
                     "remediation_fingerprint": remediation_fp,
+                    "remediation_signature": signature,
                     "linked_pull_request_numbers": linked_pr_numbers,
                     "reused_existing_issue": False,
                 },

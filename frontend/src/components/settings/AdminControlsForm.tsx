@@ -870,6 +870,20 @@ export default function AdminControlsForm({
                   }
                 />
                 <SwitchField
+                  label="Auto-Close Issues on Green"
+                  field="auto_close_on_workflow_success"
+                  checked={form.auto_close_on_workflow_success}
+                  onChange={(v) =>
+                    setForm((p) => ({
+                      ...p,
+                      auto_close_on_workflow_success: v,
+                    }))
+                  }
+                  metadata={
+                    data.settings_metadata?.auto_close_on_workflow_success
+                  }
+                />
+                <SwitchField
                   label="Auto-Merge Remediation PRs"
                   field="auto_merge_remediation_prs"
                   checked={form.auto_merge_remediation_prs}

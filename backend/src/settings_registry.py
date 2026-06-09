@@ -45,6 +45,7 @@ RUNTIME_SETTING_SPECS: tuple[SettingSpec, ...] = (
     SettingSpec("auto_create_issue", "AUTO_CREATE_ISSUE", "boolean", False, False, False, "runtime", "policy", True),
     SettingSpec("auto_retry_workflow", "AUTO_RETRY_WORKFLOW", "boolean", False, False, False, "runtime", "policy", True),
     SettingSpec("auto_create_tracking_issue_for_prs", "AUTO_CREATE_TRACKING_ISSUE_FOR_PRS", "boolean", False, False, False, "runtime", "policy", True),
+    SettingSpec("auto_close_on_workflow_success", "AUTO_CLOSE_ON_WORKFLOW_SUCCESS", "boolean", False, False, False, "runtime", "policy", True),
     SettingSpec("auto_merge_remediation_prs", "AUTO_MERGE_REMEDIATION_PRS", "boolean", False, False, False, "runtime", "policy", False),
     SettingSpec("auto_merge_strategy", "AUTO_MERGE_STRATEGY", "string", False, False, False, "runtime", "policy", "merge_when_clean"),
     SettingSpec("auto_merge_poll_seconds", "AUTO_MERGE_POLL_SECONDS", "number", False, False, False, "runtime", "policy", 90.0),

@@ -356,6 +356,39 @@ function createReviewQueue(
       });
     }
 
+    const remediationDetails =
+      remediation?.details && typeof remediation.details === "object"
+        ? (remediation.details as Record<string, unknown>)
+        : null;
+    if (remediationDetails?.reused_existing_issue === true) {
+      queue.push({
+        activity,
+        title: "Reused existing review issue",
+        reason:
+          "PipelineHealer deduplicated this failure against an already-open generated issue.",
+        detail:
+          typeof remediation.issue_url === "string"
+            ? remediation.issue_url
+            : "Inspect the linked issue for current status.",
+        priority: "medium",
+        tone: "warn",
+      });
+    }
+    if (
+      Array.isArray(remediationDetails?.linked_pull_request_numbers) &&
+      remediationDetails.linked_pull_request_numbers.length > 0
+    ) {
+      queue.push({
+        activity,
+        title: "Generated issue linked to active PR",
+        reason:
+          "A human or automated PR was linked for auto-close when it merges.",
+        detail: `#${remediationDetails.linked_pull_request_numbers.join(", #")}`,
+        priority: "medium",
+        tone: "warn",
+      });
+    }
+
     if (appliedLearning && !overall) {
       queue.push({
         activity,

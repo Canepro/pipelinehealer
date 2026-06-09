@@ -2106,3 +2106,213 @@ async def test_should_process_max_attempts_is_per_workflow() -> None:
     assert should_lint is False
     assert "Max remediation attempts" in reason_lint
     assert "Lint" in reason_lint
+
+
+class FakeGitHubToolsOpenReviewIssues(FakeGitHubTools):
+    def __init__(self) -> None:
+        super().__init__()
+        self._issues = [
+            {
+                "number": 12,
+                "html_url": "https://github.com/octo/demo/issues/12",
+                "title": "[PipelineHealer] Review required: lint",
+                "body": (
+                    "review-only issue\n\n"
+                    "<!-- pipelinehealer:generated-issue:review -->\n"
+                    "<!-- pipelinehealer:workflow-name:ci -->\n"
+                    "<!-- pipelinehealer:head-branch:main -->"
+                ),
+            }
+        ]
+
+    async def list_issues(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        state: str = "all",
+        labels: str | None = None,
+        sort: str = "updated",
+        direction: str = "desc",
+        per_page: int = 30,
+    ):
+        _ = owner, repo, labels, sort, direction, per_page
+        if state != "open":
+            return []
+        return list(self._issues)
+
+
+class FakeGitHubToolsExistingSignatureIssue(FakeGitHubTools):
+    def __init__(self, signature: str) -> None:
+        super().__init__()
+        self._issues = [
+            {
+                "number": 19,
+                "html_url": "https://github.com/octo/demo/issues/19",
+                "title": "[PipelineHealer] Review required: lint",
+                "body": (
+                    "existing review issue\n\n"
+                    "<!-- pipelinehealer:generated-issue:review -->\n"
+                    "<!-- pipelinehealer:workflow-run:999 -->\n"
+                    f"<!-- pipelinehealer:signature:{signature} -->"
+                ),
+            }
+        ]
+
+    async def list_issues(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        state: str = "all",
+        labels: str | None = None,
+        sort: str = "updated",
+        direction: str = "desc",
+        per_page: int = 30,
+    ):
+        _ = owner, repo, state, labels, sort, direction, per_page
+        return list(self._issues)
+
+
+@pytest.mark.asyncio
+async def test_close_issues_on_workflow_success_closes_matching_review_issue(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gh = FakeGitHubToolsOpenReviewIssues()
+    agent = RemediationAgent(github_tools=gh)
+    monkeypatch.setattr(agent._settings, "auto_close_on_workflow_success", True)
+    monkeypatch.setattr(agent._settings, "auto_apply_remediation", True)
+
+    result = await agent.close_issues_on_workflow_success(
+        owner="octo",
+        repo="demo",
+        workflow_name="CI",
+        head_branch="main",
+        workflow_run_id=456,
+        head_sha="abc123",
+    )
+
+    assert result["status"] == "completed"
+    assert result["closed_issue_numbers"] == [12]
+    assert gh.issue_update_calls == [
+        {"issue_number": 12, "state": "closed", "state_reason": "completed"}
+    ]
+    assert gh.issue_comment_calls
+    assert "Closed automatically because the tracked workflow succeeded." in str(
+        gh.issue_comment_calls[0]["body"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_issue_reuses_existing_issue_by_signature(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan = RemediationPlan(
+        action=RemediationAction.CREATE_ISSUE,
+        description="Escalate for manual fix",
+        issue_title="[PipelineHealer] Review required: lint",
+        issue_body="Root cause summary",
+    )
+    signature = RemediationAgent._signature_for_plan(plan)
+    gh = FakeGitHubToolsExistingSignatureIssue(signature)
+    agent = RemediationAgent(github_tools=gh)
+
+    result = await agent._create_issue(
+        plan,
+        owner="octo",
+        repo="demo",
+        workflow_run_id=321,
+        repository_info={
+            "workflow_name": "CI",
+            "head_branch": "main",
+            "pull_request_numbers": [],
+        },
+    )
+
+    assert result.success is True
+    assert result.details.get("reused_existing_issue") is True
+    assert result.details.get("issue_number") == 19
+    assert gh.issue_calls == []
+
+
+@pytest.mark.asyncio
+async def test_create_issue_emits_signature_and_workflow_markers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gh = FakeGitHubTools()
+    agent = RemediationAgent(github_tools=gh)
+    plan = RemediationPlan(
+        action=RemediationAction.CREATE_ISSUE,
+        description="Escalate for manual fix",
+        issue_title="[PipelineHealer] Review required: lint",
+        issue_body="Root cause summary",
+    )
+
+    result = await agent._create_issue(
+        plan,
+        owner="octo",
+        repo="demo",
+        workflow_run_id=321,
+        repository_info={
+            "workflow_name": "CI",
+            "head_branch": "main",
+        },
+    )
+
+    assert result.success is True
+    body = gh.issue_calls[0]["body"]
+    assert "<!-- pipelinehealer:signature:" in body
+    assert "<!-- pipelinehealer:workflow-name:ci -->" in body
+    assert "<!-- pipelinehealer:head-branch:main -->" in body
+
+
+@pytest.mark.asyncio
+async def test_handle_successful_run_short_circuits_without_recent_issue_activity() -> None:
+    storage = InMemoryStorage()
+    gh = FakeGitHubTools()
+    orchestrator = OrchestratorAgent(github_tools=gh, storage=storage)
+    orchestrator._settings.auto_close_on_workflow_success = True
+
+    event = _make_event()
+    event.workflow_run.conclusion = "success"
+
+    result = await orchestrator.handle_successful_run(event)
+
+    assert result["status"] == "skipped"
+    assert "no recent PipelineHealer review issues" in result["reason"]
+
+
+@pytest.mark.asyncio
+async def test_handle_successful_run_closes_when_recent_issue_activity_exists(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = InMemoryStorage()
+    gh = FakeGitHubToolsOpenReviewIssues()
+    orchestrator = OrchestratorAgent(github_tools=gh, storage=storage)
+    orchestrator._settings.auto_close_on_workflow_success = True
+    orchestrator._settings.auto_apply_remediation = True
+
+    await storage.create_activity(
+        ActivityRecord(
+            id="issue-activity",
+            repositoryId="1",
+            repository_name="octo/demo",
+            workflow_run_id=100,
+            workflow_name="CI",
+            status=RemediationStatus.COMPLETED,
+            remediation_result=RemediationResult(
+                success=True,
+                action_taken=RemediationAction.CREATE_ISSUE,
+                issue_url="https://github.com/octo/demo/issues/12",
+            ),
+        )
+    )
+
+    event = _make_event()
+    event.workflow_run.conclusion = "success"
+    event.workflow_run.id = 456
+
+    result = await orchestrator.handle_successful_run(event)
+
+    assert result["status"] == "completed"
+    assert result["closed_issue_numbers"] == [12]

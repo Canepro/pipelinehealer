@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: e1a9ae4 -->
+<!-- LAST_VERIFIED: d417254 -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -113,10 +113,11 @@ Receives GitHub `workflow_run` webhook events. This is the primary ingest point 
 
 **Behavior**:
 
-- Accepts `workflow_run` events with `action: completed` and `conclusion: failure` or `timed_out`.
-- Ignores non-failure conclusions (`success`, `cancelled`, etc.).
+- Accepts `workflow_run` events with `action: completed` and `conclusion: failure` or `timed_out` for the full healing pipeline.
+- Accepts `workflow_run` events with `action: completed` and `conclusion: success` for artifact lifecycle hygiene when `AUTO_CLOSE_ON_WORKFLOW_SUCCESS=true`.
+- Ignores other non-failure conclusions (`cancelled`, etc.) unless they are successful runs handled by the lifecycle close path.
 - Checks `PH_ALLOWED_REPOS` allowlist; rejects repos not in scope.
-- Triggers the four-agent healing pipeline asynchronously.
+- Triggers the four-agent healing pipeline asynchronously for failures, or a lightweight close-only path for successes.
 
 **Response** `200 OK` (processing):
 
@@ -135,10 +136,23 @@ Receives GitHub `workflow_run` webhook events. This is the primary ingest point 
 ```json
 {
   "status": "ignored",
-  "reason": "conclusion is 'success', not a failure",
+  "reason": "conclusion is 'cancelled', not a failure",
   "delivery_id": "github-delivery-uuid"
 }
 ```
+
+**Response** `200 OK` (success lifecycle close):
+
+```json
+{
+  "status": "processing",
+  "workflow_run_id": 12345678,
+  "repository": "owner/repo",
+  "delivery_id": "github-delivery-uuid"
+}
+```
+
+When lifecycle close completes in the background, matching open review issues are closed with an audit comment. If no recent PipelineHealer issue activity exists for the workflow, the handler short-circuits without GitHub writes.
 
 **Response** `200 OK` (ignored — repo not in allowlist):
 
@@ -777,6 +791,7 @@ configured value from effective provenance. Source values are portable, app-obse
   "auto_create_issue": true,
   "auto_retry_workflow": true,
   "auto_create_tracking_issue_for_prs": true,
+  "auto_close_on_workflow_success": true,
   "auto_merge_remediation_prs": false,
   "auto_merge_strategy": "merge_when_clean",
   "auto_merge_poll_seconds": 90.0,
@@ -934,6 +949,7 @@ Changes take effect immediately. If the same logical key is also set through env
 | `auto_create_issue` | bool | — |
 | `auto_retry_workflow` | bool | — |
 | `auto_create_tracking_issue_for_prs` | bool | — |
+| `auto_close_on_workflow_success` | bool | Close open review issues when the same workflow succeeds on the same branch |
 | `auto_merge_remediation_prs` | bool | Only applies to PipelineHealer-created remediation PRs |
 | `auto_merge_strategy` | string | `github_auto_merge` or `merge_when_clean` |
 | `auto_merge_poll_seconds` | float | 0–900 |

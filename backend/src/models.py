@@ -521,6 +521,7 @@ class AppSettingsView(BaseModel):
     auto_create_issue: bool
     auto_retry_workflow: bool
     auto_create_tracking_issue_for_prs: bool
+    auto_close_on_workflow_success: bool
     auto_merge_remediation_prs: bool
     auto_merge_strategy: str
     auto_merge_poll_seconds: float
@@ -653,6 +654,7 @@ class AdminSettingsUpdateRequest(BaseModel):
     auto_create_issue: bool | None = None
     auto_retry_workflow: bool | None = None
     auto_create_tracking_issue_for_prs: bool | None = None
+    auto_close_on_workflow_success: bool | None = None
     auto_merge_remediation_prs: bool | None = None
     auto_merge_strategy: str | None = None
     auto_merge_poll_seconds: float | None = Field(default=None, ge=0.0, le=900.0)

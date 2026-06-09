@@ -142,6 +142,18 @@ class PipelineHealerWorkflow:
         logger.info(f"Started healing workflow: {activity_id}")
         return activity_id
 
+    async def handle_successful_run(self, event: WorkflowRunEvent) -> dict[str, Any]:
+        """Process a successful workflow run for artifact lifecycle hygiene."""
+        task = asyncio.create_task(
+            self._orchestrator.handle_successful_run(event),
+            name=f"heal-success-{event.workflow_run.id}",
+        )
+        self._running_tasks[f"success-{event.workflow_run.id}"] = task
+        task.add_done_callback(
+            lambda t: self._running_tasks.pop(f"success-{event.workflow_run.id}", None)
+        )
+        return {"status": "processing", "workflow_run_id": event.workflow_run.id}
+
     async def _process_event(
         self,
         event: WorkflowRunEvent,
