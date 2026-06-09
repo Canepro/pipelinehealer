@@ -406,6 +406,7 @@ class RemediationAgent:
                 repo,
                 default_branch,
                 workflow_run_id=workflow_run_id,
+                repository_info=repository_info,
             )
         elif plan.action == RemediationAction.CREATE_ISSUE:
             return await self._create_issue(
@@ -624,11 +625,24 @@ class RemediationAgent:
         return normalized
 
     @staticmethod
-    def _signature_for_plan(plan: RemediationPlan) -> str:
+    def _signature_for_plan(
+        plan: RemediationPlan,
+        *,
+        workflow_name: str = "",
+        head_branch: str = "",
+    ) -> str:
         """Return a cross-run failure signature (excludes workflow run id)."""
+        normalized_workflow_name = (
+            re.sub(r"[^a-z0-9_-]+", "-", str(workflow_name or "").strip().lower()) or ""
+        )
+        normalized_head_branch = (
+            re.sub(r"[^a-z0-9_-]+", "-", str(head_branch or "").strip().lower()) or ""
+        )
         payload = {
             "action": plan.action.value,
             "branch_name": plan.branch_name or "",
+            "workflow_name": normalized_workflow_name,
+            "head_branch": normalized_head_branch,
             "issue_title": RemediationAgent._normalize_title_for_signature(plan.issue_title or ""),
             "description": plan.description,
             "files": sorted(
@@ -804,13 +818,6 @@ class RemediationAgent:
             issue_title = self._normalize_title_for_signature(str(issue.get("title", "") or ""))
             if run_marker in body and kind_marker in body and issue_title == normalized_title:
                 return issue
-            if (
-                signature_marker
-                and kind_marker in body
-                and issue_title == normalized_title
-                and "auto-fix tracking" not in str(issue.get("title", "") or "").lower()
-            ):
-                return issue
         return None
 
     async def _find_superseded_review_issues(
@@ -976,9 +983,13 @@ class RemediationAgent:
     ) -> str:
         """Return HTML markers used for dedup, lifecycle close, and audit traceability."""
         remediation_fp = self._fingerprint_for_plan(plan, workflow_run_id)
-        signature = self._signature_for_plan(plan)
         workflow_name = str((repository_info or {}).get("workflow_name") or "").strip()
         head_branch = str((repository_info or {}).get("head_branch") or "").strip()
+        signature = self._signature_for_plan(
+            plan,
+            workflow_name=workflow_name,
+            head_branch=head_branch,
+        )
         markers = [
             self._generated_issue_kind_marker(kind),
             self._workflow_run_marker(workflow_run_id),
@@ -1385,6 +1396,7 @@ class RemediationAgent:
         repo: str,
         base_branch: str,
         workflow_run_id: int,
+        repository_info: dict[str, Any] | None = None,
     ) -> RemediationResult:
         """Create a pull request with the fix.
 
@@ -1394,6 +1406,7 @@ class RemediationAgent:
             repo: Repository name
             base_branch: Base branch for the PR
             workflow_run_id: ID of the workflow run
+            repository_info: Optional repository context used for cross-run signatures
 
         Returns:
             Result of the PR creation
@@ -1410,7 +1423,13 @@ class RemediationAgent:
             tracking_issue_url: str | None = None
             base_run_branch_name = self._branch_name_for_run(plan.branch_name, workflow_run_id)
             remediation_fp = self._fingerprint_for_plan(plan, workflow_run_id)
-            signature = self._signature_for_plan(plan)
+            workflow_name = str((repository_info or {}).get("workflow_name") or "").strip()
+            head_branch = str((repository_info or {}).get("head_branch") or "").strip()
+            signature = self._signature_for_plan(
+                plan,
+                workflow_name=workflow_name,
+                head_branch=head_branch,
+            )
             fp_marker = self._fingerprint_marker(remediation_fp)
             expected_files = {
                 str(change.get("file", ""))
@@ -2208,7 +2227,13 @@ class RemediationAgent:
         try:
             remediation_fp = self._fingerprint_for_plan(plan, workflow_run_id)
             fp_marker = self._fingerprint_marker(remediation_fp)
-            signature = self._signature_for_plan(plan)
+            workflow_name = str((repository_info or {}).get("workflow_name") or "").strip()
+            head_branch = str((repository_info or {}).get("head_branch") or "").strip()
+            signature = self._signature_for_plan(
+                plan,
+                workflow_name=workflow_name,
+                head_branch=head_branch,
+            )
             sig_marker = self._signature_marker(signature)
             existing_issue = await self._find_existing_generated_issue(
                 owner=owner,

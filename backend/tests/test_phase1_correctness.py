@@ -2203,6 +2203,41 @@ async def test_close_issues_on_workflow_success_closes_matching_review_issue(
     )
 
 
+def test_signature_for_plan_distinguishes_workflow_and_branch() -> None:
+    plan = RemediationPlan(
+        action=RemediationAction.CREATE_ISSUE,
+        description="Escalate for manual fix",
+        issue_title="[PipelineHealer] Review required: lint",
+        issue_body="Root cause summary",
+    )
+    base = RemediationAgent._signature_for_plan(plan)
+    with_context = RemediationAgent._signature_for_plan(
+        plan,
+        workflow_name="CI",
+        head_branch="main",
+    )
+    other_workflow = RemediationAgent._signature_for_plan(
+        plan,
+        workflow_name="Release",
+        head_branch="main",
+    )
+    other_branch = RemediationAgent._signature_for_plan(
+        plan,
+        workflow_name="CI",
+        head_branch="release/1.0",
+    )
+    same_normalized = RemediationAgent._signature_for_plan(
+        plan,
+        workflow_name="ci",
+        head_branch="main",
+    )
+
+    assert base != with_context
+    assert with_context != other_workflow
+    assert with_context != other_branch
+    assert with_context == same_normalized
+
+
 @pytest.mark.asyncio
 async def test_create_issue_reuses_existing_issue_by_signature(
     monkeypatch: pytest.MonkeyPatch,
@@ -2213,7 +2248,11 @@ async def test_create_issue_reuses_existing_issue_by_signature(
         issue_title="[PipelineHealer] Review required: lint",
         issue_body="Root cause summary",
     )
-    signature = RemediationAgent._signature_for_plan(plan)
+    signature = RemediationAgent._signature_for_plan(
+        plan,
+        workflow_name="CI",
+        head_branch="main",
+    )
     gh = FakeGitHubToolsExistingSignatureIssue(signature)
     agent = RemediationAgent(github_tools=gh)
 

@@ -363,6 +363,18 @@ async def _handle_workflow_success_event(
             "delivery_id": delivery_id,
         }
 
+    if not settings.auto_close_on_workflow_success:
+        logger.info(
+            "success webhook ignored: auto_close_on_workflow_success disabled (repo=%s delivery=%s)",
+            repo_full_name,
+            delivery_id,
+        )
+        return {
+            "status": "ignored",
+            "reason": "auto_close_on_workflow_success disabled",
+            "delivery_id": delivery_id,
+        }
+
     logger.info(
         "Processing successful workflow run for lifecycle close: repo=%s workflow=%s run_id=%s",
         repo_full_name,
