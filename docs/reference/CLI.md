@@ -70,7 +70,7 @@ This section answers two practical questions:
 
 | Operation type | Azure deployed backend | Local backend (`PH_BACKEND_URL`) | Other cloud backend (non-Azure) | Alternative when not supported |
 |------|-------------------------|-------------------------------|-------------------------------|--------------------------------|
-| Infra deploy/manage (`deploy*`, `status`, `urls`, `warm`, `lowcost`, `webhook:*`, `rollout:canary`, `demo:e2e`) | Supported | Not supported | Not supported | Use your platform's deploy tooling + `PH_BACKEND_URL` API commands |
+| Infra deploy/manage (`deploy*`, `status`, `urls`, `warm`, `lowcost`, `webhook:*`, `rollout:canary`, `demo:e2e`, `demo:lifecycle`) | Supported | Not supported | Not supported | Use your platform's deploy tooling + `PH_BACKEND_URL` API commands |
 | Runtime settings/audit (`settings:*`, `audit:proof`, `backfill`) | Supported | Supported | Supported (if backend reachable) | Direct API calls from `docs/reference/API.md` |
 | GitHub artifact ops (`demo:proof`, `demo:reset`) | Supported | Supported | Supported | Direct `gh` commands |
 | Local container logs/AOAI (`logs*`, `aoai:check`) | Supported in local mode with compose | Supported | Not supported for remote-only backends | Use platform-native logs (ACA/K8s/host logs) |
@@ -251,11 +251,13 @@ bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2 --skip-env-syn
 | Command | Description |
 |---------|-------------|
 | `demo:e2e` | Run scripted Azure E2E demo flow |
+| `demo:lifecycle` | Verify artifact lifecycle loop (markers, dedup, green-close) |
 | `demo:proof` | Show latest CI runs, PRs, and issues for a repo |
 | `demo:reset` | Reset demo fixture repo for dependency/lint failures |
 
 ```bash
 bash scripts/ph.sh demo:e2e --repo owner/repo
+bash scripts/ph.sh demo:lifecycle --repo owner/repo --strict
 bash scripts/ph.sh demo:e2e --repo owner/repo --skip-webhook-sync
 bash scripts/ph.sh demo:e2e --repo owner/repo --triggers dependency,lint,test --wait-seconds 180
 bash scripts/ph.sh demo:e2e --repo owner/repo --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180 --strict
@@ -269,6 +271,13 @@ bash scripts/ph.sh demo:reset
 - It performs a best-effort on-demand diagnostics backfill before final activity summary (disable with `--skip-backfill`).
 - It checks for at least one CI doctor-style workflow signal after dispatch (`CI Failure Doctor`/`ci-doctor`) using `--ci-signal-wait-seconds <n>`; queued/in-progress/completed runs all count as signal observed.
 - Use `--strict` for rehearsal/submission gating. Strict mode exits non-zero if dispatched activities do not reach terminal status within wait budget or if no CI doctor signal is observed.
+
+`demo:lifecycle` notes:
+- Narrow lifecycle-trust verification: first failure markers, signature dedup reuse, and green-run auto-close.
+- Requires the same Azure target variables as `demo:e2e`, plus API/admin keys (Infisical injection or `backend/.env`).
+- Defaults to `failure_type=lint`; override with `--failure-type <name>`.
+- Use `--skip-reset`, `--skip-dedup`, or `--skip-green-close` for partial runs.
+- Full operator checklist: `docs/runbooks/LIFECYCLE_E2E_VERIFICATION.md`.
 
 `demo:e2e` MCP interpretation:
 - `mcp_tool_calls_total > 0`: direct MCP tools were invoked.
@@ -607,7 +616,7 @@ Important:
 
 These commands manage Azure infrastructure and will print a clear error when `PH_BACKEND_URL` is set:
 
-`deploy`, `deploy:release`, `deploy:env`, `deploy:bg`, `deploy:logs`, `deploy:status`, `urls`, `status`, `warm`, `lowcost`, `webhook:add`, `webhook:disable`, `rollout:canary`, `demo:e2e`.
+`deploy`, `deploy:release`, `deploy:env`, `deploy:bg`, `deploy:logs`, `deploy:status`, `urls`, `status`, `warm`, `lowcost`, `webhook:add`, `webhook:disable`, `rollout:canary`, `demo:e2e`, `demo:lifecycle`.
 
 ### Switching Back to Azure
 
