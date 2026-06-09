@@ -128,7 +128,7 @@ if [[ "${#missing_config[@]}" -gt 0 ]]; then
   exit 2
 fi
 
-for cmd in gh az curl python3; do
+for cmd in gh az curl python3 git; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "Missing required command: $cmd" >&2
     exit 1
@@ -181,6 +181,7 @@ BACKEND_FQDN="${BACKEND_URL#https://}"
 
 STRICT_FAILURES=()
 MARK_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+FIRST_DISPATCH_UTC=""
 TARGET_ISSUE_NUMBER=""
 FIRST_RUN_ID=""
 SECOND_RUN_ID=""
@@ -225,14 +226,18 @@ if [[ "$DO_WEBHOOK_SYNC" == "1" ]]; then
       pass_check "created Azure workflow_run webhook"
     fi
   else
+    patch_args=(
+      -F active=true
+      -f "config[url]=$BACKEND_URL/webhook/github"
+      -f config[content_type]=json
+      -f events[]="workflow_run"
+    )
     if [[ -n "$WEBHOOK_SECRET" ]]; then
-      gh api -X PATCH "repos/$DEMO_REPO/hooks/$AZURE_HOOK_ID" \
-        -F active=true \
-        -f config[url]="$BACKEND_URL/webhook/github" \
-        -f config[content_type]=json \
-        -f config[secret]="$WEBHOOK_SECRET" \
-        -f events[]="workflow_run" >/dev/null
+      patch_args+=(-f "config[secret]=$WEBHOOK_SECRET")
+    else
+      record_failure "webhook_secret_missing"
     fi
+    gh api -X PATCH "repos/$DEMO_REPO/hooks/$AZURE_HOOK_ID" "${patch_args[@]}" >/dev/null
     pass_check "Azure workflow_run webhook active"
   fi
 fi
@@ -244,7 +249,7 @@ else
   settings_json="$(curl -fsS "$BACKEND_URL/api/settings" \
     -H "X-API-Key: $API_AUTH_KEY" \
     -H "X-Admin-Key: $ADMIN_API_KEY")"
-  python3 - <<'PY' "$settings_json" "$DEMO_REPO"
+  if python3 - <<'PY' "$settings_json" "$DEMO_REPO"
 import json
 import sys
 
@@ -272,7 +277,7 @@ print("Preflight settings OK:")
 for key in sorted(checks):
     print(f"  {key}={data.get(key)!r}")
 PY
-  if [[ $? -eq 0 ]]; then
+  then
     pass_check "settings preflight"
   else
     record_failure "settings_preflight"
@@ -356,9 +361,57 @@ issue_state_for_number() {
   gh api "repos/$DEMO_REPO/issues/$issue_number" --jq '.state // ""'
 }
 
+issue_number_from_run_activity() {
+  local run_id="$1"
+  local payload_file activity_json
+
+  if [[ -z "$API_AUTH_KEY" ]]; then
+    return 1
+  fi
+  activity_json="$(fetch_activities)"
+  payload_file="$(mktemp)"
+  printf '%s' "$activity_json" > "$payload_file"
+  python3 - "$payload_file" "$run_id" <<'PY'
+import json
+import re
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as fh:
+    payload = json.load(fh)
+run_id = int(sys.argv[2])
+activity = next((item for item in payload if item.get("workflow_run_id") == run_id), None)
+if activity is None:
+    sys.exit(1)
+result = activity.get("remediation_result") or {}
+details = result.get("details") or {}
+issue_number = details.get("issue_number")
+if isinstance(issue_number, int):
+    print(issue_number)
+    sys.exit(0)
+issue_url = str(result.get("issue_url") or details.get("issue_url") or "")
+match = re.search(r"/issues/(\d+)(?:$|[/?#])", issue_url)
+if match:
+    print(match.group(1))
+    sys.exit(0)
+sys.exit(1)
+PY
+  local status=$?
+  rm -f "$payload_file"
+  return "$status"
+}
+
 latest_open_ph_issue_number() {
-  gh issue list -R "$DEMO_REPO" --state open --label pipelinehealer --limit 20 --json number,createdAt,title \
-    --jq 'sort_by(.createdAt) | reverse | .[0].number // empty'
+  local since_utc="$1"
+  gh issue list -R "$DEMO_REPO" --state open --label pipelinehealer --limit 30 \
+    --json number,createdAt,title \
+    --jq "[.[] | select(.createdAt >= \"$since_utc\")] | sort_by(.createdAt) | reverse | .[0].number // empty"
+}
+
+open_ph_issue_count_since() {
+  local since_utc="$1"
+  gh issue list -R "$DEMO_REPO" --state open --label pipelinehealer --limit 100 \
+    --json number,createdAt \
+    --jq "[.[] | select(.createdAt >= \"$since_utc\")] | length"
 }
 
 if [[ "$DO_RESET" == "1" ]]; then
@@ -376,7 +429,8 @@ if [[ "$DO_RESET" == "1" ]]; then
 fi
 
 echo "Phase 1b: dispatch first $FAILURE_TYPE failure..."
-MARK_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+FIRST_DISPATCH_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+MARK_UTC="$FIRST_DISPATCH_UTC"
 dispatch_failure
 sleep 5
 mapfile -t FIRST_IDS < <(capture_run_ids_after_dispatch 1)
@@ -418,7 +472,13 @@ PY
   rm -f "$analysis_file"
 fi
 
-TARGET_ISSUE_NUMBER="$(latest_open_ph_issue_number || true)"
+TARGET_ISSUE_NUMBER=""
+if [[ -n "$FIRST_RUN_ID" ]]; then
+  TARGET_ISSUE_NUMBER="$(issue_number_from_run_activity "$FIRST_RUN_ID" || true)"
+fi
+if [[ -z "$TARGET_ISSUE_NUMBER" ]]; then
+  TARGET_ISSUE_NUMBER="$(latest_open_ph_issue_number "$FIRST_DISPATCH_UTC" || true)"
+fi
 if [[ -z "$TARGET_ISSUE_NUMBER" ]]; then
   record_failure "no_open_ph_issue_after_first_failure"
 else
@@ -449,7 +509,7 @@ fi
 if [[ "$DO_DEDUP" == "1" ]]; then
   echo "Phase 2: dispatch duplicate $FAILURE_TYPE failure (expect reuse)..."
   MARK_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-  open_before="$(gh issue list -R "$DEMO_REPO" --state open --label pipelinehealer --json number | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')"
+  open_before="$(open_ph_issue_count_since "$FIRST_DISPATCH_UTC")"
   dispatch_failure
   sleep 5
   mapfile -t SECOND_IDS < <(capture_run_ids_after_dispatch 1)
@@ -461,7 +521,7 @@ if [[ "$DO_DEDUP" == "1" ]]; then
     if wait_for_run_activity "$SECOND_RUN_ID" "second_failure"; then
       pass_check "second failure activity terminal"
     fi
-    open_after="$(gh issue list -R "$DEMO_REPO" --state open --label pipelinehealer --json number | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')"
+    open_after="$(open_ph_issue_count_since "$FIRST_DISPATCH_UTC")"
     if [[ "$open_after" -le "$open_before" ]]; then
       pass_check "no duplicate open PH issue (open count $open_before -> $open_after)"
     else
