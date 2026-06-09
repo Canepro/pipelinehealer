@@ -1099,9 +1099,14 @@ class RemediationAgent:
         """Upgrade legacy generated issues with workflow/branch lifecycle markers.
 
         Issues created before the lifecycle-marker rollout only carry run and
-        fingerprint markers, so green-close and cross-run matching cannot find
-        them. This backfill derives workflow name and head branch from the
-        recorded workflow run and appends the missing markers.
+        fingerprint markers, so green-close cannot find them. This backfill
+        derives workflow name and head branch from the recorded workflow run
+        and appends the missing markers.
+
+        Cross-run dedup signatures are intentionally not backfilled: the
+        original remediation plan is not recoverable from the issue body, and
+        a wrong signature would be worse than none. Recurring failures still
+        reuse legacy issues through normalized-title matching.
         """
         workflow_marker_prefix = "<!-- pipelinehealer:workflow-name:"
         run_marker_pattern = re.compile(r"<!-- pipelinehealer:workflow-run:(\d+) -->")

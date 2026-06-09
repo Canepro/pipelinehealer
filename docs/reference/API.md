@@ -707,9 +707,11 @@ Triggers an on-demand sweep that backfills external diagnostics (ci-doctor findi
 }
 ```
 
+**Notes**: A background sweep also runs automatically every 10 minutes, so manual triggering is only needed for immediate results (e.g. after confirming ci-doctor has finished).
+
 #### `POST /api/settings/lifecycle/backfill-markers`
 
-Upgrades legacy PipelineHealer-generated issues with lifecycle markers (`workflow-name`, `head-branch`, `head-repository`) derived from each issue's recorded workflow run. Issues created before the lifecycle-marker rollout lack these markers, so green-close and cross-run dedup cannot manage them until backfilled.
+Upgrades legacy PipelineHealer-generated issues with lifecycle markers (`workflow-name`, `head-branch`, `head-repository`) derived from each issue's recorded workflow run. Issues created before the lifecycle-marker rollout lack these markers, so green-close cannot manage them until backfilled.
 
 **Auth**: `X-API-Key` + `X-Admin-Key` (admin settings route)
 
@@ -725,6 +727,8 @@ Upgrades legacy PipelineHealer-generated issues with lifecycle markers (`workflo
 - Skips issues that already carry a `workflow-name` marker, auto-fix tracking issues, and issues without a run reference.
 - Derives markers via the GitHub workflow-run API; lookup failures are counted, not fatal.
 - Idempotent: re-running the backfill does not duplicate markers.
+
+**Scope**: The backfilled markers enable **green-close** (auto-close on workflow success) and head-repository scoping for legacy issues. Cross-run dedup signatures cannot be reconstructed for legacy issues because the original remediation plan is not recoverable; recurring failures still reuse legacy issues through normalized-title matching, and newly created issues carry full signature markers going forward.
 
 **Response** `200 OK`:
 
@@ -743,8 +747,6 @@ Upgrades legacy PipelineHealer-generated issues with lifecycle markers (`workflo
 **Response** `403 Forbidden`: Repository is outside `PH_ALLOWED_REPOS`.
 
 **Response** `422 Unprocessable Entity`: `repository` is not in `owner/repo` format.
-
-**Notes**: A background sweep also runs automatically every 10 minutes, so manual triggering is only needed for immediate results (e.g. after confirming ci-doctor has finished).
 
 ---
 

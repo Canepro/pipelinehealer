@@ -2543,3 +2543,20 @@ async def test_backfill_legacy_issue_markers_counts_run_lookup_failures() -> Non
     assert result["updated_issue_numbers"] == []
     assert result["skipped_run_lookup_failed"] == 1
     assert gh.issue_update_calls == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "repository",
+    ["owner/repo/extra", "/repo", "owner/", "owner", " / ", ""],
+)
+async def test_workflow_backfill_rejects_malformed_repository(repository: str) -> None:
+    from src.workflows.pipeline_healer import PipelineHealerWorkflow
+
+    workflow = PipelineHealerWorkflow(
+        github_tools=FakeGitHubTools(),  # type: ignore[arg-type]
+        storage=InMemoryStorage(),
+    )
+
+    with pytest.raises(ValueError, match="owner/repo"):
+        await workflow.backfill_legacy_issue_markers(repository)

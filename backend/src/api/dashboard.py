@@ -3618,17 +3618,22 @@ async def backfill_lifecycle_markers(
 
     Appends workflow-name/head-branch markers (derived from the recorded
     workflow run) to open generated issues that predate the lifecycle-marker
-    rollout, so green-close and cross-run dedup can manage them.
+    rollout, so green-close can manage them. Cross-run dedup for legacy
+    issues continues to rely on normalized-title matching.
     """
     if "/" not in repository:
         raise HTTPException(status_code=422, detail="repository must be in 'owner/repo' format")
+    try:
+        normalized_repository = _normalize_repo_full_name(repository)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     settings = get_settings()
     allowed = {r.strip().lower() for r in settings.ph_allowed_repos if r.strip()}
-    if allowed and repository.strip().lower() not in allowed:
+    if allowed and normalized_repository not in allowed:
         raise HTTPException(status_code=403, detail="repository is outside PH_ALLOWED_REPOS")
     try:
-        result = await workflow.backfill_legacy_issue_markers(repository)
-        return {**result, "repository": repository}
+        result = await workflow.backfill_legacy_issue_markers(normalized_repository)
+        return {**result, "repository": normalized_repository}
     except Exception as e:
         logger.exception(f"Lifecycle marker backfill failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
