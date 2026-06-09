@@ -3604,3 +3604,31 @@ async def backfill_diagnostics(
     except Exception as e:
         logger.exception(f"Backfill sweep failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post(
+    "/settings/lifecycle/backfill-markers",
+    dependencies=[Depends(require_admin_key)],
+)
+async def backfill_lifecycle_markers(
+    repository: str = Query(..., description="Target repository in 'owner/repo' format"),
+    workflow: PipelineHealerWorkflow = Depends(get_workflow),
+) -> dict[str, Any]:
+    """Upgrade legacy PipelineHealer issues with lifecycle markers.
+
+    Appends workflow-name/head-branch markers (derived from the recorded
+    workflow run) to open generated issues that predate the lifecycle-marker
+    rollout, so green-close and cross-run dedup can manage them.
+    """
+    if "/" not in repository:
+        raise HTTPException(status_code=422, detail="repository must be in 'owner/repo' format")
+    settings = get_settings()
+    allowed = {r.strip().lower() for r in settings.ph_allowed_repos if r.strip()}
+    if allowed and repository.strip().lower() not in allowed:
+        raise HTTPException(status_code=403, detail="repository is outside PH_ALLOWED_REPOS")
+    try:
+        result = await workflow.backfill_legacy_issue_markers(repository)
+        return {**result, "repository": repository}
+    except Exception as e:
+        logger.exception(f"Lifecycle marker backfill failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e

@@ -61,6 +61,8 @@ How to validate:
 3. Check remediation metadata for `reused_existing_issue`, `reused_existing_pr`, `linked_pull_request_numbers`, or `closed_superseded_issue_numbers`.
 4. Re-run the workflow to green and confirm matching review issues close with an audit comment.
 
+Legacy issues (created before the lifecycle-marker rollout) lack workflow/branch markers and are not managed by green-close or cross-run dedup until upgraded. Run `POST /api/settings/lifecycle/backfill-markers?repository=owner/repo` once per repo to backfill markers on open generated issues.
+
 ## Safe vs Demo Mode
 
 - `safe` (recommended): conservative changes only.

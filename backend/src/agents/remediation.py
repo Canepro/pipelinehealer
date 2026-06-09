@@ -1089,6 +1089,115 @@ class RemediationAgent:
             "workflow_run_id": workflow_run_id,
         }
 
+    async def backfill_legacy_issue_markers(
+        self,
+        *,
+        owner: str,
+        repo: str,
+        max_updates: int = 50,
+    ) -> dict[str, Any]:
+        """Upgrade legacy generated issues with workflow/branch lifecycle markers.
+
+        Issues created before the lifecycle-marker rollout only carry run and
+        fingerprint markers, so green-close and cross-run matching cannot find
+        them. This backfill derives workflow name and head branch from the
+        recorded workflow run and appends the missing markers.
+        """
+        workflow_marker_prefix = "<!-- pipelinehealer:workflow-name:"
+        run_marker_pattern = re.compile(r"<!-- pipelinehealer:workflow-run:(\d+) -->")
+        run_url_pattern = re.compile(r"/actions/runs/(\d+)")
+
+        issues = await self._github_tools.list_issues(
+            owner=owner,
+            repo=repo,
+            state="open",
+            labels="pipelinehealer",
+            per_page=100,
+        )
+
+        updated_issue_numbers: list[int] = []
+        skipped_already_marked = 0
+        skipped_no_run_reference = 0
+        skipped_run_lookup_failed = 0
+        skipped_tracking = 0
+
+        for issue in issues:
+            if len(updated_issue_numbers) >= max_updates:
+                break
+            issue_number = issue.get("number")
+            if not isinstance(issue_number, int):
+                continue
+            title = str(issue.get("title", "") or "")
+            if "auto-fix tracking" in title.lower():
+                skipped_tracking += 1
+                continue
+            body = str(issue.get("body", "") or "")
+            if workflow_marker_prefix in body:
+                skipped_already_marked += 1
+                continue
+
+            run_match = run_marker_pattern.search(body) or run_url_pattern.search(body)
+            if not run_match:
+                skipped_no_run_reference += 1
+                continue
+            run_id = int(run_match.group(1))
+
+            try:
+                run_details = await self._github_tools.get_workflow_run(owner, repo, run_id)
+            except Exception as exc:
+                logger.warning(
+                    "Marker backfill: unable to read workflow run %s for issue #%s in %s/%s: %s",
+                    run_id,
+                    issue_number,
+                    owner,
+                    repo,
+                    exc,
+                )
+                skipped_run_lookup_failed += 1
+                continue
+
+            workflow_name = str(run_details.get("name") or "").strip()
+            head_branch = str(run_details.get("head_branch") or "").strip()
+            if not workflow_name:
+                skipped_run_lookup_failed += 1
+                continue
+
+            markers = [self._workflow_name_marker(workflow_name)]
+            if head_branch:
+                markers.append(self._head_branch_marker(head_branch))
+            head_repository = run_details.get("head_repository")
+            if isinstance(head_repository, dict):
+                head_repository_full_name = str(head_repository.get("full_name") or "").strip()
+                if head_repository_full_name:
+                    markers.append(self._head_repository_marker(head_repository_full_name))
+
+            updated_body = body.rstrip() + "\n\n" + "\n".join(markers) + "\n"
+            try:
+                await self._github_tools.update_issue(
+                    owner=owner,
+                    repo=repo,
+                    issue_number=issue_number,
+                    body=updated_body,
+                )
+                updated_issue_numbers.append(issue_number)
+            except Exception as exc:
+                logger.warning(
+                    "Marker backfill: failed to update issue #%s in %s/%s: %s",
+                    issue_number,
+                    owner,
+                    repo,
+                    exc,
+                )
+
+        return {
+            "status": "completed",
+            "updated_issue_numbers": updated_issue_numbers,
+            "skipped_already_marked": skipped_already_marked,
+            "skipped_no_run_reference": skipped_no_run_reference,
+            "skipped_run_lookup_failed": skipped_run_lookup_failed,
+            "skipped_tracking": skipped_tracking,
+        }
+
     @staticmethod
     def _extract_pr_number(pr: dict[str, Any]) -> int | None:
         raw = pr.get("number")

@@ -2199,6 +2199,13 @@ class OrchestratorAgent:
             head_sha=event.workflow_run.head_sha,
         )
 
+    async def backfill_legacy_issue_markers(self, owner: str, repo: str) -> dict[str, Any]:
+        """Upgrade legacy generated issues with lifecycle markers for this repo."""
+        return await self._remediation_agent.backfill_legacy_issue_markers(
+            owner=owner,
+            repo=repo,
+        )
+
     # ------------------------------------------------------------------
     # External-diagnostics backfill
     # ------------------------------------------------------------------

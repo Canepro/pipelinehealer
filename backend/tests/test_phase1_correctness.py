@@ -2409,3 +2409,137 @@ async def test_handle_successful_run_closes_when_recent_issue_activity_exists(
 
     assert result["status"] == "completed"
     assert result["closed_issue_numbers"] == [12]
+
+
+class FakeGitHubToolsLegacyIssues(FakeGitHubTools):
+    """Open legacy issues without lifecycle markers, plus run lookups."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.runs: dict[int, dict[str, object]] = {
+            777: {
+                "id": 777,
+                "name": "CI",
+                "head_branch": "main",
+                "head_repository": {"full_name": "octo/demo"},
+            }
+        }
+        self._issues = [
+            {
+                # Legacy issue: run marker only, no workflow-name marker.
+                "number": 30,
+                "title": "[PipelineHealer] Review required: lint",
+                "body": (
+                    "legacy issue\n\n"
+                    "<!-- pipelinehealer:generated-issue:review -->\n"
+                    "<!-- pipelinehealer:workflow-run:777 -->\n"
+                    "<!-- pipelinehealer:fingerprint:legacyfp777 -->"
+                ),
+            },
+            {
+                # Already upgraded: must be skipped.
+                "number": 31,
+                "title": "[PipelineHealer] Review required: test",
+                "body": (
+                    "modern issue\n\n"
+                    "<!-- pipelinehealer:generated-issue:review -->\n"
+                    "<!-- pipelinehealer:workflow-run:778 -->\n"
+                    "<!-- pipelinehealer:workflow-name:ci -->"
+                ),
+            },
+            {
+                # Tracking issue: must be skipped.
+                "number": 32,
+                "title": "[PipelineHealer] Auto-fix: dependency (auto-fix tracking)",
+                "body": "<!-- pipelinehealer:fingerprint:trackfp -->",
+            },
+            {
+                # No run reference at all: must be counted as skipped.
+                "number": 33,
+                "title": "[PipelineHealer] Review required: build",
+                "body": "<!-- pipelinehealer:generated-issue:review -->",
+            },
+        ]
+
+    async def list_issues(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        state: str = "all",
+        labels: str | None = None,
+        sort: str = "updated",
+        direction: str = "desc",
+        per_page: int = 30,
+    ):
+        _ = owner, repo, state, labels, sort, direction, per_page
+        return list(self._issues)
+
+    async def get_workflow_run(self, owner: str, repo: str, run_id: int):
+        _ = owner, repo
+        run = self.runs.get(run_id)
+        if run is None:
+            raise httpx.HTTPStatusError(
+                "not found",
+                request=httpx.Request("GET", "https://api.github.com"),
+                response=httpx.Response(404),
+            )
+        return run
+
+    async def update_issue(
+        self,
+        owner: str,
+        repo: str,
+        issue_number: int,
+        *,
+        title: str | None = None,
+        body: str | None = None,
+        state: str | None = None,
+        state_reason: str | None = None,
+    ):
+        result = await super().update_issue(
+            owner,
+            repo,
+            issue_number,
+            title=title,
+            body=body,
+            state=state,
+            state_reason=state_reason,
+        )
+        if body is not None:
+            self.issue_update_calls[-1]["body"] = body
+        return result
+
+
+@pytest.mark.asyncio
+async def test_backfill_legacy_issue_markers_upgrades_only_unmarked_issues() -> None:
+    gh = FakeGitHubToolsLegacyIssues()
+    agent = RemediationAgent(github_tools=gh)
+
+    result = await agent.backfill_legacy_issue_markers(owner="octo", repo="demo")
+
+    assert result["status"] == "completed"
+    assert result["updated_issue_numbers"] == [30]
+    assert result["skipped_already_marked"] == 1
+    assert result["skipped_tracking"] == 1
+    assert result["skipped_no_run_reference"] == 1
+    assert len(gh.issue_update_calls) == 1
+    updated_body = str(gh.issue_update_calls[0]["body"])
+    assert "<!-- pipelinehealer:workflow-name:ci -->" in updated_body
+    assert "<!-- pipelinehealer:head-branch:main -->" in updated_body
+    assert "<!-- pipelinehealer:head-repository:octo/demo -->" in updated_body
+    # Original content must be preserved.
+    assert "<!-- pipelinehealer:fingerprint:legacyfp777 -->" in updated_body
+
+
+@pytest.mark.asyncio
+async def test_backfill_legacy_issue_markers_counts_run_lookup_failures() -> None:
+    gh = FakeGitHubToolsLegacyIssues()
+    gh.runs.clear()
+    agent = RemediationAgent(github_tools=gh)
+
+    result = await agent.backfill_legacy_issue_markers(owner="octo", repo="demo")
+
+    assert result["updated_issue_numbers"] == []
+    assert result["skipped_run_lookup_failed"] == 1
+    assert gh.issue_update_calls == []
