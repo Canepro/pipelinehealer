@@ -443,6 +443,13 @@ class Settings(BaseSettings):
             "(requires auto_create_issue=true)"
         ),
     )
+    auto_close_on_workflow_success: bool = Field(
+        default=True,
+        description=(
+            "When a tracked workflow run succeeds, automatically close open PipelineHealer review "
+            "issues for the same workflow and branch with an audit comment."
+        ),
+    )
     auto_merge_remediation_prs: bool = Field(
         default=False,
         description=(

@@ -76,6 +76,7 @@ export default function SettingsPage() {
     auto_create_issue: true,
     auto_retry_workflow: true,
     auto_create_tracking_issue_for_prs: true,
+    auto_close_on_workflow_success: true,
     auto_merge_remediation_prs: false,
     auto_merge_strategy: "merge_when_clean",
     auto_merge_poll_seconds: 90,
@@ -284,6 +285,7 @@ export default function SettingsPage() {
         auto_retry_workflow: form.auto_retry_workflow,
         auto_create_tracking_issue_for_prs:
           form.auto_create_tracking_issue_for_prs,
+        auto_close_on_workflow_success: form.auto_close_on_workflow_success,
         auto_merge_remediation_prs: form.auto_merge_remediation_prs,
         auto_merge_strategy: form.auto_merge_strategy,
         auto_merge_poll_seconds: form.auto_merge_poll_seconds,

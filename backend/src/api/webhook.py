@@ -249,15 +249,11 @@ async def _handle_workflow_run_event(
     delivery_id: str,
     workflow: PipelineHealerWorkflow,
 ) -> dict[str, Any]:
-    """Handle a workflow_run event from GitHub.
-
-    We're interested in completed workflow runs that have failed.
-    """
+    """Handle a workflow_run event from GitHub."""
     action = payload.get("action")
     workflow_run = payload.get("workflow_run", {})
     conclusion = workflow_run.get("conclusion")
 
-    # Only process completed runs that failed
     if action != "completed":
         logger.debug(f"Ignoring workflow_run action: {action}")
         return {
@@ -265,6 +261,9 @@ async def _handle_workflow_run_event(
             "reason": f"action is '{action}', not 'completed'",
             "delivery_id": delivery_id,
         }
+
+    if conclusion == "success":
+        return await _handle_workflow_success_event(payload, delivery_id, workflow)
 
     if conclusion not in ("failure", "timed_out"):
         logger.debug(f"Ignoring workflow_run conclusion: {conclusion}")
@@ -274,7 +273,16 @@ async def _handle_workflow_run_event(
             "delivery_id": delivery_id,
         }
 
-    # Parse the event
+    return await _handle_workflow_failure_event(payload, delivery_id, workflow, conclusion)
+
+
+async def _handle_workflow_failure_event(
+    payload: dict[str, Any],
+    delivery_id: str,
+    workflow: PipelineHealerWorkflow,
+    conclusion: str,
+) -> dict[str, Any]:
+    """Handle a failed workflow_run event from GitHub."""
     try:
         event = WorkflowRunEvent(**payload)
     except Exception as e:
@@ -323,6 +331,70 @@ async def _handle_workflow_run_event(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to start healing workflow: {e}",
+        ) from e
+
+
+async def _handle_workflow_success_event(
+    payload: dict[str, Any],
+    delivery_id: str,
+    workflow: PipelineHealerWorkflow,
+) -> dict[str, Any]:
+    """Handle a successful workflow_run event for artifact lifecycle hygiene."""
+    try:
+        event = WorkflowRunEvent(**payload)
+    except Exception as e:
+        logger.error(f"Failed to parse workflow_run success event: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid workflow_run event format: {e}",
+        ) from e
+
+    settings = get_settings()
+    repo_full_name = event.repository.full_name
+    if not _is_allowed_repo(repo_full_name, settings.ph_allowed_repos):
+        logger.info(
+            "success webhook ignored: repo %s not in PH_ALLOWED_REPOS (delivery=%s)",
+            repo_full_name,
+            delivery_id,
+        )
+        return {
+            "status": "ignored",
+            "reason": f"repository '{repo_full_name}' is outside PH_ALLOWED_REPOS",
+            "delivery_id": delivery_id,
+        }
+
+    if not settings.auto_close_on_workflow_success:
+        logger.info(
+            "success webhook ignored: auto_close_on_workflow_success disabled (repo=%s delivery=%s)",
+            repo_full_name,
+            delivery_id,
+        )
+        return {
+            "status": "ignored",
+            "reason": "auto_close_on_workflow_success disabled",
+            "delivery_id": delivery_id,
+        }
+
+    logger.info(
+        "Processing successful workflow run for lifecycle close: repo=%s workflow=%s run_id=%s",
+        repo_full_name,
+        event.workflow_run.name,
+        event.workflow_run.id,
+    )
+
+    try:
+        result = await workflow.handle_successful_run(event)
+        return {
+            **result,
+            "repository": repo_full_name,
+            "workflow_run_id": event.workflow_run.id,
+            "delivery_id": delivery_id,
+        }
+    except Exception as e:
+        logger.exception(f"Failed to process successful workflow run: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process successful workflow run: {e}",
         ) from e
 
 

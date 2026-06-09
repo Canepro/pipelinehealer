@@ -182,6 +182,9 @@ function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
   reasonCode: string | null;
   reasonDetail: string | null;
   reusedExistingPr: boolean;
+  reusedExistingIssue: boolean;
+  linkedPullRequestNumbers: number[];
+  closedSupersededIssueNumbers: number[];
   appliedLearningTitle: string | null;
   appliedLearningId: string | null;
   guidanceEffectiveness: string | null;
@@ -201,6 +204,19 @@ function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
         ? details.reason_detail
         : null;
   const reusedExistingPr = details?.reused_existing_pr === true;
+  const reusedExistingIssue = details?.reused_existing_issue === true;
+  const linkedPullRequestNumbers = Array.isArray(details?.linked_pull_request_numbers)
+    ? details.linked_pull_request_numbers.filter(
+        (value): value is number => typeof value === "number",
+      )
+    : [];
+  const closedSupersededIssueNumbers = Array.isArray(
+    details?.closed_superseded_issue_numbers,
+  )
+    ? details.closed_superseded_issue_numbers.filter(
+        (value): value is number => typeof value === "number",
+      )
+    : [];
   const appliedLearning =
     details?.applied_learning_context &&
     typeof details.applied_learning_context === "object"
@@ -215,6 +231,9 @@ function getIssueProposalMeta(details: Record<string, unknown> | undefined): {
     reasonCode: reason,
     reasonDetail,
     reusedExistingPr,
+    reusedExistingIssue,
+    linkedPullRequestNumbers,
+    closedSupersededIssueNumbers,
     appliedLearningTitle:
       typeof appliedLearning?.title === "string" ? appliedLearning.title : null,
     appliedLearningId:
@@ -1815,6 +1834,9 @@ export default function ActivityDetail() {
                 </div>
                 {(remediationMeta.includesProposedFix ||
                   remediationMeta.reusedExistingPr ||
+                  remediationMeta.reusedExistingIssue ||
+                  remediationMeta.linkedPullRequestNumbers.length > 0 ||
+                  remediationMeta.closedSupersededIssueNumbers.length > 0 ||
                   remediationMeta.appliedLearningId ||
                   remediationMeta.reasonCode ||
                   remediationMeta.reasonDetail) && (
@@ -1828,6 +1850,21 @@ export default function ActivityDetail() {
                       ) : null}
                       {remediationMeta.reusedExistingPr ? (
                         <Badge variant="outline">Reused Existing PR</Badge>
+                      ) : null}
+                      {remediationMeta.reusedExistingIssue ? (
+                        <Badge variant="outline">Reused Existing Issue</Badge>
+                      ) : null}
+                      {remediationMeta.linkedPullRequestNumbers.length > 0 ? (
+                        <Badge variant="outline">
+                          Linked PRs: #
+                          {remediationMeta.linkedPullRequestNumbers.join(", #")}
+                        </Badge>
+                      ) : null}
+                      {remediationMeta.closedSupersededIssueNumbers.length > 0 ? (
+                        <Badge variant="outline">
+                          Closed Superseded Issues: #
+                          {remediationMeta.closedSupersededIssueNumbers.join(", #")}
+                        </Badge>
                       ) : null}
                       {remediationMeta.appliedLearningId ? (
                         <Badge variant="outline">Applied Learning Guidance</Badge>

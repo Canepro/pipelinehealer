@@ -37,6 +37,7 @@ from ..models import (
     MCPActionAuditEntry,
     MCPModelPath,
     RemediationStatus,
+    RemediationAction,
     WorkflowRunEvent,
 )
 from ..storage import ActivityStorage
@@ -1779,7 +1780,20 @@ class OrchestratorAgent:
                 "full_name": event.repository.full_name,
                 "owner": event.repository.owner,
                 "default_branch": event.repository.default_branch,
+                "workflow_name": event.workflow_run.name,
+                "head_branch": event.workflow_run.head_branch,
+                "head_repository_full_name": (
+                    event.workflow_run.head_repository.full_name
+                    if event.workflow_run.head_repository
+                    else ""
+                )
+                or "",
             }
+            pull_request_numbers = workflow_info.get("pull_request_numbers")
+            if isinstance(pull_request_numbers, list):
+                repository_info["pull_request_numbers"] = [
+                    number for number in pull_request_numbers[:3] if isinstance(number, int)
+                ]
 
             # Global execution gate: when disabled, remediation runs in plan-only dry-run mode.
             dry_run = not self._settings.auto_apply_remediation
@@ -2149,6 +2163,41 @@ class OrchestratorAgent:
             return False, f"Max remediation attempts reached for workflow '{workflow_name}'"
 
         return True, "New failure to process"
+
+    async def handle_successful_run(self, event: WorkflowRunEvent) -> dict[str, Any]:
+        """Close stale generated review issues when a tracked workflow succeeds."""
+        if not self._settings.auto_close_on_workflow_success:
+            return {"status": "skipped", "reason": "auto_close_on_workflow_success disabled"}
+
+        workflow_name = event.workflow_run.name or ""
+        repository_full_name = event.repository.full_name
+        recent_activities = await self._storage.get_activities(
+            repository=repository_full_name,
+            limit=100,
+        )
+        has_generated_issue_activity = any(
+            activity.workflow_name == workflow_name
+            and activity.remediation_result is not None
+            and activity.remediation_result.action_taken == RemediationAction.CREATE_ISSUE
+            and bool(activity.remediation_result.issue_url)
+            for activity in recent_activities
+        )
+        if not has_generated_issue_activity:
+            return {
+                "status": "skipped",
+                "reason": "no recent PipelineHealer review issues for workflow",
+            }
+
+        owner = event.repository.owner.get("login", "")
+        repo = event.repository.name
+        return await self._remediation_agent.close_issues_on_workflow_success(
+            owner=owner,
+            repo=repo,
+            workflow_name=workflow_name,
+            head_branch=event.workflow_run.head_branch,
+            workflow_run_id=event.workflow_run.id,
+            head_sha=event.workflow_run.head_sha,
+        )
 
     # ------------------------------------------------------------------
     # External-diagnostics backfill

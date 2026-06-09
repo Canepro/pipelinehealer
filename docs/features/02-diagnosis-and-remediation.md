@@ -1,6 +1,6 @@
 # Feature: Diagnosis And Remediation
 
-<!-- LAST_VERIFIED: c78ae9b -->
+<!-- LAST_VERIFIED: d417254 -->
 
 This guide explains how PipelineHealer moves from failed workflow logs to safe remediation artifacts.
 
@@ -51,11 +51,15 @@ PipelineHealer uses find-or-create behavior for remediation artifacts.
 Expected behavior:
 - first matching failure: create PR/issue.
 - repeated matching failure: reuse existing artifact when valid.
+- cross-run dedup: open review issues with the same failure signature are reused instead of recreated.
+- workflow success: open review issues for the same workflow and branch are auto-closed when `auto_close_on_workflow_success=true`.
+- human/PH PR link: active PRs associated with a failing run can be linked to generated issues for auto-close on merge.
 
 How to validate:
 1. Trigger the same deterministic failure twice.
 2. Confirm second activity does not create duplicate PR/issue.
-3. Check remediation metadata for reused-existing indicators.
+3. Check remediation metadata for `reused_existing_issue`, `reused_existing_pr`, `linked_pull_request_numbers`, or `closed_superseded_issue_numbers`.
+4. Re-run the workflow to green and confirm matching review issues close with an audit comment.
 
 ## Safe vs Demo Mode
 

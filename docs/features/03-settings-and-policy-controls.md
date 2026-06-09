@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: 3d754c5 -->
+<!-- LAST_VERIFIED: d417254 -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -100,6 +100,8 @@ Settings and Control Center share the same runtime controls:
   - `false` => plan-only dry-run (no PR/issue/retry side effects)
 - `auto_create_pr`: allow PR artifact publishing
 - `auto_create_issue`: allow issue artifact publishing
+- `auto_create_tracking_issue_for_prs`: create a tracking issue per PR remediation (requires `auto_create_issue=true`)
+- `auto_close_on_workflow_success`: close open review issues when the same workflow succeeds on the same branch
 - `auto_retry_workflow`: allow workflow retry action
 
 This separation lets operators run mixed policies safely, for example:

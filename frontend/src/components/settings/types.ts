@@ -27,6 +27,7 @@ export type SettingsFormState = {
   auto_create_issue: boolean
   auto_retry_workflow: boolean
   auto_create_tracking_issue_for_prs: boolean
+  auto_close_on_workflow_success: boolean
   auto_merge_remediation_prs: boolean
   auto_merge_strategy: 'github_auto_merge' | 'merge_when_clean'
   auto_merge_poll_seconds: number
@@ -190,6 +191,7 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
   auto_create_issue: data.auto_create_issue,
   auto_retry_workflow: data.auto_retry_workflow,
   auto_create_tracking_issue_for_prs: data.auto_create_tracking_issue_for_prs,
+  auto_close_on_workflow_success: data.auto_close_on_workflow_success,
   auto_merge_remediation_prs: data.auto_merge_remediation_prs ?? false,
   auto_merge_strategy:
     data.auto_merge_strategy === 'github_auto_merge' ? 'github_auto_merge' : 'merge_when_clean',
@@ -292,6 +294,8 @@ export const SETTING_DESCRIPTIONS: Record<string, string> = {
     'Allows PipelineHealer to trigger retry of failed workflow jobs when remediation selects retry_workflow.',
   auto_create_tracking_issue_for_prs:
     'Creates a GitHub issue to track each PR-based remediation and auto-closes it when the PR merges (requires Auto-Create Issues).',
+  auto_close_on_workflow_success:
+    'Automatically closes open PipelineHealer review issues when the same workflow succeeds on the same branch.',
   auto_merge_remediation_prs:
     'Allows PipelineHealer to merge its own remediation PRs after GitHub reports them mergeable and checks are clean.',
   auto_merge_strategy:

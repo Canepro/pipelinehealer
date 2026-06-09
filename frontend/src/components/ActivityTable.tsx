@@ -102,6 +102,7 @@ function getIssueProposalMeta(activity: Activity): {
   reasonLabel: string | null
   output: string | null
   reusedExistingPr: boolean
+  reusedExistingIssue: boolean
 } {
   const details = activity.remediation_result?.details
   const includes = details?.includes_proposed_fix === true
@@ -114,8 +115,9 @@ function getIssueProposalMeta(activity: Activity): {
       ? activity.remediation_result.action_taken.replace('_', ' ').toUpperCase()
       : null
   const reusedExistingPr = details?.reused_existing_pr === true
+  const reusedExistingIssue = details?.reused_existing_issue === true
   const reasonLabel = reason ? REASON_LABELS[reason] || 'Manual review required' : null
-  return { includesProposedFix: includes, reasonCode: reason, reasonLabel, output, reusedExistingPr }
+  return { includesProposedFix: includes, reasonCode: reason, reasonLabel, output, reusedExistingPr, reusedExistingIssue }
 }
 
 function getMcpLabel(activity: Activity): { label: string; variant: 'success' | 'secondary' } | null {
@@ -198,6 +200,9 @@ function getStatusTags(activity: Activity): StatusTag[] {
   }
   if (meta.reusedExistingPr) {
     tags.push({ label: 'Reused Existing PR', variant: 'success' })
+  }
+  if (meta.reusedExistingIssue) {
+    tags.push({ label: 'Reused Existing Issue', variant: 'success' })
   }
 
   return tags
