@@ -226,18 +226,21 @@ if [[ "$DO_WEBHOOK_SYNC" == "1" ]]; then
       pass_check "created Azure workflow_run webhook"
     fi
   else
-    patch_args=(
-      -F active=true
-      -f "config[url]=$BACKEND_URL/webhook/github"
-      -f config[content_type]=json
-      -f events[]="workflow_run"
-    )
-    if [[ -n "$WEBHOOK_SECRET" ]]; then
-      patch_args+=(-f "config[secret]=$WEBHOOK_SECRET")
-    else
+    if [[ -z "$WEBHOOK_SECRET" ]]; then
       record_failure "webhook_secret_missing"
+      gh api -X PATCH "repos/$DEMO_REPO/hooks/$AZURE_HOOK_ID" \
+        -F active=true \
+        -f config[url]="$BACKEND_URL/webhook/github" \
+        -f config[content_type]=json \
+        -f events[]="workflow_run" >/dev/null
+    else
+      gh api -X PATCH "repos/$DEMO_REPO/hooks/$AZURE_HOOK_ID" \
+        -F active=true \
+        -f config[url]="$BACKEND_URL/webhook/github" \
+        -f config[content_type]=json \
+        -f config[secret]="$WEBHOOK_SECRET" \
+        -f events[]="workflow_run" >/dev/null
     fi
-    gh api -X PATCH "repos/$DEMO_REPO/hooks/$AZURE_HOOK_ID" "${patch_args[@]}" >/dev/null
     pass_check "Azure workflow_run webhook active"
   fi
 fi
