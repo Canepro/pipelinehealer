@@ -1782,6 +1782,12 @@ class OrchestratorAgent:
                 "default_branch": event.repository.default_branch,
                 "workflow_name": event.workflow_run.name,
                 "head_branch": event.workflow_run.head_branch,
+                "head_repository_full_name": (
+                    event.workflow_run.head_repository.full_name
+                    if event.workflow_run.head_repository
+                    else ""
+                )
+                or "",
             }
             pull_request_numbers = workflow_info.get("pull_request_numbers")
             if isinstance(pull_request_numbers, list):

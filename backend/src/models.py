@@ -203,6 +203,14 @@ class GitHubRepository(BaseModel):
     html_url: str
 
 
+class GitHubHeadRepository(BaseModel):
+    """Head repository for a workflow_run (differs from base repo for fork PRs)."""
+
+    id: int | None = None
+    full_name: str | None = None
+    name: str | None = None
+
+
 class GitHubWorkflowRun(BaseModel):
     """GitHub Actions workflow run information."""
 
@@ -218,6 +226,7 @@ class GitHubWorkflowRun(BaseModel):
     updated_at: datetime
     run_attempt: int = 1
     run_number: int
+    head_repository: GitHubHeadRepository | None = None
 
 
 class GitHubWorkflowJob(BaseModel):

@@ -2238,6 +2238,60 @@ def test_signature_for_plan_distinguishes_workflow_and_branch() -> None:
     assert with_context == same_normalized
 
 
+def test_signature_for_plan_distinguishes_head_repository() -> None:
+    plan = RemediationPlan(
+        action=RemediationAction.CREATE_ISSUE,
+        description="Escalate for manual fix",
+        issue_title="[PipelineHealer] Review required: lint",
+        issue_body="Root cause summary",
+    )
+    # Two forks with the same workflow + branch name must not collide.
+    fork_a = RemediationAgent._signature_for_plan(
+        plan,
+        workflow_name="CI",
+        head_branch="fix",
+        head_repository="alice/demo",
+    )
+    fork_b = RemediationAgent._signature_for_plan(
+        plan,
+        workflow_name="CI",
+        head_branch="fix",
+        head_repository="bob/demo",
+    )
+    no_repo = RemediationAgent._signature_for_plan(
+        plan,
+        workflow_name="CI",
+        head_branch="fix",
+    )
+
+    assert fork_a != fork_b
+    assert fork_a != no_repo
+
+    # Normalization: case-insensitive and `/` / `.` pass through unchanged.
+    mixed_case = RemediationAgent._signature_for_plan(
+        plan,
+        workflow_name="CI",
+        head_branch="fix",
+        head_repository="Alice/Demo",
+    )
+    with_dot = RemediationAgent._signature_for_plan(
+        plan,
+        workflow_name="CI",
+        head_branch="fix",
+        head_repository="alice/demo.app",
+    )
+    with_dot_again = RemediationAgent._signature_for_plan(
+        plan,
+        workflow_name="CI",
+        head_branch="fix",
+        head_repository="ALICE/DEMO.APP",
+    )
+
+    assert fork_a == mixed_case
+    assert with_dot == with_dot_again
+    assert with_dot != fork_a
+
+
 @pytest.mark.asyncio
 async def test_create_issue_reuses_existing_issue_by_signature(
     monkeypatch: pytest.MonkeyPatch,

@@ -630,6 +630,7 @@ class RemediationAgent:
         *,
         workflow_name: str = "",
         head_branch: str = "",
+        head_repository: str = "",
     ) -> str:
         """Return a cross-run failure signature (excludes workflow run id)."""
         normalized_workflow_name = (
@@ -638,11 +639,15 @@ class RemediationAgent:
         normalized_head_branch = (
             re.sub(r"[^a-z0-9_-]+", "-", str(head_branch or "").strip().lower()) or ""
         )
+        normalized_head_repository = (
+            re.sub(r"[^a-z0-9_./-]+", "-", str(head_repository or "").strip().lower()) or ""
+        )
         payload = {
             "action": plan.action.value,
             "branch_name": plan.branch_name or "",
             "workflow_name": normalized_workflow_name,
             "head_branch": normalized_head_branch,
+            "head_repository": normalized_head_repository,
             "issue_title": RemediationAgent._normalize_title_for_signature(plan.issue_title or ""),
             "description": plan.description,
             "files": sorted(
@@ -673,6 +678,11 @@ class RemediationAgent:
     def _head_branch_marker(head_branch: str) -> str:
         normalized = re.sub(r"[^a-z0-9_./-]+", "-", str(head_branch or "").strip().lower()) or "unknown"
         return f"<!-- pipelinehealer:head-branch:{normalized} -->"
+
+    @staticmethod
+    def _head_repository_marker(head_repository: str) -> str:
+        normalized = re.sub(r"[^a-z0-9_./-]+", "-", str(head_repository or "").strip().lower()) or "unknown"
+        return f"<!-- pipelinehealer:head-repository:{normalized} -->"
 
     @staticmethod
     def _generated_issue_kind_marker(kind: str) -> str:
@@ -985,10 +995,14 @@ class RemediationAgent:
         remediation_fp = self._fingerprint_for_plan(plan, workflow_run_id)
         workflow_name = str((repository_info or {}).get("workflow_name") or "").strip()
         head_branch = str((repository_info or {}).get("head_branch") or "").strip()
+        head_repository = str(
+            (repository_info or {}).get("head_repository_full_name") or ""
+        ).strip()
         signature = self._signature_for_plan(
             plan,
             workflow_name=workflow_name,
             head_branch=head_branch,
+            head_repository=head_repository,
         )
         markers = [
             self._generated_issue_kind_marker(kind),
@@ -1000,6 +1014,8 @@ class RemediationAgent:
             markers.append(self._workflow_name_marker(workflow_name))
         if head_branch:
             markers.append(self._head_branch_marker(head_branch))
+        if head_repository:
+            markers.append(self._head_repository_marker(head_repository))
         return "\n".join(markers)
 
     async def close_issues_on_workflow_success(
@@ -1425,10 +1441,14 @@ class RemediationAgent:
             remediation_fp = self._fingerprint_for_plan(plan, workflow_run_id)
             workflow_name = str((repository_info or {}).get("workflow_name") or "").strip()
             head_branch = str((repository_info or {}).get("head_branch") or "").strip()
+            head_repository = str(
+                (repository_info or {}).get("head_repository_full_name") or ""
+            ).strip()
             signature = self._signature_for_plan(
                 plan,
                 workflow_name=workflow_name,
                 head_branch=head_branch,
+                head_repository=head_repository,
             )
             fp_marker = self._fingerprint_marker(remediation_fp)
             expected_files = {
@@ -2229,10 +2249,14 @@ class RemediationAgent:
             fp_marker = self._fingerprint_marker(remediation_fp)
             workflow_name = str((repository_info or {}).get("workflow_name") or "").strip()
             head_branch = str((repository_info or {}).get("head_branch") or "").strip()
+            head_repository = str(
+                (repository_info or {}).get("head_repository_full_name") or ""
+            ).strip()
             signature = self._signature_for_plan(
                 plan,
                 workflow_name=workflow_name,
                 head_branch=head_branch,
+                head_repository=head_repository,
             )
             sig_marker = self._signature_marker(signature)
             existing_issue = await self._find_existing_generated_issue(
