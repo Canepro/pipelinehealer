@@ -367,7 +367,7 @@ function createReviewQueue(
         reason:
           "PipelineHealer deduplicated this failure against an already-open generated issue.",
         detail:
-          typeof remediation.issue_url === "string"
+          typeof remediation?.issue_url === "string"
             ? remediation.issue_url
             : "Inspect the linked issue for current status.",
         priority: "medium",
