@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: d417254 -->
+<!-- LAST_VERIFIED: 0a895fd -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -708,6 +708,45 @@ Triggers an on-demand sweep that backfills external diagnostics (ci-doctor findi
 ```
 
 **Notes**: A background sweep also runs automatically every 10 minutes, so manual triggering is only needed for immediate results (e.g. after confirming ci-doctor has finished).
+
+#### `POST /api/settings/lifecycle/backfill-markers`
+
+Upgrades legacy PipelineHealer-generated issues with lifecycle markers (`workflow-name`, `head-branch`, `head-repository`) derived from each issue's recorded workflow run. Issues created before the lifecycle-marker rollout lack these markers, so green-close cannot manage them until backfilled.
+
+**Auth**: `X-API-Key` + `X-Admin-Key` (admin settings route)
+
+**Query Parameters**:
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `repository` | string | Target repository in `owner/repo` format. Must be inside `PH_ALLOWED_REPOS` when the allowlist is set. |
+
+**Behavior**:
+
+- Scans open issues labeled `pipelinehealer` (up to 100 per call, max 50 updates).
+- Skips issues that already carry a `workflow-name` marker, auto-fix tracking issues, and issues without a run reference.
+- Derives markers via the GitHub workflow-run API; lookup failures are counted, not fatal.
+- Idempotent: re-running the backfill does not duplicate markers.
+
+**Scope**: The backfilled markers enable **green-close** (auto-close on workflow success) and head-repository scoping for legacy issues. Cross-run dedup signatures cannot be reconstructed for legacy issues because the original remediation plan is not recoverable; recurring failures still reuse legacy issues through normalized-title matching, and newly created issues carry full signature markers going forward.
+
+**Response** `200 OK`:
+
+```json
+{
+  "status": "completed",
+  "repository": "owner/repo",
+  "updated_issue_numbers": [30, 42],
+  "skipped_already_marked": 5,
+  "skipped_no_run_reference": 1,
+  "skipped_run_lookup_failed": 0,
+  "skipped_tracking": 2
+}
+```
+
+**Response** `403 Forbidden`: Repository is outside `PH_ALLOWED_REPOS`.
+
+**Response** `422 Unprocessable Entity`: `repository` is not in `owner/repo` format.
 
 ---
 

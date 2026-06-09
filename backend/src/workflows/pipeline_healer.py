@@ -165,6 +165,14 @@ class PipelineHealerWorkflow:
         task.add_done_callback(_on_done)
         return {"status": "processing", "workflow_run_id": event.workflow_run.id}
 
+    async def backfill_legacy_issue_markers(self, repository: str) -> dict[str, Any]:
+        """Upgrade legacy generated issues with lifecycle markers (operator-triggered)."""
+        segments = [segment.strip() for segment in repository.split("/")]
+        if len(segments) != 2 or not all(segments):
+            raise ValueError("repository must be in 'owner/repo' format")
+        owner, repo = segments
+        return await self._orchestrator.backfill_legacy_issue_markers(owner, repo)
+
     async def _process_event(
         self,
         event: WorkflowRunEvent,
