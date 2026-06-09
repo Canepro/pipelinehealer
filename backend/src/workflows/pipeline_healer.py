@@ -146,7 +146,7 @@ class PipelineHealerWorkflow:
         """Process a successful workflow run for artifact lifecycle hygiene."""
         task_key = f"success-{event.workflow_run.id}"
 
-        def _on_done(t: asyncio.Task) -> None:
+        def _on_done(t: asyncio.Task[Any]) -> None:
             self._running_tasks.pop(task_key, None)
             if not t.cancelled():
                 exc = t.exception()
