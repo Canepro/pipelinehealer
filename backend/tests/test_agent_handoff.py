@@ -1180,3 +1180,26 @@ async def test_auto_local_handoff_respects_enabled_targets(
     )
     assert session is None
     assert await _storage.list_handoff_sessions_for_activity(activity_id) == []
+
+
+def test_sanitized_agent_env_drops_backend_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.llm.codex_app_server import sanitized_agent_env
+
+    monkeypatch.setenv("GITHUB_PERSONAL_ACCESS_TOKEN", "ghp_secretvalue")
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "azure-secret")
+    monkeypatch.setenv("INFISICAL_TOKEN", "infisical-secret")
+    monkeypatch.setenv("API_AUTH_KEY", "api-secret")
+    monkeypatch.setenv("OPENAI_API_KEY", "codex-needs-this")
+    monkeypatch.setenv("PATH", "/usr/bin")
+    monkeypatch.setenv("LC_ALL", "en_US.UTF-8")
+
+    env = sanitized_agent_env()
+    assert "GITHUB_PERSONAL_ACCESS_TOKEN" not in env
+    assert "AZURE_OPENAI_API_KEY" not in env
+    assert "INFISICAL_TOKEN" not in env
+    assert "API_AUTH_KEY" not in env
+    assert env["OPENAI_API_KEY"] == "codex-needs-this"
+    assert env["PATH"] == "/usr/bin"
+    assert env["LC_ALL"] == "en_US.UTF-8"

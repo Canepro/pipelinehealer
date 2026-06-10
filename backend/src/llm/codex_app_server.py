@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import json
+import os
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
@@ -22,6 +23,44 @@ class CodexTurnOptions:
     timeout_seconds: float | None = None
     text_output_schema: bool = True
     require_text: bool = True
+    sanitize_env: bool = False
+
+
+# Environment kept for sanitized (workspace-write) Codex subprocesses: shell
+# basics plus what the codex CLI needs to run and authenticate. Backend
+# secrets (GitHub tokens, Azure keys, DSNs, admin keys) are deliberately
+# dropped so an agent turn over untrusted repository content cannot read them.
+_SANITIZED_ENV_KEYS = {
+    "PATH",
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "SHELL",
+    "TMPDIR",
+    "TEMP",
+    "TMP",
+    "LANG",
+    "TERM",
+    "COLUMNS",
+    "LINES",
+    "OPENAI_API_KEY",
+    "OPENAI_BASE_URL",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "SSL_CERT_FILE",
+    "REQUESTS_CA_BUNDLE",
+}
+_SANITIZED_ENV_PREFIXES = ("LC_", "XDG_", "CODEX_HOME")
+
+
+def sanitized_agent_env() -> dict[str, str]:
+    """Return a minimal subprocess environment for workspace-write agent turns."""
+    return {
+        key: value
+        for key, value in os.environ.items()
+        if key in _SANITIZED_ENV_KEYS or key.startswith(_SANITIZED_ENV_PREFIXES)
+    }
 
 
 def is_loopback_websocket_host(hostname: str) -> bool:
@@ -71,6 +110,7 @@ class CodexAppServerAgent:
                 timeout_seconds=timeout_seconds,
                 text_output_schema=False,
                 require_text=False,
+                sanitize_env=True,
             ),
         )
 
@@ -94,6 +134,7 @@ class CodexAppServerAgent:
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=sanitized_agent_env() if options.sanitize_env else None,
         )
 
         async def write_line(line: str) -> None:
