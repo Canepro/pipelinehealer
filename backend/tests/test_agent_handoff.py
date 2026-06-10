@@ -726,3 +726,397 @@ async def test_handoff_session_callback_rejects_missing_signature(
     )
 
     assert event_response.status_code == 401
+
+
+def _local_codex_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_LOCAL_CODEX_ENABLED", "true")
+    reset_settings()
+
+
+async def _make_activity(storage: InMemoryStorage, run_id: int) -> str:
+    activity = ActivityRecord(
+        repositoryId="1",
+        repository_name="canepro/pipelinehealer-demo",
+        workflow_run_id=run_id,
+        workflow_name="CI",
+        status=RemediationStatus.FAILED,
+    )
+    return await storage.create_activity(activity)
+
+
+@pytest.mark.asyncio
+async def test_handoff_session_local_codex_queues_execution(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.agents import local_handoff
+
+    scheduled: dict[str, Any] = {}
+
+    def _fake_schedule(**kwargs: Any) -> None:
+        scheduled.update(kwargs)
+
+    monkeypatch.setattr(local_handoff, "schedule_local_codex_handoff", _fake_schedule)
+    _local_codex_env(monkeypatch)
+
+    activity_id = await _make_activity(_storage, 401)
+    response = await _post_handoff_session(
+        activity_id,
+        {
+            "target": "codex_app_server",
+            "goal": "Fix the lint failure.",
+            "context": "ruff reported an unused import",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["delivery_status"] == "queued"
+    assert body["session"]["status"] == "queued"
+    assert "local Codex App Server" in body["message"]
+    assert body["session"]["metadata"]["execution"] == "local_codex"
+
+    assert scheduled["session"].id == body["session"]["id"]
+    assert scheduled["context"] == "ruff reported an unused import"
+
+    updated = await _storage.get_activity(activity_id)
+    assert updated is not None
+    assert updated.agent_handoff_audit[-1].mode.value == "local"
+    assert updated.agent_handoff_audit[-1].status.value == "queued"
+
+
+@pytest.mark.asyncio
+async def test_handoff_session_local_codex_disabled_keeps_webhook_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "webhook")
+    reset_settings()
+
+    activity_id = await _make_activity(_storage, 402)
+    response = await _post_handoff_session(
+        activity_id,
+        {"target": "codex_app_server", "goal": "Fix the failure."},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["delivery_status"] == "failed"
+    assert "target URL is not configured" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_handoff_session_remote_url_takes_precedence_over_local(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.agents import local_handoff
+    from src.api import dashboard
+
+    async def _fake_deliver(**kwargs: Any) -> tuple[bool, None]:
+        return True, None
+
+    def _fail_schedule(**kwargs: Any) -> None:
+        raise AssertionError("local execution must not run when a remote URL is configured")
+
+    monkeypatch.setattr(dashboard, "_deliver_handoff_webhook", _fake_deliver)
+    monkeypatch.setattr(local_handoff, "schedule_local_codex_handoff", _fail_schedule)
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "webhook")
+    monkeypatch.setenv("CODEX_APP_SERVER_HANDOFF_URL", "https://receiver.example/hook")
+    _local_codex_env(monkeypatch)
+
+    activity_id = await _make_activity(_storage, 403)
+    response = await _post_handoff_session(
+        activity_id,
+        {"target": "codex_app_server", "goal": "Fix the failure."},
+    )
+    assert response.status_code == 200
+    assert response.json()["delivery_status"] == "queued"
+
+
+@pytest.mark.asyncio
+async def test_handoff_config_reports_local_codex(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    monkeypatch.setenv("AGENT_HANDOFF_MODE", "webhook")
+    _local_codex_env(monkeypatch)
+
+    response = await _get_handoff_config()
+    assert response.status_code == 200
+    body = response.json()
+    assert body["enabled"] is True
+    assert body["reason"] == "ok"
+    assert body["local_codex_enabled"] is True
+    assert body["target_configured"]["codex_app_server"] is True
+
+
+@pytest.mark.asyncio
+async def test_local_codex_executor_opens_pr_and_completes(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+    tmp_path: Any,
+) -> None:
+    from src.agents import local_handoff
+    from src.models import (
+        ExternalAgentTarget,
+        HandoffSession,
+        HandoffSessionStatus,
+    )
+
+    _local_codex_env(monkeypatch)
+
+    activity_id = await _make_activity(_storage, 404)
+    activity = await _storage.get_activity(activity_id)
+    assert activity is not None
+    session = HandoffSession(
+        id="session-local-1",
+        activity_id=activity_id,
+        target=ExternalAgentTarget.CODEX_APP_SERVER,
+        status=HandoffSessionStatus.QUEUED,
+        goal="Fix the lint failure.",
+        delivery_id=f"handoff-session:{activity_id}:session-local-1",
+    )
+    await _storage.upsert_handoff_session(session)
+
+    workspace = local_handoff._Workspace(
+        root=tmp_path, repo_path=tmp_path, base_branch="main"
+    )
+
+    async def _fake_prepare(**kwargs: Any) -> Any:
+        return workspace
+
+    class _FakeAgent:
+        async def run_agentic(self, prompt: str, *, cwd: str, timeout_seconds: float) -> str:
+            assert cwd == str(tmp_path)
+            return "Removed the unused import."
+
+    async def _fake_collect(repo_path: Any) -> Any:
+        return local_handoff._ChangeSet(upserts=[("src/app.py", "fixed = True\n")])
+
+    async def _fake_publish(**kwargs: Any) -> str:
+        return "https://github.com/canepro/pipelinehealer-demo/pull/77"
+
+    monkeypatch.setattr(local_handoff, "_prepare_workspace", _fake_prepare)
+    monkeypatch.setattr(local_handoff, "_create_agent", lambda settings: _FakeAgent())
+    monkeypatch.setattr(local_handoff, "_collect_changes", _fake_collect)
+    monkeypatch.setattr(local_handoff, "_publish_changes", _fake_publish)
+
+    await local_handoff.execute_local_codex_handoff(
+        session=session,
+        activity=activity,
+        context="ruff reported an unused import",
+        storage=_storage,
+    )
+
+    stored = await _storage.get_handoff_session(session.id)
+    assert stored is not None
+    assert stored.status == HandoffSessionStatus.COMPLETED
+    assert stored.github.pr_url == "https://github.com/canepro/pipelinehealer-demo/pull/77"
+
+    messages = await _storage.list_handoff_messages(session.id)
+    event_types = [message.event_type.value for message in messages]
+    assert event_types == ["started_work", "pr_opened", "completed"]
+    assert all(message.actor == "codex_app_server:local" for message in messages)
+    assert "Removed the unused import." in messages[-1].body
+
+    updated = await _storage.get_activity(activity_id)
+    assert updated is not None
+    assert updated.agent_handoff_audit
+    assert all(entry.mode.value == "local" for entry in updated.agent_handoff_audit)
+
+
+@pytest.mark.asyncio
+async def test_local_codex_executor_records_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.agents import local_handoff
+    from src.models import (
+        ExternalAgentTarget,
+        HandoffSession,
+        HandoffSessionStatus,
+    )
+
+    _local_codex_env(monkeypatch)
+
+    activity_id = await _make_activity(_storage, 405)
+    activity = await _storage.get_activity(activity_id)
+    assert activity is not None
+    session = HandoffSession(
+        id="session-local-2",
+        activity_id=activity_id,
+        target=ExternalAgentTarget.CODEX_APP_SERVER,
+        status=HandoffSessionStatus.QUEUED,
+        goal="Fix the failure.",
+    )
+    await _storage.upsert_handoff_session(session)
+
+    async def _fake_prepare(**kwargs: Any) -> Any:
+        raise RuntimeError("git clone failed: repository not found")
+
+    monkeypatch.setattr(local_handoff, "_prepare_workspace", _fake_prepare)
+
+    await local_handoff.execute_local_codex_handoff(
+        session=session,
+        activity=activity,
+        context="",
+        storage=_storage,
+    )
+
+    stored = await _storage.get_handoff_session(session.id)
+    assert stored is not None
+    assert stored.status == HandoffSessionStatus.FAILED
+
+    messages = await _storage.list_handoff_messages(session.id)
+    assert messages[-1].event_type.value == "failed"
+    assert "git clone failed" in messages[-1].body
+
+    updated = await _storage.get_activity(activity_id)
+    assert updated is not None
+    assert updated.agent_handoff_audit[-1].status.value == "failed"
+
+
+@pytest.mark.asyncio
+async def test_auto_local_handoff_creates_one_session(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.agents import local_handoff
+
+    scheduled: list[dict[str, Any]] = []
+
+    def _fake_schedule(**kwargs: Any) -> None:
+        scheduled.append(kwargs)
+
+    monkeypatch.setattr(local_handoff, "schedule_local_codex_handoff", _fake_schedule)
+    monkeypatch.setenv("AGENT_HANDOFF_AUTO_LOCAL", "true")
+    _local_codex_env(monkeypatch)
+
+    activity_id = await _make_activity(_storage, 406)
+    activity = await _storage.get_activity(activity_id)
+    assert activity is not None
+
+    session = await local_handoff.create_auto_local_handoff(
+        activity=activity, storage=_storage
+    )
+    assert session is not None
+    assert session.policy_decision == "auto_failed_remediation"
+    assert session.created_by == "auto:orchestrator"
+    assert len(scheduled) == 1
+
+    duplicate = await local_handoff.create_auto_local_handoff(
+        activity=activity, storage=_storage
+    )
+    assert duplicate is None
+    assert len(scheduled) == 1
+
+
+@pytest.mark.asyncio
+async def test_auto_local_handoff_disabled_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.agents import local_handoff
+
+    _local_codex_env(monkeypatch)
+
+    activity_id = await _make_activity(_storage, 407)
+    activity = await _storage.get_activity(activity_id)
+    assert activity is not None
+
+    session = await local_handoff.create_auto_local_handoff(
+        activity=activity, storage=_storage
+    )
+    assert session is None
+    assert await _storage.list_handoff_sessions_for_activity(activity_id) == []
+
+
+@pytest.mark.asyncio
+async def test_local_codex_collect_changes_reads_real_git_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Any,
+) -> None:
+    import asyncio as _asyncio
+
+    from src.agents import local_handoff
+
+    async def _git(*args: str) -> None:
+        process = await _asyncio.create_subprocess_exec(
+            "git",
+            *args,
+            cwd=str(tmp_path),
+            stdout=_asyncio.subprocess.PIPE,
+            stderr=_asyncio.subprocess.PIPE,
+        )
+        _, stderr = await process.communicate()
+        assert process.returncode == 0, f"git {args[0]}: {stderr.decode()}"
+
+    await _git("init")
+    await _git("config", "user.email", "test@example.com")
+    await _git("config", "user.name", "Test")
+    # Insulate from host-level git config (autocrlf/safecrlf, commit signing).
+    await _git("config", "core.autocrlf", "false")
+    await _git("config", "core.safecrlf", "false")
+    await _git("config", "commit.gpgsign", "false")
+    (tmp_path / "tracked.py").write_text("original = True\n", encoding="utf-8")
+    (tmp_path / "removed.py").write_text("legacy = True\n", encoding="utf-8")
+    await _git("add", ".")
+    await _git("commit", "-m", "initial")
+
+    (tmp_path / "tracked.py").write_text("fixed = True\n", encoding="utf-8")
+    (tmp_path / "added.py").write_text("created = True\n", encoding="utf-8")
+    (tmp_path / "removed.py").unlink()
+    (tmp_path / "image.bin").write_bytes(b"\x00\xff\x00\xff")
+
+    changes = await local_handoff._collect_changes(tmp_path)
+
+    upserted = dict(changes.upserts)
+    assert upserted["tracked.py"] == "fixed = True\n"
+    assert upserted["added.py"] == "created = True\n"
+    assert "removed.py" in changes.deleted
+
+
+@pytest.mark.asyncio
+async def test_local_codex_executor_rejects_remote_websocket_transport(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.agents import local_handoff
+    from src.models import (
+        ExternalAgentTarget,
+        HandoffSession,
+        HandoffSessionStatus,
+    )
+
+    monkeypatch.setenv("CODEX_APP_SERVER_TRANSPORT", "websocket")
+    monkeypatch.setenv("CODEX_APP_SERVER_WS_URL", "wss://codex.internal.example/api")
+    monkeypatch.setenv("CODEX_APP_SERVER_WS_ALLOW_REMOTE", "true")
+    _local_codex_env(monkeypatch)
+
+    activity_id = await _make_activity(_storage, 408)
+    activity = await _storage.get_activity(activity_id)
+    assert activity is not None
+    session = HandoffSession(
+        id="session-local-3",
+        activity_id=activity_id,
+        target=ExternalAgentTarget.CODEX_APP_SERVER,
+        status=HandoffSessionStatus.QUEUED,
+        goal="Fix the failure.",
+    )
+    await _storage.upsert_handoff_session(session)
+
+    await local_handoff.execute_local_codex_handoff(
+        session=session,
+        activity=activity,
+        context="",
+        storage=_storage,
+    )
+
+    stored = await _storage.get_handoff_session(session.id)
+    assert stored is not None
+    assert stored.status == HandoffSessionStatus.FAILED
+    messages = await _storage.list_handoff_messages(session.id)
+    assert "shares this host's filesystem" in messages[-1].body

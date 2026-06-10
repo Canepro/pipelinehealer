@@ -36,8 +36,8 @@ from ..models import (
     LogAnalysis,
     MCPActionAuditEntry,
     MCPModelPath,
-    RemediationStatus,
     RemediationAction,
+    RemediationStatus,
     WorkflowRunEvent,
 )
 from ..storage import ActivityStorage
@@ -47,6 +47,7 @@ from ..tools.learning_context import LearningContextRetriever, extract_learning_
 from ..tools.mcp_provider import get_mcp_provider
 from .base import create_cloud_agent, get_agent_prompt
 from .diagnosis import DiagnosisAgent
+from .local_handoff import create_auto_local_handoff
 from .log_analyzer import LogAnalyzerAgent
 from .remediation import RemediationAgent
 
@@ -1844,6 +1845,8 @@ class OrchestratorAgent:
                 logger.warning(f"Remediation failed: {result.error_message}")
 
             await self._storage.update_activity(activity)
+            if activity.status == RemediationStatus.FAILED:
+                await self._maybe_schedule_auto_handoff(activity)
             return activity
 
           except Exception as e:
@@ -2104,6 +2107,8 @@ class OrchestratorAgent:
                 activity.status = RemediationStatus.FAILED
                 activity.error = result.error_message
             await self._storage.update_activity(activity)
+            if activity.status == RemediationStatus.FAILED:
+                await self._maybe_schedule_auto_handoff(activity)
             return activity
         except Exception as exc:
             logger.exception("Jenkins bridge pipeline failed: %s", exc)
@@ -2111,6 +2116,22 @@ class OrchestratorAgent:
             activity.error = str(exc)
             await self._storage.update_activity(activity)
             return activity
+
+    async def _maybe_schedule_auto_handoff(self, activity: ActivityRecord) -> None:
+        """Delegate a failed remediation to the local Codex handoff runtime.
+
+        Gated inside create_auto_local_handoff on AGENT_HANDOFF_ENABLED,
+        AGENT_HANDOFF_AUTO_LOCAL, and AGENT_HANDOFF_LOCAL_CODEX_ENABLED; failures
+        here must never break the healing pipeline.
+        """
+        try:
+            await create_auto_local_handoff(activity=activity, storage=self._storage)
+        except Exception:
+            logger.debug(
+                "Auto local handoff scheduling failed for activity %s",
+                activity.id,
+                exc_info=True,
+            )
 
     async def get_status(self, activity_id: str) -> ActivityRecord | None:
         """Get the status of a healing activity.

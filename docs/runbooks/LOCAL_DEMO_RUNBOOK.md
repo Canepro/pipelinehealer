@@ -247,7 +247,20 @@ AGENT_HANDOFF_ENABLED=false
 AGENT_HANDOFF_MODE=copy_only               # copy_only | webhook
 AGENT_HANDOFF_WEBHOOK_URL=                 # required only for webhook mode
 AGENT_HANDOFF_WEBHOOK_ALLOWLIST=
+
+# Local Codex handoff execution (optional; runs codex_app_server sessions on this host)
+AGENT_HANDOFF_LOCAL_CODEX_ENABLED=false    # needs git + codex CLI + GitHub token locally
+AGENT_HANDOFF_LOCAL_CODEX_OPEN_PR=true
+AGENT_HANDOFF_AUTO_LOCAL=false             # auto-delegate failed remediations
 ```
+
+Testing local Codex handoff on this machine:
+
+1. Set `AGENT_HANDOFF_ENABLED=true` and `AGENT_HANDOFF_LOCAL_CODEX_ENABLED=true` (env or Settings page). Leave `CODEX_APP_SERVER_HANDOFF_URL` empty; a remote URL always wins over local execution.
+2. For a dry run that records changes without opening a PR, set `AGENT_HANDOFF_LOCAL_CODEX_OPEN_PR=false`.
+3. Open a failed activity, create a handoff session targeting Codex App Server with `send=true`, and watch the session timeline: `started_work`, then `pr_opened` and/or `completed` (or `failed` with the scrubbed error).
+4. To test auto-delegation, also set `AGENT_HANDOFF_AUTO_LOCAL=true` and let a remediation fail; one session per activity is created by `auto:orchestrator`.
+5. Local execution requires the `codex` CLI and `git` on this host and a GitHub token with contents and pull-request write access. With WebSocket transport, the Codex App Server must be loopback so it can see the cloned workspace.
 
 Settings UI note:
 - Runtime policy now includes remediation PR auto-merge. The `merge_when_clean` strategy polls the generated PR head and merges only after GitHub reports the PR mergeable and checks are clean; `github_auto_merge` asks GitHub to manage the merge after branch requirements pass.

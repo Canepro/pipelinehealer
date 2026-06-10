@@ -7,8 +7,21 @@ import ipaddress
 import json
 from collections.abc import Callable
 from contextlib import suppress
+from dataclasses import dataclass
 from typing import Any, cast
 from urllib.parse import urlparse
+
+
+@dataclass(frozen=True)
+class CodexTurnOptions:
+    """Per-turn execution policy for a Codex App Server session."""
+
+    cwd: str | None = None
+    sandbox_mode: str = "readOnly"
+    network_access: bool = False
+    timeout_seconds: float | None = None
+    text_output_schema: bool = True
+    require_text: bool = True
 
 
 def is_loopback_websocket_host(hostname: str) -> bool:
@@ -34,11 +47,32 @@ class CodexAppServerAgent:
     def last_call_used_fallback(self) -> bool:
         return self._last_call_used_fallback
 
-    async def run(self, prompt: str) -> str:
+    async def run(self, prompt: str, options: CodexTurnOptions | None = None) -> str:
+        options = options or CodexTurnOptions()
         transport = str(getattr(self._settings, "codex_app_server_transport", "stdio") or "stdio")
         if transport == "websocket":
-            return await self._run_websocket(prompt)
-        return await self._run_stdio(prompt)
+            return await self._run_websocket(prompt, options)
+        return await self._run_stdio(prompt, options)
+
+    async def run_agentic(
+        self,
+        prompt: str,
+        *,
+        cwd: str,
+        timeout_seconds: float | None = None,
+    ) -> str:
+        """Run one workspace-write turn that may edit files under cwd."""
+        return await self.run(
+            prompt,
+            CodexTurnOptions(
+                cwd=cwd,
+                sandbox_mode="workspaceWrite",
+                network_access=False,
+                timeout_seconds=timeout_seconds,
+                text_output_schema=False,
+                require_text=False,
+            ),
+        )
 
     def _model(self) -> str:
         return str(getattr(self._settings, "codex_app_server_model", "") or "").strip() or "gpt-5.4"
@@ -51,7 +85,8 @@ class CodexAppServerAgent:
         raw = str(getattr(self._settings, "codex_app_server_command", "") or "").strip()
         return raw.split() or ["codex", "app-server"]
 
-    async def _run_stdio(self, prompt: str) -> str:
+    async def _run_stdio(self, prompt: str, options: CodexTurnOptions | None = None) -> str:
+        options = options or CodexTurnOptions()
         command = self._command()
         process = await asyncio.create_subprocess_exec(
             command[0],
@@ -87,7 +122,8 @@ class CodexAppServerAgent:
                 read_line=read_line,
                 model=self._model(),
                 instructions=self._instructions,
-                timeout_seconds=self._timeout_seconds(),
+                timeout_seconds=options.timeout_seconds or self._timeout_seconds(),
+                options=options,
             ).run(prompt)
         finally:
             with suppress(Exception):
@@ -98,7 +134,8 @@ class CodexAppServerAgent:
                 process.terminate()
                 await asyncio.wait_for(process.wait(), timeout=2.0)
 
-    async def _run_websocket(self, prompt: str) -> str:
+    async def _run_websocket(self, prompt: str, options: CodexTurnOptions | None = None) -> str:
+        options = options or CodexTurnOptions()
         try:
             import websockets
         except ImportError as exc:  # pragma: no cover - environment dependent
@@ -131,7 +168,8 @@ class CodexAppServerAgent:
                 read_line=read_line,
                 model=self._model(),
                 instructions=self._instructions,
-                timeout_seconds=self._timeout_seconds(),
+                timeout_seconds=options.timeout_seconds or self._timeout_seconds(),
+                options=options,
             ).run(prompt)
 
     def _websocket_token(self) -> str:
@@ -155,12 +193,14 @@ class _CodexJsonRpcSession:
         model: str,
         instructions: str,
         timeout_seconds: float,
+        options: CodexTurnOptions | None = None,
     ) -> None:
         self._write_line = write_line
         self._read_line = read_line
         self._model = model
         self._instructions = instructions
         self._timeout_seconds = timeout_seconds
+        self._options = options or CodexTurnOptions()
         self._next_id = 1
         self._notifications: list[Any] = []
 
@@ -183,33 +223,41 @@ class _CodexJsonRpcSession:
             },
         )
         await self._notify("initialized", {})
-        thread_result = await self._request(
-            "thread/start",
-            {"model": self._model, "ephemeral": True, "serviceName": "pipelinehealer"},
-        )
+        thread_params: dict[str, Any] = {
+            "model": self._model,
+            "ephemeral": True,
+            "serviceName": "pipelinehealer",
+        }
+        if self._options.cwd:
+            thread_params["cwd"] = self._options.cwd
+        thread_result = await self._request("thread/start", thread_params)
         thread_id = _extract_thread_id(thread_result)
         if not thread_id:
             raise RuntimeError("Codex App Server thread/start did not return a thread id")
 
-        await self._request(
-            "turn/start",
-            {
-                "threadId": thread_id,
-                "input": [{"type": "text", "text": prompt}],
-                "developerInstructions": self._instructions,
-                "approvalPolicy": "never",
-                "sandboxPolicy": {"type": "readOnly", "networkAccess": False},
-                "outputSchema": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": {"text": {"type": "string"}},
-                    "required": ["text"],
-                },
+        turn_params: dict[str, Any] = {
+            "threadId": thread_id,
+            "input": [{"type": "text", "text": prompt}],
+            "developerInstructions": self._instructions,
+            "approvalPolicy": "never",
+            "sandboxPolicy": {
+                "type": self._options.sandbox_mode,
+                "networkAccess": self._options.network_access,
             },
-        )
+        }
+        if self._options.cwd:
+            turn_params["cwd"] = self._options.cwd
+        if self._options.text_output_schema:
+            turn_params["outputSchema"] = {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {"text": {"type": "string"}},
+                "required": ["text"],
+            }
+        await self._request("turn/start", turn_params)
         await asyncio.wait_for(self._wait_for_turn_completed(), timeout=self._timeout_seconds)
         text = _extract_text({"notifications": self._notifications})
-        if not text:
+        if not text and self._options.require_text:
             raise RuntimeError("Codex App Server turn completed without text output")
         return text
 
