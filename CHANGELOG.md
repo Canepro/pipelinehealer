@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 42e442f -->
+<!-- LAST_VERIFIED: 17e4893 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -16,7 +16,7 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
   workspace-write Codex turn, publishes changes as a pull request on a
   `pipelinehealer/codex-handoff-*` branch, and records `started_work`,
   `pr_opened`, `completed`, or `failed` events on the session plus
-  `local`-mode audit entries on the activity.
+  `local`-mode audit entries on the activity (`4c340bf`).
 - Optional auto-handoff: `AGENT_HANDOFF_AUTO_LOCAL=true` creates a local
   Codex handoff session automatically when remediation fails, on both the
   GitHub Actions and Jenkins bridge pipelines, deduplicated per activity.
@@ -48,7 +48,13 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
   token-free clone URLs: backend and provider secrets (GitHub tokens, Azure
   keys, `OPENAI_API_KEY`, Infisical tokens, admin keys) are not readable by
   the agent turn. The codex CLI authenticates via its own `codex login`
-  credential store.
+  credential store (`42e442f`, `fb65221`, `42654fb`).
+- Local Codex handoff publishing skips symlinked files and verifies collected
+  paths stay inside the cloned repository before reading file content
+  (`17e4893`).
+- Addressed PR review findings for remote handoff precedence, failing-branch
+  selection, fork-PR retarget visibility, enabled-target gating, and refreshed
+  doc verification markers (`7986ebc`, `9ce45df`, `bea51f1`).
 - Recorded post-v0.8.10 merged work already on `main`: codex runtime roadmap
   and log-compaction docs (`4019f4b`, `f4755fa`), artifact lifecycle hygiene
   (`c5d6835`, `87f0798`, `357ad13`, `32641b6`, `d3b3d1a`, `2d6891b`), legacy
