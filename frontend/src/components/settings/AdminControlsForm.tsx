@@ -2091,7 +2091,8 @@ export default function AdminControlsForm({
                 <StatusChip
                   label="Codex App Server"
                   value={
-                    data.codex_app_server_handoff_configured
+                    data.codex_app_server_handoff_configured ||
+                    data.agent_handoff_webhook_configured
                       ? "Webhook configured"
                       : form.agent_handoff_local_codex_enabled
                         ? "Local execution"

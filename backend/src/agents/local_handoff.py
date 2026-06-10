@@ -66,10 +66,18 @@ _semaphore_limit = 0
 
 
 def local_codex_execution_available(settings: Any) -> bool:
-    """Return whether local Codex execution may serve codex_app_server sessions."""
-    return bool(getattr(settings, "agent_handoff_local_codex_enabled", False)) and not str(
-        getattr(settings, "codex_app_server_handoff_url", "") or ""
-    ).strip()
+    """Return whether local Codex execution may serve codex_app_server sessions.
+
+    Any configured remote receiver wins, including the legacy webhook URL that
+    _target_handoff_url falls back to for the codex_app_server target.
+    """
+    if not bool(getattr(settings, "agent_handoff_local_codex_enabled", False)):
+        return False
+    remote_url = (
+        str(getattr(settings, "codex_app_server_handoff_url", "") or "").strip()
+        or str(getattr(settings, "agent_handoff_webhook_url", "") or "").strip()
+    )
+    return not remote_url
 
 
 def schedule_local_codex_handoff(
@@ -371,6 +379,19 @@ async def _prepare_workspace(
         clone_args += ["--branch", branch]
     clone_args += [clone_url, str(repo_path)]
     code, _, stderr = await _run_git(clone_args)
+    if code != 0 and branch:
+        # Fork-PR head branches do not exist in the base repository; fall back
+        # to the default branch rather than failing the session outright.
+        logger.info(
+            "Clone of branch %r failed for session %s; retrying default branch",
+            branch,
+            session.id,
+        )
+        with suppress(Exception):
+            shutil.rmtree(repo_path)
+        code, _, stderr = await _run_git(
+            ["clone", "--depth", "50", clone_url, str(repo_path)]
+        )
     if code != 0:
         _cleanup_root(root)
         raise RuntimeError(f"git clone failed: {_scrub(stderr.strip())}")

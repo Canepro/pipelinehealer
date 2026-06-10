@@ -1120,3 +1120,27 @@ async def test_local_codex_executor_rejects_remote_websocket_transport(
     assert stored.status == HandoffSessionStatus.FAILED
     messages = await _storage.list_handoff_messages(session.id)
     assert "shares this host's filesystem" in messages[-1].body
+
+
+@pytest.mark.asyncio
+async def test_auto_local_handoff_defers_to_legacy_webhook_url(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.agents import local_handoff
+    from src.config import get_settings
+
+    monkeypatch.setenv("AGENT_HANDOFF_AUTO_LOCAL", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_WEBHOOK_URL", "https://legacy.example/hook")
+    _local_codex_env(monkeypatch)
+
+    assert local_handoff.local_codex_execution_available(get_settings()) is False
+
+    activity_id = await _make_activity(_storage, 409)
+    activity = await _storage.get_activity(activity_id)
+    assert activity is not None
+    session = await local_handoff.create_auto_local_handoff(
+        activity=activity, storage=_storage
+    )
+    assert session is None
+    assert await _storage.list_handoff_sessions_for_activity(activity_id) == []
