@@ -218,6 +218,16 @@ class _Workspace:
     root: Path
     repo_path: Path
     base_branch: str
+    requested_branch: str = ""
+    branch_fallback: bool = False
+
+    def fallback_note(self) -> str:
+        if not self.branch_fallback:
+            return ""
+        return (
+            f"Requested branch '{self.requested_branch}' was not available; "
+            f"this fix targets '{self.base_branch}' instead."
+        )
 
 
 @dataclass
@@ -296,7 +306,12 @@ async def _execute(
             session=session,
             activity_id=activity.id,
             event_type=HandoffEventType.COMPLETED,
-            body=_completion_body(summary=summary, changes=changes, pr_url=pr_url),
+            body=_completion_body(
+                summary=summary,
+                changes=changes,
+                pr_url=pr_url,
+                branch_note=workspace.fallback_note(),
+            ),
         )
     finally:
         _cleanup_workspace(workspace)
@@ -379,9 +394,11 @@ async def _prepare_workspace(
         clone_args += ["--branch", branch]
     clone_args += [clone_url, str(repo_path)]
     code, _, stderr = await _run_git(clone_args)
+    branch_fallback = False
     if code != 0 and branch:
-        # Fork-PR head branches do not exist in the base repository; fall back
-        # to the default branch rather than failing the session outright.
+        # The recorded branch may have been deleted since the run failed. Fall
+        # back to the default branch, but mark it so the session events and PR
+        # body state the retarget instead of hiding it.
         logger.info(
             "Clone of branch %r failed for session %s; retrying default branch",
             branch,
@@ -392,6 +409,7 @@ async def _prepare_workspace(
         code, _, stderr = await _run_git(
             ["clone", "--depth", "50", clone_url, str(repo_path)]
         )
+        branch_fallback = code == 0
     if code != 0:
         _cleanup_root(root)
         raise RuntimeError(f"git clone failed: {_scrub(stderr.strip())}")
@@ -400,7 +418,13 @@ async def _prepare_workspace(
     if code != 0:
         _cleanup_root(root)
         raise RuntimeError(f"git rev-parse failed: {_scrub(stderr.strip())}")
-    return _Workspace(root=root, repo_path=repo_path, base_branch=stdout.strip() or "main")
+    return _Workspace(
+        root=root,
+        repo_path=repo_path,
+        base_branch=stdout.strip() or "main",
+        requested_branch=branch,
+        branch_fallback=branch_fallback,
+    )
 
 
 def _cleanup_workspace(workspace: _Workspace) -> None:
@@ -500,6 +524,8 @@ async def _publish_changes(
             f"Handoff session: {session.id}",
             f"Activity: {session.activity_id}",
         ]
+        if workspace.branch_fallback:
+            body_lines += ["", workspace.fallback_note()]
         if summary.strip():
             body_lines += ["", "Agent summary:", _scrub(summary.strip())[:4000]]
         if changes.deleted or changes.skipped:
@@ -529,7 +555,13 @@ async def _publish_changes(
             await github.close()
 
 
-def _completion_body(*, summary: str, changes: _ChangeSet, pr_url: str | None) -> str:
+def _completion_body(
+    *,
+    summary: str,
+    changes: _ChangeSet,
+    pr_url: str | None,
+    branch_note: str = "",
+) -> str:
     if pr_url:
         lead = f"Completed with changes; pull request opened: {pr_url}"
     elif changes.upserts:
@@ -542,6 +574,8 @@ def _completion_body(*, summary: str, changes: _ChangeSet, pr_url: str | None) -
     else:
         lead = "Completed without file changes"
     body = lead
+    if branch_note:
+        body += f"\n\n{branch_note}"
     if summary.strip():
         body += f"\n\nAgent summary:\n{_scrub(summary.strip())}"
     return body[:_MAX_EVENT_BODY_CHARS]

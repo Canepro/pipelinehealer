@@ -1627,9 +1627,17 @@ class OrchestratorAgent:
             activity.id = created_id
 
         # Record the failing head branch so handoff workspace clones target it
-        # instead of the default branch. Persisted by the first status update.
+        # instead of the default branch. Fork-PR head branches live in the head
+        # repository, not the base repo, so only same-repo runs are recorded.
+        # Persisted by the first status update.
         head_branch = (event.workflow_run.head_branch or "").strip()
-        if head_branch and "branch" not in activity.source_metadata:
+        head_repo = (
+            (event.workflow_run.head_repository.full_name or "")
+            if event.workflow_run.head_repository
+            else ""
+        ).strip()
+        same_repo = not head_repo or head_repo.lower() == event.repository.full_name.lower()
+        if head_branch and same_repo and "branch" not in activity.source_metadata:
             activity.source_metadata["branch"] = head_branch
 
         # Capture MCP runtime path for per-activity observability, even when disabled.
