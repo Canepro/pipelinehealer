@@ -1191,7 +1191,7 @@ def test_sanitized_agent_env_drops_backend_secrets(
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "azure-secret")
     monkeypatch.setenv("INFISICAL_TOKEN", "infisical-secret")
     monkeypatch.setenv("API_AUTH_KEY", "api-secret")
-    monkeypatch.setenv("OPENAI_API_KEY", "codex-needs-this")
+    monkeypatch.setenv("OPENAI_API_KEY", "provider-secret")
     monkeypatch.setenv("PATH", "/usr/bin")
     monkeypatch.setenv("LC_ALL", "en_US.UTF-8")
 
@@ -1200,6 +1200,6 @@ def test_sanitized_agent_env_drops_backend_secrets(
     assert "AZURE_OPENAI_API_KEY" not in env
     assert "INFISICAL_TOKEN" not in env
     assert "API_AUTH_KEY" not in env
-    assert env["OPENAI_API_KEY"] == "codex-needs-this"
+    assert "OPENAI_API_KEY" not in env
     assert env["PATH"] == "/usr/bin"
     assert env["LC_ALL"] == "en_US.UTF-8"

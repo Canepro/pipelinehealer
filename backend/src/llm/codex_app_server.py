@@ -27,9 +27,10 @@ class CodexTurnOptions:
 
 
 # Environment kept for sanitized (workspace-write) Codex subprocesses: shell
-# basics plus what the codex CLI needs to run and authenticate. Backend
-# secrets (GitHub tokens, Azure keys, DSNs, admin keys) are deliberately
-# dropped so an agent turn over untrusted repository content cannot read them.
+# basics only. Backend and provider secrets (GitHub tokens, Azure keys, DSNs,
+# admin keys, OPENAI_API_KEY) are deliberately dropped so an agent turn over
+# untrusted repository content cannot read and exfiltrate them; the codex CLI
+# must authenticate through its own credential store (codex login) under HOME.
 _SANITIZED_ENV_KEYS = {
     "PATH",
     "HOME",
@@ -43,7 +44,6 @@ _SANITIZED_ENV_KEYS = {
     "TERM",
     "COLUMNS",
     "LINES",
-    "OPENAI_API_KEY",
     "OPENAI_BASE_URL",
     "HTTP_PROXY",
     "HTTPS_PROXY",
