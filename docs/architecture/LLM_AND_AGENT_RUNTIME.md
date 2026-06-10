@@ -1,6 +1,6 @@
 # LLM and Agent Runtime
 
-<!-- LAST_VERIFIED: 044aa39 -->
+<!-- LAST_VERIFIED: 42e442f -->
 
 This document is the operator-facing contract for how PipelineHealer uses LLMs and agents at runtime.
 

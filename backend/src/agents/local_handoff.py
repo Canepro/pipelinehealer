@@ -148,6 +148,11 @@ async def create_auto_local_handoff(
         and local_codex_execution_available(settings)
     ):
         return None
+    enabled_targets = {
+        str(item).strip().lower() for item in settings.agent_handoff_enabled_targets
+    }
+    if ExternalAgentTarget.CODEX_APP_SERVER.value not in enabled_targets:
+        return None
     existing = await storage.list_handoff_sessions_for_activity(activity.id)
     if any(item.policy_decision == AUTO_HANDOFF_POLICY for item in existing):
         return None

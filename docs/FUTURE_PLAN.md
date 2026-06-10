@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 4055ae3 -->
+<!-- LAST_VERIFIED: 42e442f -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 

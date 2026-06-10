@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 0a895fd -->
+<!-- LAST_VERIFIED: 42e442f -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 

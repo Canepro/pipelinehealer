@@ -1158,3 +1158,25 @@ def test_local_codex_clone_auth_env_keeps_token_out_of_url() -> None:
     assert decoded == "x-access-token:ghp_examplesecrettokenvalue1234567890"
 
     assert local_handoff._clone_auth_env("") is None
+
+
+@pytest.mark.asyncio
+async def test_auto_local_handoff_respects_enabled_targets(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.agents import local_handoff
+
+    monkeypatch.setenv("AGENT_HANDOFF_AUTO_LOCAL", "true")
+    monkeypatch.setenv("AGENT_HANDOFF_ENABLED_TARGETS", '["openclaw"]')
+    monkeypatch.setenv("AGENT_HANDOFF_DEFAULT_TARGET", "openclaw")
+    _local_codex_env(monkeypatch)
+
+    activity_id = await _make_activity(_storage, 410)
+    activity = await _storage.get_activity(activity_id)
+    assert activity is not None
+    session = await local_handoff.create_auto_local_handoff(
+        activity=activity, storage=_storage
+    )
+    assert session is None
+    assert await _storage.list_handoff_sessions_for_activity(activity_id) == []
