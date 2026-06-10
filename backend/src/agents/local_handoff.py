@@ -466,6 +466,19 @@ def _cleanup_root(root: Path) -> None:
         shutil.rmtree(root)
 
 
+def _path_has_symlink(root: Path, path: Path) -> bool:
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        return True
+    current = root
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            return True
+    return False
+
+
 async def _collect_changes(repo_path: Path) -> _ChangeSet:
     code, stdout, stderr = await _run_git(
         ["status", "--porcelain=v1", "-uall"], cwd=repo_path
@@ -473,6 +486,7 @@ async def _collect_changes(repo_path: Path) -> _ChangeSet:
     if code != 0:
         raise RuntimeError(f"git status failed: {_scrub(stderr.strip())}")
 
+    repo_root = repo_path.resolve()
     changes = _ChangeSet()
     for line in stdout.splitlines():
         if len(line) < 4:
@@ -486,13 +500,22 @@ async def _collect_changes(repo_path: Path) -> _ChangeSet:
             changes.deleted.append(path)
             continue
         absolute = repo_path / path
-        if not absolute.is_file():
+        if _path_has_symlink(repo_path, absolute):
+            changes.skipped.append(path)
+            continue
+        try:
+            resolved = absolute.resolve(strict=True)
+            resolved.relative_to(repo_root)
+        except (FileNotFoundError, OSError, ValueError):
+            changes.skipped.append(path)
+            continue
+        if not resolved.is_file():
             continue
         if len(changes.upserts) >= _MAX_PUBLISHED_FILES:
             changes.skipped.append(path)
             continue
         try:
-            changes.upserts.append((path, absolute.read_text(encoding="utf-8")))
+            changes.upserts.append((path, resolved.read_text(encoding="utf-8")))
         except (UnicodeDecodeError, OSError):
             changes.skipped.append(path)
     return changes

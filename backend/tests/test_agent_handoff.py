@@ -1080,6 +1080,50 @@ async def test_local_codex_collect_changes_reads_real_git_workspace(
 
 
 @pytest.mark.asyncio
+async def test_local_codex_collect_changes_skips_symlinked_files(
+    tmp_path: Any,
+) -> None:
+    import asyncio as _asyncio
+
+    from src.agents import local_handoff
+
+    repo_path = tmp_path / "repo"
+    outside_path = tmp_path / "outside-secret.txt"
+    repo_path.mkdir()
+    outside_path.write_text("do not publish me\n", encoding="utf-8")
+
+    async def _git(*args: str) -> None:
+        process = await _asyncio.create_subprocess_exec(
+            "git",
+            *args,
+            cwd=str(repo_path),
+            stdout=_asyncio.subprocess.PIPE,
+            stderr=_asyncio.subprocess.PIPE,
+        )
+        _, stderr = await process.communicate()
+        assert process.returncode == 0, f"git {args[0]}: {stderr.decode()}"
+
+    await _git("init")
+    await _git("config", "user.email", "test@example.com")
+    await _git("config", "user.name", "Test")
+    await _git("config", "core.autocrlf", "false")
+    await _git("config", "core.safecrlf", "false")
+    await _git("config", "commit.gpgsign", "false")
+    (repo_path / "safe.py").write_text("safe = True\n", encoding="utf-8")
+    await _git("add", ".")
+    await _git("commit", "-m", "initial")
+
+    (repo_path / "safe.py").write_text("safe = False\n", encoding="utf-8")
+    (repo_path / "leak.py").symlink_to(outside_path)
+
+    changes = await local_handoff._collect_changes(repo_path)
+
+    upserted = dict(changes.upserts)
+    assert upserted == {"safe.py": "safe = False\n"}
+    assert "leak.py" in changes.skipped
+
+
+@pytest.mark.asyncio
 async def test_local_codex_executor_rejects_remote_websocket_transport(
     monkeypatch: pytest.MonkeyPatch,
     _storage: InMemoryStorage,
