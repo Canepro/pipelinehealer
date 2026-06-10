@@ -1144,3 +1144,17 @@ async def test_auto_local_handoff_defers_to_legacy_webhook_url(
     )
     assert session is None
     assert await _storage.list_handoff_sessions_for_activity(activity_id) == []
+
+
+def test_local_codex_clone_auth_env_keeps_token_out_of_url() -> None:
+    import base64 as _base64
+
+    from src.agents import local_handoff
+
+    env = local_handoff._clone_auth_env("ghp_examplesecrettokenvalue1234567890")
+    assert env is not None
+    assert env["GIT_CONFIG_KEY_0"] == "http.https://github.com/.extraheader"
+    decoded = _base64.b64decode(env["GIT_CONFIG_VALUE_0"].split()[-1]).decode()
+    assert decoded == "x-access-token:ghp_examplesecrettokenvalue1234567890"
+
+    assert local_handoff._clone_auth_env("") is None

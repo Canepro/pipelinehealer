@@ -11,6 +11,7 @@ work is visible from the activity timeline.
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import logging
 import os
@@ -349,11 +350,35 @@ def _scrub(text: str) -> str:
     return re.sub(r"x-access-token:[^@\s]+@", "x-access-token:[REDACTED]@", text)
 
 
-async def _run_git(args: list[str], cwd: Path | None = None) -> tuple[int, str, str]:
+def _clone_auth_env(token: str) -> dict[str, str] | None:
+    """Build git config env that authenticates a clone without exposing the token.
+
+    The Authorization header travels through GIT_CONFIG_* environment variables,
+    so it never appears in process arguments and is never persisted into the
+    cloned repository's .git/config, where the workspace-write agent could read
+    it.
+    """
+    if not token:
+        return None
+    basic = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+    return {
+        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
+        "GIT_CONFIG_VALUE_0": f"AUTHORIZATION: basic {basic}",
+        "GIT_TERMINAL_PROMPT": "0",
+    }
+
+
+async def _run_git(
+    args: list[str],
+    cwd: Path | None = None,
+    extra_env: dict[str, str] | None = None,
+) -> tuple[int, str, str]:
     process = await asyncio.create_subprocess_exec(
         "git",
         *args,
         cwd=str(cwd) if cwd else None,
+        env={**os.environ, **extra_env} if extra_env else None,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -383,17 +408,16 @@ async def _prepare_workspace(
     full_name = activity.repository_name.strip()
     if "/" not in full_name:
         raise RuntimeError(f"Activity repository '{full_name}' is not an owner/repo name")
-    clone_url = (
-        f"https://x-access-token:{token}@github.com/{full_name}.git"
-        if token
-        else f"https://github.com/{full_name}.git"
-    )
+    # The token must never appear in the clone URL: it would persist in the
+    # workspace's .git/config, readable by the workspace-write agent turn.
+    clone_url = f"https://github.com/{full_name}.git"
+    auth_env = _clone_auth_env(token)
     branch = str(activity.source_metadata.get("branch") or "").strip()
     clone_args = ["clone", "--depth", "50"]
     if branch:
         clone_args += ["--branch", branch]
     clone_args += [clone_url, str(repo_path)]
-    code, _, stderr = await _run_git(clone_args)
+    code, _, stderr = await _run_git(clone_args, extra_env=auth_env)
     branch_fallback = False
     if code != 0 and branch:
         # The recorded branch may have been deleted since the run failed. Fall
@@ -407,7 +431,8 @@ async def _prepare_workspace(
         with suppress(Exception):
             shutil.rmtree(repo_path)
         code, _, stderr = await _run_git(
-            ["clone", "--depth", "50", clone_url, str(repo_path)]
+            ["clone", "--depth", "50", clone_url, str(repo_path)],
+            extra_env=auth_env,
         )
         branch_fallback = code == 0
     if code != 0:
