@@ -12,11 +12,9 @@ permissions:
   copilot-requests: write
 engine:
   id: copilot
-  copilot-sdk: true
   model: gpt-4.1
 tracker-id: breaking-change-checker
 tools:
-  cli-proxy: true
   github:
     mode: gh-proxy
     toolsets: [repos]

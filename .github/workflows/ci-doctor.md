@@ -37,7 +37,6 @@ safe-outputs:
     run-failure: "🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance..."
 
 tools:
-  cli-proxy: true
   cache-memory: true
   web-fetch:
   github:
