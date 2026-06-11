@@ -70,6 +70,30 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
   (`c5d6835`, `87f0798`, `357ad13`, `32641b6`, `d3b3d1a`, `2d6891b`), legacy
   lifecycle-marker backfill (`0a895fd`, `c0efbc5`, `43a4e1c`, `69b7b36`), and
   the Mac-lane local deploy handoff script (`dd639f9`, `1b0b737`).
+- Merged the lifecycle E2E verification PR and refreshed its changelog
+  references (`8e69089`, `1b3bf7c`).
+- Reworked the operator surfaces for clearer storytelling and consistent
+  labels: Settings now leads with the editable controls, admin access on
+  Settings and Control Center collapses to a status bar once authenticated,
+  the Dashboard error banner moves above the stats it explains with one
+  consolidated onboarding empty state, the landing hero states the value
+  proposition without decorative filler, and headers, buttons, and filter
+  options normalize to sentence case (`b6407e0`, `4b831da`).
+
+### Fixed
+
+- Local Codex execution availability now includes the stdio transport
+  requirement, so WebSocket deployments skip or reject local handoff up
+  front instead of queuing sessions that fail the same check in the
+  executor (`993f1c1`, `90294e5`).
+- Recompiled the agentic workflows with gh-aw v0.79.4 so scheduled runs work
+  again: the MCP gateway image moves from v0.1.4 to v0.3.25, fixing the
+  `/close` authentication failure that had failed every Breaking Change
+  Checker run (issue #212); the OTLP telemetry import that required unset
+  `GH_AW_OTEL_*` secrets was removed; the experimental cli-proxy and
+  gh-proxy modes were disabled in favor of the stable GitHub MCP path; and
+  the retired `gpt-4.1` model pin was replaced with `gpt-5-mini`
+  (`c3f28bf`, `7ab0bc8`, `7761736`, `0049a24`, `e4e553b`, `fca903b`).
 
 ## [v0.8.10] - 2026-05-31
 
