@@ -1,6 +1,6 @@
 # LLM and Agent Runtime
 
-<!-- LAST_VERIFIED: 42e442f -->
+<!-- LAST_VERIFIED: b619406 -->
 
 This document is the operator-facing contract for how PipelineHealer uses LLMs and agents at runtime.
 
@@ -88,6 +88,7 @@ Precedence and scope:
 - A configured `CODEX_APP_SERVER_HANDOFF_URL` (or legacy `AGENT_HANDOFF_WEBHOOK_URL`) always wins; local execution only serves sessions with no remote receiver.
 - Local execution requires `git` and the `codex` CLI on the backend host, plus a GitHub token with contents and pull-request write access for publishing.
 - The agent turn runs with `sandboxPolicy=workspaceWrite` and no network access; only the clone and the PR publish use the network, and both happen outside the agent sandbox.
+- Local handoff execution requires `CODEX_APP_SERVER_TRANSPORT=stdio`; WebSocket transport is supported for normal model-backed turns but is rejected for workspace-write handoff turns because this process cannot sanitize an already-running WebSocket server environment.
 - Workspace-write turns run with a sanitized subprocess environment: backend and provider secrets (GitHub tokens, Azure keys, `OPENAI_API_KEY`, Infisical tokens, admin keys) are not forwarded. The `codex` CLI must be authenticated through its own credential store (`codex login`); API-key-only codex auth is not supported for local handoff execution.
 - Deletions and binary files are not published automatically; they are listed in the PR body and completion event instead.
 
