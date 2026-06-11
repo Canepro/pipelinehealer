@@ -12,7 +12,7 @@ permissions:
   copilot-requests: write
 engine:
   id: copilot
-  model: gpt-4.1
+  model: gpt-5-mini
 tracker-id: breaking-change-checker
 tools:
   github:
