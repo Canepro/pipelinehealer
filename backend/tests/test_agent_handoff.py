@@ -1167,6 +1167,31 @@ async def test_local_codex_executor_rejects_websocket_transport(
 
 
 @pytest.mark.asyncio
+async def test_local_codex_unavailable_on_websocket_transport(
+    monkeypatch: pytest.MonkeyPatch,
+    _storage: InMemoryStorage,
+) -> None:
+    from src.agents import local_handoff
+    from src.config import get_settings
+
+    monkeypatch.setenv("CODEX_APP_SERVER_TRANSPORT", "websocket")
+    monkeypatch.setenv("CODEX_APP_SERVER_WS_URL", "ws://127.0.0.1:8787/api")
+    monkeypatch.setenv("AGENT_HANDOFF_AUTO_LOCAL", "true")
+    _local_codex_env(monkeypatch)
+
+    assert local_handoff.local_codex_execution_available(get_settings()) is False
+
+    activity_id = await _make_activity(_storage, 410)
+    activity = await _storage.get_activity(activity_id)
+    assert activity is not None
+    session = await local_handoff.create_auto_local_handoff(
+        activity=activity, storage=_storage
+    )
+    assert session is None
+    assert await _storage.list_handoff_sessions_for_activity(activity_id) == []
+
+
+@pytest.mark.asyncio
 async def test_auto_local_handoff_defers_to_legacy_webhook_url(
     monkeypatch: pytest.MonkeyPatch,
     _storage: InMemoryStorage,
