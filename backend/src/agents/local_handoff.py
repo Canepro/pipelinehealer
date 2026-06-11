@@ -22,11 +22,10 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
 from uuid import uuid4
 
 from ..config import get_settings
-from ..llm.codex_app_server import CodexAppServerAgent, is_loopback_websocket_host
+from ..llm.codex_app_server import CodexAppServerAgent
 from ..models import (
     HANDOFF_EVENT_STATUS,
     ActivityRecord,
@@ -247,19 +246,16 @@ class _ChangeSet:
 
 
 def _check_transport_supports_local_workspace(settings: Any) -> None:
-    """Reject transports where the app-server cannot see this host's filesystem."""
+    """Reject transports this process cannot confine for untrusted workspaces."""
     transport = str(
         getattr(settings, "codex_app_server_transport", "stdio") or "stdio"
     ).strip().lower()
     if transport != "websocket":
         return
-    ws_url = str(getattr(settings, "codex_app_server_ws_url", "") or "").strip()
-    host = urlparse(ws_url).hostname or ""
-    if not is_loopback_websocket_host(host):
-        raise RuntimeError(
-            "Local Codex handoff execution requires a Codex App Server that shares "
-            "this host's filesystem; use stdio transport or a loopback WebSocket URL"
-        )
+    raise RuntimeError(
+        "Local Codex handoff execution requires stdio transport so the "
+        "workspace-write Codex process can run with a sanitized environment"
+    )
 
 
 async def _execute(

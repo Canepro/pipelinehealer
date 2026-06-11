@@ -1124,7 +1124,7 @@ async def test_local_codex_collect_changes_skips_symlinked_files(
 
 
 @pytest.mark.asyncio
-async def test_local_codex_executor_rejects_remote_websocket_transport(
+async def test_local_codex_executor_rejects_websocket_transport(
     monkeypatch: pytest.MonkeyPatch,
     _storage: InMemoryStorage,
 ) -> None:
@@ -1136,8 +1136,7 @@ async def test_local_codex_executor_rejects_remote_websocket_transport(
     )
 
     monkeypatch.setenv("CODEX_APP_SERVER_TRANSPORT", "websocket")
-    monkeypatch.setenv("CODEX_APP_SERVER_WS_URL", "wss://codex.internal.example/api")
-    monkeypatch.setenv("CODEX_APP_SERVER_WS_ALLOW_REMOTE", "true")
+    monkeypatch.setenv("CODEX_APP_SERVER_WS_URL", "ws://127.0.0.1:8787/api")
     _local_codex_env(monkeypatch)
 
     activity_id = await _make_activity(_storage, 408)
@@ -1163,7 +1162,8 @@ async def test_local_codex_executor_rejects_remote_websocket_transport(
     assert stored is not None
     assert stored.status == HandoffSessionStatus.FAILED
     messages = await _storage.list_handoff_messages(session.id)
-    assert "shares this host's filesystem" in messages[-1].body
+    assert "requires stdio transport" in messages[-1].body
+    assert "sanitized environment" in messages[-1].body
 
 
 @pytest.mark.asyncio
