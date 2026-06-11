@@ -1,47 +1,52 @@
 ---
+emoji: "⚠️"
+description: Daily analysis of recent commits and merged PRs for breaking CLI changes
 on:
-  schedule: 0 14 * * 1-5
-  skip-if-match: is:issue is:open label:breaking-change in:title "[breaking-change]"
-  workflow_dispatch: null
+  schedule: "daily around 14:00 on weekdays"  # ~2 PM UTC, weekdays only
+  workflow_dispatch:
+  skip-if-match: 'is:issue is:open label:breaking-change in:title "[breaking-change]"'
+max-daily-ai-credits: 10000
 permissions:
   actions: read
   contents: read
+  copilot-requests: write
+engine:
+  id: copilot
+  copilot-sdk: true
+  model: gpt-4.1
+tracker-id: breaking-change-checker
+tools:
+  cli-proxy: true
+  github:
+    mode: gh-proxy
+    toolsets: [repos]
+  bash:
+    - "git diff:*"
+    - "git log:*"
+    - "git show:*"
+    - "cat:*"
+    - "grep:*"
+  edit:
 imports:
-- github/gh-aw/.github/workflows/shared/reporting.md@94662b1dee8ce96c876ba9f33b3ab8be32de82a4
+  - github/gh-aw/.github/workflows/shared/reporting.md@867cc5ed443e258785cfeaadb2f5189743ba1bb3
+  - github/gh-aw/.github/workflows/shared/otlp.md@867cc5ed443e258785cfeaadb2f5189743ba1bb3
 safe-outputs:
   create-issue:
-    assignees: copilot
     expires: 2d
-    labels:
-    - breaking-change
-    - automated-analysis
-    - cookie
-    max: 1
     title-prefix: "[breaking-change] "
+    labels: [breaking-change, automated-analysis, cookie]
+    assignees: copilot
+    max: 1
   messages:
-    footer: "> ⚠️ *Compatibility report by [{workflow_name}]({run_url})*"
+    footer: "> ⚠️ *Compatibility report by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     footer-workflow-recompile: "> 🛠️ *Workflow maintenance by [{workflow_name}]({run_url}) for {repository}*"
-    run-failure: 🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown...
-    run-started: 🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}...
-    run-success: ✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋
-description: Daily analysis of recent commits and merged PRs for breaking CLI changes
-engine: copilot
-model: gpt-4.1
-source: github/gh-aw/.github/workflows/breaking-change-checker.md@94662b1dee8ce96c876ba9f33b3ab8be32de82a4
+    run-started: "🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}..."
+    run-success: "✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋"
+    run-failure: "🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown..."
 timeout-minutes: 10
-tools:
-  bash:
-  - git diff:*
-  - git log:*
-  - git show:*
-  - cat:*
-  - grep:*
-  edit: null
-  github:
-    toolsets:
-    - repos
-tracker-id: breaking-change-checker
+source: github/gh-aw/.github/workflows/breaking-change-checker.md@867cc5ed443e258785cfeaadb2f5189743ba1bb3
 ---
+
 # Breaking Change Checker
 
 You are a code reviewer specialized in identifying breaking CLI changes. Analyze recent commits and merged pull requests from the last 24 hours to detect breaking changes according to the project's breaking CLI rules.
@@ -135,19 +140,6 @@ Is it removing schema fields or making optional fields required?
 
 ## Step 5: Report Findings
 
-### Report Formatting Guidelines
-
-**CRITICAL**: Follow the formatting guidelines from `shared/reporting.md` to create well-structured, readable reports.
-
-**Key Requirements**:
-1. **Header Levels**: Use h3 (###) or lower for all headers in your issue report to maintain proper document hierarchy. The issue title serves as h1, so all content headers should start at h3.
-2. **Progressive Disclosure**: Wrap detailed analysis in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.
-3. **Report Structure**:
-   - **Summary** (always visible): Count of breaking changes, severity assessment
-   - **Critical Breaking Changes** (always visible): List of changes requiring immediate attention
-   - **Detailed Analysis** (in `<details>` tags): Full diff analysis, code examples
-   - **Recommendations** (always visible): Migration steps, version bump guidance
-
 ### If NO Breaking Changes Found
 
 **YOU MUST CALL** the `noop` tool to log completion:
@@ -189,7 +181,7 @@ Create an issue with the following structure:
 | [sha] | [file path] | [category] | [description] | [user impact] |
 
 <details>
-<summary><b>Full Code Diff Analysis</b></summary>
+<summary>Full Code Diff Analysis</summary>
 
 #### Detailed Commit Analysis
 
@@ -202,7 +194,7 @@ Create an issue with the following structure:
 </details>
 
 <details>
-<summary><b>All Commits Analyzed</b></summary>
+<summary>All Commits Analyzed</summary>
 
 [Complete list of commits that were analyzed with their details]
 
