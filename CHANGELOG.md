@@ -8,6 +8,10 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
+- _No unreleased entries yet._
+
+## [v0.9.0] - 2026-06-11
+
 ### Added
 
 - Local Codex App Server handoff execution: handoff sessions targeting
