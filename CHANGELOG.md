@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: b619406 -->
+<!-- LAST_VERIFIED: 3b278e7 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -32,6 +32,10 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - Settings UI section "Local Codex Execution" under Assign-to-Agent, and a
   Codex target status chip that reports "Local execution" when the local
   lane is active.
+- Lifecycle E2E verification command and runbook: `bash scripts/ph.sh
+  demo:lifecycle` now validates the artifact lifecycle loop across issue
+  markers, duplicate reuse, and green-run close behavior
+  (`aa1fd6d`, `c81ef6d`, `43ca101`).
 
 ### Changed
 
@@ -43,7 +47,8 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
   requires it on the backend host with stdio transport.
 - Local execution refuses WebSocket Codex App Server transport for handoff
   turns because the backend cannot sanitize an already-running WebSocket server
-  environment before handing it an untrusted workspace (`b619406`).
+  environment before handing it an untrusted workspace
+  (`b619406`, `271fd0c`, `81dc5b6`).
 - Workspace-write Codex turns run with a sanitized subprocess environment and
   token-free clone URLs: backend and provider secrets (GitHub tokens, Azure
   keys, `OPENAI_API_KEY`, Infisical tokens, admin keys) are not readable by
@@ -57,6 +62,9 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
   doc verification markers (`7986ebc`, `9ce45df`, `bea51f1`).
 - Merged the local Codex handoff PR and backfilled its release-scope changelog
   references (`83b9789`, `765ccb0`).
+- Addressed lifecycle E2E review findings around ShellCheck handling,
+  webhook patch failure reporting, `git` preflight coverage, and
+  post-dispatch issue selection (`56e95a2`, `3b278e7`).
 - Recorded post-v0.8.10 merged work already on `main`: codex runtime roadmap
   and log-compaction docs (`4019f4b`, `f4755fa`), artifact lifecycle hygiene
   (`c5d6835`, `87f0798`, `357ad13`, `32641b6`, `d3b3d1a`, `2d6891b`), legacy

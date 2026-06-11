@@ -46,6 +46,7 @@ Commands:
   webhook:disable   Disable Azure webhook for one repo
   rollout:canary    Configure issue-only canary mode for selected repos and attach webhooks
   demo:e2e          Run scripted Azure E2E demo flow with CI-signal verification
+  demo:lifecycle    Verify artifact lifecycle loop (markers, dedup, green-close)
   demo:proof        Show latest CI runs, PRs, and issues for an explicit repo
   demo:reset        Reset demo fixture repo for dependency/lint failures
   warm              Set backend/frontend min-replicas to 1
@@ -80,6 +81,7 @@ Examples:
   bash scripts/ph.sh rollout:canary --repos owner/repo1,owner/repo2
   bash scripts/ph.sh demo:e2e --repo owner/repo --skip-webhook-sync
   bash scripts/ph.sh demo:e2e --repo owner/repo --triggers dependency,lint,test,build_config,timeout --wait-seconds 180 --ci-signal-wait-seconds 180 --strict
+  bash scripts/ph.sh demo:lifecycle --repo owner/repo --strict
   bash scripts/ph.sh demo:proof --repo owner/repo
   bash scripts/ph.sh settings:persist --from-settings
   bash scripts/ph.sh settings:persist:verify --from-settings
@@ -2547,6 +2549,10 @@ case "$COMMAND" in
   demo:e2e)
     require_azure "demo:e2e"
     bash "$SCRIPT_DIR/demo/run_e2e_azure.sh" "$@"
+    ;;
+  demo:lifecycle)
+    require_azure "demo:lifecycle"
+    bash "$SCRIPT_DIR/demo/run_lifecycle_e2e.sh" "$@"
     ;;
   demo:proof)
     cmd_demo_proof "$@"

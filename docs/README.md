@@ -1,6 +1,6 @@
 # Docs Index
 
-<!-- LAST_VERIFIED: bd24039 -->
+<!-- LAST_VERIFIED: 3b278e7 -->
 
 Use this index to find the canonical doc quickly. If a topic appears in both an active doc and `docs/archive/`, the active doc wins.
 
@@ -23,6 +23,7 @@ If you are validating the runtime configuration model specifically, start with:
 ## Runbooks
 
 - `runbooks/DEMO_SCRIPT.md` - concise recording and narration guide
+- `runbooks/LIFECYCLE_E2E_VERIFICATION.md` - artifact lifecycle loop verification (markers, dedup, green-close)
 - `runbooks/LOCAL_DEMO_RUNBOOK.md` - end-to-end local and Azure operator runbook
 - `runbooks/LOGS_AND_INVESTIGATION.md` - troubleshooting and evidence collection guide
 - `runbooks/KUBERNETES_HELM_RUNBOOK.md` - secondary Helm/Kubernetes deployment path
