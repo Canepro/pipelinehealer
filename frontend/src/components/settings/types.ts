@@ -52,6 +52,12 @@ export type SettingsFormState = {
   agent_handoff_max_retries: number
   agent_handoff_default_target: 'codex_app_server' | 'openclaw' | 'hermes' | 'custom'
   agent_handoff_enabled_targets: Array<'codex_app_server' | 'openclaw' | 'hermes' | 'custom'>
+  agent_handoff_local_codex_enabled: boolean
+  agent_handoff_local_codex_open_pr: boolean
+  agent_handoff_local_codex_timeout_ms: number
+  agent_handoff_local_codex_workspace_root: string
+  agent_handoff_local_max_concurrent: number
+  agent_handoff_auto_local: boolean
   ph_allowed_repos: string[]
   azure_openai_endpoint: string
   azure_openai_deployment_name: string
@@ -232,6 +238,12 @@ export const toSettingsForm = (data: AppSettings): SettingsFormState => ({
     data.agent_handoff_enabled_targets?.filter((target) =>
       ['codex_app_server', 'openclaw', 'hermes', 'custom'].includes(target),
     ) ?? ['codex_app_server'],
+  agent_handoff_local_codex_enabled: data.agent_handoff_local_codex_enabled ?? false,
+  agent_handoff_local_codex_open_pr: data.agent_handoff_local_codex_open_pr ?? true,
+  agent_handoff_local_codex_timeout_ms: data.agent_handoff_local_codex_timeout_ms ?? 600000,
+  agent_handoff_local_codex_workspace_root: data.agent_handoff_local_codex_workspace_root ?? '',
+  agent_handoff_local_max_concurrent: data.agent_handoff_local_max_concurrent ?? 1,
+  agent_handoff_auto_local: data.agent_handoff_auto_local ?? false,
   ph_allowed_repos: data.ph_allowed_repos ?? [],
   azure_openai_endpoint: data.azure_openai_endpoint ?? '',
   azure_openai_deployment_name: data.azure_openai_deployment_name ?? '',
@@ -380,6 +392,18 @@ export const SETTING_DESCRIPTIONS: Record<string, string> = {
     'Default external-agent target for durable handoff sessions.',
   agent_handoff_enabled_targets:
     'Targets allowed for durable external-agent handoff sessions.',
+  agent_handoff_local_codex_enabled:
+    'Run codex_app_server handoff sessions on the in-built Codex App Server runtime when no remote receiver URL is configured. Requires git and the codex CLI on the backend host.',
+  agent_handoff_local_codex_open_pr:
+    'Publish file changes from local Codex handoff runs as a GitHub pull request. When off, changes are recorded in the session events only.',
+  agent_handoff_local_codex_timeout_ms:
+    'Turn timeout for local Codex handoff execution, in milliseconds (60000 to 3600000).',
+  agent_handoff_local_codex_workspace_root:
+    'Directory where local Codex handoff runs clone repositories. Empty uses the system temp directory; workspaces are removed after each run.',
+  agent_handoff_local_max_concurrent:
+    'Maximum number of local Codex handoff sessions executing at the same time (1 to 4).',
+  agent_handoff_auto_local:
+    'Automatically create a local Codex handoff session when remediation fails. Requires local Codex execution to be enabled.',
   verify_webhook_signature_in_development:
     'Require GitHub webhook signature verification even in development mode. Usually off for local testing.',
   ph_allowed_repos:

@@ -1,6 +1,13 @@
 # PipelineHealer Backend Dockerfile
 FROM python:3.12-slim
 
+# git is required for local Codex handoff execution (workspace clones).
+# The codex CLI is not bundled; install it in a derived image or use a
+# loopback Codex App Server when enabling AGENT_HANDOFF_LOCAL_CODEX_ENABLED.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install uv for fast dependency management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 

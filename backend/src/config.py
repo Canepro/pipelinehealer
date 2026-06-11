@@ -528,6 +528,36 @@ class Settings(BaseSettings):
         default="",
         description="Optional webhook endpoint for Hermes handoff delivery",
     )
+    agent_handoff_local_codex_enabled: bool = Field(
+        default=False,
+        description=(
+            "Execute codex_app_server handoff sessions on the in-built Codex App Server "
+            "runtime when no remote handoff URL is configured"
+        ),
+    )
+    agent_handoff_local_codex_open_pr: bool = Field(
+        default=True,
+        description="Publish local Codex handoff changes as a GitHub pull request",
+    )
+    agent_handoff_local_codex_timeout_ms: int = Field(
+        default=600000,
+        description="Turn timeout (milliseconds) for local Codex handoff execution",
+    )
+    agent_handoff_local_codex_workspace_root: str = Field(
+        default="",
+        description="Directory for local Codex handoff workspaces (system temp when empty)",
+    )
+    agent_handoff_local_max_concurrent: int = Field(
+        default=1,
+        description="Maximum concurrent local Codex handoff executions",
+    )
+    agent_handoff_auto_local: bool = Field(
+        default=False,
+        description=(
+            "Automatically create a local Codex handoff session when remediation "
+            "fails and local Codex execution is enabled"
+        ),
+    )
     infisical_project_id: str = Field(
         default="",
         description="Infisical project id for runtime secret storage",
@@ -939,6 +969,24 @@ class Settings(BaseSettings):
         """Validate bounded retry count for outbound handoff webhook requests."""
         if value < 0 or value > 5:
             raise ValueError("AGENT_HANDOFF_MAX_RETRIES must be between 0 and 5")
+        return value
+
+    @field_validator("agent_handoff_local_codex_timeout_ms")
+    @classmethod
+    def validate_agent_handoff_local_codex_timeout_ms(cls, value: int) -> int:
+        """Validate bounded turn timeout for local Codex handoff execution."""
+        if value < 60000 or value > 3600000:
+            raise ValueError(
+                "AGENT_HANDOFF_LOCAL_CODEX_TIMEOUT_MS must be between 60000 and 3600000"
+            )
+        return value
+
+    @field_validator("agent_handoff_local_max_concurrent")
+    @classmethod
+    def validate_agent_handoff_local_max_concurrent(cls, value: int) -> int:
+        """Validate bounded concurrency for local Codex handoff execution."""
+        if value < 1 or value > 4:
+            raise ValueError("AGENT_HANDOFF_LOCAL_MAX_CONCURRENT must be between 1 and 4")
         return value
 
     @field_validator("jenkins_bridge_max_skew_seconds")

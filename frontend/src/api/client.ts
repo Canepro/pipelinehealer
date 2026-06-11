@@ -145,7 +145,7 @@ export interface Activity {
   source_metadata?: Record<string, unknown>
   agent_handoff_audit?: Array<{
     status: 'copied' | 'queued' | 'failed' | 'disabled'
-    mode: 'copy_only' | 'webhook'
+    mode: 'copy_only' | 'webhook' | 'local'
     actor?: string | null
     request_id?: string | null
     created_at: string
@@ -231,6 +231,12 @@ export interface AppSettings {
   agent_handoff_max_retries: number
   agent_handoff_default_target: ExternalAgentTarget
   agent_handoff_enabled_targets: ExternalAgentTarget[]
+  agent_handoff_local_codex_enabled: boolean
+  agent_handoff_local_codex_open_pr: boolean
+  agent_handoff_local_codex_timeout_ms: number
+  agent_handoff_local_codex_workspace_root: string
+  agent_handoff_local_max_concurrent: number
+  agent_handoff_auto_local: boolean
   codex_app_server_handoff_configured: boolean
   openclaw_handoff_configured: boolean
   hermes_handoff_configured: boolean
@@ -376,6 +382,7 @@ export interface AgentHandoffConfig {
   default_target: ExternalAgentTarget
   enabled_targets: ExternalAgentTarget[]
   target_configured: Record<ExternalAgentTarget, boolean>
+  local_codex_enabled?: boolean
   reason: string
 }
 
@@ -458,6 +465,12 @@ export interface AdminSettingsUpdate {
   agent_handoff_max_retries?: number
   agent_handoff_default_target?: ExternalAgentTarget
   agent_handoff_enabled_targets?: ExternalAgentTarget[]
+  agent_handoff_local_codex_enabled?: boolean
+  agent_handoff_local_codex_open_pr?: boolean
+  agent_handoff_local_codex_timeout_ms?: number
+  agent_handoff_local_codex_workspace_root?: string
+  agent_handoff_local_max_concurrent?: number
+  agent_handoff_auto_local?: boolean
   ph_allowed_repos?: string[]
   llm_provider?: 'azure_openai' | 'openai_compatible' | 'codex_app_server' | 'custom'
   azure_openai_endpoint?: string

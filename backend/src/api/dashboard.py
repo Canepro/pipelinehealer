@@ -18,11 +18,13 @@ import httpx
 from dotenv import dotenv_values
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
+from ..agents import local_handoff
 from ..config import get_settings, load_settings_snapshot
 from ..llm.adapters import get_llm_provider_adapter
 from ..llm.capability import build_llm_capability_snapshot
 from ..llm.providers import resolve_llm_provider
 from ..models import (
+    HANDOFF_EVENT_STATUS,
     ActivityRecord,
     AdminSecretsUpdateRequest,
     AdminSettingsAuditEntry,
@@ -749,6 +751,12 @@ def _build_settings_view(storage: ActivityStorage | None = None) -> AppSettingsV
         agent_handoff_max_retries=settings.agent_handoff_max_retries,
         agent_handoff_default_target=settings.agent_handoff_default_target,
         agent_handoff_enabled_targets=list(settings.agent_handoff_enabled_targets),
+        agent_handoff_local_codex_enabled=settings.agent_handoff_local_codex_enabled,
+        agent_handoff_local_codex_open_pr=settings.agent_handoff_local_codex_open_pr,
+        agent_handoff_local_codex_timeout_ms=settings.agent_handoff_local_codex_timeout_ms,
+        agent_handoff_local_codex_workspace_root=settings.agent_handoff_local_codex_workspace_root,
+        agent_handoff_local_max_concurrent=settings.agent_handoff_local_max_concurrent,
+        agent_handoff_auto_local=settings.agent_handoff_auto_local,
         codex_app_server_handoff_configured=bool(settings.codex_app_server_handoff_url.strip()),
         openclaw_handoff_configured=bool(settings.openclaw_handoff_url.strip()),
         hermes_handoff_configured=bool(settings.hermes_handoff_url.strip()),
@@ -1699,9 +1707,12 @@ def _agent_handoff_config_view() -> AgentHandoffConfigView:
     settings = get_settings()
     mode = AgentHandoffMode(settings.agent_handoff_mode)
     webhook_configured = bool(settings.agent_handoff_webhook_url.strip())
+    local_codex_enabled = bool(settings.agent_handoff_local_codex_enabled)
     enabled_targets = [ExternalAgentTarget(value) for value in settings.agent_handoff_enabled_targets]
     target_configured = {
-        ExternalAgentTarget.CODEX_APP_SERVER: bool(settings.codex_app_server_handoff_url.strip()),
+        ExternalAgentTarget.CODEX_APP_SERVER: (
+            bool(settings.codex_app_server_handoff_url.strip()) or local_codex_enabled
+        ),
         ExternalAgentTarget.OPENCLAW: bool(settings.openclaw_handoff_url.strip()),
         ExternalAgentTarget.HERMES: bool(settings.hermes_handoff_url.strip()),
         ExternalAgentTarget.CUSTOM: webhook_configured,
@@ -1716,9 +1727,10 @@ def _agent_handoff_config_view() -> AgentHandoffConfigView:
             default_target=ExternalAgentTarget(settings.agent_handoff_default_target),
             enabled_targets=enabled_targets,
             target_configured=target_configured,
+            local_codex_enabled=local_codex_enabled,
             reason="disabled_by_runtime",
         )
-    if mode == AgentHandoffMode.WEBHOOK and not webhook_configured:
+    if mode == AgentHandoffMode.WEBHOOK and not webhook_configured and not local_codex_enabled:
         return AgentHandoffConfigView(
             enabled=True,
             mode=mode,
@@ -1728,6 +1740,7 @@ def _agent_handoff_config_view() -> AgentHandoffConfigView:
             default_target=ExternalAgentTarget(settings.agent_handoff_default_target),
             enabled_targets=enabled_targets,
             target_configured=target_configured,
+            local_codex_enabled=local_codex_enabled,
             reason="missing_webhook_url",
         )
     return AgentHandoffConfigView(
@@ -1739,6 +1752,7 @@ def _agent_handoff_config_view() -> AgentHandoffConfigView:
         default_target=ExternalAgentTarget(settings.agent_handoff_default_target),
         enabled_targets=enabled_targets,
         target_configured=target_configured,
+        local_codex_enabled=local_codex_enabled,
         reason="ok",
     )
 
@@ -1950,17 +1964,7 @@ _HANDOFF_TARGET_LABELS = {
     ExternalAgentTarget.HERMES: "agent:hermes",
     ExternalAgentTarget.CUSTOM: "agent:custom",
 }
-_HANDOFF_EVENT_STATUS = {
-    HandoffEventType.ACKNOWLEDGED: HandoffSessionStatus.ACKNOWLEDGED,
-    HandoffEventType.STARTED_WORK: HandoffSessionStatus.IN_PROGRESS,
-    HandoffEventType.NEEDS_MORE_INFO: HandoffSessionStatus.WAITING_ON_PIPELINEHEALER,
-    HandoffEventType.PR_OPENED: HandoffSessionStatus.PR_OPENED,
-    HandoffEventType.ISSUE_COMMENTED: HandoffSessionStatus.IN_PROGRESS,
-    HandoffEventType.LABEL_APPLIED: HandoffSessionStatus.IN_PROGRESS,
-    HandoffEventType.WORKFLOW_RERUN: HandoffSessionStatus.IN_PROGRESS,
-    HandoffEventType.COMPLETED: HandoffSessionStatus.COMPLETED,
-    HandoffEventType.FAILED: HandoffSessionStatus.FAILED,
-}
+_HANDOFF_EVENT_STATUS = HANDOFF_EVENT_STATUS
 
 
 def _handoff_labels(target: ExternalAgentTarget, extra: list[str]) -> list[str]:
@@ -2194,6 +2198,11 @@ async def update_app_settings(
             changes["agent_handoff_webhook_allowlist"] = _normalize_hostname_allowlist(allowlist)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    if "agent_handoff_local_codex_workspace_root" in changes:
+        changes["agent_handoff_local_codex_workspace_root"] = str(
+            changes["agent_handoff_local_codex_workspace_root"]
+        ).strip()
 
     if "agent_handoff_default_target" in changes:
         target = str(changes["agent_handoff_default_target"]).strip().lower()
@@ -3092,7 +3101,17 @@ async def create_handoff_session(
     target_url = _target_handoff_url(payload.target)
     parsed = urlparse(target_url) if target_url else None
     destination_host = (parsed.hostname or "").strip().lower() if parsed else ""
-    delivery_requested = payload.send and settings.agent_handoff_mode == AgentHandoffMode.WEBHOOK.value
+    local_execution = (
+        payload.send
+        and payload.target == ExternalAgentTarget.CODEX_APP_SERVER
+        and not target_url
+        and local_handoff.local_codex_execution_available(settings)
+    )
+    delivery_requested = (
+        payload.send
+        and not local_execution
+        and settings.agent_handoff_mode == AgentHandoffMode.WEBHOOK.value
+    )
     if delivery_requested and target_url and (
         parsed is None
         or parsed.scheme not in {"http", "https"}
@@ -3153,7 +3172,13 @@ async def create_handoff_session(
     response_message = "Handoff session recorded"
     error_code: str | None = None
     mode = AgentHandoffMode.COPY_ONLY
-    if delivery_requested and target_url:
+    if local_execution:
+        mode = AgentHandoffMode.LOCAL
+        delivery_status = AgentHandoffStatus.QUEUED
+        session.status = HandoffSessionStatus.QUEUED
+        session.metadata["execution"] = "local_codex"
+        response_message = "Handoff session queued for local Codex App Server execution"
+    elif delivery_requested and target_url:
         mode = AgentHandoffMode.WEBHOOK
         outbound_payload = {
             "delivery_id": session.delivery_id,
@@ -3210,6 +3235,13 @@ async def create_handoff_session(
         mode=mode,
         error=error_code,
     )
+    if local_execution:
+        local_handoff.schedule_local_codex_handoff(
+            session=session,
+            activity=activity,
+            context=sanitized_context,
+            storage=storage,
+        )
     return HandoffSessionCreateResponse(
         session=session,
         initial_message=initial_message,

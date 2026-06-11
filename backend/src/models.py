@@ -78,6 +78,7 @@ class AgentHandoffMode(StrEnum):
 
     COPY_ONLY = "copy_only"
     WEBHOOK = "webhook"
+    LOCAL = "local"
 
 
 class AgentHandoffStatus(StrEnum):
@@ -132,6 +133,21 @@ class HandoffEventType(StrEnum):
     WORKFLOW_RERUN = "workflow_rerun"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+# Session status implied by each callback or internal event type. Event types
+# missing here (e.g. DELEGATED) leave the session status unchanged.
+HANDOFF_EVENT_STATUS: dict[HandoffEventType, HandoffSessionStatus] = {
+    HandoffEventType.ACKNOWLEDGED: HandoffSessionStatus.ACKNOWLEDGED,
+    HandoffEventType.STARTED_WORK: HandoffSessionStatus.IN_PROGRESS,
+    HandoffEventType.NEEDS_MORE_INFO: HandoffSessionStatus.WAITING_ON_PIPELINEHEALER,
+    HandoffEventType.PR_OPENED: HandoffSessionStatus.PR_OPENED,
+    HandoffEventType.ISSUE_COMMENTED: HandoffSessionStatus.IN_PROGRESS,
+    HandoffEventType.LABEL_APPLIED: HandoffSessionStatus.IN_PROGRESS,
+    HandoffEventType.WORKFLOW_RERUN: HandoffSessionStatus.IN_PROGRESS,
+    HandoffEventType.COMPLETED: HandoffSessionStatus.COMPLETED,
+    HandoffEventType.FAILED: HandoffSessionStatus.FAILED,
+}
 
 
 class HandoffGitHubRefs(BaseModel):
@@ -573,6 +589,12 @@ class AppSettingsView(BaseModel):
     agent_handoff_max_retries: int
     agent_handoff_default_target: str
     agent_handoff_enabled_targets: list[str]
+    agent_handoff_local_codex_enabled: bool
+    agent_handoff_local_codex_open_pr: bool
+    agent_handoff_local_codex_timeout_ms: int
+    agent_handoff_local_codex_workspace_root: str
+    agent_handoff_local_max_concurrent: int
+    agent_handoff_auto_local: bool
     codex_app_server_handoff_configured: bool
     openclaw_handoff_configured: bool
     hermes_handoff_configured: bool
@@ -692,6 +714,14 @@ class AdminSettingsUpdateRequest(BaseModel):
     agent_handoff_max_retries: int | None = Field(default=None, ge=0, le=5)
     agent_handoff_default_target: str | None = None
     agent_handoff_enabled_targets: list[str] | None = None
+    agent_handoff_local_codex_enabled: bool | None = None
+    agent_handoff_local_codex_open_pr: bool | None = None
+    agent_handoff_local_codex_timeout_ms: int | None = Field(
+        default=None, ge=60000, le=3600000
+    )
+    agent_handoff_local_codex_workspace_root: str | None = None
+    agent_handoff_local_max_concurrent: int | None = Field(default=None, ge=1, le=4)
+    agent_handoff_auto_local: bool | None = None
     ph_allowed_repos: list[str] | None = None
     llm_provider: str | None = None
     azure_openai_endpoint: str | None = None
@@ -799,6 +829,7 @@ class AgentHandoffConfigView(BaseModel):
     default_target: ExternalAgentTarget = ExternalAgentTarget.CODEX_APP_SERVER
     enabled_targets: list[ExternalAgentTarget] = Field(default_factory=list)
     target_configured: dict[ExternalAgentTarget, bool] = Field(default_factory=dict)
+    local_codex_enabled: bool = False
     reason: str = "ok"
 
 

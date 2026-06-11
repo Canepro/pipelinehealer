@@ -1939,6 +1939,114 @@ export default function AdminControlsForm({
 
               <Separator />
 
+              <div className="space-y-1">
+                <Label>Local Codex Execution</Label>
+                <p className="text-xs text-[var(--ph-muted)]">
+                  Run codex_app_server handoff sessions on this backend when no
+                  remote receiver URL is configured. The backend host needs git,
+                  the codex CLI, and a GitHub token with pull-request write
+                  access.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <SwitchField
+                  label="Enable Local Codex Execution"
+                  field="agent_handoff_local_codex_enabled"
+                  checked={form.agent_handoff_local_codex_enabled}
+                  onChange={(v) =>
+                    setForm((p) => ({
+                      ...p,
+                      agent_handoff_local_codex_enabled: v,
+                    }))
+                  }
+                  metadata={handoffMetadata.agent_handoff_local_codex_enabled}
+                />
+                <SwitchField
+                  label="Open Pull Requests"
+                  field="agent_handoff_local_codex_open_pr"
+                  checked={form.agent_handoff_local_codex_open_pr}
+                  onChange={(v) =>
+                    setForm((p) => ({
+                      ...p,
+                      agent_handoff_local_codex_open_pr: v,
+                    }))
+                  }
+                  metadata={handoffMetadata.agent_handoff_local_codex_open_pr}
+                />
+                <SwitchField
+                  label="Auto Handoff on Failed Remediation"
+                  field="agent_handoff_auto_local"
+                  checked={form.agent_handoff_auto_local}
+                  onChange={(v) =>
+                    setForm((p) => ({ ...p, agent_handoff_auto_local: v }))
+                  }
+                  metadata={handoffMetadata.agent_handoff_auto_local}
+                />
+                <FieldGroup
+                  label="Turn Timeout (ms)"
+                  field="agent_handoff_local_codex_timeout_ms"
+                  metadata={handoffMetadata.agent_handoff_local_codex_timeout_ms}
+                >
+                  <Input
+                    type="number"
+                    min={60000}
+                    max={3600000}
+                    step={60000}
+                    value={form.agent_handoff_local_codex_timeout_ms}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        agent_handoff_local_codex_timeout_ms: Number(
+                          e.target.value,
+                        ),
+                      }))
+                    }
+                  />
+                </FieldGroup>
+                <FieldGroup
+                  label="Max Concurrent Runs"
+                  field="agent_handoff_local_max_concurrent"
+                  metadata={handoffMetadata.agent_handoff_local_max_concurrent}
+                >
+                  <Input
+                    type="number"
+                    min={1}
+                    max={4}
+                    value={form.agent_handoff_local_max_concurrent}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        agent_handoff_local_max_concurrent: Number(
+                          e.target.value,
+                        ),
+                      }))
+                    }
+                  />
+                </FieldGroup>
+                <FieldGroup
+                  label="Workspace Root"
+                  field="agent_handoff_local_codex_workspace_root"
+                  metadata={
+                    handoffMetadata.agent_handoff_local_codex_workspace_root
+                  }
+                >
+                  <Input
+                    type="text"
+                    value={form.agent_handoff_local_codex_workspace_root}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        agent_handoff_local_codex_workspace_root:
+                          e.target.value,
+                      }))
+                    }
+                    placeholder="System temp directory"
+                  />
+                </FieldGroup>
+              </div>
+
+              <Separator />
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <StatusChip
                   label="Runtime"
@@ -1983,9 +2091,12 @@ export default function AdminControlsForm({
                 <StatusChip
                   label="Codex App Server"
                   value={
-                    data.codex_app_server_handoff_configured
+                    data.codex_app_server_handoff_configured ||
+                    data.agent_handoff_webhook_configured
                       ? "Webhook configured"
-                      : "Record-only until URL exists"
+                      : form.agent_handoff_local_codex_enabled
+                        ? "Local execution"
+                        : "Record-only until URL exists"
                   }
                   ok={form.agent_handoff_enabled_targets.includes(
                     "codex_app_server",

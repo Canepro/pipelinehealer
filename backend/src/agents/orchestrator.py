@@ -36,8 +36,8 @@ from ..models import (
     LogAnalysis,
     MCPActionAuditEntry,
     MCPModelPath,
-    RemediationStatus,
     RemediationAction,
+    RemediationStatus,
     WorkflowRunEvent,
 )
 from ..storage import ActivityStorage
@@ -47,6 +47,7 @@ from ..tools.learning_context import LearningContextRetriever, extract_learning_
 from ..tools.mcp_provider import get_mcp_provider
 from .base import create_cloud_agent, get_agent_prompt
 from .diagnosis import DiagnosisAgent
+from .local_handoff import create_auto_local_handoff
 from .log_analyzer import LogAnalyzerAgent
 from .remediation import RemediationAgent
 
@@ -1625,6 +1626,20 @@ class OrchestratorAgent:
             created_id = await self._storage.create_activity(activity)
             activity.id = created_id
 
+        # Record the failing head branch so handoff workspace clones target it
+        # instead of the default branch. Fork-PR head branches live in the head
+        # repository, not the base repo, so only same-repo runs are recorded.
+        # Persisted by the first status update.
+        head_branch = (event.workflow_run.head_branch or "").strip()
+        head_repo = (
+            (event.workflow_run.head_repository.full_name or "")
+            if event.workflow_run.head_repository
+            else ""
+        ).strip()
+        same_repo = not head_repo or head_repo.lower() == event.repository.full_name.lower()
+        if head_branch and same_repo and "branch" not in activity.source_metadata:
+            activity.source_metadata["branch"] = head_branch
+
         # Capture MCP runtime path for per-activity observability, even when disabled.
         try:
             mcp_health = get_mcp_provider(self._settings).health(self._settings)
@@ -1844,6 +1859,8 @@ class OrchestratorAgent:
                 logger.warning(f"Remediation failed: {result.error_message}")
 
             await self._storage.update_activity(activity)
+            if activity.status == RemediationStatus.FAILED:
+                await self._maybe_schedule_auto_handoff(activity)
             return activity
 
           except Exception as e:
@@ -2104,6 +2121,8 @@ class OrchestratorAgent:
                 activity.status = RemediationStatus.FAILED
                 activity.error = result.error_message
             await self._storage.update_activity(activity)
+            if activity.status == RemediationStatus.FAILED:
+                await self._maybe_schedule_auto_handoff(activity)
             return activity
         except Exception as exc:
             logger.exception("Jenkins bridge pipeline failed: %s", exc)
@@ -2111,6 +2130,22 @@ class OrchestratorAgent:
             activity.error = str(exc)
             await self._storage.update_activity(activity)
             return activity
+
+    async def _maybe_schedule_auto_handoff(self, activity: ActivityRecord) -> None:
+        """Delegate a failed remediation to the local Codex handoff runtime.
+
+        Gated inside create_auto_local_handoff on AGENT_HANDOFF_ENABLED,
+        AGENT_HANDOFF_AUTO_LOCAL, and AGENT_HANDOFF_LOCAL_CODEX_ENABLED; failures
+        here must never break the healing pipeline.
+        """
+        try:
+            await create_auto_local_handoff(activity=activity, storage=self._storage)
+        except Exception:
+            logger.debug(
+                "Auto local handoff scheduling failed for activity %s",
+                activity.id,
+                exc_info=True,
+            )
 
     async def get_status(self, activity_id: str) -> ActivityRecord | None:
         """Get the status of a healing activity.

@@ -1,6 +1,6 @@
 # PipelineHealer API Reference
 
-<!-- LAST_VERIFIED: 0a895fd -->
+<!-- LAST_VERIFIED: 42e442f -->
 
 This document describes the PipelineHealer backend REST API, authentication model, request/response contracts, and best practices.
 
@@ -571,7 +571,8 @@ Behavior:
 - Appends an outbound `HandoffMessage` with event type `delegated`.
 - Applies redaction before payload audit and delivery.
 - Uses target-specific URLs when configured: `CODEX_APP_SERVER_HANDOFF_URL`, `OPENCLAW_HANDOFF_URL`, or `HERMES_HANDOFF_URL`.
-- Falls back to recorded-only delivery when a target URL is not configured.
+- Local Codex execution: when `target=codex_app_server`, `send=true`, no remote URL is configured, and `AGENT_HANDOFF_LOCAL_CODEX_ENABLED=true`, the session runs on the in-built Codex App Server runtime instead of failing. The session is returned as `queued` with audit mode `local`, then a background executor clones the repository, runs one workspace-write Codex turn, optionally opens a pull request, and records `started_work`, `pr_opened`, `completed`, or `failed` events on the session. A configured remote URL always takes precedence.
+- Falls back to recorded-only delivery when a target URL is not configured and local execution is not enabled.
 - Adds standard labels: `pipelinehealer:detected`, `pipelinehealer:delegated`, `pipelinehealer:external-agent`, and one `agent:*` label.
 
 **Response** `200 OK`:

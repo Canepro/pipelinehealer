@@ -1,6 +1,6 @@
 # Feature: Settings And Policy Controls
 
-<!-- LAST_VERIFIED: d417254 -->
+<!-- LAST_VERIFIED: 42e442f -->
 
 This guide explains runtime controls, persistence behavior, and governance guardrails.
 
@@ -39,6 +39,8 @@ This guide explains runtime controls, persistence behavior, and governance guard
   - handoff mode
   - retry/timeout values
   - webhook allowlist hosts
+  - local Codex execution controls: enable switch, PR publishing, turn timeout, workspace root, concurrency, and auto-handoff on failed remediation
+- Local Codex execution runs `codex_app_server` handoff sessions on the in-built runtime when no remote receiver URL is configured. A configured `CODEX_APP_SERVER_HANDOFF_URL` (or legacy webhook URL) always takes precedence.
 - Secret-bearing integration values use dedicated write-only or deployment-managed paths:
   - receiver URL in the runtime secrets panel
   - downstream notification webhook URLs in the receiver deployment

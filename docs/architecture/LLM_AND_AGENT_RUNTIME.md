@@ -1,6 +1,6 @@
 # LLM and Agent Runtime
 
-<!-- LAST_VERIFIED: 044aa39 -->
+<!-- LAST_VERIFIED: 42e442f -->
 
 This document is the operator-facing contract for how PipelineHealer uses LLMs and agents at runtime.
 
@@ -59,13 +59,37 @@ Settings:
 
 Runtime behavior:
 - PipelineHealer starts an ephemeral Codex App Server thread for model-backed turns.
-- The turn uses read-only sandbox settings and `approvalPolicy=never`.
-- This provider is for diagnosis/remediation model work. It is separate from external-agent handoff.
+- Model-backed turns use read-only sandbox settings and `approvalPolicy=never`.
+- This provider serves diagnosis/remediation model work. Handoff sessions can also run on it locally (next section).
 
 Important distinction:
 - `LLM_PROVIDER=codex_app_server` means PipelineHealer asks Codex App Server for model output.
-- `target=codex_app_server` in a handoff session means PipelineHealer delegates work to an external agent runtime that may have connected tools such as GitHub.
+- `target=codex_app_server` in a handoff session means PipelineHealer delegates work to an agent runtime. When `CODEX_APP_SERVER_HANDOFF_URL` is set, that runtime is a remote receiver; otherwise, with `AGENT_HANDOFF_LOCAL_CODEX_ENABLED=true`, the in-built Codex App Server executes the session locally.
 - OpenClaw and Hermes are handoff targets, not LLM providers.
+
+## Local Codex Handoff Execution
+
+When a handoff session targets `codex_app_server`, `send=true`, and no remote receiver URL is configured, PipelineHealer can execute the session itself instead of failing with `target_url_not_configured`. The executor:
+
+1. clones the activity's repository into a scratch workspace (using the configured GitHub token),
+2. runs one workspace-write Codex App Server turn against the session goal and context,
+3. publishes any file changes as a pull request on a `pipelinehealer/codex-handoff-*` branch (when enabled),
+4. records `started_work`, `pr_opened`, `completed`, or `failed` events on the handoff session, so progress is visible from the activity timeline and audit trail (mode `local`).
+
+Settings:
+- `AGENT_HANDOFF_LOCAL_CODEX_ENABLED=false` master switch; requires `AGENT_HANDOFF_ENABLED=true`
+- `AGENT_HANDOFF_LOCAL_CODEX_OPEN_PR=true` publish changes as a pull request
+- `AGENT_HANDOFF_LOCAL_CODEX_TIMEOUT_MS=600000` turn timeout (60s to 1h)
+- `AGENT_HANDOFF_LOCAL_CODEX_WORKSPACE_ROOT=` clone location (system temp when empty)
+- `AGENT_HANDOFF_LOCAL_MAX_CONCURRENT=1` concurrent local executions (1 to 4)
+- `AGENT_HANDOFF_AUTO_LOCAL=false` automatically create a local session when remediation fails
+
+Precedence and scope:
+- A configured `CODEX_APP_SERVER_HANDOFF_URL` (or legacy `AGENT_HANDOFF_WEBHOOK_URL`) always wins; local execution only serves sessions with no remote receiver.
+- Local execution requires `git` and the `codex` CLI on the backend host, plus a GitHub token with contents and pull-request write access for publishing.
+- The agent turn runs with `sandboxPolicy=workspaceWrite` and no network access; only the clone and the PR publish use the network, and both happen outside the agent sandbox.
+- Workspace-write turns run with a sanitized subprocess environment: backend and provider secrets (GitHub tokens, Azure keys, `OPENAI_API_KEY`, Infisical tokens, admin keys) are not forwarded. The `codex` CLI must be authenticated through its own credential store (`codex login`); API-key-only codex auth is not supported for local handoff execution.
+- Deletions and binary files are not published automatically; they are listed in the PR body and completion event instead.
 
 ## Diagnosis Contract Enforcement
 

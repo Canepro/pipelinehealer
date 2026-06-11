@@ -1,6 +1,6 @@
 # Future Plan (Versioned Roadmap)
 
-<!-- LAST_VERIFIED: 4055ae3 -->
+<!-- LAST_VERIFIED: 42e442f -->
 
 This roadmap is version-driven. Backlog work is planned against target releases, not ad-hoc phases.
 
@@ -99,6 +99,7 @@ Delivered baseline in this workstream:
 - `LLM_PROVIDER=codex_app_server` as a separate model-runtime route
 - `SETTINGS_SECRET_BACKEND=infisical` plus a redacted migration helper
 - ACA deploy helpers that read Infisical-injected process env and write sensitive values as Container App secret refs
+- local Codex runtime-lane execution for handoff sessions (`v0.9.0`): workspace clone, workspace-write agent turn, PR publishing, session events, and optional auto-handoff when remediation fails
 
 Direction update:
 
@@ -110,7 +111,7 @@ Direction update:
 
 Next slices:
 
-1. Promote Codex App Server from model route to first-class runtime/remediation lane with explicit capabilities: diagnose, patch, open PR, comment, label, rerun, merge-when-clean, and escalate.
+1. Promote Codex App Server from model route to first-class runtime/remediation lane with explicit capabilities: diagnose, patch, open PR, comment, label, rerun, merge-when-clean, and escalate. (Partially delivered in `v0.9.0`: patch, open PR, and session events ship via local handoff execution; comment, label, rerun, merge-when-clean, and escalate remain.)
 2. Add Control Center readiness panels for runtime lanes, skill packs, callback-signature status, MCP availability, and token-budget behavior.
 3. Add GitHub verification workers that confirm reported PRs, comments, labels, and reruns from GitHub directly.
 4. Add the PipelineHealer MCP server with read/context/reporting tools first, then guarded write tools behind policy.

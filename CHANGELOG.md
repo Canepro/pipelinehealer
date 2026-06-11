@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 4641044 -->
+<!-- LAST_VERIFIED: 17e4893 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -8,7 +8,58 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Added
+
+- Local Codex App Server handoff execution: handoff sessions targeting
+  `codex_app_server` with no remote receiver URL now run on the in-built
+  runtime. The executor clones the failing repository, runs one
+  workspace-write Codex turn, publishes changes as a pull request on a
+  `pipelinehealer/codex-handoff-*` branch, and records `started_work`,
+  `pr_opened`, `completed`, or `failed` events on the session plus
+  `local`-mode audit entries on the activity (`4c340bf`).
+- Optional auto-handoff: `AGENT_HANDOFF_AUTO_LOCAL=true` creates a local
+  Codex handoff session automatically when remediation fails, on both the
+  GitHub Actions and Jenkins bridge pipelines, deduplicated per activity.
+- New runtime settings, editable from the Settings page:
+  `AGENT_HANDOFF_LOCAL_CODEX_ENABLED`, `AGENT_HANDOFF_LOCAL_CODEX_OPEN_PR`,
+  `AGENT_HANDOFF_LOCAL_CODEX_TIMEOUT_MS`,
+  `AGENT_HANDOFF_LOCAL_CODEX_WORKSPACE_ROOT`,
+  `AGENT_HANDOFF_LOCAL_MAX_CONCURRENT`, and `AGENT_HANDOFF_AUTO_LOCAL`.
+  All default to off or safe values.
+- Agentic turn support in the Codex App Server adapter (`run_agentic`) with
+  per-turn sandbox mode, working directory, and timeout. The existing
+  diagnosis/remediation path keeps its read-only sandbox.
+- Settings UI section "Local Codex Execution" under Assign-to-Agent, and a
+  Codex target status chip that reports "Local execution" when the local
+  lane is active.
+
+### Changed
+
+- A configured `CODEX_APP_SERVER_HANDOFF_URL` (or legacy webhook URL) still
+  takes precedence; local execution only serves sessions with no remote
+  receiver. The agent handoff config API now reports `local_codex_enabled`.
+- The backend container image now includes `git`, required for local handoff
+  workspace clones. The `codex` CLI is not bundled; local execution also
+  requires it on the backend host (or a loopback Codex App Server).
+- Local execution refuses to run against a non-loopback WebSocket Codex App
+  Server, since the remote runtime cannot see the backend's workspace
+  filesystem.
+- Workspace-write Codex turns run with a sanitized subprocess environment and
+  token-free clone URLs: backend and provider secrets (GitHub tokens, Azure
+  keys, `OPENAI_API_KEY`, Infisical tokens, admin keys) are not readable by
+  the agent turn. The codex CLI authenticates via its own `codex login`
+  credential store (`42e442f`, `fb65221`, `42654fb`).
+- Local Codex handoff publishing skips symlinked files and verifies collected
+  paths stay inside the cloned repository before reading file content
+  (`17e4893`).
+- Addressed PR review findings for remote handoff precedence, failing-branch
+  selection, fork-PR retarget visibility, enabled-target gating, and refreshed
+  doc verification markers (`7986ebc`, `9ce45df`, `bea51f1`).
+- Recorded post-v0.8.10 merged work already on `main`: codex runtime roadmap
+  and log-compaction docs (`4019f4b`, `f4755fa`), artifact lifecycle hygiene
+  (`c5d6835`, `87f0798`, `357ad13`, `32641b6`, `d3b3d1a`, `2d6891b`), legacy
+  lifecycle-marker backfill (`0a895fd`, `c0efbc5`, `43a4e1c`, `69b7b36`), and
+  the Mac-lane local deploy handoff script (`dd639f9`, `1b0b737`).
 
 ## [v0.8.10] - 2026-05-31
 
