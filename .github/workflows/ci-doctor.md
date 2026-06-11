@@ -36,8 +36,6 @@ safe-outputs:
     run-success: "🩺 Examination complete! [{workflow_name}]({run_url}) has delivered the diagnosis. Prescription issued! 💊"
     run-failure: "🏥 Medical emergency! [{workflow_name}]({run_url}) {status}. Doctor needs assistance..."
 
-imports:
-  - github/gh-aw/.github/workflows/shared/otlp.md@867cc5ed443e258785cfeaadb2f5189743ba1bb3
 tools:
   cli-proxy: true
   cache-memory: true

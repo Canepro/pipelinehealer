@@ -29,7 +29,6 @@ tools:
   edit:
 imports:
   - github/gh-aw/.github/workflows/shared/reporting.md@867cc5ed443e258785cfeaadb2f5189743ba1bb3
-  - github/gh-aw/.github/workflows/shared/otlp.md@867cc5ed443e258785cfeaadb2f5189743ba1bb3
 safe-outputs:
   create-issue:
     expires: 2d

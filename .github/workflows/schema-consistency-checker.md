@@ -7,8 +7,6 @@ permissions:
   discussions: read
   issues: read
   pull-requests: read
-imports:
-- github/gh-aw/.github/workflows/shared/otlp.md@867cc5ed443e258785cfeaadb2f5189743ba1bb3
 checkout:
 - current: true
   fetch-depth: 1
