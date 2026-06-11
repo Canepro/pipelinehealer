@@ -107,23 +107,23 @@ const SETTINGS_SECTION_OPTIONS: Array<{
 }> = [
   {
     value: "runtime",
-    label: "1. Runtime Controls",
+    label: "1. Runtime controls",
     summary:
-      "Runtime Controls: set remediation behavior, repo scope, and operation mode first.",
+      "Set remediation behavior, repo scope, and operation mode first.",
     Icon: Zap,
   },
   {
     value: "intelligence",
-    label: "2. AI & Integrations",
+    label: "2. AI & integrations",
     summary:
-      "AI & Integrations: configure model providers, handoff, external diagnostics, and MCP policies.",
+      "Configure model providers, handoff, external diagnostics, and MCP policies.",
     Icon: Sparkles,
   },
   {
     value: "security",
-    label: "3. Security & Advanced",
+    label: "3. Security & advanced",
     summary:
-      "Security & Advanced: adjust auth posture, retries, limits, and low-level safeguards.",
+      "Adjust auth posture, retries, limits, and low-level safeguards.",
     Icon: Shield,
   },
 ];
@@ -745,7 +745,7 @@ export default function AdminControlsForm({
             <CardHeader className="pb-4">
               <div className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-[var(--ph-accent)]" />
-                <CardTitle>Healing Behavior</CardTitle>
+                <CardTitle>Healing behavior</CardTitle>
               </div>
               <p className="text-sm text-[var(--ph-muted)]">
                 Controls how PipelineHealer responds to pipeline failures.
@@ -1358,7 +1358,7 @@ export default function AdminControlsForm({
             <CardHeader className="pb-4">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-[var(--ph-accent)]" />
-                <CardTitle>AI Configuration</CardTitle>
+                <CardTitle>AI configuration</CardTitle>
               </div>
               <p className="text-sm text-[var(--ph-muted)]">
                 Configure model provider and deployment for log analysis and
@@ -2404,7 +2404,7 @@ export default function AdminControlsForm({
             <CardHeader className="pb-4">
               <div className="flex items-center gap-2">
                 <Wrench className="h-5 w-5 text-[var(--ph-accent)]" />
-                <CardTitle>MCP Integration (Preview)</CardTitle>
+                <CardTitle>MCP integration (preview)</CardTitle>
               </div>
               <p className="text-sm text-[var(--ph-muted)]">
                 Foundation controls for provider-agnostic MCP tool integration.
@@ -2798,7 +2798,7 @@ export default function AdminControlsForm({
             <CardHeader className="pb-4">
               <div className="flex items-center gap-2">
                 <Shield className="h-5 w-5 text-[var(--ph-accent)]" />
-                <CardTitle>Repository Scope</CardTitle>
+                <CardTitle>Repository scope</CardTitle>
               </div>
               <p className="text-sm text-[var(--ph-muted)]">
                 {SETTING_DESCRIPTIONS.ph_allowed_repos}
@@ -2878,7 +2878,7 @@ export default function AdminControlsForm({
             <CardHeader className="pb-4">
               <div className="flex items-center gap-2">
                 <Wrench className="h-5 w-5 text-[var(--ph-accent)]" />
-                <CardTitle>External Diagnostics</CardTitle>
+                <CardTitle>External diagnostics</CardTitle>
               </div>
               <p className="text-sm text-[var(--ph-muted)]">
                 GitHub Agentic Workflows integration for enhanced CI failure

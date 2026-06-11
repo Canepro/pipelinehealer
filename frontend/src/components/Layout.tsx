@@ -144,10 +144,10 @@ export default function Layout() {
 
           <div className="border-t border-[var(--ph-border-subtle)] px-5 py-4">
             <p className="text-xs font-medium text-[var(--ph-text)]">
-              OSS-first pipeline platform
+              Open-source pipeline remediation
             </p>
             <p className="mt-1 text-xs text-[var(--ph-muted)]">
-              GitHub Actions and Jenkins bridge today.
+              GitHub Actions and Jenkins bridge.
             </p>
             <div className="mt-3 border-t border-[var(--ph-border-subtle)] pt-3">
               <ReleaseStatus />

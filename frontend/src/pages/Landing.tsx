@@ -100,7 +100,7 @@ export default function Landing() {
               </a>
             </Button>
             <Button asChild size="sm">
-              <Link to="/app">Open App</Link>
+              <Link to="/app">Open control plane</Link>
             </Button>
           </div>
         </div>
@@ -116,8 +116,8 @@ export default function Landing() {
                 CI/CD failure control, remediation, and proof
               </div>
               <div className="space-y-4">
-                <h1 className="max-w-4xl break-words text-4xl font-semibold leading-[1.02] min-[360px]:text-5xl sm:text-6xl lg:text-7xl">
-                  PipelineHealer
+                <h1 className="max-w-4xl break-words text-4xl font-semibold leading-[1.05] min-[360px]:text-5xl sm:text-6xl">
+                  Failed pipelines, fixed under policy
                 </h1>
                 <p className="max-w-3xl text-lg leading-8 text-[var(--ph-muted)] sm:text-xl">
                   PipelineHealer watches failed CI/CD runs, diagnoses the
@@ -271,8 +271,8 @@ export default function Landing() {
                 text="See failure mix, recent activity, safety gates, and system posture at a glance."
               />
               <SurfaceRow
-                title="Activity Detail"
-                text="Trace diagnosis, remediation, handoff messages, external diagnostics, and verification on one incident."
+                title="Activities"
+                text="Trace diagnosis, remediation, handoff messages, external diagnostics, and verification on each incident."
               />
               <SurfaceRow
                 title="Settings"
@@ -296,7 +296,7 @@ export default function Landing() {
               <PrincipleRow text="Fix when evidence and policy allow it." />
               <PrincipleRow text="Fall back to a review issue when confidence is weak." />
               <PrincipleRow text="Keep external agent work attached to the PipelineHealer record." />
-              <PrincipleRow text="Treat Azure as the reference deployment, not the product boundary." />
+              <PrincipleRow text="Run on a provider-neutral core; Azure is the reference deployment, not a dependency." />
             </CardContent>
           </Card>
         </section>
@@ -309,10 +309,6 @@ function HeroBackdrop() {
   return (
     <div aria-hidden className="absolute inset-0">
       <div className="absolute inset-0 opacity-[0.09] [background-image:linear-gradient(var(--ph-border)_1px,transparent_1px),linear-gradient(90deg,var(--ph-border)_1px,transparent_1px)] [background-size:48px_48px]" />
-      <div className="absolute left-[6%] top-16 hidden h-20 w-52 rounded-lg border border-[var(--ph-border)] bg-[var(--ph-surface)]/68 shadow-[var(--ph-shadow-md)] md:block" />
-      <div className="absolute bottom-20 right-[8%] hidden h-24 w-64 rounded-lg border border-[var(--ph-border)] bg-[var(--ph-surface)]/72 shadow-[var(--ph-shadow-md)] lg:block" />
-      <div className="absolute right-[24%] top-28 hidden h-3 w-28 rounded-full bg-[var(--ph-accent-soft)] lg:block" />
-      <div className="absolute bottom-36 left-[24%] hidden h-3 w-36 rounded-full bg-[var(--ph-success-bg)] md:block" />
     </div>
   );
 }

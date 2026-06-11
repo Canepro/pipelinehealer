@@ -688,6 +688,7 @@ export default function ControlCenterPage() {
   const isApiAuthReady = useApiAuthReady();
   const [adminKeyInput, setAdminKeyInput] = useState("");
   const [adminKey, setAdminKey] = useState("");
+  const [showAuthPanel, setShowAuthPanel] = useState(false);
   const [useSessionAuth, setUseSessionAuth] = useState(false);
   const [activeSection, setActiveSection] =
     useState<ControlCenterSection>("overview");
@@ -1105,11 +1106,34 @@ export default function ControlCenterPage() {
         </div>
       </div>
 
+      {settings && !showAuthPanel ? (
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div className="flex items-center gap-2 text-sm">
+              <KeyRound className="h-4 w-4 text-[var(--ph-accent)]" />
+              <span className="font-medium text-[var(--ph-text)]">
+                Admin access active
+              </span>
+              <span className="text-[var(--ph-muted)]">
+                via {sessionAuthActive ? "Entra session" : "admin key"} ·
+                read-only page
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAuthPanel(true)}
+            >
+              Change credentials
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
       <Card>
         <CardHeader className="pb-4">
           <div className="flex items-center gap-2">
             <KeyRound className="h-5 w-5 text-[var(--ph-accent)]" />
-            <CardTitle>Admin Access</CardTitle>
+            <CardTitle>Admin access</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
@@ -1171,16 +1195,16 @@ export default function ControlCenterPage() {
               </>
             ) : (
               <>
-                Session login is disabled in this deployment (
-                <code className="font-mono">VITE_AUTH_MODE=none</code>). Use{" "}
-                <code className="font-mono">X-Admin-Key</code> or set{" "}
-                <code className="font-mono">VITE_AUTH_MODE=entra</code> in
-                frontend runtime env and redeploy env.
+                Session sign-in is disabled in this deployment. Authenticate
+                with the admin key, or enable Entra sign-in in the frontend
+                runtime configuration (
+                <code className="font-mono">VITE_AUTH_MODE=entra</code>).
               </>
             )}
           </p>
         </CardContent>
       </Card>
+      )}
 
       {sessionBootstrapPending && (
         <Card>
@@ -1250,10 +1274,10 @@ export default function ControlCenterPage() {
               >
                 <TabsList className="inline-flex h-auto min-h-0 w-full flex-wrap gap-1 rounded-lg border border-[var(--ph-border-subtle)] bg-[var(--ph-bg-elevated)]/40 p-1 sm:w-auto">
                   {[
-                    { value: "overview", label: "Governance Overview" },
-                    { value: "learning_ops", label: "Learning & Ops" },
-                    { value: "trust_ops", label: "Trust Ops" },
-                    { value: "audit", label: "Audit & Trace" },
+                    { value: "overview", label: "Governance" },
+                    { value: "learning_ops", label: "Learning" },
+                    { value: "trust_ops", label: "Trust" },
+                    { value: "audit", label: "Audit" },
                   ].map((tab) => (
                     <TabsTrigger
                       key={tab.value}
@@ -1267,13 +1291,13 @@ export default function ControlCenterPage() {
               </Tabs>
               <p className="mt-3 text-sm text-[var(--ph-muted)]">
                 {activeSection === "overview" &&
-                  "Overview: runtime posture, policy impact, model routing, and MCP policy effect."}
+                  "Runtime posture, policy impact, model routing, and MCP policy effect."}
                 {activeSection === "learning_ops" &&
-                  "Learning & Ops: candidate governance actions, readiness evidence, and investigation runbooks."}
+                  "Candidate governance actions, readiness evidence, and investigation runbooks."}
                 {activeSection === "trust_ops" &&
-                  "Trust Ops: operator review queue and compact trust metrics derived from recent activity and guided runs."}
+                  "Operator review queue and trust metrics derived from recent activity and guided runs."}
                 {activeSection === "audit" &&
-                  "Audit & Trace: recent settings changes with actor and request-id traceability."}
+                  "Recent settings changes with actor and request-id traceability."}
               </p>
             </CardContent>
           </Card>
@@ -1646,10 +1670,10 @@ export default function ControlCenterPage() {
                   </CardHeader>
                   <CardContent className="flex flex-wrap gap-2">
                     <Button asChild size="sm">
-                      <Link to="/app/settings">Open Settings</Link>
+                      <Link to="/app/settings">Open settings</Link>
                     </Button>
                     <Button asChild size="sm" variant="secondary">
-                      <Link to="/app/activities">Review Activities</Link>
+                      <Link to="/app/activities">Review activities</Link>
                     </Button>
                   </CardContent>
                 </Card>
@@ -2142,7 +2166,7 @@ export default function ControlCenterPage() {
                 onLoad={() => {
                   void refetchAudit();
                 }}
-                title="Audit Timeline"
+                title="Audit timeline"
                 description="Recent settings changes with actor and request trace. Use this as the primary governance feed."
                 defaultVisibleCount={5}
                 pageSize={5}
@@ -2152,15 +2176,15 @@ export default function ControlCenterPage() {
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <ScrollText className="h-4 w-4 text-[var(--ph-accent)]" />
-                    Next Actions
+                    Next actions
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
                   <Button asChild size="sm">
-                    <Link to="/app/settings">Open Settings</Link>
+                    <Link to="/app/settings">Open settings</Link>
                   </Button>
                   <Button asChild size="sm" variant="secondary">
-                    <Link to="/app/activities">Review Activities</Link>
+                    <Link to="/app/activities">Review activities</Link>
                   </Button>
                 </CardContent>
               </Card>
