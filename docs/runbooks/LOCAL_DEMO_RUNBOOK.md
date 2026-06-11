@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 42e442f -->
+<!-- LAST_VERIFIED: b619406 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -260,7 +260,7 @@ Testing local Codex handoff on this machine:
 2. For a dry run that records changes without opening a PR, set `AGENT_HANDOFF_LOCAL_CODEX_OPEN_PR=false`.
 3. Open a failed activity, create a handoff session targeting Codex App Server with `send=true`, and watch the session timeline: `started_work`, then `pr_opened` and/or `completed` (or `failed` with the scrubbed error).
 4. To test auto-delegation, also set `AGENT_HANDOFF_AUTO_LOCAL=true` and let a remediation fail; one session per activity is created by `auto:orchestrator`.
-5. Local execution requires the `codex` CLI and `git` on this host and a GitHub token with contents and pull-request write access. With WebSocket transport, the Codex App Server must be loopback so it can see the cloned workspace.
+5. Local execution requires the `codex` CLI and `git` on this host, a GitHub token with contents and pull-request write access, and `CODEX_APP_SERVER_TRANSPORT=stdio`. WebSocket transport is rejected for local handoff execution because the backend cannot sanitize an already-running WebSocket server environment before handing it an untrusted workspace.
 
 Settings UI note:
 - Runtime policy now includes remediation PR auto-merge. The `merge_when_clean` strategy polls the generated PR head and merges only after GitHub reports the PR mergeable and checks are clean; `github_auto_merge` asks GitHub to manage the merge after branch requirements pass.

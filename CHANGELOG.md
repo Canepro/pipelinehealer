@@ -1,6 +1,6 @@
 # Changelog
 
-<!-- LAST_VERIFIED: 17e4893 -->
+<!-- LAST_VERIFIED: b619406 -->
 
 All notable changes to this project will be documented in this file.
 
@@ -40,10 +40,10 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
   receiver. The agent handoff config API now reports `local_codex_enabled`.
 - The backend container image now includes `git`, required for local handoff
   workspace clones. The `codex` CLI is not bundled; local execution also
-  requires it on the backend host (or a loopback Codex App Server).
-- Local execution refuses to run against a non-loopback WebSocket Codex App
-  Server, since the remote runtime cannot see the backend's workspace
-  filesystem.
+  requires it on the backend host with stdio transport.
+- Local execution refuses WebSocket Codex App Server transport for handoff
+  turns because the backend cannot sanitize an already-running WebSocket server
+  environment before handing it an untrusted workspace (`b619406`).
 - Workspace-write Codex turns run with a sanitized subprocess environment and
   token-free clone URLs: backend and provider secrets (GitHub tokens, Azure
   keys, `OPENAI_API_KEY`, Infisical tokens, admin keys) are not readable by
@@ -55,6 +55,8 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 - Addressed PR review findings for remote handoff precedence, failing-branch
   selection, fork-PR retarget visibility, enabled-target gating, and refreshed
   doc verification markers (`7986ebc`, `9ce45df`, `bea51f1`).
+- Merged the local Codex handoff PR and backfilled its release-scope changelog
+  references (`83b9789`, `765ccb0`).
 - Recorded post-v0.8.10 merged work already on `main`: codex runtime roadmap
   and log-compaction docs (`4019f4b`, `f4755fa`), artifact lifecycle hygiene
   (`c5d6835`, `87f0798`, `357ad13`, `32641b6`, `d3b3d1a`, `2d6891b`), legacy
