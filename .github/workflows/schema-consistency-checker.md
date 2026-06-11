@@ -126,7 +126,6 @@ tools:
     key: schema-consistency-cache-${{ github.workflow }}
   edit: null
   github:
-    mode: gh-proxy
     toolsets:
     - default
     - discussions

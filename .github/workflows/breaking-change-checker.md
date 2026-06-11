@@ -16,7 +16,6 @@ engine:
 tracker-id: breaking-change-checker
 tools:
   github:
-    mode: gh-proxy
     toolsets: [repos]
   bash:
     - "git diff:*"

@@ -40,7 +40,6 @@ tools:
   cache-memory: true
   web-fetch:
   github:
-    mode: gh-proxy
     toolsets: [default, actions]  # default: context, repos, issues, pull_requests; actions: workflow logs and artifacts
 
 timeout-minutes: 20
