@@ -69,9 +69,13 @@ def local_codex_execution_available(settings: Any) -> bool:
     """Return whether local Codex execution may serve codex_app_server sessions.
 
     Any configured remote receiver wins, including the legacy webhook URL that
-    _target_handoff_url falls back to for the codex_app_server target.
+    _target_handoff_url falls back to for the codex_app_server target. The
+    transport must also support local workspace execution; otherwise sessions
+    would queue only to fail the same check in the executor.
     """
     if not bool(getattr(settings, "agent_handoff_local_codex_enabled", False)):
+        return False
+    if not _transport_supports_local_workspace(settings):
         return False
     remote_url = (
         str(getattr(settings, "codex_app_server_handoff_url", "") or "").strip()
@@ -245,12 +249,17 @@ class _ChangeSet:
         return bool(self.upserts or self.deleted or self.skipped)
 
 
-def _check_transport_supports_local_workspace(settings: Any) -> None:
-    """Reject transports this process cannot confine for untrusted workspaces."""
+def _transport_supports_local_workspace(settings: Any) -> bool:
+    """Return whether the transport can confine untrusted workspace execution."""
     transport = str(
         getattr(settings, "codex_app_server_transport", "stdio") or "stdio"
     ).strip().lower()
-    if transport != "websocket":
+    return transport != "websocket"
+
+
+def _check_transport_supports_local_workspace(settings: Any) -> None:
+    """Reject transports this process cannot confine for untrusted workspaces."""
+    if _transport_supports_local_workspace(settings):
         return
     raise RuntimeError(
         "Local Codex handoff execution requires stdio transport so the "
