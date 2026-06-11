@@ -39,6 +39,7 @@ export default function SettingsPage() {
   const isApiAuthReady = useApiAuthReady();
   const [adminKeyInput, setAdminKeyInput] = useState("");
   const [adminKey, setAdminKey] = useState("");
+  const [showAuthPanel, setShowAuthPanel] = useState(false);
   const [adminKeyScopeId, setAdminKeyScopeId] = useState<number | null>(null);
   const [useSessionAuth, setUseSessionAuth] = useState(false);
   const [newMcpRepoInput, setNewMcpRepoInput] = useState("");
@@ -480,11 +481,33 @@ export default function SettingsPage() {
       </div>
 
       {/* Admin access */}
+      {data && !showAuthPanel ? (
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div className="flex items-center gap-2 text-sm">
+              <KeyRound className="h-4 w-4 text-[var(--ph-accent)]" />
+              <span className="font-medium text-[var(--ph-text)]">
+                Admin access active
+              </span>
+              <span className="text-[var(--ph-muted)]">
+                via {sessionAuthActive ? "Entra session" : "admin key"}
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAuthPanel(true)}
+            >
+              Change credentials
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
       <Card>
         <CardHeader className="pb-4">
           <div className="flex items-center gap-2">
             <KeyRound className="h-5 w-5 text-[var(--ph-accent)]" />
-            <CardTitle>Admin Access</CardTitle>
+            <CardTitle>Admin access</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
@@ -545,17 +568,16 @@ export default function SettingsPage() {
               </>
             ) : (
               <>
-                Session login is disabled in this deployment (
-                <code className="font-mono">VITE_AUTH_MODE=none</code>). Use{" "}
-                <code className="font-mono">X-Admin-Key</code> or set frontend
-                runtime{" "}
-                <code className="font-mono">VITE_ENTRA_*</code> values and
-                redeploy env.
+                Session sign-in is disabled in this deployment. Authenticate
+                with the admin key, or enable Entra sign-in in the frontend
+                runtime configuration (
+                <code className="font-mono">VITE_AUTH_MODE=entra</code>).
               </>
             )}
           </p>
         </CardContent>
       </Card>
+      )}
 
       {sessionBootstrapPending && (
         <Card>
@@ -613,6 +635,36 @@ export default function SettingsPage() {
         <>
           <RuntimePolicyBanner data={data} />
 
+          <AdminControlsForm
+            data={data}
+            form={form}
+            setForm={setForm}
+            llmProviderHealth={llmProviderHealth}
+            isLlmHealthLoading={isLlmHealthLoading}
+            isLlmHealthError={isLlmHealthError}
+            llmHealthError={llmHealthError}
+            mcpProviderHealth={mcpProviderHealth}
+            isMcpHealthLoading={isMcpHealthLoading}
+            isMcpHealthError={isMcpHealthError}
+            mcpHealthError={mcpHealthError}
+            llmCapabilitySummary={llmCapabilitySummary}
+            hasUnsavedChanges={hasUnsavedChanges}
+            newRepoInput={newRepoInput}
+            setNewRepoInput={setNewRepoInput}
+            newMcpRepoInput={newMcpRepoInput}
+            setNewMcpRepoInput={setNewMcpRepoInput}
+            newHandoffHostInput={newHandoffHostInput}
+            setNewHandoffHostInput={setNewHandoffHostInput}
+            setGhAwWorkflowsInput={setGhAwWorkflowsInput}
+            setLastSavedForm={setLastSavedForm}
+            savePending={saveMutation.isPending}
+            saveError={
+              saveMutation.isError ? (saveMutation.error as Error) : null
+            }
+            saveSuccess={saveMutation.isSuccess}
+            onSave={handleSaveSettings}
+          />
+
           <div className="grid gap-4 xl:grid-cols-[minmax(0,340px)_minmax(0,1fr)] xl:items-start">
             <SetupChecklistCard status={data.setup_status} />
             <SecretSettingsCard
@@ -627,21 +679,6 @@ export default function SettingsPage() {
             />
           </div>
 
-          <Card>
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-              <p className="text-sm text-[var(--ph-muted)]">
-                Runtime settings save immediately to durable storage. Environment values now act as explicit startup overrides.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button asChild size="sm" variant="secondary">
-                  <Link to="/app/control-center">Open Control Center</Link>
-                </Button>
-                <Button asChild size="sm" variant="ghost">
-                  <Link to="/app/activities">Review Activities</Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_360px] xl:items-stretch">
             <div className="space-y-4">
               <RuntimeWiringCard form={form} setForm={setForm} data={data} />
@@ -842,7 +879,8 @@ export default function SettingsPage() {
                         1. Authenticate and confirm the current runtime posture.
                       </li>
                       <li>
-                        2. Change mutable controls in the section tabs below.
+                        2. Change controls in the section tabs at the top of
+                        this page.
                       </li>
                       <li>
                         3. Save once to apply and persist runtime changes.
@@ -858,35 +896,22 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <AdminControlsForm
-            data={data}
-            form={form}
-            setForm={setForm}
-            llmProviderHealth={llmProviderHealth}
-            isLlmHealthLoading={isLlmHealthLoading}
-            isLlmHealthError={isLlmHealthError}
-            llmHealthError={llmHealthError}
-            mcpProviderHealth={mcpProviderHealth}
-            isMcpHealthLoading={isMcpHealthLoading}
-            isMcpHealthError={isMcpHealthError}
-            mcpHealthError={mcpHealthError}
-            llmCapabilitySummary={llmCapabilitySummary}
-            hasUnsavedChanges={hasUnsavedChanges}
-            newRepoInput={newRepoInput}
-            setNewRepoInput={setNewRepoInput}
-            newMcpRepoInput={newMcpRepoInput}
-            setNewMcpRepoInput={setNewMcpRepoInput}
-            newHandoffHostInput={newHandoffHostInput}
-            setNewHandoffHostInput={setNewHandoffHostInput}
-            setGhAwWorkflowsInput={setGhAwWorkflowsInput}
-            setLastSavedForm={setLastSavedForm}
-            savePending={saveMutation.isPending}
-            saveError={
-              saveMutation.isError ? (saveMutation.error as Error) : null
-            }
-            saveSuccess={saveMutation.isSuccess}
-            onSave={handleSaveSettings}
-          />
+          <Card>
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+              <p className="text-sm text-[var(--ph-muted)]">
+                Runtime settings save immediately to durable storage.
+                Environment values act as explicit startup overrides.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="secondary">
+                  <Link to="/app/control-center">Open Control Center</Link>
+                </Button>
+                <Button asChild size="sm" variant="ghost">
+                  <Link to="/app/activities">Review activities</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

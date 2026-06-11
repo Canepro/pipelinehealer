@@ -341,6 +341,12 @@ export default function Dashboard() {
     : "Unavailable";
 
   const showStatsLoading = statsLoading && !statsError;
+  const isColdStart =
+    !statsLoading &&
+    !statsError &&
+    !activitiesLoading &&
+    (stats?.total_runs_processed ?? 0) === 0 &&
+    (activities?.length ?? 0) === 0;
   const statsErrorMessage =
     statsError && statsErrorValue instanceof Error
       ? statsErrorValue.message
@@ -370,7 +376,7 @@ export default function Dashboard() {
           </div>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-[var(--ph-text)]">
-              Pipeline Reliability Dashboard
+              Dashboard
             </h1>
             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-[var(--ph-muted)]">
               Remediation throughput, safety posture, and external diagnostic
@@ -379,7 +385,7 @@ export default function Dashboard() {
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Button asChild size="sm">
                 <Link to="/app/activities">
-                  Review Activities
+                  Review activities
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
@@ -387,7 +393,7 @@ export default function Dashboard() {
                 <Link to="/app/control-center">Control Center</Link>
               </Button>
               <Button asChild size="sm" variant="ghost">
-                <Link to="/app/settings">Runtime Settings</Link>
+                <Link to="/app/settings">Settings</Link>
               </Button>
             </div>
           </div>
@@ -399,6 +405,38 @@ export default function Dashboard() {
           </span>
         </div>
       </div>
+
+      {statsError && (
+        <div className="rounded-lg border border-[var(--ph-warning-border)] bg-[var(--ph-warning-bg)] px-4 py-3 text-sm text-[var(--ph-warning)]">
+          Dashboard stats endpoint is unavailable: {statsErrorMessage}
+        </div>
+      )}
+
+      {isColdStart && (
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-4 py-5">
+            <div className="max-w-2xl">
+              <p className="text-sm font-semibold text-[var(--ph-text)]">
+                {EMPTY_STATES.activities.title}
+              </p>
+              <p className="mt-1 text-sm text-[var(--ph-muted)]">
+                {EMPTY_STATES.activities.body} Point a repository webhook at
+                PipelineHealer, or trigger a failure in the demo repository to
+                see the full healing flow.
+              </p>
+            </div>
+            <Button asChild size="sm" variant="secondary">
+              <a
+                href="https://github.com/Canepro/pipelinehealer-demo"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                Open demo repo
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--ph-muted)]">
@@ -430,13 +468,13 @@ export default function Dashboard() {
               color="success"
             />
             <StatsCard
-              title="Safety Gated"
+              title="Safety gated"
               value={`${stats?.safety_blocked_remediations || 0} (${safetyGatedRate}%)`}
               icon={ShieldAlert}
               color="danger"
             />
             <StatsCard
-              title="Issue-Only"
+              title="Issue-only"
               value={`${stats?.issue_remediations || 0} (${issueRate}%)`}
               icon={FileText}
               color="warning"
@@ -482,57 +520,13 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Why Safety Gated</CardTitle>
-          <p className="text-sm text-[var(--ph-muted)]">
-            We create review-ready proposals when changes touch non-allowlisted
-            paths or require extra context.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3 pt-0">
-          {safetyGateReasonCounts.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {safetyGateReasonCounts.map((item) => (
-                <div
-                  key={item.code}
-                  className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-3 py-2 text-xs text-[var(--ph-text)]"
-                >
-                  <div className="font-semibold">
-                    {formatReasonLabel(item.code)} ({item.count})
-                  </div>
-                  <div className="mt-1 text-[var(--ph-muted)]">
-                    <span className="font-mono">{item.code}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div>
-              <p className="text-sm font-medium text-[var(--ph-text)]">
-                {EMPTY_STATES.safetyGated.title}
-              </p>
-              <p className="mt-1 text-sm text-[var(--ph-muted)]">
-                {EMPTY_STATES.safetyGated.body}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {statsError && (
-        <div className="rounded-lg border border-[var(--ph-warning-border)] bg-[var(--ph-warning-bg)] px-4 py-3 text-sm text-[var(--ph-warning)]">
-          Dashboard stats endpoint is unavailable: {statsErrorMessage}
-        </div>
-      )}
-
       {/* Charts Row */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Failure Types Pie Chart */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
-              Failure Types (Last 30 Days)
+              Failure types (last 30 days)
             </CardTitle>
             <p className="text-sm text-[var(--ph-muted)]">
               Total failures observed:{" "}
@@ -601,17 +595,8 @@ export default function Dashboard() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-[250px] flex-col items-center justify-center gap-3 text-sm text-[var(--ph-muted)]">
-                <p>{EMPTY_STATES.activities.body}</p>
-                <Button asChild size="sm" variant="secondary">
-                  <a
-                    href="https://github.com/Canepro/pipelinehealer-demo"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    Open demo repo
-                  </a>
-                </Button>
+              <div className="flex h-[250px] items-center justify-center text-sm text-[var(--ph-muted)]">
+                <p>No failure data yet.</p>
               </div>
             )}
             {pieData.length > 0 && (
@@ -643,7 +628,7 @@ export default function Dashboard() {
         {/* Top Repositories Bar Chart */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Top Repositories</CardTitle>
+            <CardTitle className="text-base">Top repositories</CardTitle>
             <p className="text-sm text-[var(--ph-muted)]">
               Most active repo:{" "}
               <span className="font-semibold text-[var(--ph-text)]">
@@ -715,17 +700,8 @@ export default function Dashboard() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-[250px] flex-col items-center justify-center gap-3 text-sm text-[var(--ph-muted)]">
-                <p>{EMPTY_STATES.activities.body}</p>
-                <Button asChild size="sm" variant="secondary">
-                  <a
-                    href="https://github.com/Canepro/pipelinehealer-demo"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    Open demo repo
-                  </a>
-                </Button>
+              <div className="flex h-[250px] items-center justify-center text-sm text-[var(--ph-muted)]">
+                <p>No repository data yet.</p>
               </div>
             )}
             {repoData.length > 0 && (
@@ -751,12 +727,50 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Why runs are safety gated</CardTitle>
+          <p className="text-sm text-[var(--ph-muted)]">
+            We create review-ready proposals when changes touch non-allowlisted
+            paths or require extra context.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3 pt-0">
+          {safetyGateReasonCounts.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {safetyGateReasonCounts.map((item) => (
+                <div
+                  key={item.code}
+                  className="rounded-md border border-[var(--ph-border)] bg-[var(--ph-bg-elevated)] px-3 py-2 text-xs text-[var(--ph-text)]"
+                >
+                  <div className="font-semibold">
+                    {formatReasonLabel(item.code)} ({item.count})
+                  </div>
+                  <div className="mt-1 text-[var(--ph-muted)]">
+                    <span className="font-mono">{item.code}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div>
+              <p className="text-sm font-medium text-[var(--ph-text)]">
+                {EMPTY_STATES.safetyGated.title}
+              </p>
+              <p className="mt-1 text-sm text-[var(--ph-muted)]">
+                {EMPTY_STATES.safetyGated.body}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Explainability Snapshot */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <SearchCheck className="h-4 w-4 text-[var(--ph-accent)]" />
-            Explainability Snapshot
+            Explainability snapshot
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -960,7 +974,7 @@ export default function Dashboard() {
       <section className="space-y-4">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[var(--ph-text)]">
-            Recent Activities
+            Recent activities
           </h2>
           <Button asChild size="sm" variant="ghost">
             <Link to="/app/activities">View all</Link>

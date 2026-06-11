@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select'
 
 const statusOptions = [
-  { value: '', label: 'All Statuses' },
+  { value: '', label: 'All statuses' },
   { value: 'completed', label: 'Completed' },
   { value: 'failed', label: 'Failed' },
   { value: 'pending', label: 'Pending' },
@@ -28,11 +28,11 @@ const statusOptions = [
 ]
 
 const failureTypeOptions = [
-  { value: '', label: 'All Types' },
+  { value: '', label: 'All types' },
   { value: 'dependency', label: 'Dependency' },
   { value: 'test', label: 'Test' },
   { value: 'lint', label: 'Lint' },
-  { value: 'build_config', label: 'Build Config' },
+  { value: 'build_config', label: 'Build config' },
   { value: 'timeout', label: 'Timeout' },
 ]
 
@@ -180,7 +180,7 @@ export default function Activities() {
         <div className="flex items-center gap-2">
           {focusedActivityId && (
             <>
-              <Badge variant="secondary">Focused View</Badge>
+              <Badge variant="secondary">Focused view</Badge>
               <Button
                 variant="ghost"
                 size="sm"
@@ -234,7 +234,7 @@ export default function Activities() {
               onValueChange={(value) => updateFilter('status', value === '__all__' ? '' : value)}
             >
               <SelectTrigger className="lg:w-52" aria-label="Filter by status">
-                <SelectValue placeholder="All Statuses" />
+                <SelectValue placeholder="All statuses" />
               </SelectTrigger>
               <SelectContent>
                 {statusOptions.map((option) => (
@@ -251,7 +251,7 @@ export default function Activities() {
               }
             >
               <SelectTrigger className="lg:w-52" aria-label="Filter by failure type">
-                <SelectValue placeholder="All Types" />
+                <SelectValue placeholder="All types" />
               </SelectTrigger>
               <SelectContent>
                 {failureTypeOptions.map((option) => (
