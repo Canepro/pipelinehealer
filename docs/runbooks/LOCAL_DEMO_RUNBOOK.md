@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: b619406 -->
+<!-- LAST_VERIFIED: 5ddcb13 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -823,6 +823,14 @@ bash scripts/ph.sh deploy:env --secure-secrets
 ### Scale To Zero
 
 Azure Container Apps can scale down to 0 instances when idle to save cost. This means the first request after a period of inactivity may be slow (cold start).
+
+The current dev contract is 0.5 vCPU / 1 GiB for the backend and 0.25 vCPU /
+0.5 GiB for the frontend, with `minReplicas=0` on both. A confirmed
+scale-from-zero check returned backend health in 29.829 seconds and the frontend
+in 21.686 seconds. Treat these as one dev observation, not a latency SLO or
+production benchmark. The allowed resource pairs, validation steps, proof
+boundary, and resource-only rollback are in
+[Azure Container Apps Resource Sizing](ACA_RESOURCE_SIZING.md).
 
 ```bash
 bash scripts/ph.sh warm     # keep apps running (before demos)
