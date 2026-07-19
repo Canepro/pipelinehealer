@@ -1,6 +1,6 @@
 # PipelineHealer
 
-<!-- LAST_VERIFIED: 4641044 -->
+<!-- LAST_VERIFIED: 5ddcb13 -->
 
 > Agent control plane for failed delivery pipelines.
 
@@ -145,6 +145,13 @@ Steps:
 ## Azure Container Apps Deploy
 
 The reference deployment uses `scripts/ph.sh`, Azure Container Registry, and Azure Container Apps.
+
+The Bicep reference sizes development at 0.5 vCPU / 1 GiB for the backend and
+0.25 vCPU / 0.5 GiB for the frontend. Production stays at 1 vCPU / 2 GiB for
+the backend and 0.5 vCPU / 1 GiB for the frontend. Both use `minReplicas=0`, so
+idle cost is lower but the first request after scale-to-zero can take tens of
+seconds. See [Azure Container Apps Resource Sizing](docs/runbooks/ACA_RESOURCE_SIZING.md)
+for allowed CPU/memory pairs, validation, cold-start proof, and rollback.
 
 Set your Azure target explicitly. The public CLI does not carry maintainer production names:
 
