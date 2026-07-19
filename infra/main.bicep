@@ -31,6 +31,86 @@ param frontendImageName string = 'pipelinehealer-frontend'
 @description('Image tag for backend/frontend images')
 param imageTag string = 'latest'
 
+@description('Backend Container App resources. Consumption-plan CPU and memory are constrained to supported pairs.')
+@allowed([
+  {
+    cpu: '0.25'
+    memory: '0.5Gi'
+  }
+  {
+    cpu: '0.5'
+    memory: '1Gi'
+  }
+  {
+    cpu: '0.75'
+    memory: '1.5Gi'
+  }
+  {
+    cpu: '1'
+    memory: '2Gi'
+  }
+  {
+    cpu: '1.25'
+    memory: '2.5Gi'
+  }
+  {
+    cpu: '1.5'
+    memory: '3Gi'
+  }
+  {
+    cpu: '1.75'
+    memory: '3.5Gi'
+  }
+  {
+    cpu: '2'
+    memory: '4Gi'
+  }
+])
+param backendResources object = {
+  cpu: '1'
+  memory: '2Gi'
+}
+
+@description('Frontend Container App resources. Consumption-plan CPU and memory are constrained to supported pairs.')
+@allowed([
+  {
+    cpu: '0.25'
+    memory: '0.5Gi'
+  }
+  {
+    cpu: '0.5'
+    memory: '1Gi'
+  }
+  {
+    cpu: '0.75'
+    memory: '1.5Gi'
+  }
+  {
+    cpu: '1'
+    memory: '2Gi'
+  }
+  {
+    cpu: '1.25'
+    memory: '2.5Gi'
+  }
+  {
+    cpu: '1.5'
+    memory: '3Gi'
+  }
+  {
+    cpu: '1.75'
+    memory: '3.5Gi'
+  }
+  {
+    cpu: '2'
+    memory: '4Gi'
+  }
+])
+param frontendResources object = {
+  cpu: '0.5'
+  memory: '1Gi'
+}
+
 @description('Storage backend mode exposed to the backend. Empty keeps the app default: memory in dev, Cosmos DB otherwise.')
 @allowed([
   ''
@@ -452,8 +532,8 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'backend'
           image: backendImage
           resources: {
-            cpu: json('1')
-            memory: '2Gi'
+            cpu: json(backendResources.cpu)
+            memory: backendResources.memory
           }
           env: [
             {
@@ -617,8 +697,8 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'frontend'
           image: frontendImage
           resources: {
-            cpu: json('0.5')
-            memory: '1Gi'
+            cpu: json(frontendResources.cpu)
+            memory: frontendResources.memory
           }
           env: [
             {

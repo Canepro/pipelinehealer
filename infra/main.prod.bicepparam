@@ -10,6 +10,14 @@ param frontendContainerAppName = readEnvironmentVariable('PH_FRONTEND_APP', 'pip
 param backendImageName = 'pipelinehealer-backend'
 param frontendImageName = 'pipelinehealer-frontend'
 param imageTag = readEnvironmentVariable('RELEASE_VERSION', 'latest')
+param backendResources = {
+  cpu: '1'
+  memory: '2Gi'
+}
+param frontendResources = {
+  cpu: '0.5'
+  memory: '1Gi'
+}
 param storageMode = 'cosmos'
 param createCosmosDb = false
 param cosmosDbEndpointOverride = readEnvironmentVariable('COSMOS_DB_ENDPOINT', '')

@@ -10,6 +10,14 @@ param frontendContainerAppName = readEnvironmentVariable('PH_FRONTEND_APP', 'pip
 param backendImageName = 'pipelinehealer-backend'
 param frontendImageName = 'pipelinehealer-frontend'
 param imageTag = 'latest'
+param backendResources = {
+  cpu: '0.5'
+  memory: '1Gi'
+}
+param frontendResources = {
+  cpu: '0.25'
+  memory: '0.5Gi'
+}
 param apiAuthKey = readEnvironmentVariable('API_AUTH_KEY', 'replace_me_api_auth_key')
 param adminApiKey = readEnvironmentVariable('ADMIN_API_KEY', 'replace_me_admin_api_key')
 param githubWebhookSecret = readEnvironmentVariable('GITHUB_WEBHOOK_SECRET', 'replace_me_webhook_secret')
