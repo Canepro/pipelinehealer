@@ -49,6 +49,10 @@ out/
 .env.*.local
 *.local
 
+# Local Infisical link files (contain project ids; never commit)
+.infisical.json
+.infisical.yaml
+
 # Testing
 .coverage
 htmlcov/

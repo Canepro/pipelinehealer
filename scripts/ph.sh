@@ -190,7 +190,7 @@ cmd_init() {
   local skip_env="0"
   local infisical_project_id="${INFISICAL_PROJECT_ID:-}"
   local infisical_environment="${INFISICAL_ENVIRONMENT:-dev}"
-  local infisical_secret_path="${INFISICAL_SECRET_PATH:-/pipelinehealer/dev}"
+  local infisical_secret_path="${INFISICAL_SECRET_PATH:-/personal/pipelinehealer}"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in

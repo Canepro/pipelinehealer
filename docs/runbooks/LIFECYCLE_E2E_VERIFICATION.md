@@ -1,6 +1,6 @@
 # Lifecycle E2E Verification Runbook
 
-<!-- LAST_VERIFIED: 3b278e7 -->
+<!-- LAST_VERIFIED: f80edc2 -->
 
 Use this runbook to prove the **artifact lifecycle loop** on a live deployment after lifecycle-marker backfill:
 
@@ -32,7 +32,7 @@ Run under Infisical so API keys and webhook secrets are injected:
 
 ```bash
 infisical run --env dev --path /personal/pipelinehealer \
-  --projectId 70ae1697-055c-4fc1-ba90-85b25f6bf138 -- \
+  --projectId <infisical-project-id> -- \
   bash scripts/ph.sh demo:lifecycle --repo "$DEMO_REPO" --strict
 ```
 

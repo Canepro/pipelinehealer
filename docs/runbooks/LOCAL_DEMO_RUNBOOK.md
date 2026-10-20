@@ -1,6 +1,6 @@
 # Local Demo Runbook (PipelineHealer)
 
-<!-- LAST_VERIFIED: 5ddcb13 -->
+<!-- LAST_VERIFIED: 0836552 -->
 
 This guide walks you through setting up PipelineHealer locally, triggering CI failures in a demo repo, and verifying the results on the dashboard.
 
@@ -46,20 +46,20 @@ After migration, keep only Infisical metadata in `backend/.env`:
 SETTINGS_SECRET_BACKEND=infisical
 INFISICAL_PROJECT_ID=<infisical-project-id>
 INFISICAL_ENVIRONMENT=dev
-INFISICAL_SECRET_PATH=/pipelinehealer/dev
+INFISICAL_SECRET_PATH=/personal/pipelinehealer
 ```
 
 If bootstrap values such as `API_AUTH_KEY`, `ADMIN_API_KEY`, or `AUDIT_SALT` were migrated too, start local commands through Infisical:
 
 ```bash
-infisical run --env dev --path /pipelinehealer/dev --projectId <infisical-project-id> -- <command>
+infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- <command>
 ```
 
 For Azure Container Apps, use the same process-injection pattern with secret refs:
 
 ```bash
 PH_RG=<resource-group> PH_BACKEND_APP=<backend-app> PH_FRONTEND_APP=<frontend-app> PH_ACR_NAME=<acr-name> \
-infisical run --env dev --path /pipelinehealer/dev --projectId <infisical-project-id> -- \
+infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- \
   bash scripts/ph.sh deploy --secure-secrets
 ```
 
