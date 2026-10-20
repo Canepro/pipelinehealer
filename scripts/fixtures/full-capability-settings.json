@@ -61,7 +61,7 @@
   "jenkins_bridge_max_skew_seconds": 300,
   "jenkins_bridge_replay_ttl_seconds": 600,
   "jenkins_bridge_max_body_bytes": 1048576,
-  "infisical_project_id": "70ae1697-055c-4fc1-ba90-85b25f6bf138",
+  "infisical_project_id": "<infisical-project-id>",
   "infisical_environment": "dev",
   "infisical_secret_path": "/personal/pipelinehealer"
 }

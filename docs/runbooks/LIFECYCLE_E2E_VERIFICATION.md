@@ -32,7 +32,7 @@ Run under Infisical so API keys and webhook secrets are injected:
 
 ```bash
 infisical run --env dev --path /personal/pipelinehealer \
-  --projectId 70ae1697-055c-4fc1-ba90-85b25f6bf138 -- \
+  --projectId <infisical-project-id> -- \
   bash scripts/ph.sh demo:lifecycle --repo "$DEMO_REPO" --strict
 ```
 

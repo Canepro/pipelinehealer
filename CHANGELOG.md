@@ -10,8 +10,9 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ### Changed
 
-- Local Infisical defaults and docs now use secret path `/personal/pipelinehealer`, and `scripts/dev-backend-infisical.sh` starts the backend through `infisical run` using `backend/.env` metadata (no committed Infisical project id).
-- `scripts/dev-backend-infisical.sh` resolves `uvicorn` from `backend/.venv` or `uv run` so Infisical startup works without a global install.
+- Local Infisical defaults and docs now use secret path `/personal/pipelinehealer`, and `scripts/dev-backend-infisical.sh` starts the backend through `infisical run` using `backend/.env` metadata (project id stays in operator env metadata; local Infisical link files are gitignored).
+- `scripts/dev-backend-infisical.sh` resolves `uvicorn` from `backend/.venv` or `uv run`, honors `INFISICAL_CLI_PATH`, and safely parses quoted dotenv metadata.
+- Remaining public examples that still embedded a real Infisical project id now use `<infisical-project-id>` placeholders.
 
 ## [v0.9.0] - 2026-06-11
 

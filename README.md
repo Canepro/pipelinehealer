@@ -90,7 +90,7 @@ INFISICAL_ENVIRONMENT=dev
 INFISICAL_SECRET_PATH=/personal/pipelinehealer
 ```
 
-Link the checkout with `infisical init --project-id <infisical-project-id>` locally, or set Infisical metadata in `backend/.env`. Local runtime secrets for this Mac use `dev` / `/personal/pipelinehealer`.
+Set Infisical metadata in `backend/.env` (or the environment). Do not commit `.infisical.json` / `.infisical.yaml`; those files hold project ids and are gitignored. Local runtime secrets for this Mac use `dev` / `/personal/pipelinehealer`.
 
 Start the backend:
 
