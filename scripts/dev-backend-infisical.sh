@@ -13,6 +13,7 @@ if [[ -f .env ]]; then
   # shellcheck disable=SC1090,SC1091
   source <(python3 - <<'PY'
 from pathlib import Path
+import os
 keep = {
   "INFISICAL_PROJECT_ID",
   "INFISICAL_ENVIRONMENT",
@@ -27,6 +28,8 @@ for line in Path(".env").read_text().splitlines():
     k, v = s.split("=", 1)
     k = k.strip()
     if k not in keep:
+        continue
+    if os.environ.get(k):
         continue
     v = v.strip().strip("'").strip('"')
     # Emit single-quoted assignments so sourced values cannot expand $(...) or $VAR.
