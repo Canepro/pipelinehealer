@@ -146,7 +146,7 @@ Flags:
 | `--auto-fix` | — | Enables PR creation and `merge_when_clean` auto-merge policy in the generated env |
 | `--infisical-project-id` | string | Writes Infisical project metadata only |
 | `--infisical-env` | string | Infisical environment metadata, default `dev` |
-| `--infisical-path` | string | Infisical secret path metadata, default `/pipelinehealer/dev` |
+| `--infisical-path` | string | Infisical secret path metadata, default `/personal/pipelinehealer` |
 | `--force-env` | — | Recreate the env file from the template |
 | `--skip-env` | — | Run checks and print next steps without writing env |
 
@@ -314,9 +314,9 @@ bash scripts/ph.sh status
 Infisical-backed ACA deploys can inject values into the deploy process and keep `backend/.env` value-free:
 
 ```bash
-infisical run --env dev --path /pipelinehealer/dev --projectId <infisical-project-id> -- \
+infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- \
   bash scripts/ph.sh deploy --secure-secrets
-infisical run --env dev --path /pipelinehealer/dev --projectId <infisical-project-id> -- \
+infisical run --env dev --path /personal/pipelinehealer --projectId <infisical-project-id> -- \
   bash scripts/ph.sh deploy:env --secure-secrets
 ```
 

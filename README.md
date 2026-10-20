@@ -85,10 +85,12 @@ Keep only metadata in `backend/.env` after migration:
 
 ```env
 SETTINGS_SECRET_BACKEND=infisical
-INFISICAL_PROJECT_ID=<infisical-project-id>
+INFISICAL_PROJECT_ID=70ae1697-055c-4fc1-ba90-85b25f6bf138
 INFISICAL_ENVIRONMENT=dev
-INFISICAL_SECRET_PATH=/pipelinehealer/dev
+INFISICAL_SECRET_PATH=/personal/pipelinehealer
 ```
+
+This checkout links to Infisical through `.infisical.json` (project `canepro-secrets`). Local runtime secrets for this Mac live at `dev` / `/personal/pipelinehealer`.
 
 Start the backend:
 
@@ -97,7 +99,10 @@ cd backend
 uv venv .venv
 source .venv/bin/activate
 uv pip install -e ".[dev]"
-infisical run --env dev --path /pipelinehealer/dev --projectId <infisical-project-id> -- uvicorn src.main:app --reload --port 8000
+# preferred helper:
+bash ../scripts/dev-backend-infisical.sh
+# equivalent:
+infisical run --env dev --path /personal/pipelinehealer --projectId 70ae1697-055c-4fc1-ba90-85b25f6bf138 -- uvicorn src.main:app --reload --port 8000
 ```
 
 Start the frontend:
@@ -165,7 +170,7 @@ export PH_ACR_NAME=<container-registry-name>
 Recommended Infisical-backed deploy:
 
 ```bash
-infisical run --env dev --path /pipelinehealer/dev --projectId <infisical-project-id> -- \
+infisical run --env dev --path /personal/pipelinehealer --projectId 70ae1697-055c-4fc1-ba90-85b25f6bf138 -- \
   bash scripts/ph.sh deploy --secure-secrets
 ```
 
@@ -174,7 +179,7 @@ If Docker or Podman is not running locally, add `--remote-build` to build the im
 Env-only update:
 
 ```bash
-infisical run --env dev --path /pipelinehealer/dev --projectId <infisical-project-id> -- \
+infisical run --env dev --path /personal/pipelinehealer --projectId 70ae1697-055c-4fc1-ba90-85b25f6bf138 -- \
   bash scripts/ph.sh deploy:env --secure-secrets
 ```
 
