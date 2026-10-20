@@ -10,7 +10,7 @@ cd "$ROOT/backend"
 if [[ -f .env ]]; then
   # Load metadata-only keys without printing values.
   set -a
-  # shellcheck disable=SC1091
+  # shellcheck disable=SC1090,SC1091
   source <(python3 - <<'PY'
 from pathlib import Path
 keep = {
