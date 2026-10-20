@@ -26,9 +26,9 @@ for line in Path(".env").read_text().splitlines():
         continue
     k, v = s.split("=", 1)
     if k in keep:
-        # quote safely for shell
-        vv = v.replace("\\", "\\\\").replace('"', '\\"')
-        print(f'{k}="{vv}"')
+        # Emit single-quoted assignments so sourced values cannot expand $(...) or $VAR.
+        vv = v.replace("'", "'\\''")
+        print(f"{k}='{vv}'")
 PY
 )
   set +a
