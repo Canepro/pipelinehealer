@@ -44,8 +44,11 @@ if [[ -z "$PROJECT_ID" ]]; then
   exit 2
 fi
 
-exec infisical run \
-  --env "$ENV_NAME" \
-  --path "$SECRET_PATH" \
-  --projectId "$PROJECT_ID" \
-  -- uvicorn src.main:app --reload --host 127.0.0.1 --port "$PORT"
+UVICORN_BIN="uvicorn"
+if [[ -x "$ROOT/backend/.venv/bin/uvicorn" ]]; then
+  UVICORN_BIN="$ROOT/backend/.venv/bin/uvicorn"
+elif command -v uv >/dev/null 2>&1; then
+  UVICORN_BIN="uv run uvicorn"
+fi
+
+exec infisical run   --env "$ENV_NAME"   --path "$SECRET_PATH"   --projectId "$PROJECT_ID"   -- $UVICORN_BIN src.main:app --reload --host 127.0.0.1 --port "$PORT"
