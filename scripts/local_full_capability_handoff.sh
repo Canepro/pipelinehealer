@@ -27,7 +27,7 @@ usage() {
   cat <<'EOF'
 Usage:
   infisical run --env dev --path /personal/pipelinehealer \
-    --projectId "$INFISICAL_PROJECT_ID" -- \
+    --projectId <infisical-project-id> -- \
     bash scripts/local_full_capability_handoff.sh
 
 Optional env overrides:
@@ -44,7 +44,6 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-INFISICAL_PROJECT_ID="${INFISICAL_PROJECT_ID:?set INFISICAL_PROJECT_ID}"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then

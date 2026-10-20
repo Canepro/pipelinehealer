@@ -1,6 +1,6 @@
 # Lifecycle E2E Verification Runbook
 
-<!-- LAST_VERIFIED: 3b278e7 -->
+<!-- LAST_VERIFIED: pending -->
 
 Use this runbook to prove the **artifact lifecycle loop** on a live deployment after lifecycle-marker backfill:
 
