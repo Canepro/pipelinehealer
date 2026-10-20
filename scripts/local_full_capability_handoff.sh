@@ -8,7 +8,6 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SETTINGS_FIXTURE="$SCRIPT_DIR/fixtures/full-capability-settings.json"
 
 EXPECTED_COMMIT="${PH_EXPECTED_COMMIT:-69b7b361b4e90218b1b44f4f1aa7a04d8b78133a}"
-INFISICAL_PROJECT_ID="${INFISICAL_PROJECT_ID:?set INFISICAL_PROJECT_ID}"
 INFISICAL_ENVIRONMENT="${INFISICAL_ENVIRONMENT:-dev}"
 INFISICAL_SECRET_PATH="${INFISICAL_SECRET_PATH:-/personal/pipelinehealer}"
 
@@ -44,6 +43,8 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   usage
   exit 0
 fi
+
+INFISICAL_PROJECT_ID="${INFISICAL_PROJECT_ID:?set INFISICAL_PROJECT_ID}"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
