@@ -8,7 +8,9 @@ The format is based on Keep a Changelog and this repo uses Semantic Versioning.
 
 ## [Unreleased]
 
-- _No unreleased entries yet._
+### Changed
+
+- Local Infisical defaults and docs now use secret path `/personal/pipelinehealer`, and `scripts/dev-backend-infisical.sh` starts the backend through `infisical run` using `backend/.env` metadata (no committed Infisical project id).
 
 ## [v0.9.0] - 2026-06-11
 
